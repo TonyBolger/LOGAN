@@ -7,14 +7,28 @@ INC=-I"./src"
 CLI_INC=-I"./cliSrc"
 JNI_INC=-I/usr/lib/jvm/java/include/ -I/usr/lib/jvm/java/include/linux/ -I"./jniSrc" -I"./jniHeaders"
 
-CLI_LIBS := -lrt
+CLI_LIBS = -lrt -lpthread
 
 CLI_OBJS += \
 ./bin/cli/common/graph.o \
+./bin/cli/common/log.o \
+./bin/cli/common/mem.o \
+./bin/cli/common/pack.o \
+./bin/cli/common/smer.o \
+./bin/cli/common/task.o \
+./bin/cli/common/taskIndexing.o \
+./bin/cli/common/taskRouting.o \
 ./bin/cli/obj/main.o 
 
 JNI_OBJS += \
 ./bin/jni/common/graph.o \
+./bin/jni/common/log.o \
+./bin/jni/common/mem.o \
+./bin/jni/common/pack.o \
+./bin/jni/common/smer.o \
+./bin/jni/common/task.o \
+./bin/jni/common/taskIndexing.o \
+./bin/jni/common/taskRouting.o \
 ./bin/jni/obj/JNI_graph.o 
 
 all: dirs bin/LOGAN bin/libLOGAN.so
@@ -29,7 +43,7 @@ dirs:
 bin/LOGAN: $(CLI_OBJS) 
 	@echo 'Building target: $@'
 	@echo 'Invoking: GCC C Linker'
-	gcc -pg -o "bin/LOGAN" $(CLI_OBJS) $(LIBS)
+	gcc -pg -o "bin/LOGAN" $(CLI_OBJS) $(CLI_LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 

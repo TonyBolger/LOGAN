@@ -8,18 +8,16 @@
 #ifndef __GRAPH_H
 #define __GRAPH_H
 
-#include "common.h"
+
 
 typedef struct graphContigStr
 {
 	s32 nodeSize;
-	s32 edgeSize;
+	s32 sparseness;
 } GraphConfig;
-
 
 #define GRAPH_MODE_INDEX 0
 #define GRAPH_MODE_BUILD 1
-
 
 
 typedef struct graphStr
@@ -32,7 +30,7 @@ typedef struct graphStr
 //	SmerMap smerMap;
 //	SmerSA smerSA;
 
-	void *jni;
+	void *userPtr;
 } Graph;
 
 
@@ -42,7 +40,7 @@ void addPaths(Graph *graph);
 
 void switchMode(Graph *graph);
 
-Graph *allocGraph(void *jni, s32 nodeSize, s32 edgeSize);
+Graph *allocGraph(s32 nodeSize, s32 sparseness, void *userPtr);
 void freeGraph(Graph *graph);
 
 

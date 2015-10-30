@@ -8,6 +8,13 @@
 #ifndef __COMMON_H
 #define __COMMON_H
 
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <alloca.h>
+#include <pthread.h>
+
+
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
 #define MAX(X,Y) ((X) > (Y) ? (X) : (Y))
 
@@ -90,24 +97,23 @@ typedef u32 SmerId;
 #endif
 
 
-/* 15 BASE SMER
-// Number of bases per Smer
-#define SMER_BASES 15
-#define SMER_BITS 30
-
-// Number of bits in the Smer container type
-#define SMER_CBITS 32
-
-// Various marks for SMERs
-#define SMER_CBITS_EMPTY 2
-#define SMER_MASK 0x3FFFFFFF
-#define SMER_REST_MASK 0xC0000000
-
-typedef u32 SmerId;
-*/
-
 #define SMER_DUMMY SMER_MASK
 
+// Hack to prevent memcpy version problems on old server versions
 __asm__(".symver memcpy,memcpy@GLIBC_2.2.5");
+
+
+#include "log.h"
+#include "pack.h"
+#include "task.h"
+
+#include "smer.h"
+#include "graph.h"
+
+#include "taskIndexing.h"
+#include "taskRouting.h"
+
+// Leave mem.h to end (it needs all struct/typedefs defined)
+#include "mem.h"
 
 #endif

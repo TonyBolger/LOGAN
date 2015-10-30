@@ -10,14 +10,14 @@
 
 
 #include <logan_graph_Graph.h>
+#include <logan_graph_Graph_IndexBuilder.h>
+#include <logan_graph_Graph_RouteBuilder.h>
 
 typedef struct graphJniStr
 {
 	jclass graphCls;
 
-	jclass graphConfigCls;
-	jfieldID graphConfigFieldK;
-	jfieldID graphConfigFieldS;
+	/*
 
 	jclass linkedSmerCls;
 	jmethodID linkedSmerMethodInit;
@@ -38,6 +38,7 @@ typedef struct graphJniStr
 	jfieldID linkedSmerRouteFieldPrefix;
 	jfieldID linkedSmerRouteFieldSuffix;
 	jfieldID linkedSmerRouteFieldWidth;
+	*/
 } GraphJni;
 
 
