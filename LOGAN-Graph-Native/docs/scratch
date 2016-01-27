@@ -1,0 +1,54 @@
+Preset					Genome	Threads		MapSize	MapSlices
+
+Can I assemble, Boss? 	10Mb	4					16	
+Hey, not too tough		100Mb	8					32
+Assemble me plenty		1Gb		16					32
+Ultra-Assembly			10Gb	32					64
+Nightmare!				100Gb	64					64
+
+
+Wolf:
+
+*Can I play, Daddy?
+Don't hurt me.
+Bring 'em on!
+I am Death incarnate!
+
+
+Doom:
+
+I'm too young to die
+*Hey, not too rough	
+*Hurt me plenty
+*Ultra-Violence
+*Nightmare!
+
+
+
+
+for i in 1 2 4 8 16 32; do ~/LOGAN data/Ecoli-2/split_Q20_%02i_%02i.fq $i 2> out_1.$i ; ~/LOGAN data/Ecoli-2/split_Q20_%02i_%02i.fq $i 2> out_2.$i ; ~/LOGAN data/Ecoli-2/split_Q20_%02i_%02i.fq $i 2> out_3.$i ; ~/LOGAN data/Ecoli-2/split_Q20_%02i_%02i.fq $i 2> out_4.$i ; ~/LOGAN data/Ecoli-2/split_Q20_%02i_%02i.fq $i 2> out_5.$i ; done
+
+
+
+
+Node Indexing:
+
+Parallelization:
+
+1) Thread-per-file:	
+
+2) Thread-per-block, serial files:
+
+3) Thread-per-block, parallel files:
+
+
+
+
+
+
+C Parsing:
+
+1) 3 Buffers: Active ingress, Queued ingress, Parsing.    
+
+  
+
