@@ -133,11 +133,11 @@ void *runIptWorker(void *voidData)
 
 void iptHandler(SequenceWithQuality *rec, int numRecords, void *context)
 {
-//	IndexingBuilder *ib=(IndexingBuilder *)context;
+	IndexingBuilder *ib=(IndexingBuilder *)context;
 
-	LOG(LOG_INFO," ********************* IPT HANDLER GOT %i ****************************",numRecords);
+//	LOG(LOG_INFO," ********************* IPT HANDLER GOT %i ****************************",numRecords);
 
-//	queueIngress(ib->pt, rec, numRecords);
+	queueIngress(ib->pt, rec, numRecords);
 
 }
 
@@ -176,7 +176,7 @@ void runIptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 
 		int reads=parseAndProcess(path, FASTQ_MIN_READ_LENGTH, 0, 2500000, ib, iptHandler);
 
-		LOG(LOG_INFO,"Parsed %i reads from %s\n",reads,path);
+		LOG(LOG_INFO,"Parsed %i reads from %s",reads,path);
 		}
 
 

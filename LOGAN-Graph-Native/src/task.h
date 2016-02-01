@@ -29,6 +29,10 @@ typedef struct parallelTaskConfigStr
 	s32 expectedThreads;
 	int ingressBlocksize;
 
+	int ingressPerTidyMin;
+	int ingressPerTidyMax;
+	int tidysPerBackoff;
+
 	int tasksPerTidy;
 } ParallelTaskConfig;
 
@@ -47,10 +51,16 @@ struct parallelTaskStr
 
 	void *activeIngressPtr;
 	int activeIngressTotal;
-	int activeIngressPosition;
+	int activeIngressCounter;
 
 	int activeTidyPosition;
 	int activeTidyTotal;
+
+	// Tidy
+
+	int ingressPerTidyCounter;
+	int ingressPerTidyTotal;
+	int tidyBackoffCounter;
 
 	// One lock to rule them all
 	pthread_mutex_t mutex;
@@ -111,7 +121,8 @@ ParallelTaskConfig *allocParallelTaskConfig(
 		int (*doIngress)(ParallelTask *pt, int workerNo,void *ingressPtr, int ingressPosition, int ingressSize),
 		int (*doIntermediate)(ParallelTask *pt, int workerNo, int force),
 		int (*doTidy)(ParallelTask *pt, int workerNo, int tidyNo),
-		int expectedThreads, int ingressBlocksize, int tasksPerTidy);
+		int expectedThreads, int ingressBlocksize,
+		int ingressPerTidyMin, int ingressPerTidyMax, int tidysPerBackoff, int tasksPerTidy);
 
 void freeParallelTaskConfig(ParallelTaskConfig *ptc);
 

@@ -113,7 +113,7 @@ static void performTaskNewIngress(ParallelTask *pt)
 
 	pt->activeIngressPtr=pt->reqIngressPtr;
 	pt->activeIngressTotal=pt->reqIngressTotal;
-	pt->activeIngressPosition=0;
+	pt->activeIngressCounter=0;
 
 	pt->reqIngressPtr=NULL;
 	pthread_cond_broadcast(&(pt->master_ingress));
@@ -133,25 +133,28 @@ static int performTaskActive(ParallelTask *pt, int workerNo)
 	// 2nd priority - active ingress
 	if(pt->activeIngressPtr!=NULL)
 		{
-		LOG(LOG_INFO,"Active 2 %i %i",pt->activeIngressPosition,pt->activeIngressTotal);
+		LOG(LOG_INFO,"Active 2 %i %i",pt->activeIngressCounter,pt->activeIngressTotal);
 
 		void *ingressPtr=pt->activeIngressPtr;
-		int ingressPos=pt->activeIngressPosition;
+		int ingressPos=pt->activeIngressCounter;
 
 		int ingressSize=pt->config->ingressBlocksize;
-		if(pt->activeIngressPosition+ingressSize > pt->activeIngressTotal)
-			ingressSize=pt->activeIngressTotal-pt->activeIngressPosition;
+		if(pt->activeIngressCounter+ingressSize > pt->activeIngressTotal)
+			ingressSize=pt->activeIngressTotal-pt->activeIngressCounter;
 
-		pt->activeIngressPosition+=ingressSize;
+		pt->activeIngressCounter+=ingressSize;
 
-		if(pt->activeIngressPosition>=pt->activeIngressTotal)
+		if(pt->activeIngressCounter>=pt->activeIngressTotal)
 			{
 			LOG(LOG_INFO,"Ingress done");
 
 			pt->activeIngressPtr=NULL;
-			pt->activeIngressPosition=0;
+			pt->activeIngressCounter=0;
 
-			if(1)
+			if(pt->config->tasksPerTidy>0)
+				pt->ingressPerTidyCounter--;
+
+			if(pt->ingressPerTidyCounter<=0)
 				{
 				pt->activeTidyTotal=pt->config->tasksPerTidy;
 				pt->activeTidyPosition=0;
@@ -346,7 +349,23 @@ void performTask(ParallelTask *pt)
 //				LOG(LOG_INFO,"TIDY END WAIT done");
 
 				if(pt->state==PTSTATE_TIDY)
+					{
 					pt->state=PTSTATE_ACTIVE;
+
+					pt->tidyBackoffCounter--;
+					if(pt->tidyBackoffCounter==0)
+						{
+						pt->tidyBackoffCounter=pt->config->tidysPerBackoff;
+
+						pt->ingressPerTidyTotal*=2;
+						if(pt->ingressPerTidyTotal > pt->config->ingressPerTidyMax)
+							pt->ingressPerTidyTotal = pt->config->ingressPerTidyMax;
+						}
+
+					pt->ingressPerTidyCounter=pt->ingressPerTidyTotal;
+
+					LOG(LOG_INFO,"IngressesPerTidy %i BackOffCount %i",pt->ingressPerTidyTotal,pt->tidyBackoffCounter);
+					}
 				}
 			}
 
@@ -412,7 +431,8 @@ ParallelTaskConfig *allocParallelTaskConfig(
 		int (*doIngress)(ParallelTask *pt, int workerNo,void *ingressPtr, int ingressPosition, int ingressSize),
 		int (*doIntermediate)(ParallelTask *pt, int workerNo, int force),
 		int (*doTidy)(ParallelTask *pt, int workerNo, int tidyNo),
-		int expectedThreads, int ingressBlocksize, int tasksPerTidy)
+		int expectedThreads, int ingressBlocksize,
+		int ingressPerTidyMin, int ingressPerTidyMax, int tidysPerBackoff, int tasksPerTidy)
 {
 	LOG(LOG_INFO,"allocParallelTaskConfig");
 
@@ -426,7 +446,14 @@ ParallelTaskConfig *allocParallelTaskConfig(
 
 	ptc->expectedThreads=expectedThreads;
 	ptc->ingressBlocksize=ingressBlocksize;
+
+	ptc->ingressPerTidyMin=ingressPerTidyMin;
+	ptc->ingressPerTidyMax=ingressPerTidyMax;
+	ptc->tidysPerBackoff=tidysPerBackoff;
+
 	ptc->tasksPerTidy=tasksPerTidy;
+
+
 
 	return ptc;
 }
@@ -451,6 +478,12 @@ ParallelTask *allocParallelTask(ParallelTaskConfig *ptc, void *dataPtr)
 
 	pt->activeIngressPtr=NULL;
 	pt->activeIngressTotal=0;
+
+	pt->activeTidyPosition=0;
+	pt->activeTidyTotal=0;
+
+	pt->ingressPerTidyTotal=ptc->ingressPerTidyMin;
+	pt->tidyBackoffCounter=ptc->tidysPerBackoff;
 
 	int ret;
 

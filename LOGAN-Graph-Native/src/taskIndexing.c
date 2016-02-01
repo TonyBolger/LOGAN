@@ -25,7 +25,7 @@ static void tiDoDeregister(ParallelTask *pt, int workerNo)
 static int tiDoIngress(ParallelTask *pt, int workerNo,void *ingressPtr, int ingressPosition, int ingressSize)
 {
 	LOG(LOG_INFO,"TaskIndexing: DoIngress (%i): %i %i",workerNo,ingressPosition, ingressSize);
-	sleep(1);
+	//sleep(1);
 	return 0;
 }
 
@@ -39,7 +39,7 @@ static int tiDoIntermediate(ParallelTask *pt, int workerNo, int force)
 static int tiDoTidy(ParallelTask *pt, int workerNo, int tidyNo)
 {
 	LOG(LOG_INFO,"TaskIndexing: DoTidy (%i)",workerNo);
-	sleep(1);
+	//sleep(1);
 	return 0;
 }
 
@@ -49,7 +49,10 @@ IndexingBuilder *allocIndexingBuilder(Graph *graph, int threads)
 {
 	IndexingBuilder *ib=tiIndexingBuilderAlloc();
 
-	ParallelTaskConfig *ptc=allocParallelTaskConfig(tiDoRegister,tiDoDeregister,tiDoIngress,tiDoIntermediate,tiDoTidy,threads,TI_INGRESS_BLOCKSIZE,16);//SMER_HASH_SLICES);
+	ParallelTaskConfig *ptc=allocParallelTaskConfig(tiDoRegister,tiDoDeregister,tiDoIngress,tiDoIntermediate,tiDoTidy,threads,
+			TI_INGRESS_BLOCKSIZE,TI_INGRESS_PER_TIDY_MIN, TI_INGRESS_PER_TIDY_MAX, TI_TIDYS_PER_BACKOFF,
+			16);//SMER_HASH_SLICES);
+
 	ib->pt=allocParallelTask(ptc,ib);
 	ib->graph=graph;
 

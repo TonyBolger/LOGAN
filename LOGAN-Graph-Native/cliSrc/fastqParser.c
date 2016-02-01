@@ -147,7 +147,7 @@ int parseAndProcess(char *path, int minSeqLength, int recordsToSkip, int records
 
 				if((batchReadCount>=FASTQ_RECORDS_PER_BATCH) || batchBaseCount>=(FASTQ_BASES_PER_BATCH-FASTQ_MAX_READ_LENGTH))
 					{
-			//		(*handler)(rec[currentBuffer],batchReadCount,handlerContext);
+					(*handler)(rec[currentBuffer],batchReadCount,handlerContext);
 					totalBatch+=batchReadCount;
 					batchReadCount=0;
 					batchBaseCount=0;
@@ -157,7 +157,7 @@ int parseAndProcess(char *path, int minSeqLength, int recordsToSkip, int records
 
 				usedRecords++;
 
-				if(usedRecords % 10000 ==0)
+				if(usedRecords % 1000000 ==0)
 					LOG(LOG_INFO,"Reads: %i", usedRecords);
 				}
 
@@ -173,7 +173,7 @@ int parseAndProcess(char *path, int minSeqLength, int recordsToSkip, int records
 
 	if(batchReadCount>0)
 		{
-		//(*handler)(rec[currentBuffer],batchReadCount,handlerContext);
+		(*handler)(rec[currentBuffer],batchReadCount,handlerContext);
 		totalBatch+=batchReadCount;
 		}
 

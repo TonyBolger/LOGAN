@@ -40,7 +40,9 @@ RoutingBuilder *allocRoutingBuilder(Graph *graph, int threads)
 {
 	RoutingBuilder *rb=tiRoutingBuilderAlloc();
 
-	ParallelTaskConfig *ptc=allocParallelTaskConfig(trDoRegister,trDoDeregister,trDoIngress,trDoIntermediate,trDoTidy,threads,TR_INGRESS_BLOCKSIZE,16);//SMER_HASH_SLICES);
+	ParallelTaskConfig *ptc=allocParallelTaskConfig(trDoRegister,trDoDeregister,trDoIngress,trDoIntermediate,trDoTidy,threads,
+			TR_INGRESS_BLOCKSIZE, TR_INGRESS_PER_TIDY_MIN, TR_INGRESS_PER_TIDY_MAX, TR_TIDYS_PER_BACKOFF,
+			16);//SMER_HASH_SLICES);
 
 	rb->pt=allocParallelTask(ptc,NULL);
 
