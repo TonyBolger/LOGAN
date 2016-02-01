@@ -20,7 +20,7 @@ static void trDoDeregister(ParallelTask *pt, int workerNo)
 
 }
 
-static int trDoIngress(ParallelTask *pt, int workerNo, int ingressNo)
+static int trDoIngress(ParallelTask *pt, int workerNo,void *ingressPtr, int ingressPosition, int ingressSize)
 {
 	return 0;
 }
@@ -40,9 +40,7 @@ RoutingBuilder *allocRoutingBuilder(Graph *graph, int threads)
 {
 	RoutingBuilder *rb=tiRoutingBuilderAlloc();
 
-	int slices=0;
-
-	ParallelTaskConfig *ptc=allocParallelTaskConfig(trDoRegister,trDoDeregister,trDoIngress,trDoIntermediate,trDoTidy,threads,slices);
+	ParallelTaskConfig *ptc=allocParallelTaskConfig(trDoRegister,trDoDeregister,trDoIngress,trDoIntermediate,trDoTidy,threads,TR_INGRESS_BLOCKSIZE,16);//SMER_HASH_SLICES);
 
 	rb->pt=allocParallelTask(ptc,NULL);
 

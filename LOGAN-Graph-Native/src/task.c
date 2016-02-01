@@ -107,7 +107,17 @@ void queueShutdown(ParallelTask *pt)
 	LOG(LOG_INFO,"Master: QueueShutdown Complete");
 }
 
+static void performTaskNewIngress(ParallelTask *pt)
+{
+	LOG(LOG_INFO,"New Ingress Req");
 
+	pt->activeIngressPtr=pt->reqIngressPtr;
+	pt->activeIngressTotal=pt->reqIngressTotal;
+	pt->activeIngressPosition=0;
+
+	pt->reqIngressPtr=NULL;
+	pthread_cond_broadcast(&(pt->master_ingress));
+}
 
 static int performTaskActive(ParallelTask *pt, int workerNo)
 {
@@ -125,8 +135,14 @@ static int performTaskActive(ParallelTask *pt, int workerNo)
 		{
 		LOG(LOG_INFO,"Active 2 %i %i",pt->activeIngressPosition,pt->activeIngressTotal);
 
+		void *ingressPtr=pt->activeIngressPtr;
 		int ingressPos=pt->activeIngressPosition;
-		pt->activeIngressPosition++;
+
+		int ingressSize=pt->config->ingressBlocksize;
+		if(pt->activeIngressPosition+ingressSize > pt->activeIngressTotal)
+			ingressSize=pt->activeIngressTotal-pt->activeIngressPosition;
+
+		pt->activeIngressPosition+=ingressSize;
 
 		if(pt->activeIngressPosition>=pt->activeIngressTotal)
 			{
@@ -135,15 +151,23 @@ static int performTaskActive(ParallelTask *pt, int workerNo)
 			pt->activeIngressPtr=NULL;
 			pt->activeIngressPosition=0;
 
-			pt->activeTidyTotal=pt->config->tasksPerTidy;
-			pt->activeTidyPosition=0;
+			if(1)
+				{
+				pt->activeTidyTotal=pt->config->tasksPerTidy;
+				pt->activeTidyPosition=0;
+				}
+			else
+				{
+				if(pt->reqIngressPtr)
+					performTaskNewIngress(pt);
+				}
 			}
 
 		// Do Ingress
 
 		pthread_mutex_unlock(&(pt->mutex));
 
-		pt->config->doIngress(pt,workerNo,ingressPos);
+		pt->config->doIngress(pt,workerNo,ingressPtr, ingressPos, ingressSize);
 
 		ret=pthread_mutex_lock(&(pt->mutex));
 		if(ret!=0)
@@ -179,15 +203,7 @@ static int performTaskActive(ParallelTask *pt, int workerNo)
 	// 5th priority - new ingress
 	if(pt->reqIngressPtr)
 		{
-		LOG(LOG_INFO,"New Ingress Req");
-
-		pt->activeIngressPtr=pt->reqIngressPtr;
-		pt->activeIngressTotal=pt->reqIngressTotal;
-		pt->activeIngressPosition=0;
-
-		pt->reqIngressPtr=NULL;
-		pthread_cond_broadcast(&(pt->master_ingress));
-
+		performTaskNewIngress(pt);
 		return 1;
 		}
 
@@ -266,7 +282,7 @@ void performTask(ParallelTask *pt)
 			}
 		else if(pt->state==PTSTATE_TIDY_WAIT)
 			{
-			//LOG(LOG_INFO,"TIDY WAIT");
+			LOG(LOG_INFO,"TIDY WAIT");
 
 			pthread_mutex_unlock(&(pt->mutex));
 
@@ -278,7 +294,7 @@ void performTask(ParallelTask *pt)
 					LOG(LOG_CRITICAL,"Failed to lock for performTask: %s",strerror(ret));
 					}
 
-			//LOG(LOG_INFO,"TIDY WAIT done");
+			LOG(LOG_INFO,"TIDY WAIT done");
 
 			if(pt->state==PTSTATE_TIDY_WAIT)
 				{
@@ -393,10 +409,10 @@ void performTask(ParallelTask *pt)
 ParallelTaskConfig *allocParallelTaskConfig(
 		void (*doRegister)(ParallelTask *pt, int workerNo),
 		void (*doDeregister)(ParallelTask *pt, int workerNo),
-		int (*doIngress)(ParallelTask *pt, int workerNo, int ingressNo),
+		int (*doIngress)(ParallelTask *pt, int workerNo,void *ingressPtr, int ingressPosition, int ingressSize),
 		int (*doIntermediate)(ParallelTask *pt, int workerNo, int force),
 		int (*doTidy)(ParallelTask *pt, int workerNo, int tidyNo),
-		int expectedThreads, int tasksPerTidy)
+		int expectedThreads, int ingressBlocksize, int tasksPerTidy)
 {
 	LOG(LOG_INFO,"allocParallelTaskConfig");
 
@@ -409,6 +425,7 @@ ParallelTaskConfig *allocParallelTaskConfig(
 	ptc->doTidy=doTidy;
 
 	ptc->expectedThreads=expectedThreads;
+	ptc->ingressBlocksize=ingressBlocksize;
 	ptc->tasksPerTidy=tasksPerTidy;
 
 	return ptc;

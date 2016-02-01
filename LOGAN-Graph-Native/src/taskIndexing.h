@@ -3,7 +3,7 @@
 
 
 
-
+#define TI_INGRESS_BLOCKSIZE 10240
 
 typedef struct IndexingBuilderStr {
 	ParallelTask *pt;

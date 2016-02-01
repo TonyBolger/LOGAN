@@ -2,7 +2,7 @@
 #define __TASKROUTING_H
 
 
-
+#define TR_INGRESS_BLOCKSIZE 1024
 
 
 typedef struct RoutingBuilderStr {

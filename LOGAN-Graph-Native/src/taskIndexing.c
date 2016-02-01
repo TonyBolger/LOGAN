@@ -22,9 +22,9 @@ static void tiDoDeregister(ParallelTask *pt, int workerNo)
 	sleep(1);
 }
 
-static int tiDoIngress(ParallelTask *pt, int workerNo, int ingressNo)
+static int tiDoIngress(ParallelTask *pt, int workerNo,void *ingressPtr, int ingressPosition, int ingressSize)
 {
-	LOG(LOG_INFO,"TaskIndexing: DoIngress (%i): %i",workerNo,ingressNo);
+	LOG(LOG_INFO,"TaskIndexing: DoIngress (%i): %i %i",workerNo,ingressPosition, ingressSize);
 	sleep(1);
 	return 0;
 }
@@ -49,9 +49,10 @@ IndexingBuilder *allocIndexingBuilder(Graph *graph, int threads)
 {
 	IndexingBuilder *ib=tiIndexingBuilderAlloc();
 
-	ParallelTaskConfig *ptc=allocParallelTaskConfig(tiDoRegister,tiDoDeregister,tiDoIngress,tiDoIntermediate,tiDoTidy,threads,16);//SMER_HASH_SLICES);
+	ParallelTaskConfig *ptc=allocParallelTaskConfig(tiDoRegister,tiDoDeregister,tiDoIngress,tiDoIntermediate,tiDoTidy,threads,TI_INGRESS_BLOCKSIZE,16);//SMER_HASH_SLICES);
 	ib->pt=allocParallelTask(ptc,ib);
 	ib->graph=graph;
+
 
 	return ib;
 }

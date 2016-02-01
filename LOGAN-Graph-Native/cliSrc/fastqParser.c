@@ -14,6 +14,8 @@ static int readFastqLine(FILE *file, char *ptr, int maxLength)
 	int count=0;
 	int ch;
 
+	maxLength--; // Allow for null byte for N check
+
 	ch=getc_unlocked(file);
 	while(ch!=EOF && ch!=10 && ch!=13 && count < maxLength) // 10=LineFeed, 13 = CarriageReturn
 		{
@@ -21,8 +23,12 @@ static int readFastqLine(FILE *file, char *ptr, int maxLength)
 		ch=getc_unlocked(file);
 		}
 
+	ptr[count]=0;
+
 	if(count==maxLength)
+		{
 		return -1;
+		}
 
 	if(ch==13)	// Handle stupid newlines
 		{
@@ -100,7 +106,7 @@ int parseAndProcess(char *path, int minSeqLength, int recordsToSkip, int records
 		return 0;
 		}
 
-	int bufSize=FASTQ_BASES_PER_BATCH*2;
+	int bufSize=FASTQ_BASES_PER_BATCH;
 	int currentBuffer=0;
 
 	char *seqBuffer[PT_INGRESS_BUFFERS];
@@ -141,16 +147,17 @@ int parseAndProcess(char *path, int minSeqLength, int recordsToSkip, int records
 
 				if((batchReadCount>=FASTQ_RECORDS_PER_BATCH) || batchBaseCount>=(FASTQ_BASES_PER_BATCH-FASTQ_MAX_READ_LENGTH))
 					{
-					(*handler)(rec[currentBuffer],batchReadCount,handlerContext);
+			//		(*handler)(rec[currentBuffer],batchReadCount,handlerContext);
 					totalBatch+=batchReadCount;
 					batchReadCount=0;
+					batchBaseCount=0;
 
 					currentBuffer=(currentBuffer+1)%PT_INGRESS_BUFFERS;
 					}
 
 				usedRecords++;
 
-				if(usedRecords % 1000000 ==0)
+				if(usedRecords % 10000 ==0)
 					LOG(LOG_INFO,"Reads: %i", usedRecords);
 				}
 
@@ -166,7 +173,7 @@ int parseAndProcess(char *path, int minSeqLength, int recordsToSkip, int records
 
 	if(batchReadCount>0)
 		{
-		(*handler)(rec[currentBuffer],batchReadCount,handlerContext);
+		//(*handler)(rec[currentBuffer],batchReadCount,handlerContext);
 		totalBatch+=batchReadCount;
 		}
 
