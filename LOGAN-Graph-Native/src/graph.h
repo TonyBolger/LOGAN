@@ -27,16 +27,51 @@ typedef struct graphStr
 	u32 mode;
 	u32 pathCount;
 
-//	SmerMap smerMap;
+	SmerMap smerMap;
 //	SmerSA smerSA;
 
 	void *userPtr;
 } Graph;
 
 
+typedef struct graphBatchReadContextStr
+{
+	u32 readLength;
 
-void indexPaths(Graph *graph);
-void addPaths(Graph *graph);
+	u8 *packedSequence;
+	u64 *bloomCache;
+
+
+} GraphBatchReadContext;
+
+typedef struct graphBatchContextStr
+{
+	Graph *graph;
+
+	int maxSeqLength;
+	int maxBatchSize;
+
+	GraphBatchReadContext *reads;
+	int numReads;
+
+	u8 *packedSequences;
+	u8 *bloomCaches;
+} GraphBatchContext;
+
+
+
+void addPathSmers(Graph *graph, u32 dataLength, u8 *data);
+int addPathRoutes(Graph *graph, u32 dataLength, u8 *data);
+
+
+
+
+GraphBatchContext *graphBatchInitContext(Graph *graph, int maxSeqLength, int batchSize, int mode);
+void graphBatchFreeContext(GraphBatchContext *context);
+
+void graphBatchAddPathRoutes(GraphBatchContext *context);
+
+
 
 void switchMode(Graph *graph);
 

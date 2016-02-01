@@ -16,6 +16,7 @@ void *gAlloc(size_t size)
 
 void *gAllocC(size_t size)
 {
+	//LOG(LOG_INFO,"Allocating %i",size);
 	void *usrPtr=malloc(size);
 
 	if(usrPtr==NULL)
@@ -43,6 +44,28 @@ void gFree(void *ptr)
 
 	free(ptr);
 }
+
+
+/*
+ * Specific allocator for SmerMap SmerId arrays
+ *
+ * For now, it just delegates to the malloc/free
+ *
+ */
+
+SmerId *smSmerIdArrayAlloc(int length)
+{
+	size_t size=((long)length)*sizeof(SmerId);
+
+	SmerId *array = gAllocC(size);
+	return array;
+}
+
+void smSmerIdArrayFree(SmerId *array)
+{
+	gFree(array);
+}
+
 
 
 /*

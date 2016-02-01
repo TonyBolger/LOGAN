@@ -163,7 +163,9 @@ JNIEXPORT void JNICALL Java_logan_graph_Graph_00024IndexBuilder_waitStartup_1Nat
 JNIEXPORT void JNICALL Java_logan_graph_Graph_00024IndexBuilder_processReads_1Native
   (JNIEnv *env, jobject this, jlong handle, jbyteArray ba, jintArray ia, jint i)
 {
+	IndexingBuilder *ib = (IndexingBuilder *) handle;
 
+	queueIngress(ib->pt, ib, i);
 }
 
 /*
@@ -229,7 +231,7 @@ JNIEXPORT jlong JNICALL Java_logan_graph_Graph_makeIndexBuilder_1Native
 
 
 
-/* logan.graph.Graph: makeIndexBuilder: Creates a RouteBuilder instance */
+/* logan.graph.Graph: makeRouteBuilder: Creates a RouteBuilder instance */
 
 JNIEXPORT jlong JNICALL Java_logan_graph_Graph_makeRouteBuilder_1Native
   (JNIEnv *env, jobject this, jlong handle, jint threads)

@@ -12,44 +12,46 @@
 
 static void tiDoRegister(ParallelTask *pt, int workerNo)
 {
-	LOG("TaskIndexing: DoRegister (%i)",workerNo);
+	LOG(LOG_INFO,"TaskIndexing: DoRegister (%i)",workerNo);
+	sleep(1);
 }
 
 static void tiDoDeregister(ParallelTask *pt, int workerNo)
 {
-	LOG("TaskIndexing: DoDeregister (%i)",workerNo);
+	LOG(LOG_INFO,"TaskIndexing: DoDeregister (%i)",workerNo);
+	sleep(1);
 }
 
 static int tiDoIngress(ParallelTask *pt, int workerNo, int ingressNo)
 {
-	LOG("TaskIndexing: DoIngress (%i)",workerNo);
-
+	LOG(LOG_INFO,"TaskIndexing: DoIngress (%i): %i",workerNo,ingressNo);
+	sleep(1);
 	return 0;
 }
 
 static int tiDoIntermediate(ParallelTask *pt, int workerNo, int force)
 {
-	LOG("TaskIndexing: DoIntermediate (%i)",workerNo);
-
+	LOG(LOG_INFO,"TaskIndexing: DoIntermediate (%i)",workerNo);
+	sleep(1);
 	return 0;
 }
 
 static int tiDoTidy(ParallelTask *pt, int workerNo, int tidyNo)
 {
-	LOG("TaskIndexing: DoTidy (%i)",workerNo);
-
+	LOG(LOG_INFO,"TaskIndexing: DoTidy (%i)",workerNo);
+	sleep(1);
 	return 0;
 }
+
 
 
 IndexingBuilder *allocIndexingBuilder(Graph *graph, int threads)
 {
 	IndexingBuilder *ib=tiIndexingBuilderAlloc();
 
-	int slices=0;
-
-	ParallelTaskConfig *ptc=allocParallelTaskConfig(tiDoRegister,tiDoDeregister,tiDoIngress,tiDoIntermediate,tiDoTidy,threads,slices);
-	ib->pt=allocParallelTask(ptc,NULL);
+	ParallelTaskConfig *ptc=allocParallelTaskConfig(tiDoRegister,tiDoDeregister,tiDoIngress,tiDoIntermediate,tiDoTidy,threads,16);//SMER_HASH_SLICES);
+	ib->pt=allocParallelTask(ptc,ib);
+	ib->graph=graph;
 
 	return ib;
 }

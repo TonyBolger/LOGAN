@@ -27,6 +27,8 @@ typedef struct parallelTaskConfigStr
 	int (*doTidy)(ParallelTask *pt, int workerNo, int tidyNo);
 
 	s32 expectedThreads;
+
+
 	int tasksPerTidy;
 } ParallelTaskConfig;
 
@@ -38,19 +40,24 @@ struct parallelTaskStr
 
 	// Updated by master to make ingress or shutodwn requests
 	void *reqIngressPtr;
-	int reqIngressCount;
+	int reqIngressTotal;
 	int reqShutdown;
 
 	// Updated by worker on ingress acceptance & completion
 
 	void *activeIngressPtr;
-	int activeIngressCount;
+	int activeIngressTotal;
+	int activeIngressPosition;
+
+	int activeTidyPosition;
+	int activeTidyTotal;
 
 	// One lock to rule them all
 	pthread_mutex_t mutex;
 
 	// Master can sync here
 	pthread_cond_t master_startup;
+	pthread_cond_t master_ingress;
 	pthread_cond_t master_shutdown;
 
 	int state;
@@ -65,15 +72,16 @@ struct parallelTaskStr
 	pthread_cond_t workers_idle;
 
 	s32 liveThreads; // Threads which are somewhere in performTask
-
-
+	s32 idleThreads; // Threads which are sleeping
 };
 
+// # Ingress buffers held by submitting task
 
+#define PT_INGRESS_BUFFERS 4
 
 
 #define PTSTATE_STARTUP 0
-#define PTSTATE_IDLE 1
+//#define PTSTATE_IDLE 1
 #define PTSTATE_ACTIVE 2
 #define PTSTATE_TIDY_WAIT 3
 #define PTSTATE_TIDY 4
@@ -92,91 +100,6 @@ struct parallelTaskStr
 
 8 Shutdown initiated: Waiting for worker deregistration
 9 Shutdown completed:
-
-Thread logic:
-
-  doRegister
-
-  startup barrier
-
-  while(!Global_SHUTDOWN)
-    {
-    if(Global_IDLE)
-    	{
-    	if(reqIngress)
-    	    Copy Ingress
-    	    Global_ACTIVE
-    	else if(shutdownReq)
-    		Global_SHUTDOWN;
-    	else
-    		sleep(workers_idle)
-    	}
-    else if(Global_ACTIVE)
-    	{
-    	active_flag
-
-    	while(active_flag)
-       	   {
-       	   no_active_flag
-
-       	   if (priority intermediate) doInt(0); active_flag
-       	   if (!active_flag and ingress) doIng(); active_flag
-
-       	   if (no active_flag)
-       	      {
-       	      if (reqIngress and no ingress)
-       	          Copy Ingress
-       	          active_flag
-       	      }
-
-       	   if (!active_flag and intermediate) doInt(1); active_flag
-
-       	   if(active_flag)
-       	   	   wake(workers_idle)
-       	   }
-
-		if(activeThreads>0)
-			sleep(workers_idle)
-		else
-			if(tidyTasks)
-				{
-				Global_TIDY_WAIT;
-				wake(workers_idle);
-				}
-   			else
-   				Global_IDLE;
-
-       	}
-    else if(Global_TIDY_WAIT)
-    	{
-    	tidyWaitBarrier
-
-   		Global_TIDY;
-    	}
-    else if(Global_TIDY)
-    	{
-    	active_flag
-
-    	while(active_flag)
-       	   {
-       	   no_active_flag
-       	   if (tidyTask) doTidy(); active_flag
-       	   }
-
-		tidyEndBarrier
-
-   		if(ingress)
-   			Global_ACTIVE;
-   		else
-   			Global_IDLE;
-
-     	}
-    }
-
-  shutdown barrier
-
-  doUnregister
-
 
 
 
@@ -201,7 +124,9 @@ void freeParallelTask(ParallelTask *pt);
 void waitForStartup(ParallelTask *pt);
 void waitForShutdown(ParallelTask *pt);
 
-int queueIngress(ParallelTask *pt, void *ingressPtr, int ingressTotal);
+// queueIngress may wait if an ingress already exists
+int queueIngress(ParallelTask *pt, void *ingressPtr, int ingressCount);
+
 void queueShutdown(ParallelTask *pt);
 
 // Worker entry point

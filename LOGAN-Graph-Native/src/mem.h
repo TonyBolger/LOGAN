@@ -14,6 +14,12 @@ void *gRealloc(void *ptr, size_t size);
 void gFree(void *ptr);
 
 
+// SmerMap
+
+SmerId *smSmerIdArrayAlloc(int length);
+void smSmerIdArrayFree(SmerId *array);
+
+
 // ParallelTask
 
 ParallelTaskConfig *ptParallelTaskConfigAlloc();

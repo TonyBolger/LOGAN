@@ -1,11 +1,11 @@
 
-CFLAGS=-std=gnu99 -pedantic -pedantic-errors -Wall -Werror
+CFLAGS=-std=gnu99 -pedantic -pedantic-errors -Wall -Werror -g
 
 
 
 INC=-I"./src"
 CLI_INC=-I"./cliSrc"
-JNI_INC=-I/usr/lib/jvm/java/include/ -I/usr/lib/jvm/java/include/linux/ -I"./jniSrc" -I"./jniHeaders"
+JNI_INC=-I/usr/lib/jvm/java/include/ -I/usr/lib/jvm/java/include/linux/ -I"./cliSrc" -I"./jniSrc" -I"./jniHeaders"
 
 CLI_LIBS = -lrt -lpthread
 
@@ -15,9 +15,11 @@ CLI_OBJS += \
 ./bin/cli/common/mem.o \
 ./bin/cli/common/pack.o \
 ./bin/cli/common/smer.o \
+./bin/cli/common/smerMap.o \
 ./bin/cli/common/task.o \
 ./bin/cli/common/taskIndexing.o \
 ./bin/cli/common/taskRouting.o \
+./bin/cli/obj/fastqParser.o \
 ./bin/cli/obj/main.o 
 
 JNI_OBJS += \
@@ -26,6 +28,7 @@ JNI_OBJS += \
 ./bin/jni/common/mem.o \
 ./bin/jni/common/pack.o \
 ./bin/jni/common/smer.o \
+./bin/jni/common/smerMap.o \
 ./bin/jni/common/task.o \
 ./bin/jni/common/taskIndexing.o \
 ./bin/jni/common/taskRouting.o \
@@ -81,3 +84,8 @@ bin/jni/obj/%.o: ./jniSrc/%.c
 	gcc $(CFLAGS) $(INC) $(JNI_INC) -O0 -g3 -p -c -fmessage-length=0 -fPIC -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -o "$@" "$<"
 	@echo 'Finished building: $<'
 	@echo ' '
+	
+clean:
+	rm $(CLI_OBJS) $(JNI_OBJS) bin/LOGAN bin/libLOGAN.so
+		
+	

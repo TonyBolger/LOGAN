@@ -120,7 +120,10 @@ public class Graph {
 			waitStartup_Native(builderHandle);
 		}
 
-		//void processReadslong builderHandle, byte data[], int offsets[], int chunkSize);  
+		public void processReads(byte data[], int offsets[], int chunkSize)
+		{
+			processReads_Native(builderHandle, data, offsets, chunkSize);
+		}
 	
 		public void shutdown()
 		{

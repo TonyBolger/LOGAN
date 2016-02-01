@@ -57,7 +57,7 @@ static int skipFastqLine(FILE *file)
 }
 
 
-int readFastqRecord(FILE *file, FastqRecord *rec, int maxLength)
+int readFastqRecord(FILE *file, SequenceWithQuality *rec, int maxLength)
 {
 	int len1,len2;
 
@@ -90,7 +90,7 @@ int readFastqRecord(FILE *file, FastqRecord *rec, int maxLength)
 //#define FASTQ_BASES_PER_BATCH 10000000
 
 
-int parseAndProcess(char *path, int minSeqLength, int recordsToSkip, int recordsToUse, void *handlerContext, void (*handler)(FastqRecord *rec, int numRecords, void *handlerContext))
+int parseAndProcess(char *path, int minSeqLength, int recordsToSkip, int recordsToUse, void *handlerContext, void (*handler)(SequenceWithQuality *rec, int numRecords, void *handlerContext))
 {
 	FILE *file=fopen(path,"r");
 
@@ -101,11 +101,20 @@ int parseAndProcess(char *path, int minSeqLength, int recordsToSkip, int records
 		}
 
 	int bufSize=FASTQ_BASES_PER_BATCH*2;
+	int currentBuffer=0;
 
-	char *seqBuffer=malloc(bufSize);
-	char *qualBuffer=malloc(bufSize);
+	char *seqBuffer[PT_INGRESS_BUFFERS];
+	char *qualBuffer[PT_INGRESS_BUFFERS];
+	SequenceWithQuality *rec[PT_INGRESS_BUFFERS];
 
-	FastqRecord *rec=malloc(sizeof(FastqRecord)*FASTQ_RECORDS_PER_BATCH);
+	for(int i=0;i<PT_INGRESS_BUFFERS;i++)
+		{
+		seqBuffer[i]=malloc(bufSize);
+		qualBuffer[i]=malloc(bufSize);
+
+		rec[i]=malloc(sizeof(SequenceWithQuality)*FASTQ_RECORDS_PER_BATCH);
+		}
+
 	int batchReadCount=0;
 	long batchBaseCount=0;
 
@@ -113,16 +122,16 @@ int parseAndProcess(char *path, int minSeqLength, int recordsToSkip, int records
 
 	int lastRecord=recordsToSkip+recordsToUse;
 
-	rec[batchReadCount].seq=seqBuffer+batchBaseCount;
-	rec[batchReadCount].qual=qualBuffer+batchBaseCount;
+	rec[currentBuffer][batchReadCount].seq=seqBuffer[currentBuffer];
+	rec[currentBuffer][batchReadCount].qual=qualBuffer[currentBuffer];
 
-	int len=readFastqRecord(file, rec, FASTQ_MAX_READ_LENGTH);
+	int len=readFastqRecord(file, rec[currentBuffer], FASTQ_MAX_READ_LENGTH);
 
 	int totalBatch=0;
 
 	while(len>0 && validRecordCount<lastRecord)
 		{
-		char *seq=rec[batchReadCount].seq;
+		char *seq=rec[currentBuffer][batchReadCount].seq;
 		if((len>=minSeqLength) && (strchr(seq,'N')==NULL))
 			{
 			if(validRecordCount>=recordsToSkip)
@@ -132,9 +141,11 @@ int parseAndProcess(char *path, int minSeqLength, int recordsToSkip, int records
 
 				if((batchReadCount>=FASTQ_RECORDS_PER_BATCH) || batchBaseCount>=(FASTQ_BASES_PER_BATCH-FASTQ_MAX_READ_LENGTH))
 					{
-					(*handler)(rec,batchReadCount,handlerContext);
+					(*handler)(rec[currentBuffer],batchReadCount,handlerContext);
 					totalBatch+=batchReadCount;
 					batchReadCount=0;
+
+					currentBuffer=(currentBuffer+1)%PT_INGRESS_BUFFERS;
 					}
 
 				usedRecords++;
@@ -148,14 +159,14 @@ int parseAndProcess(char *path, int minSeqLength, int recordsToSkip, int records
 
 		allRecordCount++;
 
-		rec[batchReadCount].seq=seqBuffer+batchBaseCount;
-		rec[batchReadCount].qual=qualBuffer+batchBaseCount;
-		len=readFastqRecord(file, rec+batchReadCount, FASTQ_MAX_READ_LENGTH);
+		rec[currentBuffer][batchReadCount].seq=seqBuffer[currentBuffer]+batchBaseCount;
+		rec[currentBuffer][batchReadCount].qual=qualBuffer[currentBuffer]+batchBaseCount;
+		len=readFastqRecord(file, rec[currentBuffer]+batchReadCount, FASTQ_MAX_READ_LENGTH);
 		}
 
 	if(batchReadCount>0)
 		{
-		(*handler)(rec,batchReadCount,handlerContext);
+		(*handler)(rec[currentBuffer],batchReadCount,handlerContext);
 		totalBatch+=batchReadCount;
 		}
 
@@ -180,9 +191,12 @@ int parseAndProcess(char *path, int minSeqLength, int recordsToSkip, int records
 			}
 		}
 
-	free(seqBuffer);
-	free(qualBuffer);
-	free(rec);
+	for(int i=0;i<PT_INGRESS_BUFFERS;i++)
+		{
+		free(seqBuffer[i]);
+		free(qualBuffer[i]);
+		free(rec[i]);
+		}
 
 	fclose(file);
 

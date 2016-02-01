@@ -1,32 +1,43 @@
 
 #include "cliCommon.h"
 
-typedef struct threadDataStr
+typedef struct tpfThreadDataStr
 {
 	Graph *graph;
 	int threadCount;
 	int threadIndex;
 	char *pathTemplate;
-} ThreadData;
+} TpfThreadData;
 
-
-void addPathSmersHandler(FastqRecord *rec, int numRecords, void *context)
+typedef struct iptThreadDataStr
 {
-	GraphBatchContext *ctx=context;
+	Graph *graph;
+	IndexingBuilder *indexingBuilder;
 
-	u8 *packedSeq=alloca(ctx->maxSeqLength);
+	int threadIndex;
+
+} IptThreadData;
+
+
+void tpfAddPathSmersHandler(SequenceWithQuality *rec, int numRecords, void *context)
+{
+	Graph *graph=context;
+
+	//GraphBatchContext *ctx=context;
+
+	u8 *packedSeq=alloca(FASTQ_MAX_READ_LENGTH);
 	int i=0;
 
 	for(i=0;i<numRecords;i++)
 		{
-		FastqRecord *currentRec=rec+i;
+		SequenceWithQuality *currentRec=rec+i;
 
 		packSequence(currentRec->seq, packedSeq, currentRec->length);
-		addPathSmers(ctx->graph, currentRec->length, packedSeq);
+		addPathSmers(graph, currentRec->length, packedSeq);
 		}
 }
 
-void addPathRoutesHandler(FastqRecord *rec, int numRecords, void *context)
+void tpfAddPathRoutesHandler(SequenceWithQuality *rec, int numRecords, void *context)
 {
 	/*
 	GraphBatchContext *ctx=context;
@@ -56,24 +67,20 @@ void addPathRoutesHandler(FastqRecord *rec, int numRecords, void *context)
 }
 
 
-void *runThread(void *voidData)
+void *tpfWorker(void *voidData)
 {
-	ThreadData *data=(ThreadData *)voidData;
+	TpfThreadData *data=(TpfThreadData *)voidData;
 
 	char path[1024];
 	sprintf(path,data->pathTemplate,data->threadCount,data->threadIndex);
 
 	LOG(LOG_INFO,"Thread %i of %i started for %s",data->threadIndex,data->threadCount,path);
 
-	int minLength=40;
-	int maxLength=270;
-	int batchSize=10000;
-
 	//char *path, int minSeqLength, int recordsToSkip, int recordsToUse, void *handlerContext, void (*handler)
-	GraphBatchContext *smerCtx=graphBatchInitContext(data->graph, maxLength,batchSize,GRAPH_MODE_INDEX);
-	int reads=parseAndProcess(path, minLength, 0, 250000000, smerCtx, addPathSmersHandler);
+
+	int reads=parseAndProcess(path, FASTQ_MIN_READ_LENGTH, 0, 250000000, data->graph, tpfAddPathSmersHandler);
 //	int reads=parseAndProcess(path, minLength, 0, 1, smerCtx, addPathSmersHandler);
-	graphBatchFreeContext(smerCtx);
+
 
 	LOG(LOG_INFO,"Thread %i of %i processed %i",data->threadIndex,data->threadCount,reads);
 
@@ -83,12 +90,10 @@ void *runThread(void *voidData)
 
 
 
-void runThreadPerFileImpl(char *fileTemplate, int fileCount, Graph *graph)
+void runTpfMaster(char *pathTemplate, int fileCount, Graph *graph)
 {
 	pthread_t *threads=malloc(sizeof(pthread_t)*fileCount);
-	ThreadData *data=malloc(sizeof(ThreadData)*fileCount);
-
-	void *status;
+	TpfThreadData *data=malloc(sizeof(TpfThreadData)*fileCount);
 
 	int i=0;
 	for(i=0;i<fileCount;i++)
@@ -96,11 +101,13 @@ void runThreadPerFileImpl(char *fileTemplate, int fileCount, Graph *graph)
 		data[i].graph=graph;
 		data[i].threadCount=fileCount;
 		data[i].threadIndex=i;
-		data[i].pathTemplate=fileTemplate;
+		data[i].pathTemplate=pathTemplate;
 
-		pthread_create(threads+i,NULL,runThread,data+i);
+		pthread_create(threads+i,NULL,tpfWorker,data+i);
 		}
 
+
+	void *status;
 
 	for(i=0;i<fileCount;i++)
 		pthread_join(threads[i], &status);
@@ -108,17 +115,77 @@ void runThreadPerFileImpl(char *fileTemplate, int fileCount, Graph *graph)
 
 
 
-void runParallelTaskImpl(char *fileTemplate, int fileCount, Graph *graph)
+
+
+
+
+void *runIptWorker(void *voidData)
 {
-	int threadCount=fileCount;
-	int hashSlices=16;
+	IptThreadData *data=(IptThreadData *)voidData;
 
-	IndexingBuilder *ib=allocIndexingBuilder(graph, threadCount, hashSlices);
+	IndexingBuilder *ib=data->indexingBuilder;
 
-	pthread_t *threads=malloc(sizeof(pthread_t)*fileCount);
-	ThreadData *data=malloc(sizeof(ThreadData)*fileCount);
+	performTask(ib->pt);
+
+	return NULL;
+}
 
 
+void iptHandler(SequenceWithQuality *rec, int numRecords, void *context)
+{
+	IndexingBuilder *ib=(IndexingBuilder *)context;
+
+	queueIngress(ib->pt, rec, numRecords);
+
+}
+
+
+
+
+void runIptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *graph)
+{
+	IndexingBuilder *ib=allocIndexingBuilder(graph, threadCount);
+
+	pthread_t *threads=malloc(sizeof(pthread_t)*threadCount);
+
+	IptThreadData *data=malloc(sizeof(IptThreadData)*threadCount);
+
+	int i=0;
+	for(i=0;i<threadCount;i++)
+		{
+		data[i].graph=graph;
+		data[i].indexingBuilder=ib;
+		data[i].threadIndex=i;
+
+		pthread_create(threads+i,NULL,runIptWorker,data+i);
+		}
+
+	waitForStartup(ib->pt);
+
+
+	LOG(LOG_INFO,"Ready to parse");
+
+	// Parse stuff here
+
+	for(i=0;i<fileCount;i++)
+		{
+		char path[1024];
+		sprintf(path,pathTemplate,fileCount,i);
+
+		int reads=parseAndProcess(path, FASTQ_MIN_READ_LENGTH, 0, 250000000, ib, iptHandler);
+
+		LOG(LOG_INFO,"Parsed %i reads from %s\n",reads,path);
+		}
+
+
+	queueShutdown(ib->pt);
+
+	waitForShutdown(ib->pt);
+
+	void *status;
+
+	for(i=0;i<threadCount;i++)
+		pthread_join(threads[i], &status);
 
 	freeIndexingBuilder(ib);
 }
@@ -132,18 +199,30 @@ int main(int argc, char **argv)
 
 	Graph *graph=allocGraph(23,23,NULL);
 
-	if(argc!=3)
+	char *fileTemplate=NULL;
+	int fileCount=0;
+	int threadCount=0;
+
+	if(argc==3)
+		{
+		fileTemplate=argv[1];
+		fileCount=atoi(argv[2]);
+		threadCount=fileCount;
+		}
+	else if(argc==4)
+		{
+		fileTemplate=argv[1];
+		fileCount=atoi(argv[2]);
+		threadCount=atoi(argv[3]);
+		}
+	else
 		{
 		LOG(LOG_CRITICAL,"Expected arguments: template files");
 		return 1;
 		}
 
-	char *fileTemplate=argv[1];
-	int fileCount=atoi(argv[2]);
-
-
-	//runThreadPerFileImpl(fileTemplate, fileCount, graph);
-	runParallelTaskImpl(fileTemplate, fileCount, graph);
+	//runTpfMaster(fileTemplate, fileCount, graph);
+	runIptMaster(fileTemplate, fileCount, threadCount, graph);
 
 	LOG(LOG_INFO,"Smer count: %i",smGetSmerCount(&(graph->smerMap)));
 

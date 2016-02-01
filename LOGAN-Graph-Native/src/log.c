@@ -49,22 +49,22 @@ void _log(int level, int decorate, char *file, int line, const char *fmt, ...)
 		switch (level)
 		{
 		case LOG_CRITICAL:
-			fprintf(stderr, "DBG_Native CRITICAL %s(%i) %f: ", file, line, timestamp);
+			fprintf(stderr, "LOGAN CRITICAL %s(%i) %f: ", file, line, timestamp);
 			break;
 		case LOG_ERROR:
-			fprintf(stderr, "DBG_Native ERROR %s(%i) %f: ", file, line, timestamp);
+			fprintf(stderr, "LOGAN ERROR %s(%i) %f: ", file, line, timestamp);
 			break;
 		case LOG_WARNING:
-			fprintf(stderr, "DBG_Native WARNING %s(%i) %f: ", file, line, timestamp);
+			fprintf(stderr, "LOGAN WARNING %s(%i) %f: ", file, line, timestamp);
 			break;
 		case LOG_INFO:
-			fprintf(stderr, "DBG_Native INFO %s(%i) %f: ", file, line, timestamp);
+			fprintf(stderr, "LOGAN INFO %s(%i) %f: ", file, line, timestamp);
 			break;
 		case LOG_TRACE:
-			fprintf(stderr, "DBG_Native TRACE %s(%i) %f: ", file, line, timestamp);
+			fprintf(stderr, "LOGAN TRACE %s(%i) %f: ", file, line, timestamp);
 			break;
 		default:
-			fprintf(stderr, "DBG_Native Level %i %s(%i) %f: ", level, file, line, timestamp);
+			fprintf(stderr, "LOGAN Level %i %s(%i) %f: ", level, file, line, timestamp);
 			break;
 		}
 	}

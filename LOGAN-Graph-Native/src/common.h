@@ -57,6 +57,11 @@ typedef u64 SmerId;
 
 #define SMER_TOP_COUNT 0x4000
 
+//#define SMER_HASH_SLICES 16384
+
+#define SMER_HASH_SLICES 64
+
+
 #elif SMER_BASES == 21
 
 #error SMER_BASES of 21 not yet supported
@@ -101,6 +106,17 @@ typedef u32 SmerId;
 
 // Hack to prevent memcpy version problems on old server versions
 __asm__(".symver memcpy,memcpy@GLIBC_2.2.5");
+
+
+
+typedef struct sequenceWithQualityStr {
+	char *seq;
+	char *qual;
+	int length;
+} SequenceWithQuality;
+
+
+
 
 
 #include "log.h"

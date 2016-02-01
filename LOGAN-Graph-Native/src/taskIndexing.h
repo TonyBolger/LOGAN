@@ -6,9 +6,8 @@
 
 
 typedef struct IndexingBuilderStr {
-
 	ParallelTask *pt;
-
+	Graph *graph;
 
 } IndexingBuilder;
 

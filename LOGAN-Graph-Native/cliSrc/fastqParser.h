@@ -10,6 +10,7 @@
 
 //#define FASTQ_BUFFER_SIZE 10000000
 
+#define FASTQ_MIN_READ_LENGTH 40
 #define FASTQ_MAX_READ_LENGTH 1000000
 
 #define FASTQ_RECORDS_PER_BATCH 100000
@@ -24,12 +25,6 @@ typedef struct fileBufferStr {
 } FileBuffer;
 */
 
-typedef struct fastqRecordStr {
-	char *seq;
-	char *qual;
-	int length;
-} FastqRecord;
-
 
 /*
 int fastqOpenFile(FileBuffer *buffer, char *filePath);
@@ -37,6 +32,6 @@ void fastqCloseFile(FileBuffer *buffer);
 int fastqNextRecord(FileBuffer *buffer, FastqRecord *rec);
 */
 
-int parseAndProcess(char *path, int minSeqLength, int recordsToSkip, int recordsToUse, void *handlerContext, void (*handler)(FastqRecord *rec, int numRecords, void *handlerContext));
+int parseAndProcess(char *path, int minSeqLength, int recordsToSkip, int recordsToUse, void *handlerContext, void (*handler)(SequenceWithQuality *rec, int numRecords, void *handlerContext));
 
 #endif
