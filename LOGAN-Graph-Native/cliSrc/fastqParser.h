@@ -10,9 +10,7 @@
 
 
 #define FASTQ_MIN_READ_LENGTH 40
-#define FASTQ_MAX_READ_LENGTH 1000000
-#define FASTQ_RECORDS_PER_BATCH 100000
-#define FASTQ_BASES_PER_BATCH 10000000
+#define FASTQ_MAX_READ_LENGTH 10000
 
 //#define FASTQ_MAX_READ_LENGTH 1000
 //#define FASTQ_RECORDS_PER_BATCH 100
@@ -35,6 +33,8 @@ void fastqCloseFile(FileBuffer *buffer);
 int fastqNextRecord(FileBuffer *buffer, FastqRecord *rec);
 */
 
-int parseAndProcess(char *path, int minSeqLength, int recordsToSkip, int recordsToUse, void *handlerContext, void (*handler)(SequenceWithQuality *rec, int numRecords, void *handlerContext));
+int parseAndProcess(char *path, int minSeqLength, int recordsToSkip, int recordsToUse,
+		char *seqBuffer[], char *qualBuffer[], SequenceWithQuality *rec[], int ingressBuffers,  int maxBases, int maxReads,
+		void *handlerContext, void (*handler)(SequenceWithQuality *rec, int numRecords, void *handlerContext));
 
 #endif

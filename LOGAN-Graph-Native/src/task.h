@@ -87,16 +87,18 @@ struct parallelTaskStr
 
 // # Ingress buffers held by submitting task
 
-#define PT_INGRESS_BUFFERS 4
+#define PT_INGRESS_BUFFERS 20
 
 
 #define PTSTATE_STARTUP 0
 //#define PTSTATE_IDLE 1
-#define PTSTATE_ACTIVE 2
-#define PTSTATE_TIDY_WAIT 3
-#define PTSTATE_TIDY 4
-#define PTSTATE_SHUTDOWN 5
-#define PTSTATE_DEAD 6
+#define PTSTATE_ACTIVE 1
+#define PTSTATE_TIDY_WAIT 2
+#define PTSTATE_TIDY 3
+#define PTSTATE_SHUTDOWN_TIDY_WAIT 4
+#define PTSTATE_SHUTDOWN_TIDY 5
+#define PTSTATE_SHUTDOWN 6
+#define PTSTATE_DEAD 7
 
 /* Global States:
 

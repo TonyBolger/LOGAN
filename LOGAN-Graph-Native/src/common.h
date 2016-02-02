@@ -115,6 +115,14 @@ typedef struct sequenceWithQualityStr {
 	int length;
 } SequenceWithQuality;
 
+typedef struct swqBufferStr {
+	char *seqBuffer;
+	char *qualBuffer;
+	SequenceWithQuality *rec;
+	int numSequences;
+	int maxSequenceLength;
+	int busyFlag;
+} SwqBuffer;
 
 
 

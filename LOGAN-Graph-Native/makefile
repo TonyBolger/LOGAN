@@ -22,6 +22,9 @@ CLI_OBJS += \
 ./bin/cli/obj/fastqParser.o \
 ./bin/cli/obj/main.o 
 
+CLI_DEPS := $(CLI_OBJS:.o=.d)
+-include $(CLI_DEPS)
+
 JNI_OBJS += \
 ./bin/jni/common/graph.o \
 ./bin/jni/common/log.o \
@@ -34,56 +37,72 @@ JNI_OBJS += \
 ./bin/jni/common/taskRouting.o \
 ./bin/jni/obj/JNI_graph.o 
 
-all: dirs bin/LOGAN bin/libLOGAN.so
+JNI_DEPS := $(JNI_OBJS:.o=.d)
+-include $(JNI_DEPS)
 
-dirs: 
+all: bin/LOGAN bin/libLOGAN.so
+
+bin: 
 	mkdir -p bin
+	
+bin/cli: 	
 	mkdir -p bin/cli/obj
+	
+bin/cli/common:	
 	mkdir -p bin/cli/common
+	
+bin/jni/obj:	
 	mkdir -p bin/jni/obj
+	
+bin/jni/common:	
 	mkdir -p bin/jni/common
 	
-bin/LOGAN: $(CLI_OBJS) 
+bin/LOGAN: $(CLI_OBJS) | bin bin/cli/obj bin/cli/common 
 	@echo 'Building target: $@'
 	@echo 'Invoking: GCC C Linker'
 	gcc -pg -o "bin/LOGAN" $(CLI_OBJS) $(CLI_LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 
-bin/libLOGAN.so: $(JNI_OBJS) 
+bin/libLOGAN.so: $(JNI_OBJS) | bin bin/jni/obj bin/jni/common
 	@echo 'Building target: $@'
 	@echo 'Invoking: GCC C Linker'
 	gcc -shared -p -o "bin/libLOGAN.so" $(JNI_OBJS)  
 	@echo 'Finished building target: $@'
 	@echo ' '
 
-bin/cli/common/%.o: ./src/%.c
+bin/cli/common/%.o: ./src/%.c 
 	@echo 'Building file: $<'
 	@echo 'Invoking: GCC C Compiler'
-	gcc $(CFLAGS) $(INC) $(CLI_INC) -O3 -pg -c -fmessage-length=0 -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -o "$@" "$<"
+	gcc $(CFLAGS) $(INC) $(CLI_INC) -O3 -pg -c -fmessage-length=0 -MMD -MP -MF"$(@:%.o=%.d)" -MT"$@" -o "$@" "$<"
 	@echo 'Finished building: $<'
 	@echo ' '
 
 bin/cli/obj/%.o: ./cliSrc/%.c
 	@echo 'Building file: $<'
 	@echo 'Invoking: GCC C Compiler'
-	gcc $(CFLAGS) $(INC) $(CLI_INC) -O3 -pg -c -fmessage-length=0 -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -o "$@" "$<"
+	gcc $(CFLAGS) $(INC) $(CLI_INC) -O3 -pg -c -fmessage-length=0 -MMD -MP -MF"$(@:%.o=%.d)" -MT"$@" -o "$@" "$<"
 	@echo 'Finished building: $<'
 	@echo ' '
 
-bin/jni/common/%.o: ./src/%.c
+
+bin/jni/common/%.o: ./src/%.c 
 	@echo 'Building file: $<'
 	@echo 'Invoking: GCC C Compiler'
-	gcc $(CFLAGS) $(INC) $(JNI_INC) -O0 -g3 -p -c -fmessage-length=0 -fPIC -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -o "$@" "$<"
+	gcc $(CFLAGS) $(INC) $(JNI_INC) -O0 -g3 -p -c -fmessage-length=0 -fPIC -MMD -MP -MF"$(@:%.o=%.d)" -MT"$@" -o "$@" "$<"
 	@echo 'Finished building: $<'
 	@echo ' '
 
 bin/jni/obj/%.o: ./jniSrc/%.c
 	@echo 'Building file: $<'
 	@echo 'Invoking: GCC C Compiler'
-	gcc $(CFLAGS) $(INC) $(JNI_INC) -O0 -g3 -p -c -fmessage-length=0 -fPIC -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -o "$@" "$<"
+	gcc $(CFLAGS) $(INC) $(JNI_INC) -O0 -g3 -p -c -fmessage-length=0 -fPIC -MMD -MP -MF"$(@:%.o=%.d)" -MT"$@" -o "$@" "$<"
 	@echo 'Finished building: $<'
 	@echo ' '
+	
+#$(CLI_OBJS): src/*.h cliSrc/*.h
+#
+#$(JNI_OBJS): src/*.h jniSrc/*.h jniHeaders/*.h	
 	
 clean:
 	rm $(CLI_OBJS) $(JNI_OBJS) bin/LOGAN bin/libLOGAN.so

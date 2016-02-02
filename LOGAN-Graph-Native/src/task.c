@@ -52,11 +52,9 @@ void waitForShutdown(ParallelTask *pt)
 }
 
 
-
-
 int queueIngress(ParallelTask *pt, void *ingressPtr, int ingressCount)
 {
-	LOG(LOG_INFO,"Master: QueueIngress %p %i",ingressPtr,ingressCount);
+//	LOG(LOG_INFO,"Master: QueueIngress %p %i",ingressPtr,ingressCount);
 
 	int lock=pthread_mutex_lock(&(pt->mutex));
 	if(lock!=0)
@@ -67,12 +65,12 @@ int queueIngress(ParallelTask *pt, void *ingressPtr, int ingressCount)
 
 	// NEED TO CHECK EXISTING INGRESS
 
-	LOG(LOG_INFO,"Master: QueueIngress Wait");
+//	LOG(LOG_INFO,"Master: QueueIngress Wait");
 
 	while(pt->reqIngressPtr!=NULL)
 		pthread_cond_wait(&(pt->master_ingress),&(pt->mutex));
 
-	LOG(LOG_INFO,"Master: QueueIngress Wait Done");
+//	LOG(LOG_INFO,"Master: QueueIngress Wait Done");
 
 	pt->reqIngressPtr=ingressPtr;
 	pt->reqIngressTotal=ingressCount;
@@ -81,7 +79,7 @@ int queueIngress(ParallelTask *pt, void *ingressPtr, int ingressCount)
 
 	pthread_mutex_unlock(&(pt->mutex));
 
-	LOG(LOG_INFO,"Master: QueueIngress Done");
+//	LOG(LOG_INFO,"Master: QueueIngress Done");
 
 	return 0;
 }
@@ -98,6 +96,8 @@ void queueShutdown(ParallelTask *pt)
 		return;
 		}
 
+	LOG(LOG_INFO,"Master: QueueShutdown locked");
+
 	pt->reqShutdown=1;
 
 	pthread_cond_broadcast(&(pt->workers_idle));
@@ -109,7 +109,7 @@ void queueShutdown(ParallelTask *pt)
 
 static void performTaskNewIngress(ParallelTask *pt)
 {
-	LOG(LOG_INFO,"New Ingress Req");
+//	LOG(LOG_INFO,"New Ingress Req");
 
 	pt->activeIngressPtr=pt->reqIngressPtr;
 	pt->activeIngressTotal=pt->reqIngressTotal;
@@ -133,7 +133,7 @@ static int performTaskActive(ParallelTask *pt, int workerNo)
 	// 2nd priority - active ingress
 	if(pt->activeIngressPtr!=NULL)
 		{
-		LOG(LOG_INFO,"Active 2 %i %i",pt->activeIngressCounter,pt->activeIngressTotal);
+//		LOG(LOG_INFO,"Active 2 %i %i",pt->activeIngressCounter,pt->activeIngressTotal);
 
 		void *ingressPtr=pt->activeIngressPtr;
 		int ingressPos=pt->activeIngressCounter;
@@ -146,7 +146,7 @@ static int performTaskActive(ParallelTask *pt, int workerNo)
 
 		if(pt->activeIngressCounter>=pt->activeIngressTotal)
 			{
-			LOG(LOG_INFO,"Ingress done");
+	//		LOG(LOG_INFO,"Ingress done");
 
 			pt->activeIngressPtr=NULL;
 			pt->activeIngressCounter=0;
@@ -178,6 +178,8 @@ static int performTaskActive(ParallelTask *pt, int workerNo)
 				LOG(LOG_CRITICAL,"Failed to lock for performTask: %s",strerror(ret));
 				}
 
+
+
 		return 1;
 		}
 
@@ -191,7 +193,7 @@ static int performTaskActive(ParallelTask *pt, int workerNo)
 	// 4th priority - tidy
 	if(pt->activeTidyTotal>0)
 		{
-		LOG(LOG_INFO,"Tidy needed");
+		//LOG(LOG_INFO,"Tidy needed");
 
 		// Last non-sleeping thread
 		if(pt->idleThreads==pt->liveThreads-1)
@@ -215,12 +217,60 @@ static int performTaskActive(ParallelTask *pt, int workerNo)
 		{
 		LOG(LOG_INFO,"New Shutdown Req");
 
-   		pt->state=PTSTATE_SHUTDOWN;
+   		pt->state=PTSTATE_SHUTDOWN_TIDY_WAIT;
    		return 1;
 		}
 
 	return 0;
 }
+
+
+void performTidyWait(ParallelTask *pt)
+{
+	LOG(LOG_INFO,"TIDY WAIT");
+
+	pthread_mutex_unlock(&(pt->mutex));
+
+	pthread_barrier_wait(&(pt->tidyStartBarrier));
+
+	int ret=pthread_mutex_lock(&(pt->mutex));
+	if(ret!=0)
+		{
+		LOG(LOG_CRITICAL,"Failed to lock for performTask: %s",strerror(ret));
+		}
+
+	LOG(LOG_INFO,"TIDY WAIT done");
+
+}
+
+void performTidy(ParallelTask *pt, int workerNo)
+{
+	int tidyPos=pt->activeTidyPosition;
+
+	pt->activeTidyPosition++;
+
+	if(pt->activeTidyPosition>=pt->activeTidyTotal)
+		{
+		pt->activeTidyTotal=0;
+		pt->activeTidyPosition=0;
+		}
+
+	// Do Tidy
+	if(pt->config->doTidy!=NULL)
+		{
+		pthread_mutex_unlock(&(pt->mutex));
+
+		pt->config->doTidy(pt,workerNo,tidyPos);
+
+		int ret=pthread_mutex_lock(&(pt->mutex));
+		if(ret!=0)
+			{
+			LOG(LOG_CRITICAL,"Failed to lock for performTask: %s",strerror(ret));
+			}
+		}
+}
+
+
 
 void performTask(ParallelTask *pt)
 {
@@ -248,7 +298,7 @@ void performTask(ParallelTask *pt)
 
 	//LOG(LOG_INFO,"Worker %i Startup Barrier done",workerNo);
 
-	// Lock should be held except when sleeping or working
+	// Lock should be held except when working
 
 	ret=pthread_mutex_lock(&(pt->mutex));
 	if(ret!=0)
@@ -266,9 +316,9 @@ void performTask(ParallelTask *pt)
 	//LOG(LOG_INFO,"Worker %i Entering main loop",workerNo);
 
 
-	while(pt->state!=PTSTATE_SHUTDOWN)
+	while(pt->state!=PTSTATE_SHUTDOWN_TIDY_WAIT)
 		{
-		LOG(LOG_INFO,"Worker %i looping %i",workerNo,pt->state);
+		//LOG(LOG_INFO,"Worker %i looping %i",workerNo,pt->state);
 
 		if(pt->state==PTSTATE_ACTIVE)
 			{
@@ -279,74 +329,38 @@ void performTask(ParallelTask *pt)
 		   	else
     			{
 		   		pt->idleThreads++;
+		   		pthread_cond_broadcast(&(pt->master_ingress));
+
+//		   		LOG(LOG_INFO,"Worker sleeping");
+
 		   		pthread_cond_wait(&(pt->workers_idle),&(pt->mutex));
+
+//		   		LOG(LOG_INFO,"Worker waking");
 		   		pt->idleThreads--;
     			}
 			}
 		else if(pt->state==PTSTATE_TIDY_WAIT)
 			{
-			LOG(LOG_INFO,"TIDY WAIT");
-
-			pthread_mutex_unlock(&(pt->mutex));
-
-			pthread_barrier_wait(&(pt->tidyStartBarrier));
-
-			ret=pthread_mutex_lock(&(pt->mutex));
-			if(ret!=0)
-					{
-					LOG(LOG_CRITICAL,"Failed to lock for performTask: %s",strerror(ret));
-					}
-
-			LOG(LOG_INFO,"TIDY WAIT done");
+			performTidyWait(pt);
 
 			if(pt->state==PTSTATE_TIDY_WAIT)
-				{
 				pt->state=PTSTATE_TIDY;
-				}
 			}
 		else if(pt->state==PTSTATE_TIDY)
 			{
 			if(pt->activeTidyTotal>0)
 				{
-				int tidyPos=pt->activeTidyPosition;
-
-				pt->activeTidyPosition++;
-
-				if(pt->activeTidyPosition>=pt->activeTidyTotal)
-					{
-					pt->activeTidyTotal=0;
-					pt->activeTidyPosition=0;
-					}
-
-				// Do Tidy
-				if(pt->config->doTidy!=NULL)
-					{
-					pthread_mutex_unlock(&(pt->mutex));
-
-					pt->config->doTidy(pt,workerNo,tidyPos);
-
-					ret=pthread_mutex_lock(&(pt->mutex));
-					if(ret!=0)
-						{
-						LOG(LOG_CRITICAL,"Failed to lock for performTask: %s",strerror(ret));
-						}
-					}
+				performTidy(pt, workerNo);
 				}
 			else
 				{
-//				LOG(LOG_INFO,"TIDY END WAIT");
-
 				pthread_mutex_unlock(&(pt->mutex));
-
 				pthread_barrier_wait(&(pt->tidyEndBarrier));
-
 				ret=pthread_mutex_lock(&(pt->mutex));
 				if(ret!=0)
 						{
 						LOG(LOG_CRITICAL,"Failed to lock for performTask: %s",strerror(ret));
 						}
-
-//				LOG(LOG_INFO,"TIDY END WAIT done");
 
 				if(pt->state==PTSTATE_TIDY)
 					{
@@ -371,9 +385,26 @@ void performTask(ParallelTask *pt)
 
 		}
 
-	LOG(LOG_INFO,"Worker %i Completed main loop",workerNo);
+	LOG(LOG_INFO,"Worker %i Completed main loop - waiting for shutdown tidy",workerNo);
+
+	// Shutdown tidy
+
+	performTidyWait(pt);
+
+	if(pt->state==PTSTATE_SHUTDOWN_TIDY_WAIT)
+		{
+		pt->state=PTSTATE_SHUTDOWN_TIDY;
+
+		pt->activeTidyTotal=pt->config->tasksPerTidy;
+		pt->activeTidyPosition=0;
+		}
+
+	while(pt->activeTidyTotal>0)
+		performTidy(pt, workerNo);
+
 
 	// Release Lock at shutdown
+	pt->state=PTSTATE_SHUTDOWN;
 
 	pthread_mutex_unlock(&(pt->mutex));
 

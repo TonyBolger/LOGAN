@@ -92,11 +92,10 @@ int readFastqRecord(FILE *file, SequenceWithQuality *rec, int maxLength)
 	return len1;
 }
 
-//#define FASTQ_RECORDS_PER_BATCH 100000
-//#define FASTQ_BASES_PER_BATCH 10000000
 
-
-int parseAndProcess(char *path, int minSeqLength, int recordsToSkip, int recordsToUse, void *handlerContext, void (*handler)(SequenceWithQuality *rec, int numRecords, void *handlerContext))
+int parseAndProcess(char *path, int minSeqLength, int recordsToSkip, int recordsToUse,
+		char *seqBuffer[], char *qualBuffer[], SequenceWithQuality *rec[], int ingressBuffers, int maxBases, int maxReads,
+		void *handlerContext, void (*handler)(SequenceWithQuality *rec, int numRecords, void *handlerContext))
 {
 	FILE *file=fopen(path,"r");
 
@@ -106,20 +105,7 @@ int parseAndProcess(char *path, int minSeqLength, int recordsToSkip, int records
 		return 0;
 		}
 
-	int bufSize=FASTQ_BASES_PER_BATCH;
 	int currentBuffer=0;
-
-	char *seqBuffer[PT_INGRESS_BUFFERS];
-	char *qualBuffer[PT_INGRESS_BUFFERS];
-	SequenceWithQuality *rec[PT_INGRESS_BUFFERS];
-
-	for(int i=0;i<PT_INGRESS_BUFFERS;i++)
-		{
-		seqBuffer[i]=malloc(bufSize);
-		qualBuffer[i]=malloc(bufSize);
-
-		rec[i]=malloc(sizeof(SequenceWithQuality)*FASTQ_RECORDS_PER_BATCH);
-		}
 
 	int batchReadCount=0;
 	long batchBaseCount=0;
@@ -145,7 +131,7 @@ int parseAndProcess(char *path, int minSeqLength, int recordsToSkip, int records
 				batchReadCount++;
 				batchBaseCount+=len;
 
-				if((batchReadCount>=FASTQ_RECORDS_PER_BATCH) || batchBaseCount>=(FASTQ_BASES_PER_BATCH-FASTQ_MAX_READ_LENGTH))
+				if((batchReadCount>=maxReads) || batchBaseCount>=(maxBases-FASTQ_MAX_READ_LENGTH))
 					{
 					(*handler)(rec[currentBuffer],batchReadCount,handlerContext);
 					totalBatch+=batchReadCount;
@@ -196,13 +182,6 @@ int parseAndProcess(char *path, int minSeqLength, int recordsToSkip, int records
 				break;
 
 			}
-		}
-
-	for(int i=0;i<PT_INGRESS_BUFFERS;i++)
-		{
-		free(seqBuffer[i]);
-		free(qualBuffer[i]);
-		free(rec[i]);
 		}
 
 	fclose(file);

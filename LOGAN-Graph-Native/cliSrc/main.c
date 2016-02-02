@@ -19,6 +19,19 @@ typedef struct iptThreadDataStr
 } IptThreadData;
 
 
+#define FASTQ_RECORDS_PER_BATCH 100
+#define FASTQ_BASES_PER_BATCH 10000
+
+//#define FASTQ_RECORDS_PER_BATCH 1000
+//#define FASTQ_BASES_PER_BATCH 100000
+
+//#define FASTQ_RECORDS_PER_BATCH 10000
+//#define FASTQ_BASES_PER_BATCH 1000000
+
+//#define FASTQ_RECORDS_PER_BATCH 100000
+//#define FASTQ_BASES_PER_BATCH 10000000
+
+
 void tpfAddPathSmersHandler(SequenceWithQuality *rec, int numRecords, void *context)
 {
 	Graph *graph=context;
@@ -78,7 +91,20 @@ void *tpfWorker(void *voidData)
 
 	//char *path, int minSeqLength, int recordsToSkip, int recordsToUse, void *handlerContext, void (*handler)
 
-	int reads=parseAndProcess(path, FASTQ_MIN_READ_LENGTH, 0, 250000000, data->graph, tpfAddPathSmersHandler);
+	int bufSize=FASTQ_BASES_PER_BATCH;
+
+	char *seqBuffer[1];
+	char *qualBuffer[1];
+	SequenceWithQuality *rec[1];
+
+	seqBuffer[0]=malloc(bufSize);
+	qualBuffer[0]=malloc(bufSize);
+	rec[0]=malloc(sizeof(SequenceWithQuality)*FASTQ_RECORDS_PER_BATCH);
+
+
+	int reads=parseAndProcess(path, FASTQ_MIN_READ_LENGTH, 0, 250000000,
+			seqBuffer, qualBuffer, rec, 1, FASTQ_BASES_PER_BATCH, FASTQ_RECORDS_PER_BATCH,
+			data->graph, tpfAddPathSmersHandler);
 //	int reads=parseAndProcess(path, minLength, 0, 1, smerCtx, addPathSmersHandler);
 
 
@@ -138,7 +164,6 @@ void iptHandler(SequenceWithQuality *rec, int numRecords, void *context)
 //	LOG(LOG_INFO," ********************* IPT HANDLER GOT %i ****************************",numRecords);
 
 	queueIngress(ib->pt, rec, numRecords);
-
 }
 
 
@@ -169,12 +194,29 @@ void runIptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 
 	// Parse stuff here
 
+	int bufSize=FASTQ_BASES_PER_BATCH;
+
+	char *seqBuffer[PT_INGRESS_BUFFERS];
+	char *qualBuffer[PT_INGRESS_BUFFERS];
+	SequenceWithQuality *rec[PT_INGRESS_BUFFERS];
+
+	for(int i=0;i<PT_INGRESS_BUFFERS;i++)
+		{
+		seqBuffer[i]=malloc(bufSize);
+		qualBuffer[i]=malloc(bufSize);
+
+		rec[i]=malloc(sizeof(SequenceWithQuality)*FASTQ_RECORDS_PER_BATCH);
+		}
+
+
 	for(i=0;i<fileCount;i++)
 		{
 		char path[1024];
 		sprintf(path,pathTemplate,fileCount,i);
 
-		int reads=parseAndProcess(path, FASTQ_MIN_READ_LENGTH, 0, 2500000, ib, iptHandler);
+		int reads=parseAndProcess(path, FASTQ_MIN_READ_LENGTH, 0, 250000000,
+				seqBuffer, qualBuffer, rec, PT_INGRESS_BUFFERS,  FASTQ_BASES_PER_BATCH, FASTQ_RECORDS_PER_BATCH,
+				ib, iptHandler);
 
 		LOG(LOG_INFO,"Parsed %i reads from %s",reads,path);
 		}
@@ -188,6 +230,15 @@ void runIptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 
 	for(i=0;i<threadCount;i++)
 		pthread_join(threads[i], &status);
+
+	for(int i=0;i<PT_INGRESS_BUFFERS;i++)
+		{
+		free(seqBuffer[i]);
+		free(qualBuffer[i]);
+		free(rec[i]);
+		}
+
+	LOG(LOG_INFO,"Graph has %i smers",smGetSmerCount(&(graph->smerMap)));
 
 	freeIndexingBuilder(ib);
 }

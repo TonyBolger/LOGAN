@@ -7,25 +7,41 @@
 
 #include "common.h"
 
-
+#include "fastqParser.h"
 
 
 static void tiDoRegister(ParallelTask *pt, int workerNo)
 {
 	LOG(LOG_INFO,"TaskIndexing: DoRegister (%i)",workerNo);
-	sleep(1);
 }
 
 static void tiDoDeregister(ParallelTask *pt, int workerNo)
 {
 	LOG(LOG_INFO,"TaskIndexing: DoDeregister (%i)",workerNo);
-	sleep(1);
 }
 
 static int tiDoIngress(ParallelTask *pt, int workerNo,void *ingressPtr, int ingressPosition, int ingressSize)
 {
-	LOG(LOG_INFO,"TaskIndexing: DoIngress (%i): %i %i",workerNo,ingressPosition, ingressSize);
+//	LOG(LOG_INFO,"TaskIndexing: DoIngress (%i): %i %i",workerNo, ingressPosition, ingressSize);
 	//sleep(1);
+
+	SequenceWithQuality *rec=ingressPtr;
+	IndexingBuilder *ib=pt->dataPtr;
+
+	u8 *packedSeq=malloc(FASTQ_MAX_READ_LENGTH*4);
+	int i=0;
+	int ingressLast=ingressPosition+ingressSize;
+
+	for(i=ingressPosition;i<ingressLast;i++)
+		{
+		SequenceWithQuality *currentRec=rec+i;
+
+		packSequence(currentRec->seq, packedSeq, currentRec->length);
+		addPathSmers(ib->graph, currentRec->length, packedSeq);
+		}
+
+	free(packedSeq);
+
 	return 0;
 }
 
@@ -38,7 +54,7 @@ static int tiDoIntermediate(ParallelTask *pt, int workerNo, int force)
 
 static int tiDoTidy(ParallelTask *pt, int workerNo, int tidyNo)
 {
-	LOG(LOG_INFO,"TaskIndexing: DoTidy (%i)",workerNo);
+//	LOG(LOG_INFO,"TaskIndexing: DoTidy (%i)",workerNo);
 	//sleep(1);
 	return 0;
 }
