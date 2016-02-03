@@ -45,13 +45,17 @@ struct parallelTaskStr
 	// Updated by master to make ingress or shutodwn requests
 	void *reqIngressPtr;
 	int reqIngressTotal;
+	int *reqIngressUsageCount;
+
 	int reqShutdown;
 
 	// Updated by worker on ingress acceptance & completion
 
 	void *activeIngressPtr;
 	int activeIngressTotal;
-	int activeIngressCounter;
+	int *activeIngressUsageCount;
+
+	int activeIngressPosition;
 
 	int activeTidyPosition;
 	int activeTidyTotal;
@@ -87,7 +91,7 @@ struct parallelTaskStr
 
 // # Ingress buffers held by submitting task
 
-#define PT_INGRESS_BUFFERS 20
+#define PT_INGRESS_BUFFERS 4
 
 
 #define PTSTATE_STARTUP 0
@@ -138,7 +142,7 @@ void waitForStartup(ParallelTask *pt);
 void waitForShutdown(ParallelTask *pt);
 
 // queueIngress may wait if an ingress already exists
-int queueIngress(ParallelTask *pt, void *ingressPtr, int ingressCount);
+int queueIngress(ParallelTask *pt, void *ingressPtr, int ingressCount, int *ingressUsageCount);
 
 void queueShutdown(ParallelTask *pt);
 

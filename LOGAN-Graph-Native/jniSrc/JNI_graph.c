@@ -165,7 +165,9 @@ JNIEXPORT void JNICALL Java_logan_graph_Graph_00024IndexBuilder_processReads_1Na
 {
 	IndexingBuilder *ib = (IndexingBuilder *) handle;
 
-	queueIngress(ib->pt, ib, i);
+	int tmp=0;
+
+	queueIngress(ib->pt, ib, i, &tmp);
 }
 
 /*

@@ -93,9 +93,23 @@ int readFastqRecord(FILE *file, SequenceWithQuality *rec, int maxLength)
 }
 
 
+void waitForIdle(int *usageCount)
+{
+	while(!__sync_bool_compare_and_swap(usageCount,0,0))
+		{
+		struct timespec req, rem;
+
+		req.tv_sec=0;
+		req.tv_nsec=1000000;
+
+		nanosleep(&req, &rem);
+		}
+}
+
+
+
 int parseAndProcess(char *path, int minSeqLength, int recordsToSkip, int recordsToUse,
-		char *seqBuffer[], char *qualBuffer[], SequenceWithQuality *rec[], int ingressBuffers, int maxBases, int maxReads,
-		void *handlerContext, void (*handler)(SequenceWithQuality *rec, int numRecords, void *handlerContext))
+		SwqBuffer *buffers, int bufferCount, void *handlerContext, void (*handler)(SwqBuffer *buffer, void *handlerContext))
 {
 	FILE *file=fopen(path,"r");
 
@@ -106,7 +120,6 @@ int parseAndProcess(char *path, int minSeqLength, int recordsToSkip, int records
 		}
 
 	int currentBuffer=0;
-
 	int batchReadCount=0;
 	long batchBaseCount=0;
 
@@ -114,16 +127,21 @@ int parseAndProcess(char *path, int minSeqLength, int recordsToSkip, int records
 
 	int lastRecord=recordsToSkip+recordsToUse;
 
-	rec[currentBuffer][batchReadCount].seq=seqBuffer[currentBuffer];
-	rec[currentBuffer][batchReadCount].qual=qualBuffer[currentBuffer];
+	int maxReads=buffers[currentBuffer].maxSequences;
+	int maxBases=buffers[currentBuffer].maxSequenceTotalLength;
+	int maxBasesPerRead=buffers[currentBuffer].maxSequenceLength;
 
-	int len=readFastqRecord(file, rec[currentBuffer], FASTQ_MAX_READ_LENGTH);
+	buffers[currentBuffer].rec[batchReadCount].seq=buffers[currentBuffer].seqBuffer;
+	buffers[currentBuffer].rec[batchReadCount].qual=buffers[currentBuffer].qualBuffer;
+
+	int len = readFastqRecord(file, buffers[currentBuffer].rec, maxBasesPerRead);
+	buffers[currentBuffer].rec[batchReadCount].length=len;
 
 	int totalBatch=0;
 
 	while(len>0 && validRecordCount<lastRecord)
 		{
-		char *seq=rec[currentBuffer][batchReadCount].seq;
+		char *seq=buffers[currentBuffer].rec[batchReadCount].seq;
 		if((len>=minSeqLength) && (strchr(seq,'N')==NULL))
 			{
 			if(validRecordCount>=recordsToSkip)
@@ -131,14 +149,26 @@ int parseAndProcess(char *path, int minSeqLength, int recordsToSkip, int records
 				batchReadCount++;
 				batchBaseCount+=len;
 
-				if((batchReadCount>=maxReads) || batchBaseCount>=(maxBases-FASTQ_MAX_READ_LENGTH))
+				if((batchReadCount>=maxReads) || batchBaseCount>=(maxBases-maxBasesPerRead))
 					{
-					(*handler)(rec[currentBuffer],batchReadCount,handlerContext);
+					buffers[currentBuffer].numSequences=batchReadCount;
+
+					(*handler)(buffers+currentBuffer,handlerContext);
 					totalBatch+=batchReadCount;
 					batchReadCount=0;
 					batchBaseCount=0;
 
 					currentBuffer=(currentBuffer+1)%PT_INGRESS_BUFFERS;
+
+
+//					int usage=buffers[currentBuffer].usageCount;
+//					if(usage>0)
+//						LOG(LOG_INFO, "New buffer usage count was %i",usage);
+
+					waitForIdle(&buffers[currentBuffer].usageCount);
+
+//					if(usage>0)
+//						LOG(LOG_INFO, "New buffer usage count is now %i",buffers[currentBuffer].usageCount);
 					}
 
 				usedRecords++;
@@ -152,14 +182,19 @@ int parseAndProcess(char *path, int minSeqLength, int recordsToSkip, int records
 
 		allRecordCount++;
 
-		rec[currentBuffer][batchReadCount].seq=seqBuffer[currentBuffer]+batchBaseCount;
-		rec[currentBuffer][batchReadCount].qual=qualBuffer[currentBuffer]+batchBaseCount;
-		len=readFastqRecord(file, rec[currentBuffer]+batchReadCount, FASTQ_MAX_READ_LENGTH);
+		buffers[currentBuffer].rec[batchReadCount].seq=buffers[currentBuffer].seqBuffer;
+		buffers[currentBuffer].rec[batchReadCount].qual=buffers[currentBuffer].qualBuffer;
+
+		len=readFastqRecord(file, buffers[currentBuffer].rec+batchReadCount, maxBasesPerRead);
+
+		buffers[currentBuffer].rec[batchReadCount].length=len;
 		}
 
 	if(batchReadCount>0)
 		{
-		(*handler)(rec[currentBuffer],batchReadCount,handlerContext);
+		buffers[currentBuffer].numSequences=batchReadCount;
+
+		(*handler)(buffers+currentBuffer,handlerContext);
 		totalBatch+=batchReadCount;
 		}
 

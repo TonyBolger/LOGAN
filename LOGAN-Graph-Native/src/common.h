@@ -119,9 +119,11 @@ typedef struct swqBufferStr {
 	char *seqBuffer;
 	char *qualBuffer;
 	SequenceWithQuality *rec;
-	int numSequences;
+	int maxSequenceTotalLength;
+	int maxSequences;
 	int maxSequenceLength;
-	int busyFlag;
+	int numSequences;
+	int usageCount;
 } SwqBuffer;
 
 

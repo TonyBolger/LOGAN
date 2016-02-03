@@ -25,16 +25,16 @@ static int tiDoIngress(ParallelTask *pt, int workerNo,void *ingressPtr, int ingr
 //	LOG(LOG_INFO,"TaskIndexing: DoIngress (%i): %i %i",workerNo, ingressPosition, ingressSize);
 	//sleep(1);
 
-	SequenceWithQuality *rec=ingressPtr;
+	SwqBuffer *rec=ingressPtr;
 	IndexingBuilder *ib=pt->dataPtr;
 
-	u8 *packedSeq=malloc(FASTQ_MAX_READ_LENGTH*4);
+	u8 *packedSeq=malloc(rec->maxSequenceTotalLength+4);
 	int i=0;
 	int ingressLast=ingressPosition+ingressSize;
 
 	for(i=ingressPosition;i<ingressLast;i++)
 		{
-		SequenceWithQuality *currentRec=rec+i;
+		SequenceWithQuality *currentRec=rec->rec+i;
 
 		packSequence(currentRec->seq, packedSeq, currentRec->length);
 		addPathSmers(ib->graph, currentRec->length, packedSeq);
