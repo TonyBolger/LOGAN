@@ -40,3 +40,34 @@ int packSequence(char *seq, u8 *packedSeq, int length)
 	return packedLength;
 }
 
+char unpackChar(u32 pack)
+{
+	switch(pack)
+	{
+		case 0:
+			return 'A';
+		case 1:
+			return 'C';
+		case 2:
+			return 'G';
+		case 3:
+			return 'T';
+	}
+	return 0;
+}
+
+void unpackSmer(SmerId smer, char *out)
+{
+	int pos=SMER_BASES-1;
+
+	out[SMER_BASES]=0;
+
+	for(int i=0;i<SMER_BASES;i++)
+		{
+		out[pos]=unpackChar(smer&0x3);
+		smer>>=2;
+		pos--;
+		}
+}
+
+

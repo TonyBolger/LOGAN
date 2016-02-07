@@ -171,7 +171,7 @@ void iptHandler(SwqBuffer *buffer, void *context)
 {
 	IndexingBuilder *ib=(IndexingBuilder *)context;
 
-//	LOG(LOG_INFO," ********************* IPT HANDLER GOT %i ****************************",numRecords);
+	//LOG(LOG_INFO," ********************* IPT HANDLER GOT %i ****************************", buffer->numSequences);
 
 	queueIngress(ib->pt, buffer, buffer->numSequences, &buffer->usageCount);
 }
@@ -248,8 +248,6 @@ void runIptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 		free(buffers[i].qualBuffer);
 		free(buffers[i].rec);
 		}
-
-	LOG(LOG_INFO,"Graph has %i smers",smGetSmerCount(&(graph->smerMap)));
 
 	freeIndexingBuilder(ib);
 }

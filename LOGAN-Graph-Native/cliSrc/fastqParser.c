@@ -182,8 +182,8 @@ int parseAndProcess(char *path, int minSeqLength, int recordsToSkip, int records
 
 		allRecordCount++;
 
-		buffers[currentBuffer].rec[batchReadCount].seq=buffers[currentBuffer].seqBuffer;
-		buffers[currentBuffer].rec[batchReadCount].qual=buffers[currentBuffer].qualBuffer;
+		buffers[currentBuffer].rec[batchReadCount].seq=buffers[currentBuffer].seqBuffer+batchBaseCount;
+		buffers[currentBuffer].rec[batchReadCount].qual=buffers[currentBuffer].qualBuffer+batchBaseCount;
 
 		len=readFastqRecord(file, buffers[currentBuffer].rec+batchReadCount, maxBasesPerRead);
 

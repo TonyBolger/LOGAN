@@ -54,8 +54,11 @@ static int tiDoIntermediate(ParallelTask *pt, int workerNo, int force)
 
 static int tiDoTidy(ParallelTask *pt, int workerNo, int tidyNo)
 {
-//	LOG(LOG_INFO,"TaskIndexing: DoTidy (%i)",workerNo);
-	//sleep(1);
+	IndexingBuilder *ib=pt->dataPtr;
+	Graph *graph=ib->graph;
+
+	smConsiderResize(&(graph->smerMap), tidyNo);
+
 	return 0;
 }
 
@@ -67,7 +70,7 @@ IndexingBuilder *allocIndexingBuilder(Graph *graph, int threads)
 
 	ParallelTaskConfig *ptc=allocParallelTaskConfig(tiDoRegister,tiDoDeregister,tiDoIngress,tiDoIntermediate,tiDoTidy,threads,
 			TI_INGRESS_BLOCKSIZE,TI_INGRESS_PER_TIDY_MIN, TI_INGRESS_PER_TIDY_MAX, TI_TIDYS_PER_BACKOFF,
-			16);//SMER_HASH_SLICES);
+			SMER_MAP_SLICES);
 
 	ib->pt=allocParallelTask(ptc,ib);
 	ib->graph=graph;

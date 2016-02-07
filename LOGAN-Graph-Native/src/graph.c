@@ -12,9 +12,6 @@
 #include "common.h"
 
 
-
-
-
 static int checkStealthIndexing(s32 *indexes, u32 indexCount, SmerId *smerIds, SmerId smerId)
 {
 	int i=0;
@@ -112,8 +109,13 @@ void addPathSmers(Graph *graph, u32 dataLength, u8 *data)
 	//LOG(LOG_INFO, "Len %i Old %i New %i Existing %i",dataLength, oldIndexCount, newIndexCount, graph->smerMap.entryCount);
 
 	if(newIndexCount>0)
+		{
+		//LOG(LOG_INFO, "Creating %i",newIndexCount);
 		smCreateIndexedSmers(smerMap, newIndexCount, newIndexes, smerIds);
+		}
 }
+
+
 
 
 /*
@@ -203,62 +205,6 @@ int addPathRoutes(Graph *graph, u32 dataLength, u8 *data)
 
 
 
-
-
-
-
-// TODO: Clean up and move alloc/free to mem.c
-
-GraphBatchContext *graphBatchInitContext(Graph *graph, int maxSeqLength, int maxBatchSize, int mode)
-{
-	GraphBatchContext *out=malloc(sizeof(GraphBatchContext));
-
-	if(out==NULL)
-		return NULL;
-
-	memset(out,0,sizeof(GraphBatchContext));
-
-	out->graph=graph;
-
-	out->maxSeqLength=maxSeqLength;
-	out->maxBatchSize=maxBatchSize;
-
-	out->reads=malloc(sizeof(GraphBatchReadContext)*maxBatchSize);
-
-	int packedSeqLength=MEM_ROUND_BYTE(maxSeqLength*2)*maxBatchSize;
-	out->packedSequences=malloc(packedSeqLength);
-
-	/*
-	if(mode!=GRAPH_MODE_SMERID)
-		{
-		int bloomCacheLength=MEM_ROUND_QWORD(maxSeqLength); // 64 per u64
-		out->bloomCaches=malloc(8*bloomCacheLength);
-		}
-*/
-
-	return out;
-}
-
-
-void graphBatchFreeContext(GraphBatchContext *context)
-{
-	if(context==NULL)
-		return;
-
-	free(context->reads);
-	free(context->packedSequences);
-	free(context->bloomCaches);
-
-	free(context);
-}
-
-
-void graphBatchAddPathRoutes(GraphBatchContext *context)
-{
-
-
-
-}
 
 
 

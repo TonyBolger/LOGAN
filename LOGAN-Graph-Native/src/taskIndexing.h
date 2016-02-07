@@ -7,7 +7,7 @@
 
 #define TI_INGRESS_PER_TIDY_MIN 4
 #define TI_INGRESS_PER_TIDY_MAX 256
-#define TI_TIDYS_PER_BACKOFF 4
+#define TI_TIDYS_PER_BACKOFF 16
 
 typedef struct IndexingBuilderStr {
 	ParallelTask *pt;

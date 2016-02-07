@@ -14,7 +14,6 @@
 
 /********************** Definitions for SmerMap **********************/
 
-#define SMER_MAP_SLICES 64
 
 typedef struct smerMapSliceStr
 {
@@ -58,6 +57,8 @@ void smCleanupSmerMap(SmerMap *smerMap);
 void smCreateIndexedSmers(SmerMap *smerMap, u32 indexCount, s32 *indexes, SmerId *smerIds);
 u32 smFindIndexesOfExistingSmers(SmerMap *smerMap, u8 *data, s32 maxIndex, s32 *oldIndexes, SmerId *smerIds, s32 maxDistance);
 void smCreateSmers(SmerMap *smerMap, SmerId *smerIds, u32 smerCount);
+void smConsiderResize(SmerMap *smerMap, int sliceNum);
+
 
 u32 smGetSmerCount(SmerMap *smerMap);
 void smGetSortedSmerIds(SmerMap *smerMap, SmerId *array);

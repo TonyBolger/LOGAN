@@ -59,8 +59,8 @@ typedef u64 SmerId;
 
 //#define SMER_HASH_SLICES 16384
 
-#define SMER_HASH_SLICES 64
-
+#define SMER_MAP_SLICES 16384
+#define SMER_MAP_SLICE_MASK (SMER_MAP_SLICES-1)
 
 #elif SMER_BASES == 21
 

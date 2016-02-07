@@ -386,7 +386,7 @@ void performTask(ParallelTask *pt)
 
 					pt->ingressPerTidyCounter=pt->ingressPerTidyTotal;
 
-					LOG(LOG_INFO,"IngressesPerTidy %i BackOffCount %i",pt->ingressPerTidyTotal,pt->tidyBackoffCounter);
+//					LOG(LOG_INFO,"IngressesPerTidy %i BackOffCount %i",pt->ingressPerTidyTotal,pt->tidyBackoffCounter);
 					}
 				}
 			}
@@ -395,7 +395,7 @@ void performTask(ParallelTask *pt)
 
 	LOG(LOG_INFO,"Worker %i Completed main loop - waiting for shutdown tidy",workerNo);
 
-	// Shutdown tidy
+	// Shutdown tidy - should configure separately
 
 	performTidyWait(pt);
 
