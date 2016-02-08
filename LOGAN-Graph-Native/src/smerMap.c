@@ -4,20 +4,20 @@
 
 #include "common.h"
 
-static const float MAX_LOAD_FACTOR = 0.50; // 0.68 -> 0.65 -> 0.60: Reduced to eliminate large scan counts
+static const float MAX_LOAD_FACTOR = 0.60; // 0.68 -> 0.65 -> 0.60: Reduced to eliminate large scan counts
 
 // Ecoli-1_Q20 gives 1.8M smers - 0.45M/ slice(4)
 // Ecoli-2_Q20 gives 5.7M smers - 1.4M / slice(4)
 // set to 14 for testing - hits 50% limit at about 100K reads per slice on Ecoli-2_Q20
 //
 
-static const u32 INIT_SHIFT=10;
+static const u32 INIT_SHIFT=7;
 
 //static const u32 INIT_SHIFT=18;
 
 //static const u32 HASH_PRIME=43;
-static const u64 HASH_FACTOR=1719;
-static const u32 SLICE_FACTOR=455;
+//static const u64 HASH_FACTOR=1719;
+//static const u32 SLICE_FACTOR=455;
 
 void smInitSmerMap(SmerMap *smerMap) {
 
@@ -59,8 +59,118 @@ void smFreeSmerMap(SmerMap *smerMap) {
 }
 
 
+/*
+ *
+ *
+
+static const uint64_t k0 = 0xc3a5c85c97cb3127ULL;
+static const uint64_t k1 = 0xb492b66fbe98f273ULL;
+static const uint64_t k2 = 0x9ae16a3b2f90404fULL;
+
+static inline uint64_t hash_len_16(uint64_t u, uint64_t v, uint64_t mul)
+{
+uint64_t a, b;
+a = (u ^ v) * mul;
+a ^= (a >> 47);
+b = (v ^ a) * mul;
+b ^= (b >> 47);
+b *= mul;
+return b;
+}
+
+uint64_t mul = k2 + len * 2;
+uint64_t a = fetch32(s);
+return hash_len_16(len + (a << 3), fetch32(s + len - 4), mul);
+
+
+
+
+ *
+ *
+ */
+
+
+static const u64 sc_const = 0xdeadbeefdeadbeefLL;
+
+static u64 Rot64(u64 x, int k)
+{
+   return (x << k) | (x >> (64 - k));
+}
+
+/*
+static void ShortMix(u64 *h0p, u64 *h1p, u64 *h2p, u64 *h3p)
+ {
+	u64 h0=*h0p;
+	u64 h1=*h1p;
+	u64 h2=*h2p;
+	u64 h3=*h3p;
+
+     h2 = Rot64(h2,50);  h2 += h3;  h0 ^= h2;
+     h3 = Rot64(h3,52);  h3 += h0;  h1 ^= h3;
+     h0 = Rot64(h0,30);  h0 += h1;  h2 ^= h0;
+     h1 = Rot64(h1,41);  h1 += h2;  h3 ^= h1;
+     h2 = Rot64(h2,54);  h2 += h3;  h0 ^= h2;
+     h3 = Rot64(h3,48);  h3 += h0;  h1 ^= h3;
+     h0 = Rot64(h0,38);  h0 += h1;  h2 ^= h0;
+     h1 = Rot64(h1,37);  h1 += h2;  h3 ^= h1;
+     h2 = Rot64(h2,62);  h2 += h3;  h0 ^= h2;
+     h3 = Rot64(h3,34);  h3 += h0;  h1 ^= h3;
+     h0 = Rot64(h0,5);   h0 += h1;  h2 ^= h0;
+     h1 = Rot64(h1,36);  h1 += h2;  h3 ^= h1;
+
+     *h0p=h0;
+     *h1p=h1;
+     *h2p=h2;
+     *h3p=h3;
+
+ }
+
+static void ShortEnd(u64 *h0p, u64 *h1p, u64 *h2p, u64 *h3p)
+{
+	u64 h0=*h0p;
+	u64 h1=*h1p;
+	u64 h2=*h2p;
+	u64 h3=*h3p;
+
+    h3 ^= h2;  h2 = Rot64(h2,15);  h3 += h2;
+    h0 ^= h3;  h3 = Rot64(h3,52);  h0 += h3;
+    h1 ^= h0;  h0 = Rot64(h0,26);  h1 += h0;
+    h2 ^= h1;  h1 = Rot64(h1,51);  h2 += h1;
+    h3 ^= h2;  h2 = Rot64(h2,28);  h3 += h2;
+    h0 ^= h3;  h3 = Rot64(h3,9);   h0 += h3;
+    h1 ^= h0;  h0 = Rot64(h0,47);  h1 += h0;
+    h2 ^= h1;  h1 = Rot64(h1,54);  h2 += h1;
+    h3 ^= h2;  h2 = Rot64(h2,32);  h3 += h2;
+    h0 ^= h3;  h3 = Rot64(h3,25);  h0 += h3;
+    h1 ^= h0;  h0 = Rot64(h0,63);  h1 += h0;
+
+    *h0p=h0;
+    *h1p=h1;
+    *h2p=h2;
+    *h3p=h3;
+}
+
+*/
+
+static const u64 k0 = 0xc3a5c85c97cb3127ULL;
+static const u64 k1 = 0xb492b66fbe98f273ULL;
+static const u64 k2 = 0x9ae16a3b2f90404fULL;
+
+static u64 chash64(u64 u, u64 v, u64 mul, int s1, int s2)
+{
+	u64 a, b;
+
+	a = (u ^ v) * mul;
+	a ^= (a >> s1);
+	b = (v ^ a) * mul;
+	b ^= (b >> s2);
+	b *= mul;
+
+	return b;
+}
+
 // FIXME: 64 vs 32 bits
-static u32 hashForSmer(SmerId id) {
+static u64 hashForSmer(SmerId id) {
 //	SmerId hash = id;
 
 //   32-bit version
@@ -76,35 +186,45 @@ static u32 hashForSmer(SmerId id) {
 	hash += (hash << 4);
 	hash ^= ((hash >> 42) | (hash << 22));
 
-
 	return (u32)hash;
 */
 	//SmerId hash = SMER_GET_BOTTOM(id) * HASH_PRIME;
 
-	SmerId hash = id * HASH_FACTOR;
+	u64 v = SMER_GET_BOTTOM(id);
+	v ^= (v << 35);
 
-	hash ^= hash >> 32;
+	u64 u = 4 + (v << 3);
 
-	return hash;
+	u64 a = chash64(u,v,k2+4, 47, 47);
+
+	return a ^ Rot64(a, 17) ^ Rot64(a,29);
+
+	/*u64 b = chash64(u,v,k1, 43, 49);
+	u64 c = chash64(u,v,k2, 45, 41);
+
+	ShortMix(&a,&b,&c,&u);
+
+	ShortEnd(&a,&b,&c,&v);
+
+	return a ^ Rot64(b,5);
+*/
 }
 
-static u32 sliceForSmer(SmerMap *smerMap, SmerId smer) {
+static u32 sliceForSmer(SmerMap *smerMap, SmerId smer, u64 hash) {
 	//int slice = hash % SMER_MAP_SLICES;
 
-	u32 xor=(smer*SLICE_FACTOR);
-	xor ^= xor>>18;
-
-	return (xor ^ (smer >> 32)) & SMER_MAP_SLICE_MASK;
+	return ((smer ^ hash) >> 32) & SMER_MAP_SLICE_MASK;
 
 }
 
-static SmerId recoverSmerId(u32 slice, SmerId smer)
+static SmerId recoverSmerId(u64 slice, SmerId smer)
 {
-	u32 xor=(smer*SLICE_FACTOR);
-	xor ^= xor>>18;
+	slice <<= 32;
 
-	u64 comp=(xor ^ slice) & SMER_MAP_SLICE_MASK;
-	return (comp << 32) | SMER_GET_BOTTOM(smer);
+	u64 hash=hashForSmer(smer);
+	u64 comp = hash & ((u64)SMER_MAP_SLICE_MASK << 32);
+
+	return (slice ^ comp) | SMER_GET_BOTTOM(smer);
 }
 
 
@@ -179,11 +299,11 @@ void smCreateIndexedSmers(SmerMap *smerMap, u32 indexCount, s32 *indexes,
 		s32 index = indexes[i];
 
 		SmerId smerId = smerIds[index];
-		u32 hash = hashForSmer(smerId);
-		int sliceNo=sliceForSmer(smerMap, smerId);
+		u64 hash = hashForSmer(smerId);
+		int sliceNo=sliceForSmer(smerMap, smerId, hash);
 		SmerMapSlice *smerMapSlice = smerMap->slice+sliceNo;
 
-		findOrCreateSmer_HS(smerMapSlice, smerId, hash, sliceNo);
+		findOrCreateSmer_HS(smerMapSlice, smerId, hash & smerMapSlice->mask, sliceNo);
 	}
 }
 
@@ -204,11 +324,11 @@ u32 smFindIndexesOfExistingSmers(SmerMap *smerMap, u8 *data, s32 maxIndex,
 
 		SmerId smerId = smerIds[i];
 
-		u32 hash = hashForSmer(smerId);
-		int sliceNo=sliceForSmer(smerMap, smerId);
+		u64 hash = hashForSmer(smerId);
+		int sliceNo=sliceForSmer(smerMap, smerId, hash);
 		SmerMapSlice *smerMapSlice = smerMap->slice+sliceNo;
 
-		if (findSmer_HS(smerMapSlice, smerId, hash, sliceNo) != -1)
+		if (findSmer_HS(smerMapSlice, smerId, hash & smerMapSlice->mask, sliceNo) != -1)
 			{
 			oldIndexes[oldIndexCount++] = i;
 			earliestToCheck=i+1;
@@ -259,11 +379,11 @@ void smCreateSmers(SmerMap *smerMap, SmerId *smerIds, u32 smerCount)
 	for (i = 0;i<smerCount;i++)
 		{
 		SmerId smerId = smerIds[i];
-		u32 hash = hashForSmer(smerId);
-		int sliceNo=sliceForSmer(smerMap, smerId);
+		u64 hash = hashForSmer(smerId);
+		int sliceNo=sliceForSmer(smerMap, smerId, hash);
 		SmerMapSlice *smerMapSlice = smerMap->slice+sliceNo;
 
-		findOrCreateSmer_HS(smerMapSlice, smerId, hash, sliceNo);
+		findOrCreateSmer_HS(smerMapSlice, smerId, hash & smerMapSlice->mask, sliceNo);
 		}
 }
 
@@ -296,7 +416,7 @@ static void resize_S(SmerMapSlice *smerMapSlice, u32 sliceNo) {
 	u32 shift=oldShift+1;
 	u32 size=(1<<shift);
 
-	LOG(LOG_INFO,"Resize to %i",shift);
+	//LOG(LOG_INFO,"Resize to %i",shift);
 
 	smerMapSlice->shift=shift;
 	smerMapSlice->mask=size-1;
@@ -355,7 +475,7 @@ static u32 smGetSmerCountDump(SmerMapSlice *smerMapSlice, int sliceNum)
 		if(smer!=SMER_DUMMY)
 			{
 			unpackSmer(smer, buffer);
-			LOG(LOG_INFO,"SLICE %i HASH %i OFFSET %i SMER %012lx %s",sliceNum, hashForSmer(smer), i, smer, buffer);
+			LOG(LOG_INFO,"SLICE %i HASH %li OFFSET %i SMER %012lx %s",sliceNum, hashForSmer(smer), i, smer, buffer);
 
 			SmerId recSmer=recoverSmerId(sliceNum, smer);
 
