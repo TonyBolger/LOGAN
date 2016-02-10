@@ -112,6 +112,6 @@ bin/jni/obj/%.o: ./jniSrc/%.c | bin
 #$(JNI_OBJS): src/*.h jniSrc/*.h jniHeaders/*.h	
 	
 clean:
-	rm $(CLI_OBJS) $(JNI_OBJS) bin/LOGAN bin/libLOGAN.so
+	rm -rf bin
 		
 	

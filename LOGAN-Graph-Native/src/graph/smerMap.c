@@ -26,8 +26,6 @@ void smInitSmerMap(SmerMap *smerMap) {
 
 		for(j=0;j<size;j++)
 			smerMap->slice[i].smers[j]=SMER_DUMMY;
-
-		pthread_rwlock_init(&(smerMap->slice[i].lock), NULL);
 	}
 
 	LOG(LOG_INFO, "Allocated SmerMap with %i slices of %i entries",SMER_MAP_SLICES,size);
@@ -40,8 +38,6 @@ void smFreeSmerMap(SmerMap *smerMap) {
 	for (i = 0; i < SMER_MAP_SLICES; i++) {
 		if (smerMap->slice[i].smers != NULL)
 			smSmerMapEntryArrayFree(smerMap->slice[i].smers);
-
-		pthread_rwlock_destroy(&(smerMap->slice[i].lock));
 	}
 
 	memset(smerMap, 0, sizeof(SmerMap));
@@ -341,7 +337,7 @@ static u32 smGetSmerCountDump(SmerMapSlice *smerMapSlice, int sliceNum)
 //			SmerId smer=recoverSmerId(sliceNum, entry);
 
 //			unpackSmer(smer, buffer);
-//			LOG(LOG_INFO,"SLICE %i HASH %li OFFSET %i SMER %012lx %s",sliceNum, hashForSmer(smer), i, smer, buffer);
+//			LOG(LOG_INFO,"SLICE %i HASH %016lx OFFSET %i SMER %012lx %s",sliceNum, hashForSmer(smer), i, smer, buffer);
 
 			count++;
 			}

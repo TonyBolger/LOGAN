@@ -14,18 +14,14 @@
 
 /********************** Definitions for SmerMap **********************/
 
+// Each slice represents up to 65535 Smers, with a common 7bp prefix
 
 typedef struct smerMapSliceStr
 {
     u32 shift;
     u32 mask;
 
-    //u32 entryLimit;
-    //u32 entryCount;
-
     SmerMapEntry *smers;
-
-    pthread_rwlock_t lock;
 } SmerMapSlice;
 
 
@@ -33,6 +29,36 @@ typedef struct smerMapStr
 {
 	SmerMapSlice slice[SMER_MAP_SLICES];
 } SmerMap;
+
+
+/********************** Definitions for SmerArray **********************/
+
+// Each block represents up to 255 Smers, with a common 15bp prefix
+
+typedef struct smerArrayBlockStr
+{
+	SmerArrayEntry *smer;
+	u32 numSmers;
+
+
+
+} SmerArrayBlock;
+
+
+// Each slice represents up to 65535 Smers, with a common 7bp prefix
+
+typedef struct smerArraySliceStr
+{
+	SmerArrayBlock blocks[SMER_MAP_BLOCKS_PER_SLICE];
+
+} SmerArraySlice;
+
+
+typedef struct smerArrayStr
+{
+	SmerArraySlice slice[SMER_MAP_SLICES];
+} SmerArray;
+
 
 
 
