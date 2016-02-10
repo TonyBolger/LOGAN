@@ -15,8 +15,16 @@ typedef struct iptThreadDataStr
 	IndexingBuilder *indexingBuilder;
 
 	int threadIndex;
-
 } IptThreadData;
+
+typedef struct rptThreadDataStr
+{
+	Graph *graph;
+	RoutingBuilder *routingBuilder;
+
+	int threadIndex;
+} RptThreadData;
+
 
 
 
@@ -177,6 +185,17 @@ void iptHandler(SwqBuffer *buffer, void *context)
 }
 
 
+void rptHandler(SwqBuffer *buffer, void *context)
+{
+	RoutingBuilder *rb=(RoutingBuilder *)context;
+
+	//LOG(LOG_INFO," ********************* RPT HANDLER GOT %i ****************************", buffer->numSequences);
+
+	queueIngress(rb->pt, buffer, buffer->numSequences, &buffer->usageCount);
+}
+
+
+
 
 
 void runIptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *graph)
@@ -200,7 +219,7 @@ void runIptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 	waitForStartup(ib->pt);
 
 
-	LOG(LOG_INFO,"Ready to parse");
+	LOG(LOG_INFO,"Indexing: Ready to parse");
 
 	// Parse stuff here
 
@@ -226,12 +245,12 @@ void runIptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 		char path[1024];
 		sprintf(path,pathTemplate,fileCount,i);
 
-		LOG(LOG_INFO,"Parsing %s",path);
+		LOG(LOG_INFO,"Indexing: Parsing %s",path);
 
 		int reads=parseAndProcess(path, FASTQ_MIN_READ_LENGTH, 0, 250000000,
 				buffers, PT_INGRESS_BUFFERS, ib, iptHandler);
 
-		LOG(LOG_INFO,"Parsed %i reads from %s",reads,path);
+		LOG(LOG_INFO,"Indexing: Parsed %i reads from %s",reads,path);
 		}
 
 
@@ -253,6 +272,87 @@ void runIptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 
 	freeIndexingBuilder(ib);
 }
+
+
+
+void runRptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *graph)
+{
+	RoutingBuilder *rb=allocRoutingBuilder(graph, threadCount);
+
+	pthread_t *threads=malloc(sizeof(pthread_t)*threadCount);
+
+	RptThreadData *data=malloc(sizeof(RptThreadData)*threadCount);
+
+	int i=0;
+	for(i=0;i<threadCount;i++)
+		{
+		data[i].graph=graph;
+		data[i].routingBuilder=rb;
+		data[i].threadIndex=i;
+
+		pthread_create(threads+i,NULL,runIptWorker,data+i);
+		}
+
+	waitForStartup(rb->pt);
+
+	LOG(LOG_INFO,"Routing: Ready to parse");
+
+	// Parse stuff here
+
+	SwqBuffer buffers[PT_INGRESS_BUFFERS];
+
+	int bufSize=FASTQ_BASES_PER_BATCH;
+
+	for(int i=0;i<PT_INGRESS_BUFFERS;i++)
+		{
+		buffers[i].seqBuffer=malloc(bufSize);
+		buffers[i].qualBuffer=malloc(bufSize);
+		buffers[i].rec=malloc(sizeof(SequenceWithQuality)*FASTQ_RECORDS_PER_BATCH);
+
+		buffers[i].maxSequenceTotalLength=bufSize;
+		buffers[i].maxSequences=FASTQ_RECORDS_PER_BATCH;
+		buffers[i].maxSequenceLength=FASTQ_MAX_READ_LENGTH;
+		buffers[i].numSequences=0;
+		buffers[i].usageCount=0;
+		}
+
+	for(i=0;i<fileCount;i++)
+		{
+		char path[1024];
+		sprintf(path,pathTemplate,fileCount,i);
+
+		LOG(LOG_INFO,"Routing: Parsing %s",path);
+
+		int reads=parseAndProcess(path, FASTQ_MIN_READ_LENGTH, 0, 250000000,
+				buffers, PT_INGRESS_BUFFERS, rb, rptHandler);
+
+		LOG(LOG_INFO,"Routing: Parsed %i reads from %s",reads,path);
+		}
+
+
+	queueShutdown(rb->pt);
+
+	waitForShutdown(rb->pt);
+
+	void *status;
+
+	for(i=0;i<threadCount;i++)
+		pthread_join(threads[i], &status);
+
+	for(int i=0;i<PT_INGRESS_BUFFERS;i++)
+		{
+		free(buffers[i].seqBuffer);
+		free(buffers[i].qualBuffer);
+		free(buffers[i].rec);
+		}
+
+	freeRoutingBuilder(rb);
+}
+
+
+
+
+
 
 
 
@@ -286,7 +386,9 @@ int main(int argc, char **argv)
 		}
 
 	//runTpfMaster(fileTemplate, fileCount, graph);
+
 	runIptMaster(fileTemplate, fileCount, threadCount, graph);
+	runRptMaster(fileTemplate, fileCount, threadCount, graph);
 
 	LOG(LOG_INFO,"Smer count: %i",smGetSmerCount(&(graph->smerMap)));
 

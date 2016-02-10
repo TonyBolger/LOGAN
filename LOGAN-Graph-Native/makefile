@@ -18,6 +18,9 @@ CLI_OBJS += \
 ./bin/cli/common/task/task.o \
 ./bin/cli/common/task/taskIndexing.o \
 ./bin/cli/common/task/taskRouting.o \
+./bin/cli/common/util/bitMap.o \
+./bin/cli/common/util/bitPacking.o \
+./bin/cli/common/util/bloom.o \
 ./bin/cli/common/util/log.o \
 ./bin/cli/common/util/pack.o \
 ./bin/cli/obj/fastqParser.o \
@@ -34,6 +37,9 @@ JNI_OBJS += \
 ./bin/jni/common/task/task.o \
 ./bin/jni/common/task/taskIndexing.o \
 ./bin/jni/common/task/taskRouting.o \
+./bin/jni/common/util/bitMap.o \
+./bin/jni/common/util/bitPacking.o \
+./bin/jni/common/util/bloom.o \
 ./bin/jni/common/util/log.o \
 ./bin/jni/common/util/pack.o \
 ./bin/jni/obj/JNI_graph.o 
