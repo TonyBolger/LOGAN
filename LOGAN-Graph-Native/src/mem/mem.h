@@ -19,6 +19,8 @@ void gFree(void *ptr);
 SmerId *smSmerIdArrayAlloc(int length);
 void smSmerIdArrayFree(SmerId *array);
 
+SmerMapEntry *smSmerMapEntryArrayAlloc(int length);
+void smSmerMapEntryArrayFree(SmerMapEntry *array);
 
 // ParallelTask
 

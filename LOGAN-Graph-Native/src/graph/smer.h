@@ -23,7 +23,7 @@ typedef struct smerMapSliceStr
     //u32 entryLimit;
     //u32 entryCount;
 
-    SmerId *smers;
+    SmerMapEntry *smers;
 
     pthread_rwlock_t lock;
 } SmerMapSlice;

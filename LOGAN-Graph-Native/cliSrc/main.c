@@ -226,6 +226,8 @@ void runIptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 		char path[1024];
 		sprintf(path,pathTemplate,fileCount,i);
 
+		LOG(LOG_INFO,"Parsing %s",path);
+
 		int reads=parseAndProcess(path, FASTQ_MIN_READ_LENGTH, 0, 250000000,
 				buffers, PT_INGRESS_BUFFERS, ib, iptHandler);
 

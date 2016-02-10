@@ -1,5 +1,5 @@
 
-#include "common.h"
+#include "../common.h"
 
 
 // Centralized Generic Alloc / Realloc / Free
@@ -65,6 +65,22 @@ void smSmerIdArrayFree(SmerId *array)
 {
 	gFree(array);
 }
+
+
+
+SmerMapEntry *smSmerMapEntryArrayAlloc(int length)
+{
+	size_t size=((long)length)*sizeof(SmerMapEntry);
+
+	SmerMapEntry *array = gAllocC(size);
+	return array;
+}
+
+void smSmerMapEntryArrayFree(SmerMapEntry *array)
+{
+	gFree(array);
+}
+
 
 
 

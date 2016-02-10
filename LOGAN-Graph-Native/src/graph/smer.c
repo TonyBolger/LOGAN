@@ -5,7 +5,7 @@
  *      Author: tony
  */
 
-#include "common.h"
+#include "../common.h"
 
 /* Various functions to handle sequence to smerID translation */
 

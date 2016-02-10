@@ -48,9 +48,12 @@ typedef signed long long s64;
 #define SMER_CBITS 64
 #define SMER_CBITS_EMPTY 18
 typedef u64 SmerId;
+typedef u32 SmerMapEntry;
 
-#define SMER_MASK      0x00003FFFFFFFFFFFL
-#define SMER_RMASK     0xFFFFC00000000000L
+#define SMER_MASK 0x00003FFFFFFFFFFFL
+#define SMER_DUMMY 0xFFFFFFFF
+
+#define SMER_RMASK 0xFFFFC00000000000L
 
 #define SMER_GET_TOP(SMER) (((SMER)>>32)&0x3FFF)
 #define SMER_GET_BOTTOM(SMER) ((SMER)&0xFFFFFFFF)
@@ -102,7 +105,7 @@ typedef u32 SmerId;
 #endif
 
 
-#define SMER_DUMMY SMER_MASK
+
 
 // Hack to prevent memcpy version problems on old server versions
 __asm__(".symver memcpy,memcpy@GLIBC_2.2.5");
@@ -129,17 +132,17 @@ typedef struct swqBufferStr {
 
 
 
-#include "log.h"
-#include "pack.h"
-#include "task.h"
+#include "util/log.h"
+#include "util/pack.h"
+#include "task/task.h"
 
-#include "smer.h"
-#include "graph.h"
+#include "graph/smer.h"
+#include "graph/graph.h"
 
-#include "taskIndexing.h"
-#include "taskRouting.h"
+#include "task/taskIndexing.h"
+#include "task/taskRouting.h"
 
 // Leave mem.h to end (it needs all struct/typedefs defined)
-#include "mem.h"
+#include "mem/mem.h"
 
 #endif

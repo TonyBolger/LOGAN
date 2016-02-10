@@ -5,7 +5,7 @@
  *      Author: tony
  */
 
-#include <common.h>
+#include "pack.h"
 
 
 u32 packChar(u8 ch)

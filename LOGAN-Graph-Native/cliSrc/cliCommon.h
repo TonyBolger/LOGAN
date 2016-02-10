@@ -9,7 +9,6 @@
 
 
 #include "fastqParser.h"
-
-#include "taskIndexing.h"
+#include "task/taskIndexing.h"
 
 #endif

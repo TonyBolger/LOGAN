@@ -5,7 +5,7 @@
  *      Author: tony
  */
 
-#include "common.h"
+#include "../common.h"
 
 
 
@@ -399,12 +399,13 @@ void performTask(ParallelTask *pt)
 
 	performTidyWait(pt);
 
+
 	if(pt->state==PTSTATE_SHUTDOWN_TIDY_WAIT)
 		{
 		pt->state=PTSTATE_SHUTDOWN_TIDY;
 
-		pt->activeTidyTotal=pt->config->tasksPerTidy;
-		pt->activeTidyPosition=0;
+		//pt->activeTidyTotal=pt->config->tasksPerTidy;
+		//pt->activeTidyPosition=0;
 		}
 
 	while(pt->activeTidyTotal>0)

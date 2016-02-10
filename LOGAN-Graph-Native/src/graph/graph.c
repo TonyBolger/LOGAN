@@ -9,7 +9,7 @@
 #include <unistd.h>
 #include <string.h>
 
-#include "common.h"
+#include "../common.h"
 
 
 static int checkStealthIndexing(s32 *indexes, u32 indexCount, SmerId *smerIds, SmerId smerId)

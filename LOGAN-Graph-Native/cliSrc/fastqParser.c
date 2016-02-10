@@ -127,6 +127,8 @@ int parseAndProcess(char *path, int minSeqLength, int recordsToSkip, int records
 
 	int lastRecord=recordsToSkip+recordsToUse;
 
+	waitForIdle(&buffers[currentBuffer].usageCount);
+
 	int maxReads=buffers[currentBuffer].maxSequences;
 	int maxBases=buffers[currentBuffer].maxSequenceTotalLength;
 	int maxBasesPerRead=buffers[currentBuffer].maxSequenceLength;
