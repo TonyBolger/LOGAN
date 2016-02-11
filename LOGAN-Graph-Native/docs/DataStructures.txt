@@ -1,0 +1,31 @@
+
+
+
+	Graph consists of either:
+	
+		SmerMap (indexing, optimized for adding nodes)
+		SmerArray (routing)
+		
+	SmerMap
+		16384 slices (2^14) - balanced using prefix-mixing
+		
+		Node split into 7bp prefix and lower 16bp
+	
+		Hash calculated based on the lower 16bp
+			Lower part of hash determined location in slice
+			Upper part of hash mixed with 7bp prefix determines slice
+			
+			 
+	SmerArray
+		16384 slices (2^14) - 1:1 with SmerMap slices
+		
+		Each slice contains queue of inbound requests from other slices
+		
+		
+		
+		
+		
+			
+		
+		
+	
