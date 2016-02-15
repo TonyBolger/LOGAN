@@ -17,7 +17,7 @@ typedef struct graphContigStr
 } GraphConfig;
 
 #define GRAPH_MODE_INDEX 0
-#define GRAPH_MODE_BUILD 1
+#define GRAPH_MODE_ROUTE 1
 
 
 typedef struct graphStr
@@ -28,7 +28,7 @@ typedef struct graphStr
 	u32 pathCount;
 
 	SmerMap smerMap;
-//	SmerSA smerSA;
+	SmerArray smerArray;
 
 	void *userPtr;
 } Graph;

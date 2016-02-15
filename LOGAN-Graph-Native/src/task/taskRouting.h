@@ -10,9 +10,8 @@
 
 
 typedef struct RoutingBuilderStr {
-
 	ParallelTask *pt;
-
+	Graph *graph;
 
 } RoutingBuilder;
 

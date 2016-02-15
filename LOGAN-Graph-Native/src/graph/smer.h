@@ -14,49 +14,59 @@
 
 /********************** Definitions for SmerMap **********************/
 
-// Each slice represents up to 65535 Smers, with a common 7bp prefix
-
 typedef struct smerMapSliceStr
 {
     u32 shift;
     u32 mask;
 
-    SmerMapEntry *smers;
+    SmerEntry *smers;
 } SmerMapSlice;
 
 
 typedef struct smerMapStr
 {
-	SmerMapSlice slice[SMER_MAP_SLICES];
+	SmerMapSlice slice[SMER_SLICES];
 } SmerMap;
 
 
 /********************** Definitions for SmerArray **********************/
 
-// Each block represents up to 255 Smers, with a common 15bp prefix
+typedef struct smerArrayUpdateStr
+{
+	u32 seqLength;
+
+	char packedSeq[];
+} SmerArrayUpdate;
+
+
+/*
+// Each block represents up to 65536 Smers, with a common bp prefix
 
 typedef struct smerArrayBlockStr
 {
-	SmerArrayEntry *smer;
+	SmerEntry *smer;
 	u32 numSmers;
 
-
+	// Ptr / Offsets to tail and route info
+	//
 
 } SmerArrayBlock;
+*/
 
-
-// Each slice represents up to 65535 Smers, with a common 7bp prefix
+// Each slice smers, with a common 7bp prefix
 
 typedef struct smerArraySliceStr
 {
-	SmerArrayBlock blocks[SMER_MAP_BLOCKS_PER_SLICE];
+	//SmerArrayBlock *blocks[SMER_MAP_BLOCKS_PER_SLICE];
+	SmerEntry *smerIT;
+	s32 smerCount;
 
 } SmerArraySlice;
 
 
 typedef struct smerArrayStr
 {
-	SmerArraySlice slice[SMER_MAP_SLICES];
+	SmerArraySlice slice[SMER_SLICES];
 } SmerArray;
 
 
@@ -68,11 +78,17 @@ SmerId complementSmerId(SmerId id);
 SmerId shuffleSmerIdRight(SmerId id, u8 base);
 SmerId shuffleSmerIdLeft(SmerId id, u8 base);
 
-int smerIdcompar(const void *ptr1, const void *ptr2);
-int smerIdcomparL(const void *ptr1, const void *ptr2);
-int u32compar(const void *ptr1, const void *ptr2);
+int smerIdCompar(const void *ptr1, const void *ptr2);
+int smerEntryCompar(const void *ptr1, const void *ptr2);
+
+int smerIdComparL(const void *ptr1, const void *ptr2);
+int u32Compar(const void *ptr1, const void *ptr2);
 
 void calculatePossibleSmers(u8 *data, s32 maxIndex, SmerId *smerIds, u32 *compFlags);
+
+u64 hashForSmer(SmerEntry entry);
+u32 sliceForSmer(SmerId smer, u64 hash);
+SmerId recoverSmerId(u64 sliceNum, SmerEntry entry);
 
 
 /********************** SmerMap functionality **********************/
@@ -85,11 +101,24 @@ u32 smFindIndexesOfExistingSmers(SmerMap *smerMap, u8 *data, s32 maxIndex, s32 *
 void smCreateSmers(SmerMap *smerMap, SmerId *smerIds, u32 smerCount);
 void smConsiderResize(SmerMap *smerMap, int sliceNum);
 
+void smDumpSmerMap(SmerMap *smerMap);
+u32 smGetSmerSliceCount(SmerMapSlice *smerMapSlice);
+void smGetSortedSliceSmerEntries(SmerMapSlice *smerMapSlice, SmerEntry *array);
 
 u32 smGetSmerCount(SmerMap *smerMap);
-void smGetSortedSmerIds(SmerMap *smerMap, SmerId *array);
-void smGetSmerPathCounts(SmerMap *smerMap, SmerId *smerIds, u32 *smerPaths);
 
+//void smGetSortedSmerIds(SmerMap *smerMap, SmerId *array);
+//void smGetSmerPathCounts(SmerMap *smerMap, SmerId *smerIds, u32 *smerPaths);
+
+
+/********************** SmerArray functionality **********************/
+
+
+s32 saInitSmerArray(SmerArray *smerArray, SmerMap *smerMap);
+void saCleanupSmerArray(SmerArray *smerArray);
+
+u32 saFindIndexesOfExistingSmers(SmerArray *smerArray, u8 *data, s32 maxIndex, s32 *oldIndexes, SmerId *smerIds);
+void saVerifyIndexing(s32 maxAllowedDistance, s32 *indexes, u32 indexCount, int dataLength, int maxValidIndex);
 
 
 #endif

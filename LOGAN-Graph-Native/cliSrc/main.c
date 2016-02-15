@@ -388,10 +388,13 @@ int main(int argc, char **argv)
 	//runTpfMaster(fileTemplate, fileCount, graph);
 
 	runIptMaster(fileTemplate, fileCount, threadCount, graph);
-	runRptMaster(fileTemplate, fileCount, threadCount, graph);
 
 	LOG(LOG_INFO,"Smer count: %i",smGetSmerCount(&(graph->smerMap)));
+	//smDumpSmerMap(&(graph->smerMap));
 
+	switchMode(graph);
+
+	runRptMaster(fileTemplate, fileCount, threadCount, graph);
 
 	freeGraph(graph);
 

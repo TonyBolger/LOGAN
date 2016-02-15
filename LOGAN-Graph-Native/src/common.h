@@ -48,8 +48,7 @@ typedef signed long long s64;
 #define SMER_CBITS 64
 #define SMER_CBITS_EMPTY 18
 typedef u64 SmerId;
-typedef u32 SmerMapEntry;
-typedef u16 SmerArrayEntry;
+typedef u32 SmerEntry;
 
 #define SMER_MASK 0x00003FFFFFFFFFFFL
 #define SMER_DUMMY 0xFFFFFFFF
@@ -61,8 +60,8 @@ typedef u16 SmerArrayEntry;
 
 #define SMER_TOP_COUNT 0x4000
 
-#define SMER_MAP_SLICES 16384
-#define SMER_MAP_SLICE_MASK (SMER_MAP_SLICES-1)
+#define SMER_SLICES 16384
+#define SMER_SLICE_MASK (SMER_SLICES-1)
 
 #define SMER_MAP_BLOCKS_PER_SLICE 256
 
@@ -132,9 +131,13 @@ typedef struct swqBufferStr {
 
 
 
-
+#include "util/bitMap.h"
+#include "util/bitPacking.h"
+#include "util/bloom.h"
 #include "util/log.h"
 #include "util/pack.h"
+#include "util/smerImplicitTree.h"
+
 #include "task/task.h"
 
 #include "graph/smer.h"

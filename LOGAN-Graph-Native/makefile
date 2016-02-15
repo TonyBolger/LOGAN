@@ -13,6 +13,7 @@ CLI_LIBS = -lrt -lpthread
 CLI_OBJS += \
 ./bin/cli/common/graph/graph.o \
 ./bin/cli/common/graph/smer.o \
+./bin/cli/common/graph/smerArray.o \
 ./bin/cli/common/graph/smerMap.o \
 ./bin/cli/common/mem/mem.o \
 ./bin/cli/common/task/task.o \
@@ -23,6 +24,7 @@ CLI_OBJS += \
 ./bin/cli/common/util/bloom.o \
 ./bin/cli/common/util/log.o \
 ./bin/cli/common/util/pack.o \
+./bin/cli/common/util/smerImplicitTree.o \
 ./bin/cli/obj/fastqParser.o \
 ./bin/cli/obj/main.o 
 
@@ -32,6 +34,7 @@ CLI_DEPS := $(CLI_OBJS:.o=.d)
 JNI_OBJS += \
 ./bin/jni/common/graph/graph.o \
 ./bin/jni/common/graph/smer.o \
+./bin/jni/common/graph/smerArray.o \
 ./bin/jni/common/graph/smerMap.o \
 ./bin/jni/common/mem/mem.o \
 ./bin/jni/common/task/task.o \
@@ -42,6 +45,7 @@ JNI_OBJS += \
 ./bin/jni/common/util/bloom.o \
 ./bin/jni/common/util/log.o \
 ./bin/jni/common/util/pack.o \
+./bin/jni/common/util/smerImplicitTree.o \
 ./bin/jni/obj/JNI_graph.o 
 
 JNI_DEPS := $(JNI_OBJS:.o=.d)

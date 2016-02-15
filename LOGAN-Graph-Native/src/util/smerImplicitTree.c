@@ -56,7 +56,7 @@ SmerEntry *siitInitImplicitTree(SmerEntry *sortedSmers, u32 smerCount)
 	u32 remainingEntries=smerCount;
 	u32 accumEntries=0;
 
-	LOG(LOG_INFO,"Tree needs %i nodes (%i without padding)",paddedSmerCount,smerCount);
+	//LOG(LOG_INFO,"Tree needs %i nodes (%i without padding)",paddedSmerCount,smerCount);
 
 	while(remainingEntries>0 && level<MAX_LEVELS)
 	{
@@ -79,7 +79,7 @@ SmerEntry *siitInitImplicitTree(SmerEntry *sortedSmers, u32 smerCount)
 		levels[level].position=0;
 		levels[level].modPosition=0;
 
-		LOG(LOG_INFO,"Level %i max %i alloc %i",level, levels[level].maxCapacity, levels[level].allocCapacity);
+		//LOG(LOG_INFO,"Level %i max %i alloc %i",level, levels[level].maxCapacity, levels[level].allocCapacity);
 
 		capacity*=(NARY+1);
 		level++;

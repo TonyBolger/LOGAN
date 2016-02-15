@@ -21,6 +21,49 @@
 		
 		Each slice contains queue of inbound requests from other slices
 		
+	Phase 1: 1330s
+	Phase 2: 7542s
+				
+	Bottlenecks: 
+	 	41.37   siitFindSmer
+ 		14.59   calculatePossibleSmers
+ 		12.10   readFastqLine
+ 		11.25   smFindIndexesOfExistingSmers (includes hashForSmer/sliceForSmer/findSmer_HS)
+ 		10.70   packSequence
+  		3.44   	saFindIndexesOfExistingSmers (omits siitFindSmer)
+		1.78    hashForSmer
+  		1.53    addPathSmers
+  		1.00    sliceForSmer
+  		0.71   	parseAndProcess
+								
+	Cache Structure:
+		32K / 256K / 2-2.5M per core (sandy/ivy/haswell)
+																										
+	Bloom filters: Option to speed up SmerArray queries
+		Expect true positive rate 10-20%	
+		4-8 bits per entry for 2-15% false positive rate
+		
+		Pen D dataset:
+			Single: 50M smers * 4bits -> 25MB
+			Slice: 3K smers * 4 bits -> 1.5KB
+			
+		Notional dataset (100x pen D):
+			Single: 5000M smers * 4 bits -> 2500MB
+			Slice: 300K smers * 4 bits -> 150KB
+		
+		Consider blocked bloom filters: All queries for a given key hit the same 64 byte region
+			Pattern filters also possible
+		
+	Read batching: 
+		Currently 1024 reads per batch -> ~80 smers per read -> 80000 smers per batch (~5 per slice).
+		10240 reads per batch -> ~80 smers per read -> 800000 smers per batch (~50 per slice).						
+
+	Sub-bloom filters:
+		Idea: Build one or more 'read batch specific' bloom filters from the smers within a read batch
+		Improves cache behaviour
+		
+		 
+				
 		
 		
 		

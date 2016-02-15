@@ -88,7 +88,7 @@ static SmerId shuffleComplementSmerIdWithOffset(SmerId id, u8 *data, u32 offset)
 
 /* Other common functionality related to smer IDs */
 
-int smerIdcompar(const void *ptr1, const void *ptr2)
+int smerIdCompar(const void *ptr1, const void *ptr2)
 {
 	return ( (*(SmerId *)ptr1) > (*(SmerId *)ptr2) ) - ( (*(SmerId *)ptr1) < (*(SmerId *)ptr2) ) ;
 
@@ -103,7 +103,14 @@ int smerIdcompar(const void *ptr1, const void *ptr2)
 	*/
 }
 
-int smerIdcomparL(const void *ptr1, const void *ptr2)
+
+int smerEntryCompar(const void *ptr1, const void *ptr2)
+{
+	return ( (*(SmerEntry *)ptr1) > (*(SmerEntry *)ptr2) ) - ( (*(SmerEntry *)ptr1) < (*(SmerEntry *)ptr2) ) ;
+
+}
+
+int smerIdComparL(const void *ptr1, const void *ptr2)
 {
 	SmerId id1=*(SmerId *)ptr1;
 	SmerId id2=*(SmerId *)ptr2;
@@ -120,7 +127,7 @@ int smerIdcomparL(const void *ptr1, const void *ptr2)
 }
 
 
-int u32compar(const void *ptr1, const void *ptr2)
+int u32Compar(const void *ptr1, const void *ptr2)
 {
 	if(*(u32 *)ptr1 < *(u32 *)ptr2)
 		return -1;
@@ -165,6 +172,37 @@ void calculatePossibleSmers(u8 *data, s32 maxIndex, SmerId *smerIds,
 
 
 
+
+
+// Aims to produce the maximum entropy in the lower 16 bits from the input 32 bits for primary hash.
+// Mixed into upper 32-bits using shift/mix for slice hash.
+
+//static const u64 HASH_MAGIC = 1379830596609ULL; // (3*97*4229*1121231 - use with 28bit shift)
+//static const u64 HASH_MAGIC = 1379829564673ULL; // (7*19*1279*8111539 - use with 28bit shift)
+static const u64 HASH_MAGIC = 1560361322401ULL; // (7*8861*25156163 - use with 28bit shift)
+
+u64 hashForSmer(SmerEntry entry) {
+	u64 hash = (((u64)entry) * HASH_MAGIC);
+	hash ^= (hash >> 28) ^ (hash << 17);
+
+	return hash;
+}
+
+u32 sliceForSmer(SmerId smer, u64 hash)
+{
+	return ((smer ^ hash) >> 32) & SMER_SLICE_MASK;
+}
+
+
+SmerId recoverSmerId(u64 sliceNum, SmerEntry entry)
+{
+	sliceNum <<= 32;
+
+	u64 hash=hashForSmer(entry);
+	u64 comp = hash & ((u64)SMER_SLICE_MASK << 32);
+
+	return (sliceNum ^ comp) | entry;
+}
 
 
 

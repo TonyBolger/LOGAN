@@ -66,17 +66,15 @@ void smSmerIdArrayFree(SmerId *array)
 	gFree(array);
 }
 
-
-
-SmerMapEntry *smSmerMapEntryArrayAlloc(int length)
+SmerEntry *smSmerEntryArrayAlloc(int length)
 {
-	size_t size=((long)length)*sizeof(SmerMapEntry);
+	size_t size=((long)length)*sizeof(SmerEntry);
 
-	SmerMapEntry *array = gAllocC(size);
+	SmerEntry *array = gAllocC(size);
 	return array;
 }
 
-void smSmerMapEntryArrayFree(SmerMapEntry *array)
+void smSmerEntryArrayFree(SmerEntry *array)
 {
 	gFree(array);
 }

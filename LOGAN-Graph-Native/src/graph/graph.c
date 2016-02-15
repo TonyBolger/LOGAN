@@ -203,6 +203,26 @@ int addPathRoutes(Graph *graph, u32 dataLength, u8 *data)
 
 
 
+void switchMode(Graph *graph)
+{
+	if(graph->mode!=GRAPH_MODE_INDEX)
+		{
+		LOG(LOG_INFO,"Graph already in Routing Mode");
+		return;
+		}
+
+
+	LOG(LOG_INFO,"Switching Graph to Routing Mode");
+	graph->mode=GRAPH_MODE_ROUTE;
+
+	int entries=saInitSmerArray(&(graph->smerArray), &(graph->smerMap));
+
+	smCleanupSmerMap(&(graph->smerMap));
+
+	LOG(LOG_INFO,"Built SmerArrays with %i entries",entries);
+}
+
+
 
 
 
@@ -230,6 +250,12 @@ Graph *allocGraph(s32 nodeSize, s32 sparseness, void *userPtr)
 void freeGraph(Graph *graph)
 {
 	LOG(LOG_INFO,"Freeing Graph");
+
+	if(graph->mode==GRAPH_MODE_INDEX)
+		smCleanupSmerMap(&(graph->smerMap));
+
+	else
+		saCleanupSmerArray(&(graph->smerArray));
 
 
 }

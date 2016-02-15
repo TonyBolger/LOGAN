@@ -70,7 +70,7 @@ IndexingBuilder *allocIndexingBuilder(Graph *graph, int threads)
 
 	ParallelTaskConfig *ptc=allocParallelTaskConfig(tiDoRegister,tiDoDeregister,tiDoIngress,tiDoIntermediate,tiDoTidy,threads,
 			TI_INGRESS_BLOCKSIZE,TI_INGRESS_PER_TIDY_MIN, TI_INGRESS_PER_TIDY_MAX, TI_TIDYS_PER_BACKOFF,
-			SMER_MAP_SLICES);
+			SMER_SLICES);
 
 	ib->pt=allocParallelTask(ptc,ib);
 	ib->graph=graph;
