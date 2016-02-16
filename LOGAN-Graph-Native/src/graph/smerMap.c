@@ -69,7 +69,7 @@ static int scanForSmer_HS(SmerMapSlice *smerMapSlice, SmerEntry entry, u32 hash,
 		}
 	}
 
-	if (scanCount > 50) {
+	if (scanCount > 60) {
 		LOG(LOG_INFO,"Scan count %i from %i in %i for %i",scanCount,(hash & mask), sliceNum, entry);
 	}
 

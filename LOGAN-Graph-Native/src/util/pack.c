@@ -26,7 +26,7 @@ u32 packChar(u8 ch)
 
 int packSequence(char *seq, u8 *packedSeq, int length)
 {
-	int packedLength=MEM_ROUND_BYTE(length*2);
+	int packedLength=PAD_2BITLENGTH_DWORD(length)*4;
 
 	memset(packedSeq,0,packedLength);
 

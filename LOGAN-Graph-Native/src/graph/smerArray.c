@@ -63,6 +63,7 @@ int saFindSmer(SmerArray *smerArray, SmerId smerId)
 
 	s32 index=siitFindSmer(slice->smerIT, slice->smerCount, smerEntry);
 
+	/*
 	if(index!=-1)
 		{
 		char buffer[SMER_BASES+1];
@@ -70,6 +71,7 @@ int saFindSmer(SmerArray *smerArray, SmerId smerId)
 		unpackSmer(smerId, buffer);
 		LOG(LOG_INFO,"%05i %016lx %012lx %s",sliceNo, hash, smerId, buffer);
 		}
+*/
 
 	return index;
 }

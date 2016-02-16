@@ -74,15 +74,16 @@ typedef struct smerArrayStr
 
 /********************** Shared functionality **********************/
 
-SmerId complementSmerId(SmerId id);
-SmerId shuffleSmerIdRight(SmerId id, u8 base);
-SmerId shuffleSmerIdLeft(SmerId id, u8 base);
-
 int smerIdCompar(const void *ptr1, const void *ptr2);
+int smerIdComparL(const void *ptr1, const void *ptr2);
+
 int smerEntryCompar(const void *ptr1, const void *ptr2);
 
-int smerIdComparL(const void *ptr1, const void *ptr2);
-int u32Compar(const void *ptr1, const void *ptr2);
+//int u32Compar(const void *ptr1, const void *ptr2);
+
+//SmerId complementSmerId(SmerId id);
+//SmerId shuffleSmerIdRight(SmerId id, u8 base);
+//SmerId shuffleSmerIdLeft(SmerId id, u8 base);
 
 void calculatePossibleSmers(u8 *data, s32 maxIndex, SmerId *smerIds, u32 *compFlags);
 

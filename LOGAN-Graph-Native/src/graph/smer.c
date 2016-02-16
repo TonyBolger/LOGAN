@@ -7,6 +7,62 @@
 
 #include "../common.h"
 
+
+
+/* Comparisons related to smer IDs */
+
+int smerIdCompar(const void *ptr1, const void *ptr2)
+{
+	return ( (*(SmerId *)ptr1) > (*(SmerId *)ptr2) ) - ( (*(SmerId *)ptr1) < (*(SmerId *)ptr2) ) ;
+
+	/*
+	if(*(SmerId *)ptr1 < *(SmerId *)ptr2)
+		return -1;
+
+	if(*(SmerId *)ptr1 > *(SmerId *)ptr2)
+			return 1;
+
+	return 0;
+	*/
+}
+
+// Diagnostic version
+int smerIdComparL(const void *ptr1, const void *ptr2)
+{
+	SmerId id1=*(SmerId *)ptr1;
+	SmerId id2=*(SmerId *)ptr2;
+
+	LOG(LOG_INFO, "Compare %08x to %08x",id1,id2);
+
+	if(*(SmerId *)ptr1 < *(SmerId *)ptr2)
+		return -1;
+
+	if(*(SmerId *)ptr1 > *(SmerId *)ptr2)
+		return 1;
+
+	return 0;
+}
+
+int smerEntryCompar(const void *ptr1, const void *ptr2)
+{
+	return ( (*(SmerEntry *)ptr1) > (*(SmerEntry *)ptr2) ) - ( (*(SmerEntry *)ptr1) < (*(SmerEntry *)ptr2) ) ;
+
+}
+
+/*
+int u32Compar(const void *ptr1, const void *ptr2)
+{
+	if(*(u32 *)ptr1 < *(u32 *)ptr2)
+		return -1;
+
+	if(*(u32 *)ptr1 > *(u32 *)ptr2)
+		return 1;
+
+	return 0;
+}
+*/
+
+
 /* Various functions to handle sequence to smerID translation */
 
 static SmerId convertDataToSmerId(u8 *data, u32 offset) {
@@ -26,7 +82,7 @@ static SmerId convertDataToSmerId(u8 *data, u32 offset) {
 	return id & SMER_MASK;
 }
 
-SmerId complementSmerId(SmerId id)
+static SmerId complementSmerId(SmerId id)
 {
 	if(SMER_CBITS==32)
 		{
@@ -53,16 +109,27 @@ SmerId complementSmerId(SmerId id)
 	return id;
 }
 
-SmerId shuffleSmerIdRight(SmerId id, u8 base)
+static SmerId complementSmerId_SwapWithinBytesOnly(SmerId id)
+{
+	id = ((id >> 2) & 0x3333333333333333L) | ((id << 2) & 0xccccccccccccccccL);
+	id = ((id >> 4) & 0x0f0f0f0f0f0f0f0fL) | ((id << 4) & 0xf0f0f0f0f0f0f0f0L);
+
+	id = COMP_BASE_32(id);
+
+
+}
+
+/*
+static SmerId shuffleSmerIdRight(SmerId id, u8 base)
 {
 	return ((id << 2) & SMER_MASK) | (base & 0x3);
 }
 
-SmerId shuffleSmerIdLeft(SmerId id, u8 base)
+static SmerId shuffleSmerIdLeft(SmerId id, u8 base)
 {
 	return (id >> 2) | ((base & 0x3L) << (SMER_BITS-2));
 }
-
+*/
 
 static SmerId shuffleSmerIdWithOffset(SmerId id, u8 *data, u32 offset) {
 	u8 base;
@@ -84,59 +151,6 @@ static SmerId shuffleComplementSmerIdWithOffset(SmerId id, u8 *data, u32 offset)
 	return id;
 }
 
-
-
-/* Other common functionality related to smer IDs */
-
-int smerIdCompar(const void *ptr1, const void *ptr2)
-{
-	return ( (*(SmerId *)ptr1) > (*(SmerId *)ptr2) ) - ( (*(SmerId *)ptr1) < (*(SmerId *)ptr2) ) ;
-
-	/*
-	if(*(SmerId *)ptr1 < *(SmerId *)ptr2)
-		return -1;
-
-	if(*(SmerId *)ptr1 > *(SmerId *)ptr2)
-			return 1;
-
-	return 0;
-	*/
-}
-
-
-int smerEntryCompar(const void *ptr1, const void *ptr2)
-{
-	return ( (*(SmerEntry *)ptr1) > (*(SmerEntry *)ptr2) ) - ( (*(SmerEntry *)ptr1) < (*(SmerEntry *)ptr2) ) ;
-
-}
-
-int smerIdComparL(const void *ptr1, const void *ptr2)
-{
-	SmerId id1=*(SmerId *)ptr1;
-	SmerId id2=*(SmerId *)ptr2;
-
-	LOG(LOG_INFO, "Compare %08x to %08x",id1,id2);
-
-	if(*(SmerId *)ptr1 < *(SmerId *)ptr2)
-		return -1;
-
-	if(*(SmerId *)ptr1 > *(SmerId *)ptr2)
-		return 1;
-
-	return 0;
-}
-
-
-int u32Compar(const void *ptr1, const void *ptr2)
-{
-	if(*(u32 *)ptr1 < *(u32 *)ptr2)
-		return -1;
-
-	if(*(u32 *)ptr1 > *(u32 *)ptr2)
-		return 1;
-
-	return 0;
-}
 
 
 
@@ -169,6 +183,45 @@ void calculatePossibleSmers(u8 *data, s32 maxIndex, SmerId *smerIds,
 
 	}
 }
+
+
+
+
+void calculatePossibleSmers2(u8 *data, s32 maxIndex, SmerId *smerIds, u32 *compFlags)
+{
+	int i;
+
+	SmerId cSmerId=*((SmerId *)data);
+	SmerId smerId= __builtin_bswap64(cSmerId);
+
+	cSmerId=complementSmerId_SwapWithinBytesOnly(cSmerId);
+
+
+
+	for (i = 0; i <= maxIndex; i++) {
+		if (i == 0) {
+			smerId = convertDataToSmerId(data, 0);
+			cSmerId = complementSmerId(smerId);
+		} else {
+			int offset=i+(SMER_BASES-1);
+			smerId = shuffleSmerIdWithOffset(smerId, data, offset);
+			cSmerId = shuffleComplementSmerIdWithOffset(cSmerId, data, offset);
+		}
+
+		if (smerId <= cSmerId) {
+			smerIds[i] = smerId;
+			if (compFlags != NULL)
+				compFlags[i] = 0;
+		} else {
+			smerIds[i] = cSmerId;
+			if (compFlags != NULL)
+				compFlags[i] = 1;
+		}
+
+	}
+}
+
+
 
 
 
