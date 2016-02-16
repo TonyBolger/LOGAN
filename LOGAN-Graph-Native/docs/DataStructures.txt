@@ -52,7 +52,7 @@
 			Slice: 300K smers * 4 bits -> 150KB
 		
 		Consider blocked bloom filters: All queries for a given key hit the same 64 byte region
-			Pattern filters also possible
+			Pattern filters also possible (SIMD advantages)
 		
 	Read batching: 
 		Currently 1024 reads per batch -> ~80 smers per read -> 80000 smers per batch (~5 per slice).
@@ -66,9 +66,34 @@
 				
 		
 		
-		
-		
-			
-		
-		
-	
+Arabi-1 Dataset: Seq: 30361968 Bp: 2364495967
+
+Kmers: 154717256
+Kmers occuring once: 42518318 2434485 1976988 2988053 4500337
+
+1696347756 occurences of Kmers in reads
+
+> sum(tab$V1[1:10])
+4004635		0.2360739% in top 10	394418
+35389971	2.086245% in top 100	309504
+82001337	4.833993% in top 1k		17894
+167078291	9.849295% in top 10k	6549
+285329471	16.82022% in top 100k	551
+465014713	27.4127% in top 1m		57
+656224623	38.68456% in top 10m	17
+1606781157	94.72003% in top 100m	6
+
+
+Smers: 7970136
+Smers occuring <5: 1394227 103341 109399 178212 270757
+
+220840462 occurences of Smers in reads
+
+3963627		 1.794792% in top 10		390927
+34285440	15,52498% in top 100		264374
+67480501	30.55622% in top 1k			13637
+115890440	52.477% in top 10k			1371
+146946106	66.53948% in top 100k		110
+166856524	75.55523% in top 1m			15
+
+
