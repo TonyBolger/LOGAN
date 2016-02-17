@@ -20,6 +20,22 @@ static void trDoDeregister(ParallelTask *pt, int workerNo)
 
 }
 
+
+/*
+static void checkPossibleSmers(u32 maxValidIndex, SmerId *smerIds1, u32 *compFlags1, SmerId *smerIds2, u32 *compFlags2)
+{
+	for(int i=0;i<maxValidIndex;i++)
+	{
+		if(smerIds1[i]!=smerIds2[i] || compFlags1[i]!=compFlags2[i])
+			{
+			LOG(LOG_INFO,"Mismatch %lx %i vs %lx %i",smerIds1[i],compFlags1[i],smerIds2[i],compFlags2[i]);
+			}
+	}
+
+}
+*/
+
+
 static void ingressOne(Graph *graph, u8 *packedSeq, int length)
 {
 
@@ -32,7 +48,7 @@ static void ingressOne(Graph *graph, u8 *packedSeq, int length)
 	SmerId *smerIds=alloca((maxValidIndex+1)*sizeof(SmerId));
 	u32 *compFlags=alloca((maxValidIndex+1)*sizeof(u32));
 
-	calculatePossibleSmers(packedSeq, maxValidIndex, smerIds, compFlags);
+	calculatePossibleSmersComp(packedSeq, maxValidIndex, smerIds, compFlags);
 	indexCount=saFindIndexesOfExistingSmers(&(graph->smerArray),packedSeq, maxValidIndex, indexes, smerIds);
 
 	saVerifyIndexing(graph->config.sparseness, indexes, indexCount, length, maxValidIndex);

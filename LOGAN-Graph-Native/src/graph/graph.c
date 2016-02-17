@@ -44,7 +44,7 @@ void addPathSmers(Graph *graph, u32 dataLength, u8 *data)
 	u32 newIndexCount=0;
 
 	SmerId *smerIds=alloca((maxValidIndex+1)*sizeof(SmerId));
-	calculatePossibleSmers(data, maxValidIndex, smerIds, NULL);
+	calculatePossibleSmers(data, maxValidIndex, smerIds);
 
 	u32 oldIndexCount=smFindIndexesOfExistingSmers(smerMap, data, maxValidIndex, oldIndexes, smerIds, indexMaxDistance);
 

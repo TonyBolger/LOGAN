@@ -23,69 +23,98 @@
 		
 		
 		Ecoli-1:
-		
-	Phase 1: 8.1s
-	Phase 2: 24.6s
-				
-	 27.09	calculatePossibleSmers
-	 22.54	siitFindSmer
-	 17.69	packSequence
-	 12.04	smFindIndexesOfExistingSmers
-	  4.68	readFastqLine
-	  3.85	hashForSmer
-	  3.37	saFindIndexesOfExistingSmers
-	  2.62	addPathSmers
-	  2.08	sliceForSmer
-	  1.31	smConsiderResize
-		
+
+  %   cumulative   self              self     total           
+ time   seconds   seconds    calls   s/call   s/call  name    
+ 39.46     19.86    19.86 22481274     0.00     0.00  siitFindSmer
+ 16.54     28.18     8.32   600132     0.00     0.00  smFindIndexesOfExistingSmers
+  9.19     32.81     4.63  1154931     0.00     0.00  packSequence
+  8.09     36.88     4.07  3693458     0.00     0.00  readFastqLine
+  7.22     40.51     3.63   395158     0.00     0.00  saFindIndexesOfExistingSmers
+  3.69     42.37     1.86   549251     0.00     0.00  calculatePossibleSmers
+  3.43     44.09     1.73   354796     0.00     0.00  calculatePossibleSmersComp
+  3.36     45.78     1.69        2     0.85     3.60  parseAndProcess
+  2.86     47.22     1.44  1831038     0.00     0.00  skipFastqLine
+  1.47     47.96     0.74   584584     0.00     0.00  addPathSmers
 		
 		
+  	
 		
 		Pen-1:
 		
 	Phase 1: 1330s
 	Phase 2: 7542s
 				
-	Bottlenecks: 
-	 	41.37   siitFindSmer
- 		14.59   calculatePossibleSmers
- 		12.10   readFastqLine
- 		11.25   smFindIndexesOfExistingSmers (includes hashForSmer/sliceForSmer/findSmer_HS)
- 		10.70   packSequence
-  		3.44   	saFindIndexesOfExistingSmers (omits siitFindSmer)
-		1.78    hashForSmer
-  		1.53    addPathSmers
-  		1.00    sliceForSmer
-  		0.71   	parseAndProcess
+  %   cumulative   self              self     total           
+ time   seconds   seconds    calls   s/call   s/call  name    
+ 41.37   2129.48  2129.48 1099125462     0.00     0.00  siitFindSmer
+ 14.59   2880.64   751.17  9290031     0.00     0.00  calculatePossibleSmers
+ 12.10   3503.65   623.01 313354982     0.00     0.00  readFastqLine
+ 11.25   4082.63   578.98  5403849     0.00     0.00  smFindIndexesOfExistingSmers
+ 10.70   4633.47   550.83 21603221     0.00     0.00  packSequence
+  3.44   4810.51   177.04  3645989     0.00     0.00  saFindIndexesOfExistingSmers
+  1.78   4902.07    91.56 1379563548     0.00     0.00  hashForSmer
+  1.53   4981.04    78.97  5304533     0.00     0.00  addPathSmers
+  1.00   5032.69    51.65 1412972564     0.00     0.00  sliceForSmer
+  0.71   5069.28    36.59       11     3.33    61.42  parseAndProcess
+  0.36   5087.93    18.65   989819     0.00     0.00  smConsiderResize
+  0.31   5103.96    16.04 157501427     0.00     0.00  skipFastqLine
+  0.19   5113.60     9.63     5126     0.00     0.60  trDoIngress
+  0.18   5122.86     9.26 10812828     0.00     0.00  saVerifyIndexing
 
-	Pack / Calculate Kmers:
+
+
+
+
+
+
+	Pack Kmers
+
+A	0x41	65
+C	0x43	67
+G	0x47	71
+T	0x54	84
+
+
+
+
+
+	Calculate Possible Kmers:
+
+
 	
 	Pack -> Smer
+		
+	Rmer:             -- -- -- --  -- -- -- --  23 22 21 20  19 18 17 16  15 14 13 12  11 10 09 08  07 06 05 04  03 02 01 00
 	
-	Smer:             -- -- -- --  -- -- -- --  00 01 02 03  04 05 06 07  08 09 10 11  12 13 14 15  16 17 18 19  20 21 22 23
-	Rmer:             23 22 21 20  19 18 17 16  15 14 13 12  11 10 09 08  07 06 05 04  03 02 01 00  -- -- -- --  -- -- -- --
+	Fmer=bswap64(Rmer)
+	  
+	Fmer:             00 01 02 03  04 05 06 07  08 09 10 11  12 13 14 15  16 17 18 19  20 21 22 23  -- -- -- --  -- -- -- --
+	
+	Rmer = Rmer << 2bp 
+	Fmer = Fmer >> 8bp
 	
 	
-	SmerX1:           00 01 02 03  04 05 06 07  08 09 10 11  12 13 14 15  16 17 18 19  20 21 22 23   
+	Fmer1:            00 01 02 03  04 05 06 07  08 09 10 11  12 13 14 15  16 17 18 19  20 21 22 23   
 	
-	SmerA: (>>1bp)       00 01 02  03 04 05 06  07 08 09 10  11 12 13 14  15 16 17 18  19 20 21 22     
-	SmerB:               01 02 03  04 05 06 07  08 09 10 11  12 13 14 15  16 17 18 19  20 21 22 23
+	FmerA: (>>1bp)       00 01 02  03 04 05 06  07 08 09 10  11 12 13 14  15 16 17 18  19 20 21 22     
+	FmerB:               01 02 03  04 05 06 07  08 09 10 11  12 13 14 15  16 17 18 19  20 21 22 23
 	
-	SmerX2: 01 02 03  04 05 06 07  08 09 10 11  12 13 14 15  16 17 18 19  20 21 22 23  24*25*26*27*
+	Fmer2:  01 02 03  04 05 06 07  08 09 10 11  12 13 14 15  16 17 18 19  20 21 22 23  24*25*26*27*
 	
-	SmerC: (>>3bp)       02 03 04  05 06 07 08  09 10 11 12  13 14 15 16  17 18 19 20  21 22 23 24*
-	SmerD: (>>2bp)       03 04 05  06 07 08 09  10 11 12 13  14 15 16 17  18 19 20 21  22 23 24*25*
+	FmerC: (>>3bp)       02 03 04  05 06 07 08  09 10 11 12  13 14 15 16  17 18 19 20  21 22 23 24*
+	FmerD: (>>2bp)       03 04 05  06 07 08 09  10 11 12 13  14 15 16 17  18 19 20 21  22 23 24*25*
 
-	SmerA2: (>>1bp)      04 04 06  07 08 09 10  11 12 13 14  15 16 17 18  19 20 21 22  23 24*25*26*
-	SmerB2:              05 06 07  08 09 10 11  12 13 14 15  16 17 18 19  20 21 22 23  24*25*26*27*
+	FmerA2: (>>1bp)      04 04 06  07 08 09 10  11 12 13 14  15 16 17 18  19 20 21 22  23 24*25*26*
+	FmerB2:              05 06 07  08 09 10 11  12 13 14 15  16 17 18 19  20 21 22 23  24*25*26*27*
 
 
-	RmerX1:    23 22  21 20 19 18  17 16 15 14  13 12 11 10  09 08 07 06  05 04 03 02  01 00 -- --  
+	Rmer1:     23 22  21 20 19 18  17 16 15 14  13 12 11 10  09 08 07 06  05 04 03 02  01 00 -- --  
 
 	RmerA: (>>2bp)       22 21 20  19 18 17 16  15 14 13 12  11 10 09 08  07 06 05 04  03 02 01 00     
 	RmerB: (>>3bp)       23 22 21  20 19 18 17  16 15 14 13  12 11 10 09  08 07 06 05  04 03 02 01
 	
-	RmerX2:   27*26*  25*24*23 22  21 20 19 18  17 16 15 14  13 12 11 10  09 08 07 06  05 04 03 02
+	Rmer2:    27*26*  25*24*23 22  21 20 19 18  17 16 15 14  13 12 11 10  09 08 07 06  05 04 03 02
 	
 	RmerC:               24*23 22  21 20 19 18  17 16 15 14  13 12 11 10  09 08 07 06  05 04 03 02 
 	RmerD: (>>1bp)       25*24*23  22 21 20 19  18 17 16 15  14 13 12 11  10 09 08 07  06 05 04 03 
