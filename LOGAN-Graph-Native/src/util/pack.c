@@ -24,10 +24,10 @@ u32 packChar(u8 ch)
 	return 0;
 }
 
-int packSequence(char *seq, u8 *packedSeq, int length)
+/*
+void packSequence2(char *seq, u8 *packedSeq, int length)
 {
 	int packedLength=PAD_2BITLENGTH_DWORD(length)*4;
-
 	memset(packedSeq,0,packedLength);
 
 	int i=0;
@@ -36,9 +36,145 @@ int packSequence(char *seq, u8 *packedSeq, int length)
 		int pack=packChar(seq[i]) << (2 * (3 - (i & 0x3)));
 		packedSeq[i/4]|=pack;
 		}
-
-	return packedLength;
 }
+*/
+
+void packSequence(char *seq, u8 *packedSeq, int length)
+{
+	u8 data=0;
+
+	while(length>0)
+	{
+		length-=4;
+
+		u8 ch=*(seq++);
+		data=(ch&0x6)<<5;
+
+		ch=*(seq++);
+		data|=(ch&0x6)<<3;
+
+		ch=*(seq++);
+		data|=(ch&0x6)<<1;
+
+		ch=*(seq++);
+		data|=(ch&0x6)>>1;
+
+		*(packedSeq++)=data^((data&0xAA)>>1);
+	}
+
+}
+/*
+
+void packSequence(char *seq, u8 *packedSeq, int length)
+{
+	u8 data=0;
+
+	while(length>3)
+	{
+		length-=4;
+		data=0;
+		switch(*(seq++))
+			{
+			case 'C':
+				data=0x40;
+				break;
+
+			case 'G':
+				data=0x80;
+				break;
+
+			case 'T':
+				data=0xC0;
+				break;
+			}
+
+		switch(*(seq++))
+			{
+			case 'C':
+				data|=0x10;
+				break;
+
+			case 'G':
+				data|=0x20;
+				break;
+
+			case 'T':
+				data|=0x30;
+				break;
+			}
+
+		switch(*(seq++))
+			{
+			case 'A':
+				break;
+
+			case 'C':
+				data|=0x04;
+				break;
+
+			case 'G':
+				data|=0x08;
+				break;
+
+			case 'T':
+				data|=0x0C;
+				break;
+			}
+
+		switch(*(seq++))
+			{
+			case 'C':
+				data|=0x1;
+				break;
+
+			case 'G':
+				data|=0x2;
+				break;
+
+			case 'T':
+				data|=0x3;
+				break;
+			}
+
+		*(packedSeq++)=data;
+	}
+
+	if(length)
+		{
+		data=0;
+		while(length--)
+			{
+			data<<=2;
+			switch(*(seq++))
+				{
+				case 'C':
+					data=0x1;
+					break;
+
+				case 'G':
+					data|=0x2;
+					break;
+
+				case 'T':
+					data|=0x3;
+					break;
+				}
+			}
+
+		*(packedSeq++)=data;
+		}
+
+
+}
+
+*/
+
+
+
+
+
+
+
 
 char unpackChar(u32 pack)
 {

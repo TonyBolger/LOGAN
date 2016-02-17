@@ -13,6 +13,7 @@
 #include <string.h>
 #include <alloca.h>
 #include <pthread.h>
+#include <sys/time.h>
 
 
 #define PAD_BITLENGTH_BYTE(L) (((L)+7)>>3)

@@ -1,6 +1,6 @@
 
 #CFLAGS=-std=gnu99 -pedantic -pedantic-errors -Wall -Werror -O3 
-CFLAGS=-std=gnu99 -pedantic -pedantic-errors -Wall -Werror -O3 -pg -g
+CFLAGS=-std=gnu99 -pedantic -pedantic-errors -Wall -Werror -O3 -g
 
 
 
@@ -8,7 +8,8 @@ INC=-I"./src"
 CLI_INC=-I"./cliSrc"
 JNI_INC=-I/usr/lib/jvm/java/include/ -I/usr/lib/jvm/java/include/linux/ -I"./cliSrc" -I"./jniSrc" -I"./jniHeaders"
 
-CLI_LIBS = -lrt -lpthread
+#CLI_LIBS = -lrt -lpthread
+CLI_LIBS = -lrt -lpthread -lprofiler
 
 CLI_OBJS += \
 ./bin/cli/common/graph/graph.o \

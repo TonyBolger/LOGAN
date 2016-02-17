@@ -15,6 +15,8 @@ typedef struct iptThreadDataStr
 	IndexingBuilder *indexingBuilder;
 
 	int threadIndex;
+	struct itimerval profilingTimer;
+
 } IptThreadData;
 
 typedef struct rptThreadDataStr
@@ -23,8 +25,9 @@ typedef struct rptThreadDataStr
 	RoutingBuilder *routingBuilder;
 
 	int threadIndex;
-} RptThreadData;
+	struct itimerval profilingTimer;
 
+} RptThreadData;
 
 
 
@@ -42,6 +45,14 @@ typedef struct rptThreadDataStr
 
 #define FASTQ_RECORDS_PER_BATCH 100000
 #define FASTQ_BASES_PER_BATCH 10000000
+
+// RECYCLE_BUFFER should be at least FASTQ_MAX_READ_LENGTH * 4
+
+#define FASTQ_IO_RECYCLE_BUFFER (64*1024)
+#define FASTQ_IO_PRIMARY_BUFFER (1024*1024)
+
+
+
 
 
 void tpfAddPathSmersHandler(SwqBuffer *buffer, void *context)
@@ -104,7 +115,7 @@ void *tpfWorker(void *voidData)
 	LOG(LOG_INFO,"Thread %i of %i started for %s",data->threadIndex,data->threadCount,path);
 
 	//char *path, int minSeqLength, int recordsToSkip, int recordsToUse, void *handlerContext, void (*handler)
-
+/*
 	int bufSize=FASTQ_BASES_PER_BATCH;
 
 	SwqBuffer buffer;
@@ -120,13 +131,13 @@ void *tpfWorker(void *voidData)
 	buffer.usageCount=0;
 
 
-
 	int reads=parseAndProcess(path, FASTQ_MIN_READ_LENGTH, 0, 250000000,
 			&buffer, 1, data->graph, tpfAddPathSmersHandler);
+	*/
 //	int reads=parseAndProcess(path, minLength, 0, 1, smerCtx, addPathSmersHandler);
 
 
-	LOG(LOG_INFO,"Thread %i of %i processed %i",data->threadIndex,data->threadCount,reads);
+	//LOG(LOG_INFO,"Thread %i of %i processed %i",data->threadIndex,data->threadCount,reads);
 
 
 	return NULL;
@@ -166,8 +177,9 @@ void runTpfMaster(char *pathTemplate, int fileCount, Graph *graph)
 void *runIptWorker(void *voidData)
 {
 	IptThreadData *data=(IptThreadData *)voidData;
-
 	IndexingBuilder *ib=data->indexingBuilder;
+
+	//setitimer(ITIMER_PROF, &(data->profilingTimer), NULL);
 
 	performTask(ib->pt);
 
@@ -185,17 +197,6 @@ void iptHandler(SwqBuffer *buffer, void *context)
 }
 
 
-void rptHandler(SwqBuffer *buffer, void *context)
-{
-	RoutingBuilder *rb=(RoutingBuilder *)context;
-
-	//LOG(LOG_INFO," ********************* RPT HANDLER GOT %i ****************************", buffer->numSequences);
-
-	queueIngress(rb->pt, buffer, buffer->numSequences, &buffer->usageCount);
-}
-
-
-
 
 
 void runIptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *graph)
@@ -211,7 +212,9 @@ void runIptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 		{
 		data[i].graph=graph;
 		data[i].indexingBuilder=ib;
+
 		data[i].threadIndex=i;
+		getitimer(ITIMER_PROF, &data[i].profilingTimer);
 
 		pthread_create(threads+i,NULL,runIptWorker,data+i);
 		}
@@ -240,6 +243,8 @@ void runIptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 		buffers[i].usageCount=0;
 		}
 
+	u8 *ioBuffer=malloc(FASTQ_IO_RECYCLE_BUFFER+FASTQ_IO_PRIMARY_BUFFER);
+
 	for(i=0;i<fileCount;i++)
 		{
 		char path[1024];
@@ -248,7 +253,9 @@ void runIptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 		LOG(LOG_INFO,"Indexing: Parsing %s",path);
 
 		int reads=parseAndProcess(path, FASTQ_MIN_READ_LENGTH, 0, 250000000,
-				buffers, PT_INGRESS_BUFFERS, ib, iptHandler);
+				ioBuffer, FASTQ_IO_RECYCLE_BUFFER, FASTQ_IO_PRIMARY_BUFFER,
+				buffers, PT_INGRESS_BUFFERS,
+				ib, iptHandler);
 
 		LOG(LOG_INFO,"Indexing: Parsed %i reads from %s",reads,path);
 		}
@@ -274,6 +281,31 @@ void runIptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 }
 
 
+void *runRptWorker(void *voidData)
+{
+	RptThreadData *data=(RptThreadData *)voidData;
+	RoutingBuilder *rb=data->routingBuilder;
+
+    //setitimer(ITIMER_PROF, &(data->profilingTimer), NULL);
+
+	performTask(rb->pt);
+
+	return NULL;
+}
+
+
+
+void rptHandler(SwqBuffer *buffer, void *context)
+{
+	RoutingBuilder *rb=(RoutingBuilder *)context;
+
+	//LOG(LOG_INFO," ********************* RPT HANDLER GOT %i ****************************", buffer->numSequences);
+
+	queueIngress(rb->pt, buffer, buffer->numSequences, &buffer->usageCount);
+}
+
+
+
 
 void runRptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *graph)
 {
@@ -288,9 +320,11 @@ void runRptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 		{
 		data[i].graph=graph;
 		data[i].routingBuilder=rb;
-		data[i].threadIndex=i;
 
-		pthread_create(threads+i,NULL,runIptWorker,data+i);
+		data[i].threadIndex=i;
+		getitimer(ITIMER_PROF, &data[i].profilingTimer);
+
+		pthread_create(threads+i,NULL,runRptWorker,data+i);
 		}
 
 	waitForStartup(rb->pt);
@@ -316,6 +350,10 @@ void runRptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 		buffers[i].usageCount=0;
 		}
 
+	u8 *ioBuffer=malloc(FASTQ_IO_RECYCLE_BUFFER+FASTQ_IO_PRIMARY_BUFFER);
+
+
+
 	for(i=0;i<fileCount;i++)
 		{
 		char path[1024];
@@ -324,7 +362,9 @@ void runRptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 		LOG(LOG_INFO,"Routing: Parsing %s",path);
 
 		int reads=parseAndProcess(path, FASTQ_MIN_READ_LENGTH, 0, 250000000,
-				buffers, PT_INGRESS_BUFFERS, rb, rptHandler);
+				ioBuffer, FASTQ_IO_RECYCLE_BUFFER, FASTQ_IO_PRIMARY_BUFFER,
+				buffers, PT_INGRESS_BUFFERS,
+				rb, rptHandler);
 
 		LOG(LOG_INFO,"Routing: Parsed %i reads from %s",reads,path);
 		}
@@ -345,6 +385,8 @@ void runRptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 		free(buffers[i].qualBuffer);
 		free(buffers[i].rec);
 		}
+
+	free(ioBuffer);
 
 	freeRoutingBuilder(rb);
 }
@@ -384,6 +426,8 @@ int main(int argc, char **argv)
 		LOG(LOG_CRITICAL,"Expected arguments: template files");
 		return 1;
 		}
+
+
 
 	//runTpfMaster(fileTemplate, fileCount, graph);
 
