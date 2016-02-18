@@ -170,8 +170,8 @@ Graph *grGraphAlloc()
 	return gAllocC(sizeof(Graph));
 }
 
-void grGraphFree(SmerId *array)
+void grGraphFree(Graph *graph)
 {
-	gFree(array);
+	gFree(graph);
 }
 

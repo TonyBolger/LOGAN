@@ -15,8 +15,6 @@ typedef struct iptThreadDataStr
 	IndexingBuilder *indexingBuilder;
 
 	int threadIndex;
-	struct itimerval profilingTimer;
-
 } IptThreadData;
 
 typedef struct rptThreadDataStr
@@ -25,8 +23,6 @@ typedef struct rptThreadDataStr
 	RoutingBuilder *routingBuilder;
 
 	int threadIndex;
-	struct itimerval profilingTimer;
-
 } RptThreadData;
 
 
@@ -214,8 +210,6 @@ void runIptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 		data[i].indexingBuilder=ib;
 
 		data[i].threadIndex=i;
-		getitimer(ITIMER_PROF, &data[i].profilingTimer);
-
 		pthread_create(threads+i,NULL,runIptWorker,data+i);
 		}
 
@@ -252,7 +246,7 @@ void runIptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 
 		LOG(LOG_INFO,"Indexing: Parsing %s",path);
 
-		int reads=parseAndProcess(path, FASTQ_MIN_READ_LENGTH, 0, 250000000,
+		int reads=parseAndProcess(path, FASTQ_MIN_READ_LENGTH, 0, 2000000000,
 				ioBuffer, FASTQ_IO_RECYCLE_BUFFER, FASTQ_IO_PRIMARY_BUFFER,
 				buffers, PT_INGRESS_BUFFERS,
 				ib, iptHandler);
@@ -278,6 +272,10 @@ void runIptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 		}
 
 	freeIndexingBuilder(ib);
+
+	free(ioBuffer);
+	free(threads);
+	free(data);
 }
 
 
@@ -322,8 +320,6 @@ void runRptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 		data[i].routingBuilder=rb;
 
 		data[i].threadIndex=i;
-		getitimer(ITIMER_PROF, &data[i].profilingTimer);
-
 		pthread_create(threads+i,NULL,runRptWorker,data+i);
 		}
 
@@ -387,6 +383,8 @@ void runRptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 		}
 
 	free(ioBuffer);
+	free(threads);
+	free(data);
 
 	freeRoutingBuilder(rb);
 }

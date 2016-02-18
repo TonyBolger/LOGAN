@@ -78,7 +78,7 @@ static SmerId shuffleSmerIdLeft(SmerId id, u8 base)
 }
 */
 
-
+/*
 static SmerId convertDataToSmerId(u8 *data, u32 offset) {
 	SmerId id = 0;
 	int i;
@@ -180,7 +180,7 @@ void calculatePossibleSmers2(u8 *data, s32 maxIndex, SmerId *smerIds,
 	}
 }
 
-
+*/
 
 
 
@@ -206,6 +206,8 @@ void calculatePossibleSmers(u8 *data, s32 maxIndex, SmerId *smerIds)
 
 	fmerGen >>= 16;
 	rmerGen <<= 4;
+
+	maxIndex++;
 
 	while(maxIndex>0)
 		{
@@ -298,6 +300,8 @@ void calculatePossibleSmersComp(u8 *data, s32 maxIndex, SmerId *smerIds, u32 *co
 
 	fmerGen >>= 16;
 	rmerGen <<= 4;
+
+	maxIndex++;
 
 	while(maxIndex>0)
 		{

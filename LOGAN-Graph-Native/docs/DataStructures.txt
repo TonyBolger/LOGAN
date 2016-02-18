@@ -22,9 +22,22 @@
 		Each slice contains queue of inbound requests from other slices
 		
 		
-		Ecoli-1:
+		
+	Profiles:
+		
+		export CPUPROFILE=gperf.out
+	
+		pprof LOGAN-Graph-Native/bin/LOGAN gperf.out
+		 
+		top20
+	
+		
+	Dataset Profiles:		
+		
+		Ecoli-1: Reads: 7248696 Smers: 1810392 (single threaded)
 
-		 7.378805s using 8 threads (desktop)
+
+		 7.378805s using 8 threads (desktop) 
 		 
 		 
     2315  50.9%  50.9%     2315  50.9% siitFindSmer
@@ -49,7 +62,8 @@
       19   0.4%  97.9%      559  12.3% parseAndProcess
 		
 	
-		Ecoli-2:
+		Ecoli-2: Reads: 218470592 Smers: 5717584
+		
 		
 		374.014427s using 16 threads (cessna)
 	
@@ -77,7 +91,7 @@
 	
 	
 	
-		Arabi-1:
+		Arabi-1: Reads: 29493880 Smers: 7969993 (single threaded)
 	
 		34.352455s using 16 threads (cessna)
 		
@@ -104,7 +118,7 @@
 		
 	
 	
-		Pen-1:
+		Pen-1: Reads: 450786851 reads Smers: 54666725
 		
 		944.455062s using 16 threads (cessna)
 		
@@ -254,6 +268,30 @@ Smers occuring <5: 1394227 103341 109399 178212 270757
 115890440	52.477% in top 10k			1371
 146946106	66.53948% in top 100k		110
 166856524	75.55523% in top 1m			15
+
+
+
+
+
+Pen-1 Dataset:
+
+
+
+Smers: 53836270
+LOGAN INFO cliSrc/fastqParser.c(449) 1289.080710: Used 450786851 450786851
+LOGAN INFO cliSrc/main.c(260) 1289.080796: Indexing: Parsed 450786851 reads from data/Pen-1/D.fq
+LOGAN INFO src/task/task.c(93) 1289.080803: Master: QueueShutdown
+LOGAN INFO src/task/task.c(102) 1289.080807: Master: QueueShutdown locked
+LOGAN INFO src/task/task.c(110) 1289.080811: Master: QueueShutdown Complete
+LOGAN INFO src/task/task.c(37) 1289.080816: Master: Waiting for shutdown
+LOGAN INFO src/task/task.c(227) 1289.347379: New Shutdown Req
+LOGAN INFO src/task/task.c(396) 1289.347405: Worker 0 Completed main loop - waiting for shutdown tidy
+LOGAN INFO src/task/taskIndexing.c(20) 1289.347413: TaskIndexing: DoDeregister (0)
+LOGAN INFO src/task/task.c(442) 1289.347418: Worker 0 last out, notifying master
+LOGAN INFO src/task/task.c(51) 1289.347481: Master: Done Shutdown
+LOGAN INFO cliSrc/main.c(436) 1289.513146: Smer count: 54666725
+
+
 
 
 

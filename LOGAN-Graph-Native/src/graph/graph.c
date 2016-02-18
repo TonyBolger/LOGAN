@@ -258,4 +258,6 @@ void freeGraph(Graph *graph)
 		saCleanupSmerArray(&(graph->smerArray));
 
 
+	grGraphFree(graph);
+
 }

@@ -37,7 +37,7 @@ void tiRoutingBuilderFree(RoutingBuilder *rb);
 // Graph
 
 Graph *grGraphAlloc();
-void grGraphFree(SmerId *array);
+void grGraphFree(Graph *graph);
 
 
 #endif
