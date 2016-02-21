@@ -65,7 +65,7 @@ static int trDoIngress(ParallelTask *pt, int workerNo,void *ingressPtr, int ingr
 	RoutingBuilder *rb=pt->dataPtr;
 	Graph *graph=rb->graph;
 
-	u8 *packedSeq=malloc(rec->maxSequenceTotalLength+4);
+	u8 *packedSeq=malloc(PAD_2BITLENGTH_BYTE(rec->maxSequenceTotalLength));
 
 	int i=0;
 	int ingressLast=ingressPosition+ingressSize;
@@ -73,6 +73,9 @@ static int trDoIngress(ParallelTask *pt, int workerNo,void *ingressPtr, int ingr
 	for(i=ingressPosition;i<ingressLast;i++)
 		{
 		SequenceWithQuality *currentRec=rec->rec+i;
+
+
+
 		packSequence(currentRec->seq, packedSeq, currentRec->length);
 
 		ingressOne(graph, packedSeq, currentRec->length);

@@ -17,6 +17,27 @@ typedef struct RoutingBuilderStr {
 
 
 
+typedef struct RoutingReadDataStr {
+	u8 *packedSeq;
+	u32 seqLength;
+	u32 *smers;
+	u32 *compFlags;
+} RoutingReadData;
+
+typedef struct RoutingSmerEntryLookupStr {
+	u32 entryCount;
+	SmerEntry entries[];
+} RoutingSmerEntryLookup;
+
+
+typedef struct RoutingReadBlockStr {
+	RoutingReadData readData[TR_INGRESS_BLOCKSIZE];	// Holds packed read data and all smers
+
+	RoutingSmerEntryLookup *smerEntryLookups[SMER_SLICES]; // Holds per-slice smer details for lookup
+
+} RoutingReadBlock;
+
+
 RoutingBuilder *allocRoutingBuilder(Graph *graph, int threads);
 void freeRoutingBuilder(RoutingBuilder *rb);
 

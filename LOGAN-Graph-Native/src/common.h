@@ -17,27 +17,17 @@
 #include <stdarg.h>
 #include <sys/time.h>
 
-
-#define PAD_BITLENGTH_BYTE(L) (((L)+7)>>3)
-#define PAD_BITLENGTH_WORD(L) (((L)+15)>>4)
-#define PAD_BITLENGTH_DWORD(L) (((L)+31)>>5)
-#define PAD_BITLENGTH_QWORD(L) (((L)+63)>>6)
-
+#define PAD_1BITLENGTH_BYTE(L) (((L)+7)>>3)
 #define PAD_2BITLENGTH_BYTE(L) (((L)+3)>>2)
-#define PAD_2BITLENGTH_WORD(L) (((L)+7)>>3)
-#define PAD_2BITLENGTH_DWORD(L) (((L)+15)>>4)
-#define PAD_2BITLENGTH_QWORD(L) (((L)+31)>>5)
-
 #define PAD_4BITLENGTH_BYTE(L) (((L)+1)>>1)
-#define PAD_4BITLENGTH_WORD(L) (((L)+3)>>2)
-#define PAD_4BITLENGTH_DWORD(L) (((L)+7)>>3)
-#define PAD_4BITLENGTH_QWORD(L) (((L)+15)>>4)
 
-//#define PAD_BYTELENGTH_BYTE(L) (((L)+0)>>0)
-#define PAD_BYTELENGTH_WORD(L) (((L)+1)>>1)
-#define PAD_BYTELENGTH_DWORD(L) (((L)+3)>>2)
-#define PAD_BYTELENGTH_QWORD(L) (((L)+7)>>3)
+#define PAD_BYTELENGTH_2BYTE(L) (((L)+1)&~1)
+#define PAD_BYTELENGTH_4BYTE(L) (((L)+3)&~3)
+#define PAD_BYTELENGTH_8BYTE(L) (((L)+7)&~7)
 
+#define PAD_BYTELENGTH_16BYTE(L) (((L)+15)&~15)
+#define PAD_BYTELENGTH_32BYTE(L) (((L)+31)&~31)
+#define PAD_BYTELENGTH_64BYTE(L) (((L)+63)&~63)
 
 
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))

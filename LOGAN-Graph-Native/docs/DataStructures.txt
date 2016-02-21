@@ -22,6 +22,57 @@
 		Each slice contains queue of inbound requests from other slices
 		
 		
+	Indexing Parallel Task:
+	
+		Parsing Thread (master): 
+			Parses reads into SwqBuffers
+			Submits to ParallelTask
+			
+		Ingress Thread:
+			Pack Sequence
+			Determine possible smers
+			Check which already exist in SmerMap
+			Insert extra if insufficent
+			
+			
+	Building Parallel Task:			 
+			
+		Parsing Thread (master): 
+			Parses reads into SwqBuffers
+			Submits to ParallelTask
+		
+		Ingress Thread:
+			Pack Sequence
+			Determine possible smers
+			Prefilter smers with Bloom
+			Determine index of smers from SmerArtray
+			Determine first smer per read
+			Queue first-smer task			
+			
+		-- or --
+		
+		Ingress Thread:
+			Pack Sequence
+			Determine possible smers
+			Queue smer-check tasks (per slice)
+			
+		Intermediate 1: (per slice)
+			Check smers
+			
+		Intermediate 2:
+			Determine first smer per read
+			Queue first-smer task
+			
+		
+
+
+	
+		
+		
+		
+		
+		
+		
 		
 	Profiles:
 		
@@ -276,7 +327,7 @@ T	0x54	84		0101 0100
 		
 	Read batching: 
 		Currently 1024 reads per batch -> ~80 kmers per read -> 80000 kmers per batch (~5 per slice). 640K per batch
-		10240 reads per batch -> ~80 kmers per read -> 800000 kmers per batch (~50 per slice). 6.4M per batch			
+		10240 reads per batch -> ~80 kmers per read -> 800000 kmers per batch (~50 per slice). 6.4M per batch
 
 	Sub-bloom filters:
 		Idea: Build one or more 'read batch specific' bloom filters from the smers within a read batch
