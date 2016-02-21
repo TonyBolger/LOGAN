@@ -59,7 +59,7 @@ void tpfAddPathSmersHandler(SwqBuffer *buffer, void *context)
 
 	int numRecords=buffer->numSequences;
 
-	u8 *packedSeq=alloca(buffer->maxSequenceLength);
+	u8 *packedSeq=lAlloc(buffer->maxSequenceLength);
 	int i=0;
 
 	for(i=0;i<numRecords;i++)
@@ -357,7 +357,7 @@ void runRptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 
 		LOG(LOG_INFO,"Routing: Parsing %s",path);
 
-		int reads=parseAndProcess(path, FASTQ_MIN_READ_LENGTH, 0, 250000000,
+		int reads=parseAndProcess(path, FASTQ_MIN_READ_LENGTH, 0, 2000000000,
 				ioBuffer, FASTQ_IO_RECYCLE_BUFFER, FASTQ_IO_PRIMARY_BUFFER,
 				buffers, PT_INGRESS_BUFFERS,
 				rb, rptHandler);

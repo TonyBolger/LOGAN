@@ -2,6 +2,9 @@
 #define __MEM_H
 
 
+//#define lAlloc(size) alloca(size)
+
+#define lAlloc(size) memset(alloca(size),0,size);
 
 
 

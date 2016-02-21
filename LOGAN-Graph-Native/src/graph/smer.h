@@ -9,7 +9,7 @@
 #define __SMER_H
 
 
-#include "common.h"
+#include "../common.h"
 
 
 /********************** Definitions for SmerMap **********************/
@@ -60,6 +60,7 @@ typedef struct smerArraySliceStr
 	//SmerArrayBlock *blocks[SMER_MAP_BLOCKS_PER_SLICE];
 	SmerEntry *smerIT;
 	s32 smerCount;
+	Bloom bloom;
 
 } SmerArraySlice;
 

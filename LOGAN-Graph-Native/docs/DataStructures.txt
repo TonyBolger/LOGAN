@@ -25,14 +25,17 @@
 		
 	Profiles:
 		
-		export CPUPROFILE=gperf.out
-	
+		export CPUPROFILE=gperf.out	
 		pprof LOGAN-Graph-Native/bin/LOGAN gperf.out
-		 
 		top20
 	
-		
+	
+	Performance target: 100GB data / 1GB genome -> 1 hour (on cessna)
+			
 	Dataset Profiles:		
+		
+
+		
 		
 		Ecoli-1: Reads: 7248696 Smers: 1810392 (single threaded)
 
@@ -143,6 +146,50 @@
     2301   0.2%  98.9%     2432   0.2% skipBufferedFastqLine (inline)
     1734   0.1%  99.1%     1734   0.1% madvise
     1717   0.1%  99.2%     1720   0.1% smGetSmerCount_S (inline)
+
+
+
+Bloom: 4,4
+
+
+
+Bloom 4,8
+
+
+Total: 1424215 samples
+  635517  44.6%  44.6%   635517  44.6% testBloom
+  490579  34.4%  79.1%   490579  34.4% siitFindSmer
+  108252   7.6%  86.7%   112156   7.9% smFindIndexesOfExistingSmers
+   38177   2.7%  89.3%    45400   3.2% parseAndProcess
+   31634   2.2%  91.6%  1175524  82.5% saFindIndexesOfExistingSmers
+   28973   2.0%  93.6%    28988   2.0% calculatePossibleSmers
+   24020   1.7%  95.3%    24459   1.7% calculatePossibleSmersComp
+   14760   1.0%  96.3%    14822   1.0% hashForSmer
+   10103   0.7%  97.0%    10103   0.7% packSequence
+    9665   0.7%  97.7%   154814  10.9% addPathSmers
+    7767   0.5%  98.3%     7767   0.5% __memset_sse2
+    6986   0.5%  98.8%     6987   0.5% sliceForSmer
+    4973   0.3%  99.1%     4974   0.3% __read_nocancel
+    1984   0.1%  99.2%     1984   0.1% __strchr_sse42
+    1680   0.1%  99.4%     1680   0.1% madvise
+    1677   0.1%  99.5%     1748   0.1% smConsiderResize
+    1234   0.1%  99.6%  1213111  85.2% trDoIngress
+    1194   0.1%  99.6%     1194   0.1% saVerifyIndexing
+     789   0.1%  99.7%  1205531  84.6% ingressOne
+     761   0.1%  99.8%   161970  11.4% tiDoIngress
+
+
+
+Leak detection:
+
+valgrind --leak-check=full --show-reachable=yes ./LOGAN-Graph-Native/bin/LOGAN data/Ecoli-1/unpacked_Q20.fq 1 1
+
+
+
+
+
+
+
 
 
 	Pack Kmers

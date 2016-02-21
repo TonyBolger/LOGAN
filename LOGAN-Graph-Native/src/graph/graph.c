@@ -39,11 +39,11 @@ void addPathSmers(Graph *graph, u32 dataLength, u8 *data)
 
 //	LOG(LOG_INFO,"Max dist: %i",indexMaxDistance);
 
-	s32 *oldIndexes=alloca((maxValidIndex+1)*sizeof(u32));
-	s32 *newIndexes=alloca((maxValidIndex+1)*sizeof(u32));
+	s32 *oldIndexes=lAlloc((maxValidIndex+1)*sizeof(u32));
+	s32 *newIndexes=lAlloc((maxValidIndex+1)*sizeof(u32));
 	u32 newIndexCount=0;
 
-	SmerId *smerIds=alloca((maxValidIndex+1)*sizeof(SmerId));
+	SmerId *smerIds=lAlloc((maxValidIndex+1)*sizeof(SmerId));
 	calculatePossibleSmers(data, maxValidIndex, smerIds);
 
 	u32 oldIndexCount=smFindIndexesOfExistingSmers(smerMap, data, maxValidIndex, oldIndexes, smerIds, indexMaxDistance);
@@ -155,11 +155,11 @@ void addPathTails(Graph *graph, u32 dataLength, u8 *data)
 	s32 maxValidIndex=dataLength-graph->config.s;
 	s32 indexMaxDistance=graph->config.k-graph->config.s+1;
 
-	s32 *indexes=alloca((maxValidIndex+1)*sizeof(u32));
+	s32 *indexes=lAlloc((maxValidIndex+1)*sizeof(u32));
 	u32 indexCount=0;
 
-	SmerId *smerIds=alloca((maxValidIndex+1)*sizeof(SmerId));
-	u32 *compFlags=alloca((maxValidIndex+1)*sizeof(u32));
+	SmerId *smerIds=lAlloc((maxValidIndex+1)*sizeof(SmerId));
+	u32 *compFlags=lAlloc((maxValidIndex+1)*sizeof(u32));
 
 	calculatePossibleSmers(data, maxValidIndex, smerIds, compFlags);
 
@@ -179,11 +179,11 @@ int addPathRoutes(Graph *graph, u32 dataLength, u8 *data)
 	s32 maxValidIndex=dataLength-graph->config.s;
 	s32 indexMaxDistance=graph->config.k-graph->config.s+1;
 
-	s32 *indexes=alloca((maxValidIndex+1)*sizeof(u32));
+	s32 *indexes=lAlloc((maxValidIndex+1)*sizeof(u32));
 	u32 indexCount=0;
 
-	SmerId *smerIds=alloca((maxValidIndex+1)*sizeof(SmerId));
-	u32 *compFlags=alloca((maxValidIndex+1)*sizeof(u32));
+	SmerId *smerIds=lAlloc((maxValidIndex+1)*sizeof(SmerId));
+	u32 *compFlags=lAlloc((maxValidIndex+1)*sizeof(u32));
 
 	calculatePossibleSmers(data, maxValidIndex, smerIds, compFlags);
 

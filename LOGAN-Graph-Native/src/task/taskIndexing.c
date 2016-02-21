@@ -22,14 +22,10 @@ static void tiDoDeregister(ParallelTask *pt, int workerNo)
 
 static int tiDoIngress(ParallelTask *pt, int workerNo,void *ingressPtr, int ingressPosition, int ingressSize)
 {
-//	LOG(LOG_INFO,"TaskIndexing: DoIngress (%i): %i %i",workerNo, ingressPosition, ingressSize);
-	//sleep(1);
-
 	SwqBuffer *rec=ingressPtr;
 	IndexingBuilder *ib=pt->dataPtr;
 
 	u8 *packedSeq=malloc(PAD_BYTELENGTH_DWORD(rec->maxSequenceTotalLength)*4);
-//	u8 *packedSeq2=malloc(PAD_BYTELENGTH_DWORD(rec->maxSequenceTotalLength)*4);
 
 	int i=0;
 	int ingressLast=ingressPosition+ingressSize;
@@ -39,24 +35,10 @@ static int tiDoIngress(ParallelTask *pt, int workerNo,void *ingressPtr, int ingr
 		SequenceWithQuality *currentRec=rec->rec+i;
 
 		packSequence(currentRec->seq, packedSeq, currentRec->length);
-		/*
-		packSequence2(currentRec->seq, packedSeq2, currentRec->length);
-
-		if(memcmp(packedSeq, packedSeq2, currentRec->length/4))
-			{
-			LOG(LOG_INFO,"Mismatch");
-			}
-		else
-			{
-			LOG(LOG_INFO,"Match");
-			}
-*/
-
 		addPathSmers(ib->graph, currentRec->length, packedSeq);
 		}
 
 	free(packedSeq);
-//	free(packedSeq2);
 
 	return 0;
 }

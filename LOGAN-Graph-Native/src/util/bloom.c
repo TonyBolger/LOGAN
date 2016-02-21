@@ -6,7 +6,7 @@
  */
 
 
-#include "bloom.h"
+#include "../common.h"
 
 /* Not sure if mid(2^x,2^(x+1)) primes make sense here */
 
@@ -50,7 +50,7 @@ void initBloom(Bloom *bloom, u32 size, u32 hashes, u32 bitsPerEntry)
 	bloom->mask=pSize-1;
 	bloom->hashes=hashes;
 
-	LOG(LOG_INFO,"Bloom: Allocated with %i bytes and %i hashes",pSize,hashes);
+	//LOG(LOG_INFO,"Bloom: Allocated with %i bytes and %i hashes",pSize,hashes);
 }
 
 

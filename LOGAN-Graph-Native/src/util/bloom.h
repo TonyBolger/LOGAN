@@ -10,7 +10,6 @@
 
 #include "../common.h"
 
-
 typedef struct BloomStr
 {
 	u64 *data;

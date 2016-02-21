@@ -42,11 +42,11 @@ static void ingressOne(Graph *graph, u8 *packedSeq, int length)
 	s32 nodeSize=graph->config.nodeSize;
 	s32 maxValidIndex=length-nodeSize;
 
-	s32 *indexes=alloca((maxValidIndex+1)*sizeof(u32));
+	s32 *indexes=lAlloc((maxValidIndex+1)*sizeof(u32));
 	u32 indexCount=0;
 
-	SmerId *smerIds=alloca((maxValidIndex+1)*sizeof(SmerId));
-	u32 *compFlags=alloca((maxValidIndex+1)*sizeof(u32));
+	SmerId *smerIds=lAlloc((maxValidIndex+1)*sizeof(SmerId));
+	u32 *compFlags=lAlloc((maxValidIndex+1)*sizeof(u32));
 
 	calculatePossibleSmersComp(packedSeq, maxValidIndex, smerIds, compFlags);
 	indexCount=saFindIndexesOfExistingSmers(&(graph->smerArray),packedSeq, maxValidIndex, indexes, smerIds);

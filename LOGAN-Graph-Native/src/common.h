@@ -10,9 +10,11 @@
 
 #include <stdlib.h>
 #include <unistd.h>
+#include <stdio.h>
 #include <string.h>
 #include <alloca.h>
 #include <pthread.h>
+#include <stdarg.h>
 #include <sys/time.h>
 
 

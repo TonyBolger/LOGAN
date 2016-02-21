@@ -24,6 +24,13 @@ s32 saInitSmerArray(SmerArray *smerArray, SmerMap *smerMap) {
 		arraySlices[i].smerIT=siitInitImplicitTree(smerTmp,count);
 		arraySlices[i].smerCount=count;
 
+		Bloom *bloom=&(arraySlices[i].bloom);
+
+		initBloom(bloom, count, 4, 8);
+
+		for(int j=0;j<count;j++)
+			setBloom(bloom,smerTmp[j]);
+
 		smSmerEntryArrayFree(smerTmp);
 		}
 
@@ -33,10 +40,13 @@ s32 saInitSmerArray(SmerArray *smerArray, SmerMap *smerMap) {
 void saCleanupSmerArray(SmerArray *smerArray) {
 
 	int i = 0;
-	for (i = 0; i < SMER_SLICES; i++) {
+	for (i = 0; i < SMER_SLICES; i++)
+		{
 		if (smerArray->slice[i].smerIT != NULL)
 			smSmerEntryArrayFree(smerArray->slice[i].smerIT);
-	}
+		}
+
+	freeBloom(&(smerArray->slice[i].bloom));
 
 	memset(smerArray, 0, sizeof(SmerArray));
 }
@@ -51,14 +61,9 @@ int saFindSmer(SmerArray *smerArray, SmerId smerId)
 	SmerEntry smerEntry=SMER_GET_BOTTOM(smerId);
 	SmerArraySlice *slice=smerArray->slice+sliceNo;
 
-
-/*
-	if(!testBloom(&(smerSA->bloom),key))
-	{
-//		LOG(LOG_INFO,"Bloom worked");
+	if(!testBloom(&(slice->bloom),smerEntry))
 		return -1;
-	}
-*/
+
 //	return siitFindSmer(smerSA->keys,smerSA->smerCount,key);
 
 	s32 index=siitFindSmer(slice->smerIT, slice->smerCount, smerEntry);
