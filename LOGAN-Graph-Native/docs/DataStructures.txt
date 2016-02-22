@@ -337,20 +337,19 @@ T	0x54	84		0101 0100
 				
 		
 		
-Arabi-1 Dataset: Seq: 30361968 Bp: 2364495967
-
+Arabi-1 Dataset: Seq: 30,361,968 Bp: 2,364,495,967
 
 Kmers: 154717256
-Kmers occuring once: 42518318 2434485 1976988 2988053 4500337
+Kmers  occuring <5: 42518318 2434485 1976988 2988053 4500337
 
 1696347756 occurences of Kmers in reads
 
 4004635		0.2360739% in top 10	394418
 35389971	2.086245% in top 100	309504
-82001337	4.833993% in top 1k		17894
+82001337	4.833993% in top 1k	17894
 167078291	9.849295% in top 10k	6549
 285329471	16.82022% in top 100k	551
-465014713	27.4127% in top 1m		57
+465014713	27.4127% in top 1m	57
 656224623	38.68456% in top 10m	17
 1606781157	94.72003% in top 100m	6
 
@@ -362,32 +361,32 @@ Smers occuring <5: 1394227 103341 109399 178212 270757
 
 3963627		 1.794792% in top 10		390927
 34285440	15,52498% in top 100		264374
-67480501	30.55622% in top 1k			13637
-115890440	52.477% in top 10k			1371
+67480501	30.55622% in top 1k		13637
+115890440	52.477% in top 10k		1371
 146946106	66.53948% in top 100k		110
-166856524	75.55523% in top 1m			15
+166856524	75.55523% in top 1m		15
 
 
+Pen-1 Dataset: Seq: 454,198,372 Bp: 56,836,998,064
 
+Kmers: 
+Kmers occuring <5:
 
-
-Pen-1 Dataset:
 
 
 
 Smers: 53836270
-LOGAN INFO cliSrc/fastqParser.c(449) 1289.080710: Used 450786851 450786851
-LOGAN INFO cliSrc/main.c(260) 1289.080796: Indexing: Parsed 450786851 reads from data/Pen-1/D.fq
-LOGAN INFO src/task/task.c(93) 1289.080803: Master: QueueShutdown
-LOGAN INFO src/task/task.c(102) 1289.080807: Master: QueueShutdown locked
-LOGAN INFO src/task/task.c(110) 1289.080811: Master: QueueShutdown Complete
-LOGAN INFO src/task/task.c(37) 1289.080816: Master: Waiting for shutdown
-LOGAN INFO src/task/task.c(227) 1289.347379: New Shutdown Req
-LOGAN INFO src/task/task.c(396) 1289.347405: Worker 0 Completed main loop - waiting for shutdown tidy
-LOGAN INFO src/task/taskIndexing.c(20) 1289.347413: TaskIndexing: DoDeregister (0)
-LOGAN INFO src/task/task.c(442) 1289.347418: Worker 0 last out, notifying master
-LOGAN INFO src/task/task.c(51) 1289.347481: Master: Done Shutdown
-LOGAN INFO cliSrc/main.c(436) 1289.513146: Smer count: 54666725
+Smers occuring <5: 16363353 1308815 294895 150991 92072
+
+6720647410 occurences of Smers in reads
+
+9838707		 0.1463952% in top 10		961497
+76152605	 1.133114% in top 100		576106
+357584366	 5.320683% in top 1k		192420
+1104283164	16.43120% in top 10k		47353
+2827041244	42.06501% in top 100k		9819
+4536447409	67.50015% in top 1m		562
+5652556089	84.10732% in top 10m		59
 
 
 
