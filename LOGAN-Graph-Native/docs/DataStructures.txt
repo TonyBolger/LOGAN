@@ -326,8 +326,13 @@ T	0x54	84		0101 0100
 			Pattern filters also possible (SIMD advantages)
 		
 	Read batching: 
-		Currently 1024 reads per batch -> ~80 kmers per read -> 80000 kmers per batch (~5 per slice). 640K per batch
-		10240 reads per batch -> ~80 kmers per read -> 800000 kmers per batch (~50 per slice). 6.4M per batch
+		Currently 1024 reads per batch -> ~80 kmers per read -> 80K kmers per batch (~5 per slice). 640KB kmer in flight
+		10240 reads per batch -> ~80 kmers per read -> 800K kmers per batch (~50 per slice). 6.4MB kmer in flight
+		
+		Multiple batches:
+		10 batches, 10K per batch -> ~80 kmers per read -> 8M kmers per batch (~500 per slice) 64MB kmer in flight
+		20 batches, 10K per batch -> ~80 kmers per read -> 16M kmers per batch (~1000 per slice) 128MB kmer in flight
+		100 batches, 10K per batch -> ~80 kmers per read -> 80M kmers per batch (~5000 per slice) 640MB kmer in flight
 
 	Sub-bloom filters:
 		Idea: Build one or more 'read batch specific' bloom filters from the smers within a read batch
@@ -369,10 +374,20 @@ Smers occuring <5: 1394227 103341 109399 178212 270757
 
 Pen-1 Dataset: Seq: 454,198,372 Bp: 56,836,998,064
 
-Kmers: 
-Kmers occuring <5:
+Kmers: 1137524116
+Kmers occuring <5: 458338907 31811731 6550250 3139858 1831085
 
+46841584193 occurences of kmers in reads
 
+47503721		0.1014136 in top 10		4494887
+391456096 		0.8357021 in top 100	3135391
+1045360512		2.231693 in top 1k		245888
+1979096824		4.225085 in top 10k		64412
+4552130255		9.718139 in top 100k	18558
+9634462522		20.56818 in top 1m		2120
+14877262117		31.7608 in top 10m		255
+23697100801		50.58988 in top 100m	63
+46704060077		99.70641 in top 1b		1
 
 
 Smers: 53836270
@@ -385,7 +400,7 @@ Smers occuring <5: 16363353 1308815 294895 150991 92072
 357584366	 5.320683% in top 1k		192420
 1104283164	16.43120% in top 10k		47353
 2827041244	42.06501% in top 100k		9819
-4536447409	67.50015% in top 1m		562
+4536447409	67.50015% in top 1m			562
 5652556089	84.10732% in top 10m		59
 
 

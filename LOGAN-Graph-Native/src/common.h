@@ -145,6 +145,7 @@ typedef struct swqBufferStr {
 } SwqBuffer;
 
 
+#include "mem/memDispenser.h"
 
 #include "util/bitMap.h"
 #include "util/bitPacking.h"
