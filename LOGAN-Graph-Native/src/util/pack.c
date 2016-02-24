@@ -25,9 +25,9 @@ u32 packChar(u8 ch)
 }
 
 /*
-void packSequence2(char *seq, u8 *packedSeq, int length)
+void packSequence(char *seq, u8 *packedSeq, int length)
 {
-	int packedLength=PAD_2BITLENGTH_DWORD(length)*4;
+	int packedLength=PAD_2BITLENGTH_BYTE(length);
 	memset(packedSeq,0,packedLength);
 
 	int i=0;
@@ -63,6 +63,7 @@ void packSequence(char *seq, u8 *packedSeq, int length)
 	}
 
 }
+
 /*
 
 void packSequence(char *seq, u8 *packedSeq, int length)

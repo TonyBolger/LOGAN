@@ -65,12 +65,12 @@ int queueIngress(ParallelTask *pt, void *ingressPtr, int ingressCount, int *ingr
 
 	// NEED TO CHECK EXISTING INGRESS
 
-//	LOG(LOG_INFO,"Master: QueueIngress Wait");
+	//LOG(LOG_INFO,"Master: QueueIngress Wait");
 
 	while(pt->reqIngressPtr!=NULL)
 		pthread_cond_wait(&(pt->master_ingress),&(pt->mutex));
 
-//	LOG(LOG_INFO,"Master: QueueIngress Wait Done");
+	//LOG(LOG_INFO,"Master: QueueIngress Wait Done");
 
 	pt->reqIngressPtr=ingressPtr;
 	pt->reqIngressTotal=ingressCount;
@@ -114,6 +114,12 @@ static void performTaskNewIngress(ParallelTask *pt)
 {
 //	LOG(LOG_INFO,"New Ingress Req");
 
+	if(pt->activeIngressPtr!=NULL)
+		{
+		LOG(LOG_INFO,"Have an active ingress");
+		exit(1);
+		}
+
 	pt->activeIngressPtr=pt->reqIngressPtr;
 	pt->activeIngressTotal=pt->reqIngressTotal;
 	pt->activeIngressUsageCount=pt->reqIngressUsageCount;
@@ -126,17 +132,31 @@ static void performTaskNewIngress(ParallelTask *pt)
 
 static int performTaskActive(ParallelTask *pt, int workerNo)
 {
-	int ret=0;
+	int lockRet=0, ret=0;
 
 	// 1st priority - high priority intermediates
-	if(0)
+	if(pt->config->doIntermediate!=NULL)
 		{
-		LOG(LOG_INFO,"Active 1");
-		return 1;
+		pthread_mutex_unlock(&(pt->mutex));
+
+		ret = pt->config->doIntermediate(pt,workerNo,0);
+
+		lockRet=pthread_mutex_lock(&(pt->mutex));
+		if(lockRet!=0)
+				{
+				LOG(LOG_CRITICAL,"Failed to lock for performTask: %s",strerror(lockRet));
+				}
+
+		//LOG(LOG_INFO,"Hipri %i for worker %i",ret,workerNo);
+
+		if(ret)
+			return 1;
 		}
 
 	// 2nd priority - active ingress
-	if(pt->activeIngressPtr!=NULL)
+
+
+	if((pt->activeIngressPtr!=NULL) && (pt->config->allocateIngressSlot == NULL || pt->config->allocateIngressSlot(pt,workerNo)))
 		{
 //		LOG(LOG_INFO,"Active 2 %i %i",pt->activeIngressCounter,pt->activeIngressTotal);
 
@@ -179,24 +199,44 @@ static int performTaskActive(ParallelTask *pt, int workerNo)
 
 		pthread_mutex_unlock(&(pt->mutex));
 
-		pt->config->doIngress(pt,workerNo,ingressPtr, ingressPos, ingressSize);
+		ret=pt->config->doIngress(pt,workerNo,ingressPtr, ingressPos, ingressSize);
 
-		ret=pthread_mutex_lock(&(pt->mutex));
-		if(ret!=0)
+		lockRet=pthread_mutex_lock(&(pt->mutex));
+		if(lockRet!=0)
 				{
-				LOG(LOG_CRITICAL,"Failed to lock for performTask: %s",strerror(ret));
+				LOG(LOG_CRITICAL,"Failed to lock for performTask: %s",strerror(lockRet));
 				}
 
 		__sync_fetch_and_add(ingressUsageCount, -1);
 
 		return 1;
 		}
+	/*
+	else
+		{
+		//pthread_cond_broadcast(&(pt->master_ingress));
+
+		//LOG(LOG_INFO,"Has Ingress %p and %p",pt->activeIngressPtr, pt->reqIngressPtr);
+		}
+*/
 
 	// 3rd priority - low priority intermediates
-	if(0)
+	if(pt->config->doIntermediate!=NULL)
 		{
-		LOG(LOG_INFO,"Active 3");
-		return 1;
+		pthread_mutex_unlock(&(pt->mutex));
+
+		ret = pt->config->doIntermediate(pt,workerNo,1);
+
+		lockRet=pthread_mutex_lock(&(pt->mutex));
+		if(lockRet!=0)
+				{
+				LOG(LOG_CRITICAL,"Failed to lock for performTask: %s",strerror(lockRet));
+				}
+
+		//LOG(LOG_INFO,"Lopri %i for worker %i",ret,workerNo);
+
+		if(ret)
+			return 1;
 		}
 
 	// 4th priority - tidy
@@ -215,7 +255,7 @@ static int performTaskActive(ParallelTask *pt, int workerNo)
 		}
 
 	// 5th priority - new ingress
-	if(pt->reqIngressPtr)
+	if((pt->reqIngressPtr) && (!pt->activeIngressPtr))
 		{
 		performTaskNewIngress(pt);
 		return 1;
@@ -339,11 +379,11 @@ void performTask(ParallelTask *pt)
 		   		pt->idleThreads++;
 		   		pthread_cond_broadcast(&(pt->master_ingress));
 
-//		   		LOG(LOG_INFO,"Worker sleeping");
+		   		//LOG(LOG_INFO,"Worker %i sleeping",workerNo);
 
 		   		pthread_cond_wait(&(pt->workers_idle),&(pt->mutex));
 
-//		   		LOG(LOG_INFO,"Worker waking");
+		   		//LOG(LOG_INFO,"Worker %i waking",workerNo);
 		   		pt->idleThreads--;
     			}
 			}
@@ -468,6 +508,7 @@ void performTask(ParallelTask *pt)
 ParallelTaskConfig *allocParallelTaskConfig(
 		void (*doRegister)(ParallelTask *pt, int workerNo),
 		void (*doDeregister)(ParallelTask *pt, int workerNo),
+		int (*allocateIngressSlot)(ParallelTask *pt, int workerNo),
 		int (*doIngress)(ParallelTask *pt, int workerNo,void *ingressPtr, int ingressPosition, int ingressSize),
 		int (*doIntermediate)(ParallelTask *pt, int workerNo, int force),
 		int (*doTidy)(ParallelTask *pt, int workerNo, int tidyNo),
@@ -480,6 +521,7 @@ ParallelTaskConfig *allocParallelTaskConfig(
 
 	ptc->doRegister=doRegister;
 	ptc->doDeregister=doDeregister;
+	ptc->allocateIngressSlot=allocateIngressSlot;
 	ptc->doIngress=doIngress;
 	ptc->doIntermediate=doIntermediate;
 	ptc->doTidy=doTidy;

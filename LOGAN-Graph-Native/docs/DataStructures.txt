@@ -66,9 +66,24 @@
 		
 
 
+	Handling Sequence Names and Quality Scores:
 	
-		
-		
+		Idea: Link names/qualities to first smer in sequence
+
+			
+		Problem 1:
+			Position in first smer is potentially ambiguous until fully inserted
+						
+		Option 1A:			
+			Store label in last smer
+			
+				
+		Problem 2: 
+			Long sequences need more frequent labels to be efficiently retrieved
+			
+		Option 2A: 
+			Label sequence intermittently 
+			
 		
 		
 		

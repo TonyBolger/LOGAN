@@ -26,6 +26,7 @@ static int tiDoIngress(ParallelTask *pt, int workerNo,void *ingressPtr, int ingr
 	IndexingBuilder *ib=pt->dataPtr;
 
 	u8 *packedSeq=malloc(PAD_BYTELENGTH_4BYTE(rec->maxSequenceTotalLength));
+//	memset(packedSeq,0,PAD_BYTELENGTH_4BYTE(rec->maxSequenceTotalLength));
 
 	int i=0;
 	int ingressLast=ingressPosition+ingressSize;
@@ -43,12 +44,12 @@ static int tiDoIngress(ParallelTask *pt, int workerNo,void *ingressPtr, int ingr
 	return 0;
 }
 
+/*
 static int tiDoIntermediate(ParallelTask *pt, int workerNo, int force)
 {
-	LOG(LOG_INFO,"TaskIndexing: DoIntermediate (%i)",workerNo);
-	sleep(1);
 	return 0;
 }
+*/
 
 static int tiDoTidy(ParallelTask *pt, int workerNo, int tidyNo)
 {
@@ -66,7 +67,7 @@ IndexingBuilder *allocIndexingBuilder(Graph *graph, int threads)
 {
 	IndexingBuilder *ib=tiIndexingBuilderAlloc();
 
-	ParallelTaskConfig *ptc=allocParallelTaskConfig(tiDoRegister,tiDoDeregister,tiDoIngress,tiDoIntermediate,tiDoTidy,threads,
+	ParallelTaskConfig *ptc=allocParallelTaskConfig(tiDoRegister,tiDoDeregister,NULL,tiDoIngress,NULL,tiDoTidy,threads,
 			TI_INGRESS_BLOCKSIZE,TI_INGRESS_PER_TIDY_MIN, TI_INGRESS_PER_TIDY_MAX, TI_TIDYS_PER_BACKOFF,
 			SMER_SLICES);
 

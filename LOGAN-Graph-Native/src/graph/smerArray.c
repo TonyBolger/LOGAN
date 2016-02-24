@@ -44,9 +44,9 @@ void saCleanupSmerArray(SmerArray *smerArray) {
 		{
 		if (smerArray->slice[i].smerIT != NULL)
 			smSmerEntryArrayFree(smerArray->slice[i].smerIT);
-		}
 
-	freeBloom(&(smerArray->slice[i].bloom));
+		freeBloom(&(smerArray->slice[i].bloom));
+		}
 
 	memset(smerArray, 0, sizeof(SmerArray));
 }

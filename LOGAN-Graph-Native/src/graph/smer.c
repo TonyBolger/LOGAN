@@ -287,7 +287,7 @@ void calculatePossibleSmers(u8 *data, s32 maxIndex, SmerId *smerIds)
 
 
 
-void calculatePossibleSmersComp(u8 *data, s32 maxIndex, SmerId *smerIds, u32 *compFlags)
+void calculatePossibleSmersComp(u8 *data, s32 maxIndex, SmerId *smerIds, u8 *compFlags)
 {
 	int i=0;
 
@@ -413,14 +413,14 @@ u32 sliceForSmer(SmerId smer, u64 hash)
 }
 
 
-SmerId recoverSmerId(u64 sliceNum, SmerEntry entry)
+SmerId recoverSmerId(u32 sliceNum, SmerEntry entry)
 {
-	sliceNum <<= 32;
+	u64 sliceTmp=((u64)sliceNum)<<32;
 
 	u64 hash=hashForSmer(entry);
 	u64 comp = hash & ((u64)SMER_SLICE_MASK << 32);
 
-	return (sliceNum ^ comp) | entry;
+	return (sliceTmp ^ comp) | entry;
 }
 
 

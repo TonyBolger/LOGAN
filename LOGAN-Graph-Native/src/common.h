@@ -77,6 +77,7 @@ typedef u32 SmerEntry;
 
 #define SMER_SLICES 16384
 #define SMER_SLICE_MASK (SMER_SLICES-1)
+#define SMER_SLICE_PRIME 12289
 
 #define SMER_MAP_BLOCKS_PER_SLICE 256
 

@@ -300,6 +300,8 @@ void rptHandler(SwqBuffer *buffer, void *context)
 	//LOG(LOG_INFO," ********************* RPT HANDLER GOT %i ****************************", buffer->numSequences);
 
 	queueIngress(rb->pt, buffer, buffer->numSequences, &buffer->usageCount);
+
+	//LOG(LOG_INFO," ********************* RPT HANDLER QUEUED %i ****************************", buffer->numSequences);
 }
 
 
