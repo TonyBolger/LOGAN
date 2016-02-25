@@ -52,19 +52,10 @@ void saCleanupSmerArray(SmerArray *smerArray) {
 }
 
 
-
-int saFindSmer(SmerArray *smerArray, SmerId smerId)
+int saFindSmerEntry(SmerArraySlice *slice, SmerEntry smerEntry)
 {
-	u64 hash = hashForSmer(smerId);
-	int sliceNo=sliceForSmer(smerId, hash);
-
-	SmerEntry smerEntry=SMER_GET_BOTTOM(smerId);
-	SmerArraySlice *slice=smerArray->slice+sliceNo;
-
 	if(!testBloom(&(slice->bloom),smerEntry))
 		return -1;
-
-//	return siitFindSmer(smerSA->keys,smerSA->smerCount,key);
 
 	s32 index=siitFindSmer(slice->smerIT, slice->smerCount, smerEntry);
 
@@ -79,6 +70,18 @@ int saFindSmer(SmerArray *smerArray, SmerId smerId)
 */
 
 	return index;
+}
+
+
+int saFindSmer(SmerArray *smerArray, SmerId smerId)
+{
+	u64 hash = hashForSmer(smerId);
+	int sliceNo=sliceForSmer(smerId, hash);
+
+	SmerEntry smerEntry=SMER_GET_BOTTOM(smerId);
+	SmerArraySlice *slice=smerArray->slice+sliceNo;
+
+	return saFindSmerEntry(slice, smerEntry);
 }
 
 

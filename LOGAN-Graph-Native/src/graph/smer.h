@@ -121,6 +121,9 @@ u32 smGetSmerCount(SmerMap *smerMap);
 s32 saInitSmerArray(SmerArray *smerArray, SmerMap *smerMap);
 void saCleanupSmerArray(SmerArray *smerArray);
 
+int saFindSmerEntry(SmerArraySlice *slice, SmerEntry smerEntry);
+int saFindSmer(SmerArray *smerArray, SmerId smerId);
+
 u32 saFindIndexesOfExistingSmers(SmerArray *smerArray, u8 *data, s32 maxIndex, s32 *oldIndexes, SmerId *smerIds);
 void saVerifyIndexing(s32 maxAllowedDistance, s32 *indexes, u32 indexCount, int dataLength, int maxValidIndex);
 

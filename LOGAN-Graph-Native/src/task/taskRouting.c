@@ -24,9 +24,9 @@ static int trAllocateIngressSlot(ParallelTask *pt, int workerNo)
 {
 	RoutingBuilder *rb=pt->dataPtr;
 
-	if(rb->numReadsBlocks<TR_READBLOCKS_INFLIGHT)
+	if(rb->allocatedReadBlocks<TR_READBLOCKS_INFLIGHT)
 		{
-		rb->numReadsBlocks++;
+		rb->allocatedReadBlocks++;
 		return 1;
 		}
 
@@ -103,19 +103,20 @@ static int trDoIngress(ParallelTask *pt, int workerNo,void *ingressPtr, int ingr
 
 static RoutingSmerEntryLookup *allocEntryLookupBlock(MemDispenser *disp)
 {
+
 	RoutingSmerEntryLookup *block=dAlloc(disp, sizeof(RoutingSmerEntryLookup));
 
 	block->nextPtr=NULL;
 
 	block->entryCount=0;
 	block->entries=dAlloc(disp, TR_LOOKUPS_PER_SLICE_BLOCK*sizeof(SmerEntry));
-	block->presenceAbsence=dAlloc(disp, PAD_BYTELENGTH_8BYTE(PAD_1BITLENGTH_BYTE(TR_LOOKUPS_PER_SLICE_BLOCK)));
+	block->presenceAbsence=NULL;//dAlloc(disp, PAD_BYTELENGTH_8BYTE(PAD_1BITLENGTH_BYTE(TR_LOOKUPS_PER_SLICE_BLOCK)));
 
 	return block;
 }
 
-/*
-static void expandEntryLookupBlock(RoutingSmerEntryLookup *block, MemDispenser *disp)
+
+void expandEntryLookupBlock(RoutingSmerEntryLookup *block, MemDispenser *disp)
 {
 	int oldSize=block->entryCount;
 	int size=oldSize*2;
@@ -125,9 +126,9 @@ static void expandEntryLookupBlock(RoutingSmerEntryLookup *block, MemDispenser *
 	SmerEntry *entries=dAlloc(disp, size*sizeof(SmerEntry));
 	memcpy(entries,block->entries,oldEntrySize);
 	block->entries=entries;
-	block->presenceAbsence=dAlloc(disp, PAD_BYTELENGTH_8BYTE(PAD_1BITLENGTH_BYTE(size)));
+	block->presenceAbsence=NULL;//dAlloc(disp, PAD_BYTELENGTH_8BYTE(PAD_1BITLENGTH_BYTE(size)));
 }
-*/
+
 
 
 void assignSmersToEntryLookups(SmerId *smers, int smerCount, RoutingSmerEntryLookup *smerEntryLookups[], MemDispenser *disp)
@@ -141,12 +142,12 @@ void assignSmersToEntryLookups(SmerId *smers, int smerCount, RoutingSmerEntryLoo
 		u32 slice=sliceForSmer(smer,hash);
 
 		RoutingSmerEntryLookup *lookupForSlice=smerEntryLookups[slice];
-//		u64 entryCount=lookupForSlice->entryCount;
+		u64 entryCount=lookupForSlice->entryCount;
 
-//		if(entryCount>=TR_LOOKUPS_PER_SLICE_BLOCK && !((entryCount & (entryCount - 1))))
-//			expandEntryLookupBlock(lookupForSlice, disp);
+		if(entryCount>=TR_LOOKUPS_PER_SLICE_BLOCK && !((entryCount & (entryCount - 1))))
+			expandEntryLookupBlock(lookupForSlice, disp);
 
-		lookupForSlice->entries[0]=smerEntry;
+		lookupForSlice->entries[entryCount]=smerEntry;
 		lookupForSlice->entryCount++;
 
 		}
@@ -197,83 +198,66 @@ static RoutingSmerEntryLookup *dequeueLookupForSliceList(RoutingBuilder *rb, int
 	return current;
 }
 
-static void queueReadBlock(RoutingBuilder *rb, RoutingReadBlock *readBlock)
+
+static RoutingReadBlock *reserveReadBlock(RoutingBuilder *rb)
 {
 	//LOG(LOG_INFO,"Queue readblock");
-	RoutingReadBlock *current=NULL;
-	int loopCount=0;
 
-	do
+	for(int loopCount=0;loopCount<100000;loopCount++)
 		{
-		if(loopCount++>1000000)
+		int i;
+
+		for(i=0;i<TR_READBLOCKS_INFLIGHT;i++)
 			{
-			LOG(LOG_INFO,"Loop Stuck");
-			exit(0);
+			if(rb->readBlocks[i].status==0)
+				{
+				if(__sync_bool_compare_and_swap(&(rb->readBlocks[i].status),0,1))
+					return rb->readBlocks+i;
+				}
 			}
-
-		current=rb->readBlockPtr;
-		readBlock->nextPtr=current;
 		}
-	while(!__sync_bool_compare_and_swap(&(rb->readBlockPtr),current,readBlock));
 
+	LOG(LOG_INFO,"Failed to queue readblock, should never happen"); // Can actually happen, just stupidly unlikely
+	exit(1);
 }
+
+static void queueReadBlock(RoutingReadBlock *readBlock)
+{
+	if(!__sync_bool_compare_and_swap(&(readBlock->status),1,2))
+		{
+		LOG(LOG_INFO,"Tried to queue readblock in wrong state, should never happen");
+		exit(1);
+		}
+}
+
 
 static RoutingReadBlock *dequeueCompleteReadBlock(RoutingBuilder *rb)
 {
-	RoutingReadBlock **ptr, *current, *next;
-
 	//LOG(LOG_INFO,"Try dequeue readblock");
+	RoutingReadBlock *current;
+	int i;
 
-	do
+	for(i=0;i<TR_READBLOCKS_INFLIGHT;i++)
 		{
-		ptr=&(rb->readBlockPtr);
-		current=*ptr;
-
-		while((current!=NULL)&&(current->completionCount>0))
+		current=rb->readBlocks+i;
+		if(current->status == 2 && current->completionCount==0)
 			{
-			ptr=&((*ptr)->nextPtr);
-			current=*ptr;
+			if(__sync_bool_compare_and_swap(&(current->status),2,3))
+				return current;
 			}
-
-		if(current==NULL)
-			return NULL;
-
-		next=current->nextPtr;
 		}
-	while(!__sync_bool_compare_and_swap(ptr,current,next));
-
-	return current;
+	return NULL;
 }
 
-static int countReadBlocks(RoutingBuilder *rb)
+static void unreserveReadBlock(RoutingReadBlock *readBlock)
 {
-	int count=0;
-	RoutingReadBlock *current=rb->readBlockPtr;
-
-	while(current!=NULL)
+	if(!__sync_bool_compare_and_swap(&(readBlock->status),3,0))
 		{
-		count++;
-		current=current->nextPtr;
+		LOG(LOG_INFO,"Tried to unreserve readblock in wrong state, should never happen");
+		exit(1);
 		}
-
-	return count;
 }
 
-
-static int countCompleteReadBlocks(RoutingBuilder *rb)
-{
-	int count=0;
-	RoutingReadBlock *current=rb->readBlockPtr;
-
-	while(current!=NULL)
-		{
-		if(current->completionCount==0)
-			count++;
-		current=current->nextPtr;
-		}
-
-	return count;
-}
 
 
 static int trDoIngress(ParallelTask *pt, int workerNo,void *ingressPtr, int ingressPosition, int ingressSize)
@@ -285,7 +269,7 @@ static int trDoIngress(ParallelTask *pt, int workerNo,void *ingressPtr, int ingr
 
 	MemDispenser *disp=dispenserAlloc("Routing");
 
-	RoutingReadBlock *readBlock=dAlloc(disp,sizeof(RoutingReadBlock));
+	RoutingReadBlock *readBlock=reserveReadBlock(rb);
 	readBlock->disp=disp;
 
 	//int smerCount=0;
@@ -293,7 +277,7 @@ static int trDoIngress(ParallelTask *pt, int workerNo,void *ingressPtr, int ingr
 	int ingressLast=ingressPosition+ingressSize;
 
 	for(i=0;i<SMER_SLICES;i++)
-		readBlock->smerEntryLookups[i]=allocEntryLookupBlock(disp);
+		readBlock->smerEntryLookups[i]=allocEntryLookupBlock(readBlock->disp);
 
 	SequenceWithQuality *currentRec=rec->rec+ingressPosition;
 	RoutingReadData *readData=readBlock->readData;
@@ -305,15 +289,15 @@ static int trDoIngress(ParallelTask *pt, int workerNo,void *ingressPtr, int ingr
 
 		readData->packedSeq=dAlloc(disp,PAD_2BITLENGTH_BYTE(length)); // Consider extra padding on these allocs
 		//readData->quality=dAlloc(disp,length+1);
-		readData->smers=dAlloc(disp,length*sizeof(SmerId));
-		readData->compFlags=dAlloc(disp,length*sizeof(u8));
+		readData->smers=dAlloc(readBlock->disp,length*sizeof(SmerId));
+		readData->compFlags=dAlloc(readBlock->disp,length*sizeof(u8));
 
 		packSequence(currentRec->seq, readData->packedSeq, length);
 
 		s32 maxValidIndex=(length-nodeSize);
 		calculatePossibleSmersComp(readData->packedSeq, maxValidIndex, readData->smers, readData->compFlags);
 
-		//assignSmersToEntryLookups(readData->smers, maxValidIndex+1, readBlock->smerEntryLookups, disp); // Fixes problem, but not necessarily directly
+		assignSmersToEntryLookups(readData->smers, maxValidIndex+1, readBlock->smerEntryLookups, readBlock->disp); // Fixes problem, but not necessarily directly
 
 		currentRec++;
 		readData++;
@@ -325,7 +309,7 @@ static int trDoIngress(ParallelTask *pt, int workerNo,void *ingressPtr, int ingr
 		{
 		RoutingSmerEntryLookup *lookupForSlice=readBlock->smerEntryLookups[i];
 
-		if(lookupForSlice->entryCount>0)
+		if(1)//lookupForSlice->entryCount>0)
 			{
 			lookupForSlice->completionCountPtr=&(readBlock->completionCount);
 			usedSlices++;
@@ -339,11 +323,11 @@ static int trDoIngress(ParallelTask *pt, int workerNo,void *ingressPtr, int ingr
 	for(i=0;i<SMER_SLICES;i++)
 		{
 		RoutingSmerEntryLookup *lookupForSlice=readBlock->smerEntryLookups[i];
-		if(lookupForSlice->entryCount>0)
+		if(1)//lookupForSlice->entryCount>0)
 			queueLookupForSlice(rb, lookupForSlice, i);
 		}
 
-	queueReadBlock(rb, readBlock);
+	queueReadBlock(readBlock);
 
 	//dispenserFree(disp);
 
@@ -360,9 +344,11 @@ static int scanForCompleteReadBlocks(RoutingBuilder *rb)
 
 	dispenserFree(readBlock->disp);
 
-	int count=__sync_fetch_and_add(&(rb->numReadsBlocks),-1)-1;
+	unreserveReadBlock(readBlock);
 
-	LOG(LOG_INFO,"Complete readblock Reserved: %i Listed: %i Ready: %i",count,countReadBlocks(rb),countCompleteReadBlocks(rb));
+	__sync_fetch_and_add(&(rb->allocatedReadBlocks),-1);
+
+	//LOG(LOG_INFO,"Complete readblock. Reserved: %i",count);
 
 	return 1;
 }
@@ -378,11 +364,16 @@ static int scanForSmerLookups(RoutingBuilder *rb, int startSlice, int endSlice)
 		if(lookupEntry!=NULL)
 			{
 			work++;
+			SmerArraySlice *slice=rb->graph->smerArray.slice+i;
 
 			RoutingSmerEntryLookup *lookupEntryScan=lookupEntry;
 
 			while(lookupEntryScan!=NULL)
 				{
+
+				for(int j=0;j<lookupEntryScan->entryCount;j++)
+					lookupEntryScan->entries[j]=saFindSmerEntry(slice,lookupEntryScan->entries[j]);
+
 				__sync_fetch_and_add(lookupEntryScan->completionCountPtr,-1);
 				lookupEntryScan=lookupEntryScan->nextPtr;
 				}
@@ -417,7 +408,7 @@ static int trDoIntermediate(ParallelTask *pt, int workerNo, int force)
 	if(scanForCompleteReadBlocks(rb))
 		return 1;
 
-	if((force)||(rb->numReadsBlocks==TR_READBLOCKS_INFLIGHT))
+	if((force)||(rb->allocatedReadBlocks==TR_READBLOCKS_INFLIGHT))
 		{
 		int startPos=(workerNo*SMER_SLICE_PRIME)&SMER_SLICE_MASK;
 
@@ -450,8 +441,11 @@ RoutingBuilder *allocRoutingBuilder(Graph *graph, int threads)
 	rb->pt=allocParallelTask(ptc,rb);
 	rb->graph=graph;
 
-	rb->numReadsBlocks=0;
-	rb->readBlockPtr=NULL;
+	rb->allocatedReadBlocks=0;
+	for(int i=0;i<TR_READBLOCKS_INFLIGHT;i++)
+		{
+		rb->readBlocks[i].disp=NULL;
+		}
 
 	for(int i=0;i<SMER_SLICES;i++)
 		rb->smerEntryLookupPtr[i]=NULL;

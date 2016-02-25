@@ -23,27 +23,33 @@ typedef struct routingReadDataStr {
 	u8 *compFlags;
 } RoutingReadData;
 
-typedef struct routingSmerEntryLookupStr {
-	struct routingSmerEntryLookupStr *nextPtr;
-	SmerEntry *entries;
-	u64 *presenceAbsence;
-	u64 entryCount;
+// 24 bytes core
+// Each SmerEntry is 4
+// 64 bytes -> 40 spare -> 10 entries
+// 128 bytes -> 104 spare -> 26 entries
+// 256 bytes -> 232 spare -> 58 entries - 4MB per batch
+// 512 bytes -> 488 spare -> 122 entries - 8MB per batch
 
-	u32 *completionCountPtr;
+typedef struct routingSmerEntryLookupStr {
+	struct routingSmerEntryLookupStr *nextPtr; //8
+	u32 *completionCountPtr; // 8
+	u64 entryCount; // 8
+	SmerEntry *entries; // 8
+
 } RoutingSmerEntryLookup;
 
 typedef struct routingReadBlockStr {
-	struct routingReadBlockStr *nextPtr;
-
 	RoutingReadData readData[TR_INGRESS_BLOCKSIZE];	// Holds packed read data and all smers
 	RoutingSmerEntryLookup *smerEntryLookups[SMER_SLICES]; // Holds per-slice smer details for lookup
 
 	MemDispenser *disp; // Unified dispenser
 	u32 completionCount;
+	u32 status; // 0 = idle, 1 = allocated, 2 = active, 3 = finished
 
-	//	MemDispenser *mainDisp; // For data structure itself, packed sequence and quality score
-	//	MemDispenser *smerDisp; // For smers and compflags
-	//  MemDispenser *lookupDisp; // For entry lookup
+	//MemDispenser *mainDisp; // For data structure itself
+	//MemDispenser *packDisp; // For packed sequence and quality score
+	//MemDispenser *smerDisp; // For smers and compflags
+	//MemDispenser *lookupDisp; // For entry lookup
 } RoutingReadBlock;
 
 
@@ -52,8 +58,8 @@ typedef struct routingBuilderStr {
 	ParallelTask *pt;
 	Graph *graph;
 
-	RoutingReadBlock *readBlockPtr;
-	u64 numReadsBlocks;
+	RoutingReadBlock readBlocks[TR_READBLOCKS_INFLIGHT];
+	u64 allocatedReadBlocks;
 
 	RoutingSmerEntryLookup *smerEntryLookupPtr[SMER_SLICES];
 
