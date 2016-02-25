@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <alloca.h>
+#include <malloc.h>
 #include <pthread.h>
 #include <stdarg.h>
 #include <sys/time.h>

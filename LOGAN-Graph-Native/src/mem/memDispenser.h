@@ -14,9 +14,10 @@
 
 typedef struct memDispenserBlockStr
 {
-	struct memDispenserBlockStr *prev;
-	u32 blocksize;
-	u32 allocated;
+	struct memDispenserBlockStr *prev; // 8
+	u32 blocksize; // 4
+	u32 allocated; // 4
+	u8 pad[48];
 	u8 data[DISPENSER_BLOCKSIZE];
 } MemDispenserBlock;
 
@@ -36,5 +37,8 @@ MemDispenser *dispenserAlloc(const char *name);
 void dispenserFree(MemDispenser *dispenser);
 int dispenserSize(MemDispenser *disp);
 void *dAlloc(MemDispenser *dispenser, size_t size);
+
+void *dAllocQuadAligned(MemDispenser *disp, size_t size);
+void *dAllocCacheAligned(MemDispenser *disp, size_t size);
 
 #endif

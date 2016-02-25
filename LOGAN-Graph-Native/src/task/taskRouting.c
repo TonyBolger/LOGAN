@@ -104,12 +104,12 @@ static int trDoIngress(ParallelTask *pt, int workerNo,void *ingressPtr, int ingr
 static RoutingSmerEntryLookup *allocEntryLookupBlock(MemDispenser *disp)
 {
 
-	RoutingSmerEntryLookup *block=dAlloc(disp, sizeof(RoutingSmerEntryLookup));
+	RoutingSmerEntryLookup *block=dAllocCacheAligned(disp, sizeof(RoutingSmerEntryLookup));
 
 	block->nextPtr=NULL;
 
 	block->entryCount=0;
-	block->entries=dAlloc(disp, TR_LOOKUPS_PER_SLICE_BLOCK*sizeof(SmerEntry));
+	block->entries=dAllocCacheAligned(disp, TR_LOOKUPS_PER_SLICE_BLOCK*sizeof(SmerEntry));
 	//block->presenceAbsence=NULL;//dAlloc(disp, PAD_BYTELENGTH_8BYTE(PAD_1BITLENGTH_BYTE(TR_LOOKUPS_PER_SLICE_BLOCK)));
 
 	return block;
@@ -123,7 +123,7 @@ void expandEntryLookupBlock(RoutingSmerEntryLookup *block, MemDispenser *disp)
 
 	int oldEntrySize=oldSize*sizeof(SmerEntry);
 
-	SmerEntry *entries=dAlloc(disp, size*sizeof(SmerEntry));
+	SmerEntry *entries=dAllocCacheAligned(disp, size*sizeof(SmerEntry));
 	memcpy(entries,block->entries,oldEntrySize);
 	block->entries=entries;
 	//block->presenceAbsence=NULL;//dAlloc(disp, PAD_BYTELENGTH_8BYTE(PAD_1BITLENGTH_BYTE(size)));
@@ -287,9 +287,9 @@ static int trDoIngress(ParallelTask *pt, int workerNo,void *ingressPtr, int ingr
 		int length=currentRec->length;
 		readData->seqLength=length;
 
-		readData->packedSeq=dAlloc(disp,PAD_2BITLENGTH_BYTE(length)); // Consider extra padding on these allocs
+		readData->packedSeq=dAllocQuadAligned(disp,PAD_2BITLENGTH_BYTE(length)); // Consider extra padding on these allocs
 		//readData->quality=dAlloc(disp,length+1);
-		readData->smers=dAlloc(readBlock->disp,length*sizeof(SmerId));
+		readData->smers=dAllocQuadAligned(readBlock->disp,length*sizeof(SmerId));
 		readData->compFlags=dAlloc(readBlock->disp,length*sizeof(u8));
 
 		packSequence(currentRec->seq, readData->packedSeq, length);

@@ -15,13 +15,13 @@
 #define TR_LOOKUPS_PER_SLICE_BLOCK 64
 
 typedef struct routingReadDataStr {
-	u8 *packedSeq;
+	u8 *packedSeq; // 8
 	//u8 *quality;
-	u32 seqLength;
+	u32 seqLength; // 4 + 4
 
-	SmerId *smers;
-	u8 *compFlags;
-} RoutingReadData;
+	SmerId *smers; // 8
+	u8 *compFlags; // 8
+} __attribute__((aligned (32))) RoutingReadData;
 
 // 24 bytes core
 // Each SmerEntry is 4
@@ -36,7 +36,7 @@ typedef struct routingSmerEntryLookupStr {
 	u64 entryCount; // 8
 	SmerEntry *entries; // 8
 
-} RoutingSmerEntryLookup;
+} __attribute__((aligned (64))) RoutingSmerEntryLookup;
 
 typedef struct routingReadBlockStr {
 	RoutingReadData readData[TR_INGRESS_BLOCKSIZE];	// Holds packed read data and all smers
