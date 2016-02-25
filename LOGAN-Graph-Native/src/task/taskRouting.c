@@ -110,7 +110,7 @@ static RoutingSmerEntryLookup *allocEntryLookupBlock(MemDispenser *disp)
 
 	block->entryCount=0;
 	block->entries=dAlloc(disp, TR_LOOKUPS_PER_SLICE_BLOCK*sizeof(SmerEntry));
-	block->presenceAbsence=NULL;//dAlloc(disp, PAD_BYTELENGTH_8BYTE(PAD_1BITLENGTH_BYTE(TR_LOOKUPS_PER_SLICE_BLOCK)));
+	//block->presenceAbsence=NULL;//dAlloc(disp, PAD_BYTELENGTH_8BYTE(PAD_1BITLENGTH_BYTE(TR_LOOKUPS_PER_SLICE_BLOCK)));
 
 	return block;
 }
@@ -126,7 +126,7 @@ void expandEntryLookupBlock(RoutingSmerEntryLookup *block, MemDispenser *disp)
 	SmerEntry *entries=dAlloc(disp, size*sizeof(SmerEntry));
 	memcpy(entries,block->entries,oldEntrySize);
 	block->entries=entries;
-	block->presenceAbsence=NULL;//dAlloc(disp, PAD_BYTELENGTH_8BYTE(PAD_1BITLENGTH_BYTE(size)));
+	//block->presenceAbsence=NULL;//dAlloc(disp, PAD_BYTELENGTH_8BYTE(PAD_1BITLENGTH_BYTE(size)));
 }
 
 
