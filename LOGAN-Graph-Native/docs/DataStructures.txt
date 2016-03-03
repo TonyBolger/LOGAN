@@ -96,10 +96,13 @@
 		top20
 	
 	
+	
 	Performance target: 100GB data / 1GB genome -> 1 hour (on cessna)
 			1 billion reads per hr
-			16M reads per minute
-			3-4s per million
+			~16M reads per minute
+			~3.6s per million reads
+			
+			29,493,880 reads in 32.936886
 			
 			
 	Dataset Profiles:		
@@ -109,219 +112,142 @@
 		
 		Ecoli-1: Reads: 7248696 Smers: 1810392 (single threaded)
 
+		 11.212197s using 8 threads (desktop) 
+		 
+Total: 4724 samples
+     739  15.6%  15.6%      753  15.9% scanForSmer_HS (inline)
+     495  10.5%  26.1%      611  12.9% assignSmersToIntermediates
+     469   9.9%  36.0%      469   9.9% testBloom
+     364   7.7%  43.8%      364   7.7% siitFindSmer
+     344   7.3%  51.0%      344   7.3% readBufferedFastqLine (inline)
+     319   6.8%  57.8%      344   7.3% calculatePossibleSmersComp
+     270   5.7%  63.5%     1294  27.4% scanForSmerLookups
+     220   4.7%  68.2%      227   4.8% skipBufferedFastqLine (inline)
+     181   3.8%  72.0%      182   3.9% assignIntermediatesToEntryLookups
+     166   3.5%  75.5%      635  13.4% saFindSmerEntry
+     134   2.8%  78.3%      140   3.0% calculatePossibleSmers
+     129   2.7%  81.1%      892  18.9% smFindIndexesOfExistingSmers
+     127   2.7%  83.8%      135   2.9% allocEntryLookupBlock (inline)
+      94   2.0%  85.8%       94   2.0% __GI_madvise
+      91   1.9%  87.7%       91   1.9% packSequence
+      58   1.2%  88.9%       58   1.2% __memmove_ssse3_back
+      57   1.2%  90.1%       61   1.3% hashForSmer
+      51   1.1%  91.2%       51   1.1% __read_nocancel
+      46   1.0%  92.2%     1138  24.1% addPathSmers
+      44   0.9%  93.1%       44   0.9% smGetSmerCount_S (inline)
 
-		 7.378805s using 8 threads (desktop) 
 		 
-		 
-    2315  50.9%  50.9%     2315  50.9% siitFindSmer
-     559  12.3%  63.2%      569  12.5% scanForSmer_HS (inline)
-     337   7.4%  70.6%     2785  61.2% saFindSmer (inline)
-     293   6.4%  77.1%      297   6.5% readBufferedFastqLine (inline)
-     174   3.8%  80.9%      198   4.4% calculatePossibleSmersComp
-     168   3.7%  84.6%      175   3.8% skipBufferedFastqLine (inline)
-      83   1.8%  86.4%       87   1.9% hashForSmer
-      80   1.8%  88.2%       80   1.8% packSequence
-      70   1.5%  89.7%     2818  62.0% saFindIndexesOfExistingSmers
-      45   1.0%  90.7%       61   1.3% calculatePossibleSmers
-      45   1.0%  91.7%       45   1.0% smGetSmerCount_S (inline)
-      43   0.9%  92.6%       43   0.9% __read_nocancel
-      40   0.9%  93.5%      651  14.3% smFindIndexesOfExistingSmers
-      36   0.8%  94.3%       36   0.8% sliceForSmer
-      33   0.7%  95.0%      594  13.1% findSmer_HS (inline)
-      32   0.7%  95.7%     3112  68.4% trDoIngress
-      29   0.6%  96.4%      761  16.7% addPathSmers
-      25   0.5%  96.9%       33   0.7% reverseWithinBytes (inline)
-      24   0.5%  97.4%       24   0.5% __strchr_sse42
-      19   0.4%  97.9%      559  12.3% parseAndProcess
 		
 	
 		Ecoli-2: Reads: 218470592 Smers: 5717584
 		
-		
-		374.014427s using 16 threads (cessna)
+		245.432265s using 16 threads (cessna) 
 	
+Total: 208191 samples
+   25954  12.5%  12.5%    26892  12.9% smFindIndexesOfExistingSmers
+   20411   9.8%  22.3%    23641  11.4% parseAndProcess
+   20345   9.8%  32.0%    20345   9.8% siitFindSmer
+   19939   9.6%  41.6%    29925  14.4% assignSmersToIntermediates
+   19931   9.6%  51.2%    19931   9.6% testBloom
+   18412   8.8%  60.0%    18735   9.0% calculatePossibleSmersComp
+   13816   6.6%  66.7%    60767  29.2% scanForSmerLookups
+   10607   5.1%  71.8%    10609   5.1% calculatePossibleSmers
+   10337   5.0%  76.7%    71946  34.6% trDoIngress
+   10159   4.9%  81.6%    10195   4.9% assignIntermediatesToEntryLookups
+    7612   3.7%  85.3%     7612   3.7% memcpy
+    6675   3.2%  88.5%    26606  12.8% saFindSmerEntry
+    5394   2.6%  91.1%     5394   2.6% madvise
+    4227   2.0%  93.1%     4227   2.0% packSequence
+    2939   1.4%  94.5%    41914  20.1% addPathSmers
+    2341   1.1%  95.6%     2547   1.2% hashForSmer
+    2323   1.1%  96.7%     2327   1.1% __read_nocancel
+    1419   0.7%  97.4%     1419   0.7% __memset_sse2
+    1083   0.5%  98.0%     1088   0.5% sliceForSmer
+     801   0.4%  98.3%      801   0.4% __strchr_sse42
+
 	
-  144137  58.9%  58.9%   144148  59.0% siitFindSmer
-   20208   8.3%  67.2%    20986   8.6% scanForSmer_HS (inline)
-   14070   5.8%  73.0%    14166   5.8% readBufferedFastqLine (inline)
-   12889   5.3%  78.2%   164514  67.3% saFindSmer (inline)
-    7587   3.1%  81.3%     8279   3.4% calculatePossibleSmersComp
-    7180   2.9%  84.3%     7405   3.0% skipBufferedFastqLine (inline)
-    5089   2.1%  86.4%     5093   2.1% __read_nocancel
-    4153   1.7%  88.1%     4193   1.7% hashForSmer
-    4128   1.7%  89.7%   166464  68.1% saFindIndexesOfExistingSmers
-    3719   1.5%  91.3%     4471   1.8% calculatePossibleSmers
-    3461   1.4%  92.7%     3461   1.4% packSequence
-    2368   1.0%  93.7%    23089   9.4% findSmer_HS (inline)
-    2203   0.9%  94.6%     2203   0.9% sliceForSmer
-    2022   0.8%  95.4%    25632  10.5% smFindIndexesOfExistingSmers
-    1945   0.8%  96.2%    33247  13.6% addPathSmers
-    1192   0.5%  96.7%     1436   0.6% reverseWithinBytes (inline)
-    1184   0.5%  97.1%     1308   0.5% checkStealthIndexing (inline)
-    1090   0.4%  97.6%   178321  72.9% trDoIngress
-     927   0.4%  98.0%      927   0.4% __strchr_sse42
-     781   0.3%  98.3%      781   0.3% __lll_unlock_wake
 	
 	
 	
 		Arabi-1: Reads: 29493880 Smers: 7969993 (single threaded)
 	
-		34.352455s using 16 threads (cessna)
+		34.022125s using 16 threads (cessna)
+	
+Total: 29311 samples
+    5373  18.3%  18.3%     5595  19.1% smFindIndexesOfExistingSmers
+    2983  10.2%  28.5%     2983  10.2% siitFindSmer
+    2754   9.4%  37.9%     3193  10.9% parseAndProcess
+    2448   8.4%  46.3%     2448   8.4% testBloom
+    2357   8.0%  54.3%     3527  12.0% assignSmersToIntermediates
+    2096   7.2%  61.4%     2142   7.3% calculatePossibleSmersComp
+    1803   6.2%  67.6%     7953  27.1% scanForSmerLookups
+    1513   5.2%  72.8%     8869  30.3% trDoIngress
+    1264   4.3%  77.1%     1295   4.4% assignIntermediatesToEntryLookups
+    1167   4.0%  81.1%     1168   4.0% calculatePossibleSmers
+     921   3.1%  84.2%      921   3.1% memcpy
+     719   2.5%  86.7%     3167  10.8% saFindSmerEntry
+     668   2.3%  88.9%      668   2.3% madvise
+     527   1.8%  90.7%      527   1.8% packSequence
+     463   1.6%  92.3%     7502  25.6% addPathSmers
+     361   1.2%  93.5%      372   1.3% hashForSmer
+     321   1.1%  94.6%      321   1.1% __read_nocancel
+     308   1.1%  95.7%      308   1.1% __lll_unlock_wake
+     215   0.7%  96.4%      215   0.7% __memset_sse2
+     212   0.7%  97.1%      212   0.7% __lll_lock_wait
+	
+ 		44.976393s using 8 threads (desktop)
+ 		
+ Total: 21781 samples
+    3309  15.2%  15.2%     3393  15.6% scanForSmer_HS (inline)
+    2398  11.0%  26.2%     2398  11.0% siitFindSmer
+    2326  10.7%  36.9%     3045  14.0% assignSmersToIntermediates
+    1948   8.9%  45.8%     1948   8.9% testBloom
+    1472   6.8%  52.6%     1474   6.8% readBufferedFastqLine (inline)
+    1405   6.5%  59.0%     1499   6.9% calculatePossibleSmersComp
+    1178   5.4%  64.4%     6141  28.2% scanForSmerLookups
+    1028   4.7%  69.2%     1052   4.8% assignIntermediatesToEntryLookups
+     819   3.8%  72.9%      837   3.8% skipBufferedFastqLine (inline)
+     705   3.2%  76.2%      772   3.5% calculatePossibleSmers
+     643   3.0%  79.1%     4097  18.8% smFindIndexesOfExistingSmers
+     607   2.8%  81.9%     2555  11.7% saFindSmerEntry
+     477   2.2%  84.1%      477   2.2% __memmove_ssse3_back
+     439   2.0%  86.1%      480   2.2% allocEntryLookupBlock (inline)
+     426   2.0%  88.1%      426   2.0% __GI_madvise
+     400   1.8%  89.9%      400   1.8% packSequence
+     301   1.4%  91.3%      301   1.4% __GI___read
+     260   1.2%  92.5%      285   1.3% hashForSmer
+     200   0.9%  93.4%     5346  24.5% addPathSmers
+     147   0.7%  94.1%      147   0.7% __memset_sse2
+ 		
+ 		
+	
+		Pen-1: Reads: 450786851 reads Smers: 53888249 
 		
-   18525  55.9%  55.9%    18527  55.9% siitFindSmer
-    4276  12.9%  68.8%     4449  13.4% scanForSmer_HS (inline)
-    1695   5.1%  73.9%     1707   5.1% readBufferedFastqLine (inline)
-    1418   4.3%  78.2%    20812  62.8% saFindSmer (inline)
-     977   2.9%  81.1%     1001   3.0% skipBufferedFastqLine (inline)
-     860   2.6%  83.7%      956   2.9% calculatePossibleSmersComp
-     567   1.7%  85.4%      576   1.7% hashForSmer
-     445   1.3%  86.7%    21009  63.4% saFindIndexesOfExistingSmers
-     424   1.3%  88.0%      519   1.6% calculatePossibleSmers
-     419   1.3%  89.3%     4771  14.4% findSmer_HS (inline)
-     389   1.2%  90.5%     5292  16.0% smFindIndexesOfExistingSmers
-     383   1.2%  91.6%      383   1.2% packSequence
-     326   1.0%  92.6%      326   1.0% __read_nocancel
-     293   0.9%  93.5%      293   0.9% __lll_unlock_wake
-     287   0.9%  94.3%      289   0.9% sliceForSmer
-     261   0.8%  95.1%     6301  19.0% addPathSmers
-     232   0.7%  95.8%      232   0.7% __lll_lock_wait
-     168   0.5%  96.3%      196   0.6% checkStealthIndexing (inline)
-     151   0.5%  96.8%      188   0.6% reverseWithinBytes (inline)
-     145   0.4%  97.2%      145   0.4% __strchr_sse42
-	
-	
-	28.462809s using 16 thread (cessna)
-	
-   10007  31.5%  31.5%    12944  40.7% trDoIngress
-    5403  17.0%  48.5%     5596  17.6% smFindIndexesOfExistingSmers
-    2837   8.9%  57.4%     2837   8.9% siitFindSmer
-    2168   6.8%  64.3%     2591   8.2% parseAndProcess
-    2112   6.6%  70.9%     2136   6.7% calculatePossibleSmersComp
-    1815   5.7%  76.6%     1815   5.7% testBloom
-    1773   5.6%  82.2%     7116  22.4% scanForSmerLookups
-    1188   3.7%  86.0%     1192   3.8% calculatePossibleSmers
-     691   2.2%  88.1%     2506   7.9% saFindSmerEntry
-     488   1.5%  89.7%     7582  23.9% addPathSmers
-     422   1.3%  91.0%      455   1.4% hashForSmer
-     417   1.3%  92.3%      417   1.3% packSequence
-     391   1.2%  93.5%      391   1.2% madvise
-     340   1.1%  94.6%      340   1.1% __lll_unlock_wake
-     282   0.9%  95.5%      282   0.9% __read_nocancel
-     275   0.9%  96.4%      275   0.9% __lll_lock_wait
-     238   0.7%  97.1%      238   0.7% __memset_sse2
-     180   0.6%  97.7%      181   0.6% sliceForSmer
-     129   0.4%  98.1%      129   0.4% dAlloc
-     128   0.4%  98.5%      128   0.4% __strchr_sse42
-	
+		645.088589s using 16 threads (cessna)	
 		
-		
-	 38.669807s (desktop 4 threads)
-
-   11242  39.7%  39.7%    11565  40.9% assignSmersToEntryLookups (inline)
-    3546  12.5%  52.3%     3546  12.5% scanForSmer_HS (inline)
-    2629   9.3%  61.6%     2629   9.3% siitFindSmer
-    1756   6.2%  67.8%     1827   6.5% calculatePossibleSmersComp
-    1706   6.0%  73.8%     1706   6.0% testBloom
-    1043   3.7%  77.5%     6109  21.6% scanForSmerLookups
-     757   2.7%  80.2%      818   2.9% calculatePossibleSmers
-     720   2.5%  82.7%     2426   8.6% saFindSmerEntry
-     691   2.4%  85.2%      691   2.4% readBufferedFastqLine (inline)
-     557   2.0%  87.1%      597   2.1% allocEntryLookupBlock (inline)
-     498   1.8%  88.9%     4224  14.9% smFindIndexesOfExistingSmers
-     466   1.6%  90.5%      466   1.6% skipBufferedFastqLine (inline)
-     393   1.4%  91.9%      393   1.4% packSequence
-     286   1.0%  92.9%      286   1.0% hashForSmer
-     242   0.9%  93.8%      242   0.9% __GI_madvise
-     217   0.8%  94.5%      217   0.8% __read_nocancel
-     192   0.7%  95.2%     5463  19.3% addPathSmers
-     145   0.5%  95.7%      145   0.5% sliceForSmer
-     140   0.5%  96.2%    14537  51.4% trDoIngress
-     132   0.5%  96.7%      132   0.5% reverseWithinBytes (inline)
-	
-	
-	38.230123s
-   11239  39.7%  39.7%    11599  41.0% assignSmersToEntryLookups (inline)
-    3246  11.5%  51.2%     3246  11.5% scanForSmer_HS (inline)
-    2509   8.9%  60.0%     2509   8.9% siitFindSmer
-    1680   5.9%  65.9%     1680   5.9% testBloom
-    1629   5.8%  71.7%     1697   6.0% calculatePossibleSmersComp
-     943   3.3%  75.0%     5940  21.0% scanForSmerLookups
-     881   3.1%  78.1%      881   3.1% readBufferedFastqLine (inline)
-     800   2.8%  81.0%      862   3.0% calculatePossibleSmers
-     792   2.8%  83.8%     2472   8.7% saFindSmerEntry
-     644   2.3%  86.0%      644   2.3% skipBufferedFastqLine (inline)
-     524   1.9%  87.9%     3934  13.9% smFindIndexesOfExistingSmers
-     474   1.7%  89.6%      529   1.9% allocEntryLookupBlock (inline)
-     387   1.4%  90.9%      387   1.4% packSequence
-     359   1.3%  92.2%      359   1.3% __read_nocancel
-     313   1.1%  93.3%      313   1.1% hashForSmer
-     263   0.9%  94.2%      263   0.9% __GI_madvise
-     195   0.7%  94.9%     5237  18.5% addPathSmers
-     140   0.5%  95.4%      140   0.5% sliceForSmer
-     139   0.5%  95.9%    14372  50.8% trDoIngress
-     135   0.5%  96.4%      135   0.5% checkStealthIndexing (inline)
-	
-		Pen-1: Reads: 450786851 reads Smers: 54666725 (one file missing)
-		
-		944.455062s using 16 threads (cessna)
-		
-		
-  955612  76.7%  76.7%   955659  76.7% siitFindSmer
-   93871   7.5%  84.2%    97351   7.8% scanForSmer_HS (inline)
-   41190   3.3%  87.5%    41326   3.3% readBufferedFastqLine (inline)
-   24229   1.9%  89.5%  1003215  80.5% saFindSmer (inline)
-   22859   1.8%  91.3%    24940   2.0% calculatePossibleSmersComp
-   13306   1.1%  92.4%    13408   1.1% hashForSmer
-   13233   1.1%  93.4%  1009389  81.0% saFindIndexesOfExistingSmers
-   11134   0.9%  94.3%    13204   1.1% calculatePossibleSmers
-   10065   0.8%  95.1%    10065   0.8% packSequence
-    8593   0.7%  95.8%   104481   8.4% findSmer_HS (inline)
-    7090   0.6%  96.4%     7094   0.6% sliceForSmer
-    7017   0.6%  97.0%   113392   9.1% smFindIndexesOfExistingSmers
-    6581   0.5%  97.5%   138362  11.1% addPathSmers
-    5004   0.4%  97.9%     5010   0.4% __read_nocancel
-    4933   0.4%  98.3%     5404   0.4% checkStealthIndexing (inline)
-    3482   0.3%  98.6%     4257   0.3% reverseWithinBytes (inline)
-    2413   0.2%  98.8%     2413   0.2% __strchr_sse42
-    2301   0.2%  98.9%     2432   0.2% skipBufferedFastqLine (inline)
-    1734   0.1%  99.1%     1734   0.1% madvise
-    1717   0.1%  99.2%     1720   0.1% smGetSmerCount_S (inline)
-
-
-
-
-
-
-Bloom: 4,4
-
-
-
-Bloom 4,8
-
-
- 568.741329s
-Total: 823862 samples
-  280897  34.1%  34.1%   367668  44.6% trDoIngress
-  130490  15.8%  49.9%   130490  15.8% siitFindSmer
-  108548  13.2%  63.1%   112105  13.6% smFindIndexesOfExistingSmers
-   56177   6.8%  69.9%    56177   6.8% testBloom
-   53486   6.5%  76.4%    54063   6.6% calculatePossibleSmersComp
-   37944   4.6%  81.0%   244620  29.7% scanForSmerLookups
-   29967   3.6%  84.7%    37091   4.5% parseAndProcess
-   28730   3.5%  88.2%    28753   3.5% calculatePossibleSmers
-   20008   2.4%  90.6%    76185   9.2% saFindSmerEntry
-   12853   1.6%  92.1%    12853   1.6% memcpy
-   11834   1.4%  93.6%    11834   1.4% packSequence
-   10602   1.3%  94.9%   155920  18.9% addPathSmers
-   10252   1.2%  96.1%    11082   1.3% hashForSmer
-    8258   1.0%  97.1%     8258   1.0% madvise
-    4897   0.6%  97.7%     4901   0.6% __read_nocancel
-    4507   0.5%  98.3%     4517   0.5% sliceForSmer
-    4231   0.5%  98.8%     4231   0.5% __memset_sse2
-    2163   0.3%  99.0%     2197   0.3% dAlloc
-    2008   0.2%  99.3%     2008   0.2% __strchr_sse42
-    1758   0.2%  99.5%   163402  19.8% tiDoIngress
-
+Total: 755176 samples
+  123527  16.4%  16.4%   123527  16.4% siitFindSmer
+  110390  14.6%  31.0%   113904  15.1% smFindIndexesOfExistingSmers
+   74017   9.8%  40.8%   124713  16.5% assignSmersToIntermediates
+   67599   9.0%  49.7%    67599   9.0% testBloom
+   63796   8.4%  58.2%    64871   8.6% calculatePossibleSmersComp
+   55690   7.4%  65.6%    55690   7.4% memcpy
+   40460   5.4%  70.9%    54055   7.2% assignIntermediatesToEntryLookups
+   37304   4.9%  75.8%    44413   5.9% parseAndProcess
+   36354   4.8%  80.7%   247992  32.8% scanForSmerLookups
+   29178   3.9%  84.5%    29188   3.9% calculatePossibleSmers
+   26288   3.5%  88.0%   279159  37.0% trDoIngress
+   20512   2.7%  90.7%    88111  11.7% saFindSmerEntry
+   14364   1.9%  92.6%    14364   1.9% madvise
+   14001   1.9%  94.5%    14001   1.9% packSequence
+    9992   1.3%  95.8%   157000  20.8% addPathSmers
+    7919   1.0%  96.9%     8652   1.1% hashForSmer
+    4977   0.7%  97.5%     4982   0.7% __read_nocancel
+    3839   0.5%  98.0%     3852   0.5% sliceForSmer
+    3654   0.5%  98.5%     3654   0.5% __memset_sse2
+    2065   0.3%  98.8%     2135   0.3% smConsiderResize
+				
+			
 
 
 Leak detection:
@@ -428,14 +354,22 @@ T	0x54	84		0101 0100
 		Consider blocked bloom filters: All queries for a given key hit the same 64 byte region
 			Pattern filters also possible (SIMD advantages)
 		
-	Read batching: 
-		Currently 1024 reads per batch -> ~80 kmers per read -> 80K kmers per batch (~5 per slice). 640KB kmer in flight
-		10240 reads per batch -> ~80 kmers per read -> 800K kmers per batch (~50 per slice). 6.4MB kmer in flight
+	Read batching for lookup: 
+		Currently 1000 reads per batch -> ~80 kmers per read -> 80K kmers per batch (~5 per slice). 640KB kmer in flight
+		10000 reads per batch -> ~80 kmers per read -> 800K kmers per batch (~50 per slice). 6.4MB kmer in flight
 		
 		Multiple batches:
 		10 batches, 10K per batch -> ~80 kmers per read -> 8M kmers per batch (~500 per slice) 64MB kmer in flight
 		20 batches, 10K per batch -> ~80 kmers per read -> 16M kmers per batch (~1000 per slice) 128MB kmer in flight
 		100 batches, 10K per batch -> ~80 kmers per read -> 80M kmers per batch (~5000 per slice) 640MB kmer in flight
+
+
+	Read batching for routing:
+		Currently 1000 reads per batch -> ~8 kmers per read -> 8K kmers per batch (~0.5 per slice). 
+		10000 reads per batch -> ~8 kmers per read -> 80K kmers per batch (~5 per slice). 
+	
+		
+
 
 	Sub-bloom filters:
 		Idea: Build one or more 'read batch specific' bloom filters from the smers within a read batch
