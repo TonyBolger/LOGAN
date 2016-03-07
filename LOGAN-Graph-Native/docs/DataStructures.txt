@@ -223,6 +223,8 @@ Total: 29311 samples
 	
 		Pen-1: Reads: 450786851 reads Smers: 53888249 
 		
+		Jellyfish 2.2: 1417.936s 
+		
 		645.088589s using 16 threads (cessna)	
 		
 Total: 755176 samples
