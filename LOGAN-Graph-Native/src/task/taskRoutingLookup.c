@@ -155,15 +155,16 @@ static int extractIndexedSmerDataFromIntermediates(SmerId *allSmers, u8 *allComp
 		RoutingLookupIntermediate *intermediate=smerIntermediates[sliceGroup];
 		u64 entryCount=intermediate->entryCount;
 
-		//intermediate->entries[entryCount++]==slice ? ;
+		//Check intermediate->entries[entryCount++]==slice ?
 		entryCount++;
 
 		if(intermediate->entries[entryCount++]!=SMER_DUMMY)
 			{
-			smers[indexCount]=smer;
-			compFlags[indexCount]=allCompFlags[i];
-			slices[indexCount]=slice;
-			indexes[indexCount++]=i;
+			*(smers-indexCount)=smer;
+			*(compFlags-indexCount)=allCompFlags[i];
+			*(slices-indexCount)=slice;
+			*(indexes-indexCount)=i;
+			indexCount++;
 			}
 
 		intermediate->entryCount=entryCount;
@@ -219,7 +220,7 @@ static RoutingSmerEntryLookup *dequeueLookupForSliceList(RoutingBuilder *rb, int
 }
 
 
-static RoutingReadForLookupBlock *reserveReadBlock(RoutingBuilder *rb)
+static RoutingReadLookupBlock *reserveReadBlock(RoutingBuilder *rb)
 {
 	//LOG(LOG_INFO,"Queue readblock");
 
@@ -227,12 +228,12 @@ static RoutingReadForLookupBlock *reserveReadBlock(RoutingBuilder *rb)
 		{
 		int i;
 
-		for(i=0;i<TR_READBLOCKS_INFLIGHT;i++)
+		for(i=0;i<TR_READBLOCK_LOOKUPS_INFLIGHT;i++)
 			{
-			if(rb->readBlocks[i].status==0)
+			if(rb->readLookupBlocks[i].status==0)
 				{
-				if(__sync_bool_compare_and_swap(&(rb->readBlocks[i].status),0,1))
-					return rb->readBlocks+i;
+				if(__sync_bool_compare_and_swap(&(rb->readLookupBlocks[i].status),0,1))
+					return rb->readLookupBlocks+i;
 				}
 			}
 		}
@@ -241,7 +242,7 @@ static RoutingReadForLookupBlock *reserveReadBlock(RoutingBuilder *rb)
 	exit(1);
 }
 
-static void queueReadBlock(RoutingReadForLookupBlock *readBlock)
+static void queueReadBlock(RoutingReadLookupBlock *readBlock)
 {
 	if(!__sync_bool_compare_and_swap(&(readBlock->status),1,2))
 		{
@@ -251,15 +252,15 @@ static void queueReadBlock(RoutingReadForLookupBlock *readBlock)
 }
 
 
-static RoutingReadForLookupBlock *dequeueCompleteReadBlock(RoutingBuilder *rb)
+static RoutingReadLookupBlock *dequeueCompleteReadBlock(RoutingBuilder *rb)
 {
 	//LOG(LOG_INFO,"Try dequeue readblock");
-	RoutingReadForLookupBlock *current;
+	RoutingReadLookupBlock *current;
 	int i;
 
-	for(i=0;i<TR_READBLOCKS_INFLIGHT;i++)
+	for(i=0;i<TR_READBLOCK_LOOKUPS_INFLIGHT;i++)
 		{
-		current=rb->readBlocks+i;
+		current=rb->readLookupBlocks+i;
 		if(current->status == 2 && current->completionCount==0)
 			{
 			if(__sync_bool_compare_and_swap(&(current->status),2,3))
@@ -269,7 +270,7 @@ static RoutingReadForLookupBlock *dequeueCompleteReadBlock(RoutingBuilder *rb)
 	return NULL;
 }
 
-static void unreserveReadBlock(RoutingReadForLookupBlock *readBlock)
+static void unreserveReadBlock(RoutingReadLookupBlock *readBlock)
 {
 	if(!__sync_bool_compare_and_swap(&(readBlock->status),3,0))
 		{
@@ -285,7 +286,7 @@ void queueReadsForSmerLookup(SwqBuffer *rec, int ingressPosition, int ingressSiz
 
 	MemDispenser *disp=dispenserAlloc("RoutingLookup");
 
-	RoutingReadForLookupBlock *readBlock=reserveReadBlock(rb);
+	RoutingReadLookupBlock *readBlock=reserveReadBlock(rb);
 	readBlock->disp=disp;
 
 	//int smerCount=0;
@@ -299,7 +300,7 @@ void queueReadsForSmerLookup(SwqBuffer *rec, int ingressPosition, int ingressSiz
 		readBlock->smerEntryLookups[i]=allocEntryLookupBlock(disp);
 
 	SequenceWithQuality *currentRec=rec->rec+ingressPosition;
-	RoutingReadForLookupData *readData=readBlock->readData;
+	RoutingReadLookupData *readData=readBlock->readData;
 
 	int maxReadLength=0;
 
@@ -367,27 +368,28 @@ int scanForAndDispatchLookupCompleteReadBlocks(RoutingBuilder *rb)
 	Graph *graph=rb->graph;
 	s32 nodeSize=graph->config.nodeSize;
 
-	RoutingReadForLookupBlock *readBlock=dequeueCompleteReadBlock(rb);
+	RoutingReadLookupBlock *readBlock=dequeueCompleteReadBlock(rb);
 
 	if(readBlock==NULL)
 		return 0;
 
-	s32 maxIndexes=readBlock->maxReadLength-nodeSize+1;
-	int *indexes=alloca(maxIndexes*sizeof(int));
-	SmerId *smers=alloca(maxIndexes*sizeof(SmerId));
-	u8 *compFlags=alloca(maxIndexes*sizeof(u8));
-	u32 *slices=alloca(maxIndexes*sizeof(u32));
+	s32 lastIndex=readBlock->maxReadLength-nodeSize;
+	s32 maxIndexes=lastIndex+1;
+	int *indexes=(int *)alloca(maxIndexes*sizeof(int))+lastIndex;
+	SmerId *smers=(SmerId *)alloca(maxIndexes*sizeof(SmerId))+lastIndex;
+	u8 *compFlags=(u8 *)alloca(maxIndexes*sizeof(u8))+lastIndex;
+	u32 *slices=(u32 *)alloca(maxIndexes*sizeof(u32))+lastIndex;
 
 	extractIntermediatesFromEntryLookups(readBlock->smerEntryLookups, readBlock->smerIntermediateLookups);
 
-	RoutingReadForLookupData *readData=readBlock->readData;
+	RoutingReadLookupData *readData=readBlock->readData;
 
 	int reads=readBlock->readCount;
 
 
 	for(int i=0;i<reads;i++)
 		{
-		RoutingReadForLookupData *read=readData+i;
+		RoutingReadLookupData *read=readData+i;
 		int smerCount=read->seqLength-nodeSize+1;
 
 		int foundCount=extractIndexedSmerDataFromIntermediates(read->smers, read->compFlags, smerCount, smers, compFlags, slices, indexes, readBlock->smerIntermediateLookups);
@@ -402,7 +404,7 @@ int scanForAndDispatchLookupCompleteReadBlocks(RoutingBuilder *rb)
 
 	unreserveReadBlock(readBlock);
 
-	__sync_fetch_and_add(&(rb->allocatedReadBlocks),-1);
+	__sync_fetch_and_add(&(rb->allocatedReadLookupBlocks),-1);
 
 	//LOG(LOG_INFO,"Complete readblock. Reserved: %i",count);
 

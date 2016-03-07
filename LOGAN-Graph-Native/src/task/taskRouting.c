@@ -24,9 +24,9 @@ static int trAllocateIngressSlot(ParallelTask *pt, int workerNo)
 {
 	RoutingBuilder *rb=pt->dataPtr;
 
-	if(rb->allocatedReadBlocks<TR_READBLOCKS_INFLIGHT)
+	if(rb->allocatedReadLookupBlocks<TR_READBLOCK_LOOKUPS_INFLIGHT)
 		{
-		rb->allocatedReadBlocks++;
+		rb->allocatedReadLookupBlocks++;
 		return 1;
 		}
 
@@ -50,12 +50,20 @@ static int trDoIngress(ParallelTask *pt, int workerNo,void *ingressPtr, int ingr
 /* Intermediate:
 
 	Non-force:
-		Ready read block
-		Slice lookup scan (if read blocks is max)
+		Handle complete dispatch block
+		if allocated dispatch blocks is max:
+			Slicegroup dispatch scan
+		else
+			Handle complete read lookup block
+			Slice lookup scan (if read lookup blocks is max)
 
 	Force:
-		Ready read block
-		Slice lookup scan
+		Handle complete dispatch block
+		Slicegroup dispatch scan
+
+		if allocated dispatch blocks is not max:
+			Handle complete read lookup block
+			Slice lookup scan
 
 */
 
@@ -70,7 +78,7 @@ static int trDoIntermediate(ParallelTask *pt, int workerNo, int force)
 	if(scanForAndDispatchLookupCompleteReadBlocks(rb))
 		return 1;
 
-	if((force)||(rb->allocatedReadBlocks==TR_READBLOCKS_INFLIGHT))
+	if((force)||(rb->allocatedReadLookupBlocks==TR_READBLOCK_LOOKUPS_INFLIGHT))
 		{
 		int startPos=(workerNo*SMER_SLICE_PRIME)&SMER_SLICE_MASK;
 
@@ -103,9 +111,9 @@ RoutingBuilder *allocRoutingBuilder(Graph *graph, int threads)
 	rb->pt=allocParallelTask(ptc,rb);
 	rb->graph=graph;
 
-	rb->allocatedReadBlocks=0;
-	for(int i=0;i<TR_READBLOCKS_INFLIGHT;i++)
-		rb->readBlocks[i].disp=NULL;
+	rb->allocatedReadLookupBlocks=0;
+	for(int i=0;i<TR_READBLOCK_LOOKUPS_INFLIGHT;i++)
+		rb->readLookupBlocks[i].disp=NULL;
 
 	for(int i=0;i<SMER_SLICES;i++)
 		rb->smerEntryLookupPtr[i]=NULL;

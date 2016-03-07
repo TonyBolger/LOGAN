@@ -8,31 +8,25 @@
 #define TR_INGRESS_PER_TIDY_MAX 1000000000
 #define TR_TIDYS_PER_BACKOFF 1
 
-#define TR_READBLOCKS_INFLIGHT 20
+#define TR_READBLOCK_LOOKUPS_INFLIGHT 20
+#define TR_READBLOCK_DISPATCHES_INFLIGHT 20
 
 // TR_LOOKUPS_PER_SLICE_BLOCK / TR_LOOKUPS_PER_INTERMEDIATE_BLOCK must be a power of 2
 #define TR_LOOKUPS_PER_SLICE_BLOCK 64
 #define TR_LOOKUPS_PER_INTERMEDIATE_BLOCK 16384
 
 #define TR_DISPATCH_READS_PER_BLOCK 64
+#define TR_DISPATCH_READS_PER_INTERMEDIATE_BLOCK 16384
 
 
-
-typedef struct routingReadForLookupDataStr {
+typedef struct routingReadLookupDataStr {
 	u8 *packedSeq; // 8
 	u8 *quality; // 8
 	u32 seqLength; // 4 (+4)
 
 	SmerId *smers; // 8
 	u8 *compFlags; // 8
-} __attribute__((aligned (8))) RoutingReadForLookupData;
-
-
-
-typedef struct routingLookupIntermediateStr {
-	u64 entryCount; // 8
-	u32 *entries; // 8
-} __attribute__((aligned (16))) RoutingLookupIntermediate;
+} __attribute__((aligned (8))) RoutingReadLookupData;
 
 
 // RoutingSmerEntryLookup has 24 bytes core
@@ -51,8 +45,13 @@ typedef struct routingSmerEntryLookupStr {
 
 } __attribute__((aligned (64))) RoutingSmerEntryLookup;
 
-typedef struct routingReadForLookupBlockStr {
-	RoutingReadForLookupData readData[TR_INGRESS_BLOCKSIZE];	// Holds packed read data and all smers
+typedef struct routingLookupIntermediateStr {
+	u64 entryCount; // 8
+	u32 *entries; // 8
+} __attribute__((aligned (16))) RoutingLookupIntermediate;
+
+typedef struct routingReadLookupBlockStr {
+	RoutingReadLookupData readData[TR_INGRESS_BLOCKSIZE];	// Holds packed read data and all smers
 	u32 readCount;
 	u32 maxReadLength;
 
@@ -62,39 +61,58 @@ typedef struct routingReadForLookupBlockStr {
 	MemDispenser *disp; // Unified dispenser
 	u32 completionCount;
 	u32 status; // 0 = idle, 1 = allocated, 2 = active, 3 = finished
-} RoutingReadForLookupBlock;
+} RoutingReadLookupBlock;
 
 
 
-
-typedef struct routingReadForDispatchDataStr {
+typedef struct routingReadDispatchDataStr {
 	u8 *packedSeq; // 8
 	u8 *quality; // 8
-	u32 seqLength; // 4 (+4)
+	u32 seqLength; // 4
 
+	u32 indexCount; // 4
+	u32 *indexes; // 8
 	SmerId *smers; // 8
 	u8 *compFlags; // 8
-} __attribute__((aligned (8))) RoutingReadForDispatchData;
+	u32 *completionCountPtr; // 8
 
-
-
+} __attribute__((aligned (64))) RoutingReadDispatchData;
 
 typedef struct routingReadDispatchBlockStr {
-	RoutingReadForLookupData readData[TR_DISPATCH_READS_PER_BLOCK];
+	RoutingReadLookupData readData[TR_INGRESS_BLOCKSIZE];
 
 	MemDispenser *disp;
+	u32 completionCount;
+	u32 status; // 0 = idle, 1 = allocated, 2 = active, 3 = finished
 } RoutingReadDispatchBlock;
 
+typedef struct routingDispatchIntermediateStr {
+	u64 entryCount; // 8
+	RoutingReadDispatchData *entries; // 8
+} __attribute__((aligned (16))) RoutingDispatchIntermediate;
+
+
+typedef struct routingDispatchStr {
+	struct routingSmerEntryLookupStr *nextPtr;
+	RoutingReadDispatchData *readData[TR_DISPATCH_READS_PER_BLOCK];
+
+} RoutingDispatch;
 
 
 typedef struct routingBuilderStr {
 	ParallelTask *pt;
 	Graph *graph;
 
-	RoutingReadForLookupBlock readBlocks[TR_READBLOCKS_INFLIGHT];
-	u64 allocatedReadBlocks;
+	RoutingReadLookupBlock readLookupBlocks[TR_READBLOCK_LOOKUPS_INFLIGHT]; // Batches of reads in lookup stage
+	u64 allocatedReadLookupBlocks;
+	RoutingSmerEntryLookup *smerEntryLookupPtr[SMER_SLICES]; // Per-slice list of lookups
 
-	RoutingSmerEntryLookup *smerEntryLookupPtr[SMER_SLICES];
+	RoutingReadDispatchBlock readDispatchBlocks[TR_READBLOCK_DISPATCHES_INFLIGHT]; // Batches of reads in dispatch stage
+	u64 allocatedReadDispatchBlocks;
+
+	RoutingDispatch *dispatchPtr[SMER_DISPATCHSLICEGROUPS]; // Per-slicegroup list of dispatches
+	RoutingLookupIntermediate *smerIntermediateDispatches[SMER_DISPATCHSLICEGROUPS][SMER_DISPATCHSLICEGROUPS];
+
 
 } RoutingBuilder;
 
