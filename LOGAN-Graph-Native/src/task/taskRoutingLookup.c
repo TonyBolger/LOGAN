@@ -394,7 +394,7 @@ int scanForAndDispatchLookupCompleteReadBlocks(RoutingBuilder *rb)
 
 		int foundCount=extractIndexedSmerDataFromIntermediates(read->smers, read->compFlags, smerCount, smers, compFlags, slices, indexes, readBlock->smerIntermediateLookups);
 
-		if(i==0)
+		if(foundCount>1000)
 			{
 			LOG(LOG_INFO,"Read length %i found: %i",read->seqLength,foundCount);
 			}

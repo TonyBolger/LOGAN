@@ -259,8 +259,15 @@ valgrind --leak-check=full --show-reachable=yes ./LOGAN-Graph-Native/bin/LOGAN d
 
 
 
+Intel stuff:
 
+Download: ftp://software.rz.rwth-aachen.de/intel_2015_Gazsfe3hn2
 
+export INTEL_LICENSE_FILE="50017@license2.rz.rwth-aachen.de"
+
+/opt/intel/vtune_amplifier_xe/amplxe-vars.sh 
+
+/opt/intel/vtune_amplifier_xe/bin64/amplxe-gui 
 
 
 
