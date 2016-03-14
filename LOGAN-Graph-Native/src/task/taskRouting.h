@@ -79,7 +79,7 @@ typedef struct routingReadDispatchDataStr {
 } __attribute__((aligned (64))) RoutingReadDispatchData;
 
 typedef struct routingReadDispatchBlockStr {
-	RoutingReadLookupData readData[TR_INGRESS_BLOCKSIZE];
+	RoutingReadDispatchData readData[TR_INGRESS_BLOCKSIZE];
 
 	MemDispenser *disp;
 	u32 completionCount;
@@ -111,7 +111,7 @@ typedef struct routingBuilderStr {
 	u64 allocatedReadDispatchBlocks;
 
 	RoutingDispatch *dispatchPtr[SMER_DISPATCHSLICEGROUPS]; // Per-slicegroup list of dispatches
-	RoutingLookupIntermediate *smerIntermediateDispatches[SMER_DISPATCHSLICEGROUPS][SMER_DISPATCHSLICEGROUPS];
+	RoutingDispatchIntermediate *smerIntermediateDispatches[SMER_DISPATCHSLICEGROUPS][SMER_DISPATCHSLICEGROUPS]; // Accumulator for partially
 
 
 } RoutingBuilder;

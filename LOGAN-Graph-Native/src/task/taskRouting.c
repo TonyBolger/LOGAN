@@ -24,13 +24,7 @@ static int trAllocateIngressSlot(ParallelTask *pt, int workerNo)
 {
 	RoutingBuilder *rb=pt->dataPtr;
 
-	if(rb->allocatedReadLookupBlocks<TR_READBLOCK_LOOKUPS_INFLIGHT)
-		{
-		rb->allocatedReadLookupBlocks++;
-		return 1;
-		}
-
-	return 0;
+	return reserveReadLookupBlock(rb);
 }
 
 
@@ -75,7 +69,7 @@ static int trDoIntermediate(ParallelTask *pt, int workerNo, int force)
 //	LOG(LOG_INFO,"doIntermediate %i %i %i %i",workerNo,force,countReadBlocks(rb),countCompleteReadBlocks(rb));
 
 
-	if(scanForAndDispatchLookupCompleteReadBlocks(rb))
+	if(scanForAndDispatchLookupCompleteReadLookupBlocks(rb))
 		return 1;
 
 	if((force)||(rb->allocatedReadLookupBlocks==TR_READBLOCK_LOOKUPS_INFLIGHT))

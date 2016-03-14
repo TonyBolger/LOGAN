@@ -220,7 +220,7 @@ static RoutingSmerEntryLookup *dequeueLookupForSliceList(RoutingBuilder *rb, int
 }
 
 
-static RoutingReadLookupBlock *reserveReadBlock(RoutingBuilder *rb)
+static RoutingReadLookupBlock *allocateReadLookupBlock(RoutingBuilder *rb)
 {
 	//LOG(LOG_INFO,"Queue readblock");
 
@@ -242,7 +242,7 @@ static RoutingReadLookupBlock *reserveReadBlock(RoutingBuilder *rb)
 	exit(1);
 }
 
-static void queueReadBlock(RoutingReadLookupBlock *readBlock)
+static void queueReadLookupBlock(RoutingReadLookupBlock *readBlock)
 {
 	if(!__sync_bool_compare_and_swap(&(readBlock->status),1,2))
 		{
@@ -251,10 +251,8 @@ static void queueReadBlock(RoutingReadLookupBlock *readBlock)
 		}
 }
 
-
-static RoutingReadLookupBlock *dequeueCompleteReadBlock(RoutingBuilder *rb)
+static int scanForCompleteReadLookupBlock(RoutingBuilder *rb)
 {
-	//LOG(LOG_INFO,"Try dequeue readblock");
 	RoutingReadLookupBlock *current;
 	int i;
 
@@ -262,15 +260,28 @@ static RoutingReadLookupBlock *dequeueCompleteReadBlock(RoutingBuilder *rb)
 		{
 		current=rb->readLookupBlocks+i;
 		if(current->status == 2 && current->completionCount==0)
-			{
-			if(__sync_bool_compare_and_swap(&(current->status),2,3))
-				return current;
-			}
+			return i;
 		}
+	return -1;
+}
+
+static RoutingReadLookupBlock *dequeueCompleteReadLookupBlock(RoutingBuilder *rb, int index)
+{
+	//LOG(LOG_INFO,"Try dequeue readblock");
+	RoutingReadLookupBlock *current;
+
+	current=rb->readLookupBlocks+index;
+
+	if(current->status == 2 && current->completionCount==0)
+		{
+		if(__sync_bool_compare_and_swap(&(current->status),2,3))
+			return current;
+		}
+
 	return NULL;
 }
 
-static void unreserveReadBlock(RoutingReadLookupBlock *readBlock)
+static void unallocateReadLookupBlock(RoutingReadLookupBlock *readBlock)
 {
 	if(!__sync_bool_compare_and_swap(&(readBlock->status),3,0))
 		{
@@ -280,13 +291,29 @@ static void unreserveReadBlock(RoutingReadLookupBlock *readBlock)
 }
 
 
+int reserveReadLookupBlock(RoutingBuilder *rb)
+{
+	if(rb->allocatedReadLookupBlocks<TR_READBLOCK_LOOKUPS_INFLIGHT)
+		{
+		rb->allocatedReadLookupBlocks++;
+		return 1;
+		}
+
+	return 0;
+}
+
+static void unreserveReadLookupBlock(RoutingBuilder *rb)
+{
+	__sync_fetch_and_add(&(rb->allocatedReadLookupBlocks),-1);
+}
+
 
 void queueReadsForSmerLookup(SwqBuffer *rec, int ingressPosition, int ingressSize, int nodeSize, RoutingBuilder *rb)
 {
 
 	MemDispenser *disp=dispenserAlloc("RoutingLookup");
 
-	RoutingReadLookupBlock *readBlock=reserveReadBlock(rb);
+	RoutingReadLookupBlock *readBlock=allocateReadLookupBlock(rb);
 	readBlock->disp=disp;
 
 	//int smerCount=0;
@@ -356,22 +383,33 @@ void queueReadsForSmerLookup(SwqBuffer *rec, int ingressPosition, int ingressSiz
 			queueLookupForSlice(rb, lookupForSlice, i);
 		}
 
-	queueReadBlock(readBlock);
+	queueReadLookupBlock(readBlock);
 }
 
 
 
 
 
-int scanForAndDispatchLookupCompleteReadBlocks(RoutingBuilder *rb)
+int scanForAndDispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb)
 {
 	Graph *graph=rb->graph;
 	s32 nodeSize=graph->config.nodeSize;
 
-	RoutingReadLookupBlock *readBlock=dequeueCompleteReadBlock(rb);
+	int readBlockIndex=scanForCompleteReadLookupBlock(rb);
+
+	if(readBlockIndex<0)
+		return 0;
+
+	if(!reserveReadDispatchBlockAllocation())
+		return 0;
+
+	RoutingReadLookupBlock *readBlock=dequeueCompleteReadLookupBlock(rb, readBlockIndex);
 
 	if(readBlock==NULL)
+		{
+		unreserveReadDispatchBlockAllocation();
 		return 0;
+		}
 
 	s32 lastIndex=readBlock->maxReadLength-nodeSize;
 	s32 maxIndexes=lastIndex+1;
@@ -400,11 +438,12 @@ int scanForAndDispatchLookupCompleteReadBlocks(RoutingBuilder *rb)
 			}
 		}
 
+	// Dispatch ReadBlock or unreserveReadDispatchBlockAllocation
+
+
 	dispenserFree(readBlock->disp);
-
-	unreserveReadBlock(readBlock);
-
-	__sync_fetch_and_add(&(rb->allocatedReadLookupBlocks),-1);
+	unallocateReadLookupBlock(readBlock);
+	unreserveReadLookupBlock(rb);
 
 	//LOG(LOG_INFO,"Complete readblock. Reserved: %i",count);
 
@@ -441,5 +480,6 @@ int scanForSmerLookups(RoutingBuilder *rb, int startSlice, int endSlice)
 
 	return work>0;
 }
+
 
 

@@ -112,7 +112,7 @@
 		
 		Ecoli-1: Reads: 7248696 Smers: 1810392 (single threaded)
 
-		 11.212197s using 8 threads (desktop) 
+		 11.212197s using 8 threads (desktop): original implementation 305.7s
 		 
 Total: 4724 samples
      739  15.6%  15.6%      753  15.9% scanForSmer_HS (inline)
