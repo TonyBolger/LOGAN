@@ -13,7 +13,7 @@
 
 // TR_LOOKUPS_PER_SLICE_BLOCK / TR_LOOKUPS_PER_INTERMEDIATE_BLOCK must be a power of 2
 #define TR_LOOKUPS_PER_SLICE_BLOCK 64
-#define TR_LOOKUPS_PER_INTERMEDIATE_BLOCK 16384
+#define TR_LOOKUPS_PER_PERCOLATE_BLOCK 16384
 
 #define TR_DISPATCH_READS_PER_BLOCK 64
 #define TR_DISPATCH_READS_PER_INTERMEDIATE_BLOCK 16384
@@ -45,17 +45,17 @@ typedef struct routingSmerEntryLookupStr {
 
 } __attribute__((aligned (64))) RoutingSmerEntryLookup;
 
-typedef struct routingLookupIntermediateStr {
+typedef struct routingLookupPercolateStr {
 	u64 entryCount; // 8
 	u32 *entries; // 8
-} __attribute__((aligned (16))) RoutingLookupIntermediate;
+} __attribute__((aligned (16))) RoutingLookupPercolate;
 
 typedef struct routingReadLookupBlockStr {
 	RoutingReadLookupData readData[TR_INGRESS_BLOCKSIZE];	// Holds packed read data and all smers
 	u32 readCount;
 	u32 maxReadLength;
 
-	RoutingLookupIntermediate *smerIntermediateLookups[SMER_LOOKUPSLICEGROUPS]; // Holds intermediate lookup data
+	RoutingLookupPercolate *smerEntryLookupsPercolates[SMER_LOOKUP_PERCOLATES]; // Holds intermediate lookup data
 	RoutingSmerEntryLookup *smerEntryLookups[SMER_SLICES]; // Holds per-slice smer details for lookup
 
 	MemDispenser *disp; // Unified dispenser
@@ -105,14 +105,15 @@ typedef struct routingBuilderStr {
 
 	RoutingReadLookupBlock readLookupBlocks[TR_READBLOCK_LOOKUPS_INFLIGHT]; // Batches of reads in lookup stage
 	u64 allocatedReadLookupBlocks;
+
 	RoutingSmerEntryLookup *smerEntryLookupPtr[SMER_SLICES]; // Per-slice list of lookups
 
 	RoutingReadDispatchBlock readDispatchBlocks[TR_READBLOCK_DISPATCHES_INFLIGHT]; // Batches of reads in dispatch stage
 	u64 allocatedReadDispatchBlocks;
 
-	RoutingDispatch *dispatchPtr[SMER_DISPATCHSLICEGROUPS]; // Per-slicegroup list of dispatches
-	RoutingDispatchIntermediate *smerIntermediateDispatches[SMER_DISPATCHSLICEGROUPS][SMER_DISPATCHSLICEGROUPS]; // Accumulator for partially
+	RoutingDispatch *dispatchPtr[SMER_DISPATCH_GROUPS]; // List of dispatches per group
 
+	RoutingDispatchIntermediate *smerIntermediateDispatches[SMER_DISPATCH_GROUPS][SMER_DISPATCH_GROUPS]; // Accumulator for partially dispatched reads between dispatch groups
 
 } RoutingBuilder;
 

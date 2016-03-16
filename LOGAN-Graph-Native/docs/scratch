@@ -25,8 +25,13 @@ I'm too young to die
 
 
 
-
-for i in 1 2 4 8 16 32; do ~/LOGAN data/Ecoli-2/split_Q20_%02i_%02i.fq $i 2> out_1.$i ; ~/LOGAN data/Ecoli-2/split_Q20_%02i_%02i.fq $i 2> out_2.$i ; ~/LOGAN data/Ecoli-2/split_Q20_%02i_%02i.fq $i 2> out_3.$i ; ~/LOGAN data/Ecoli-2/split_Q20_%02i_%02i.fq $i 2> out_4.$i ; ~/LOGAN data/Ecoli-2/split_Q20_%02i_%02i.fq $i 2> out_5.$i ; done
+for i in 1 2 4 8 16 32; do 
+	~/LOGAN data/Ecoli-2/split_Q20_%02i_%02i.fq $i 2> out_1.$i ; 
+	~/LOGAN data/Ecoli-2/split_Q20_%02i_%02i.fq $i 2> out_2.$i ; 
+	~/LOGAN data/Ecoli-2/split_Q20_%02i_%02i.fq $i 2> out_3.$i ; 
+	~/LOGAN data/Ecoli-2/split_Q20_%02i_%02i.fq $i 2> out_4.$i ; 
+	~/LOGAN data/Ecoli-2/split_Q20_%02i_%02i.fq $i 2> out_5.$i ; 
+done
 
 
 

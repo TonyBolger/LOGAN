@@ -44,20 +44,28 @@ static int trDoIngress(ParallelTask *pt, int workerNo,void *ingressPtr, int ingr
 /* Intermediate:
 
 	Non-force:
-		Handle complete dispatch block
-		if allocated dispatch blocks is max:
-			Slicegroup dispatch scan
-		else
-			Handle complete read lookup block
-			Slice lookup scan (if read lookup blocks is max)
+		Handle complete dispatch block - top priority, frees up memory
+
+		Handle complete lookup block - second priority, move into dispatch
+
+		if allocated dispatch blocks is max: - if dispatch full, perform
+			dispatch scan
+
+		if allocated lookup blocks is max: - if lookup full, perform
+			lookup scan
+
 
 	Force:
 		Handle complete dispatch block
-		Slicegroup dispatch scan
 
-		if allocated dispatch blocks is not max:
-			Handle complete read lookup block
-			Slice lookup scan
+		Handle complete lookup block
+
+		if allocated dispatch blocks is max:
+			dispatch scan
+
+		lookup scan
+
+		dispatch scan
 
 */
 
@@ -68,22 +76,26 @@ static int trDoIntermediate(ParallelTask *pt, int workerNo, int force)
 
 //	LOG(LOG_INFO,"doIntermediate %i %i %i %i",workerNo,force,countReadBlocks(rb),countCompleteReadBlocks(rb));
 
+	if(scanForCompleteReadDispatchBlocks(rb))
+		return 1;
 
 	if(scanForAndDispatchLookupCompleteReadLookupBlocks(rb))
 		return 1;
 
-	if((force)||(rb->allocatedReadLookupBlocks==TR_READBLOCK_LOOKUPS_INFLIGHT))
+	if(rb->allocatedReadDispatchBlocks==TR_READBLOCK_DISPATCHES_INFLIGHT)
 		{
-		int startPos=(workerNo*SMER_SLICE_PRIME)&SMER_SLICE_MASK;
-
-		int work=0;
-
-		work=scanForSmerLookups(rb,startPos,SMER_SLICES);
-		work+=scanForSmerLookups(rb, 0, startPos);
-
-		if(work)
+		if(scanForDispatches(rb, workerNo, force))
 			return 1;
 		}
+
+	if((force)||(rb->allocatedReadLookupBlocks==TR_READBLOCK_LOOKUPS_INFLIGHT))
+		{
+		if(scanForSmerLookups(rb, workerNo))
+			return 1;
+		}
+
+	if(force)
+		return scanForDispatches(rb, workerNo, force);
 
 	return 0;
 }
