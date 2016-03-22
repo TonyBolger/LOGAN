@@ -93,10 +93,22 @@ typedef struct routingDispatchIntermediateStr {
 
 
 typedef struct routingDispatchStr {
-	struct routingSmerEntryLookupStr *nextPtr;
-	RoutingReadDispatchData *readData[TR_DISPATCH_READS_PER_BLOCK];
+	struct routingDispatchStr *nextPtr;
+	struct routingDispatchStr *prevPtr; // Used to reverse ordering
 
+	RoutingReadDispatchData *readData[TR_DISPATCH_READS_PER_BLOCK];
 } RoutingDispatch;
+
+
+typedef struct routingDispatchGroupStateStr {
+
+	u32 status; // 0 = idle, 1 = active
+
+	RoutingDispatchIntermediate smerInboundDispatches[SMER_DISPATCH_GROUP_SLICES]; // Accumulator for inbound reads to this group
+
+	RoutingDispatchIntermediate smerOutboundDispatches[SMER_DISPATCH_GROUPS]; // Accumulator for partially dispatched reads going to next dispatch group
+
+} RoutingDispatchGroupState;
 
 
 typedef struct routingBuilderStr {
@@ -111,9 +123,9 @@ typedef struct routingBuilderStr {
 	RoutingReadDispatchBlock readDispatchBlocks[TR_READBLOCK_DISPATCHES_INFLIGHT]; // Batches of reads in dispatch stage
 	u64 allocatedReadDispatchBlocks;
 
-	RoutingDispatch *dispatchPtr[SMER_DISPATCH_GROUPS]; // List of dispatches per group
+	RoutingDispatch *dispatchPtr[SMER_DISPATCH_GROUPS]; // List of (fixed-size) dispatches per group
 
-	RoutingDispatchIntermediate *smerIntermediateDispatches[SMER_DISPATCH_GROUPS][SMER_DISPATCH_GROUPS]; // Accumulator for partially dispatched reads between dispatch groups
+	RoutingDispatchGroupState dispatchGroupState[SMER_DISPATCH_GROUPS];
 
 } RoutingBuilder;
 

@@ -9,6 +9,70 @@
 
 
 
+void queueDispatchForGroup(RoutingBuilder *rb, RoutingDispatch *dispatchForGroup, int groupNum)
+{
+	RoutingDispatch *current=NULL;
+	int loopCount=0;
+
+	do
+		{
+		if(loopCount++>1000000)
+			{
+			LOG(LOG_INFO,"Loop Stuck");
+			exit(0);
+			}
+
+		current=rb->dispatchPtr[groupNum];
+		dispatchForGroup->nextPtr=current;
+		}
+	while(__sync_bool_compare_and_swap(rb->dispatchPtr+groupNum,current,dispatchForGroup));
+
+}
+
+static RoutingDispatch *dequeueDispatchForGroup(RoutingBuilder *rb, int groupNum)
+{
+	RoutingDispatch *current=NULL;
+	int loopCount=0;
+
+	do
+		{
+		if(loopCount++>1000000)
+			{
+			LOG(LOG_INFO,"Loop Stuck");
+			exit(0);
+			}
+
+		current=rb->dispatchPtr[groupNum];
+
+		if(current==NULL)
+			return NULL;
+		}
+	while(!__sync_bool_compare_and_swap(rb->dispatchPtr+groupNum,current,NULL));
+
+	return current;
+}
+
+
+static int lockRoutingDispatchGroupState(RoutingBuilder *rb, int groupNum)
+{
+	return __sync_bool_compare_and_swap(&(rb->dispatchGroupState[groupNum].status),0,1);
+}
+
+static int unlockRoutingDispatchGroupState(RoutingBuilder *rb, int groupNum)
+{
+	if(!__sync_bool_compare_and_swap(&(rb->dispatchGroupState[groupNum].status),1,0))
+		{
+		LOG(LOG_INFO,"Tried to unlock DispatchState without lock, should never happen");
+		exit(1);
+		}
+
+	return 1;
+}
+
+
+
+
+
 int reserveReadDispatchBlock(RoutingBuilder *rb)
 {
 	int allocated=rb->allocatedReadDispatchBlocks;
@@ -124,8 +188,77 @@ int scanForCompleteReadDispatchBlocks(RoutingBuilder *rb)
 	return 1;
 }
 
+
+static RoutingDispatch *buildPrevLinks(RoutingDispatch *dispatchEntry)
+{
+	RoutingDispatch *prev=NULL;
+
+	while(dispatchEntry!=NULL)
+		{
+		dispatchEntry->prevPtr=prev;
+		prev=dispatchEntry;
+		dispatchEntry=dispatchEntry->nextPtr;
+		}
+
+	return prev;
+}
+
+
+static int assignInboundDispatchesToSlices(RoutingDispatch *dispatches, RoutingDispatchIntermediate *smerInboundDispatches)
+{
+//	dispatches->readData
+
+	return 0;
+}
+
+
+
+static int scanForDispatchesForGroups(RoutingBuilder *rb, int startGroup, int endGroup, int force)
+{
+	int work=0;
+
+	for(int i=startGroup;i<endGroup;i++)
+		{
+		if(lockRoutingDispatchGroupState(rb, i))
+			{
+			RoutingDispatchGroupState *groupState=rb->dispatchGroupState+i;
+
+			RoutingDispatch *dispatchEntry=dequeueDispatchForGroup(rb, i);
+
+			if(dispatchEntry!=NULL)
+				{
+				work=1;
+
+				RoutingDispatch *reversed=buildPrevLinks(dispatchEntry);
+
+				assignInboundDispatchesToSlices(reversed, groupState->smerInboundDispatches);
+  				}
+
+
+
+			// think about processing busy slices
+
+
+
+			unlockRoutingDispatchGroupState(rb,i);
+			}
+
+		}
+
+	return work>0;
+}
+
+
+
 int scanForDispatches(RoutingBuilder *rb, int workerNo, int force)
 {
-	return 0;
+	int startPos=(workerNo*SMER_SLICE_PRIME)&SMER_DISPATCH_GROUP_MASK;
+
+	int work=0;
+
+	work=scanForDispatchesForGroups(rb,startPos,SMER_DISPATCH_GROUPS, force);
+	work+=scanForDispatchesForGroups(rb, 0, startPos, force);
+
+	return work;
 }
 
