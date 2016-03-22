@@ -8,6 +8,41 @@
 #include "../common.h"
 
 
+static RoutingDispatchIntermediate *allocDispatchIntermediateBlock(MemDispenser *disp)
+{
+	RoutingLookupPercolate *block=dAllocCacheAligned(disp, sizeof(RoutingLookupPercolate));
+
+	block->entryCount=0;
+	block->entries=dAllocCacheAligned(disp, TR_DISPATCH_READS_PER_INTERMEDIATE_BLOCK*sizeof(SmerEntry));
+
+	return block;
+}
+
+
+void initRoutingDispatchGroupState(RoutingDispatchGroupState *dispatchGroupState)
+{
+	MemDispenser *disp=dispenserAlloc("DispatchGroupState");
+
+	dispatchGroupState->status=0;
+	dispatchGroupState->forceCount=0;
+	dispatchGroupState->disp=disp;
+
+	for(int j=0;j<SMER_DISPATCH_GROUP_SLICES;j++)
+		dispatchGroupState->smerInboundDispatches[j]=allocDispatchIntermediateBlock(disp);
+
+	for(int j=0;j<SMER_DISPATCH_GROUPS;j++)
+		dispatchGroupState->smerOutboundDispatches[j]=allocDispatchIntermediateBlock(disp);
+}
+
+void resetRoutingDispatchGroupState(RoutingDispatchGroupState *dispatchGroupState)
+{
+	if(dispatchGroupState->disp!=NULL)
+		dispenserFree(dispatchGroupState->disp);
+
+	initRoutingDispatchGroupState(dispatchGroupState);
+}
+
+
 
 void queueDispatchForGroup(RoutingBuilder *rb, RoutingDispatch *dispatchForGroup, int groupNum)
 {
@@ -203,12 +238,68 @@ static RoutingDispatch *buildPrevLinks(RoutingDispatch *dispatchEntry)
 	return prev;
 }
 
-
-static int assignInboundDispatchesToSlices(RoutingDispatch *dispatches, RoutingDispatchIntermediate *smerInboundDispatches)
+static void expandIntermediateDispatchBlock(RoutingDispatchIntermediate *block, MemDispenser *disp)
 {
-//	dispatches->readData
+	int oldSize=block->entryCount;
+	int size=oldSize*2;
+
+	int oldEntrySize=oldSize*sizeof(RoutingReadDispatchData *);
+
+	SmerEntry *entries=dAllocCacheAligned(disp, size*sizeof(RoutingReadDispatchData  *));
+	memcpy(entries,block->entries,oldEntrySize);
+	block->entries=entries;
+	//block->presenceAbsence=NULL;//dAlloc(disp, PAD_BYTELENGTH_8BYTE(PAD_1BITLENGTH_BYTE(size)));
+}
+
+
+static int assignInboundDispatchesToSlices(RoutingDispatch *dispatches, RoutingDispatchGroupState *dispatchGroupState)
+{
+	RoutingDispatchIntermediate *smerInboundDispatches=dispatchGroupState->smerInboundDispatches;
+
+	while(dispatches!=NULL)
+		{
+		int i=0;
+
+		RoutingReadDispatchData readData=dispatches->readData[i++];
+
+		while(readData!=NULL)
+			{
+			int index=readData->currentIndex;
+
+			SmerId smer=readData->smers[index];
+			SmerEntry smerEntry=SMER_GET_BOTTOM(smer);
+			u64 hash=hashForSmer(smerEntry);
+			u32 slice=sliceForSmer(smer,hash);
+
+			u32 inboundIndex=slice & SMER_DISPATCH_GROUP_SLICEMASK;
+
+			u64 entryCount=smerInboundDispatches[inboundIndex]->entryCount;
+			if(entryCount>=TR_DISPATCH_READS_PER_INTERMEDIATE_BLOCK && !((entryCount & (entryCount - 1))))
+				expandIntermediateDispatchBlock(smerInboundDispatches[inboundIndex], dispatchGroupState->disp);
+
+			smerInboundDispatches[inboundIndex]->entries[entryCount]=smerEntry;
+			smerInboundDispatches[inboundIndex]->entryCount++;
+
+			readData=dispatches->readData[i++];
+			}
+
+		dispatches=dispatches->prevPtr;
+		}
 
 	return 0;
+}
+
+static void processSlicesForGroup(RoutingBuilder *rb, int groupNum)
+{
+	RoutingDispatchGroupState *groupState=rb->dispatchGroupState+groupNum;
+
+	for(int i=0;i<SMER_DISPATCH_GROUP_SLICES;i++)
+		{
+		RoutingDispatchIntermediate *smerInboundDispatches=groupState->smerInboundDispatches+i;
+
+
+
+		}
 }
 
 

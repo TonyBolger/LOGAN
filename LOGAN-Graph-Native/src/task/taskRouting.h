@@ -70,7 +70,7 @@ typedef struct routingReadDispatchDataStr {
 	u8 *quality; // 8
 	u32 seqLength; // 4
 
-	u32 indexCount; // 4
+	u32 currentIndex; // 4
 	u32 *indexes; // 8
 	SmerId *smers; // 8
 	u8 *compFlags; // 8
@@ -99,15 +99,16 @@ typedef struct routingDispatchStr {
 	RoutingReadDispatchData *readData[TR_DISPATCH_READS_PER_BLOCK];
 } RoutingDispatch;
 
+#define DISPATCH_FORCE_THRESHOLD 100
 
 typedef struct routingDispatchGroupStateStr {
 
 	u32 status; // 0 = idle, 1 = active
+	s32 forceCount;
+	MemDispenser *disp;
 
-	RoutingDispatchIntermediate smerInboundDispatches[SMER_DISPATCH_GROUP_SLICES]; // Accumulator for inbound reads to this group
-
-	RoutingDispatchIntermediate smerOutboundDispatches[SMER_DISPATCH_GROUPS]; // Accumulator for partially dispatched reads going to next dispatch group
-
+	RoutingDispatchIntermediate *smerInboundDispatches[SMER_DISPATCH_GROUP_SLICES]; 	// Accumulator for inbound reads to this group
+	RoutingDispatchIntermediate *smerOutboundDispatches[SMER_DISPATCH_GROUPS]; 		// Accumulator for partially dispatched reads going to next dispatch group
 } RoutingDispatchGroupState;
 
 

@@ -2,6 +2,8 @@
 #define __TASKROUTINGDISPATCH_H
 
 
+void initRoutingDispatchGroupState(RoutingDispatchGroupState *dispatchGroupState);
+
 // Entry points for scanForAndDispatchLookupCompleteReadLookupBlocks
 int reserveReadDispatchBlock(RoutingBuilder *rb);
 void unreserveReadDispatchBlock(RoutingBuilder *rb);

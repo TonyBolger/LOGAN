@@ -124,6 +124,16 @@ RoutingBuilder *allocRoutingBuilder(Graph *graph, int threads)
 	for(int i=0;i<SMER_SLICES;i++)
 		rb->smerEntryLookupPtr[i]=NULL;
 
+	rb->allocatedReadDispatchBlocks=0;
+	for(int i=0;i<TR_READBLOCK_DISPATCHES_INFLIGHT;i++)
+		rb->readDispatchBlocks[i].disp=NULL;
+
+	for(int i=0;i<SMER_DISPATCH_GROUPS;i++)
+		{
+		rb->dispatchPtr[i]=NULL;
+		initRoutingDispatchGroupState(rb->dispatchGroupState+i);
+		}
+
 	return rb;
 }
 

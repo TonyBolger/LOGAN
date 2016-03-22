@@ -441,7 +441,7 @@ int scanForAndDispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb)
 		memcpy(readDispatch->quality, readLookup->quality, length+1);
 
 		readDispatch->seqLength=length;
-		readDispatch->indexCount=foundCount;
+		readDispatch->currentIndex=foundCount-1;
 
 		readDispatch->indexes=dAlloc(disp, foundCount*sizeof(u32));
 		memcpy(readDispatch->indexes, indexes, foundCount*sizeof(u32));
@@ -454,13 +454,15 @@ int scanForAndDispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb)
 
 		readDispatch->completionCountPtr=&(dispatchReadBlock->completionCount);
 
+		// assign to RoutingDispatch and potentially queue
+
 		readLookup++;
 		readDispatch++;
 		}
 
-	//dispatchReadBlock->completionCount=reads;
+	dispatchReadBlock->completionCount=reads;
 
-	dispatchReadBlock->completionCount=0; // To allow immediate cleanup
+	//dispatchReadBlock->completionCount=0; // To allow immediate cleanup
 
 
 	LOG(LOG_INFO,"Dispatch block queued");
