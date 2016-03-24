@@ -2,6 +2,9 @@
 #define __TASKROUTINGDISPATCH_H
 
 
+RoutingDispatchArray *allocDispatchArray();
+void assignToDispatchArrayEntry(RoutingDispatchArray *array, RoutingReadDispatchData *readData);
+
 void initRoutingDispatchGroupState(RoutingDispatchGroupState *dispatchGroupState);
 
 // Entry points for scanForAndDispatchLookupCompleteReadLookupBlocks
@@ -15,5 +18,6 @@ void queueReadDispatchBlock(RoutingReadDispatchBlock *readBlock);
 int scanForCompleteReadDispatchBlocks(RoutingBuilder *rb);
 int scanForDispatches(RoutingBuilder *rb, int workerNo, int force);
 
+void queueDispatchArray(RoutingBuilder *rb, RoutingDispatchArray *dispArray);
 
 #endif
