@@ -379,12 +379,15 @@ void performTask(ParallelTask *pt)
 		   		pt->idleThreads++;
 		   		pthread_cond_broadcast(&(pt->master_ingress));
 
-		   		//LOG(LOG_INFO,"Worker %i sleeping",workerNo);
+//		   		if(pt->idleThreads > 6)
+//		   			LOG(LOG_INFO,"Worker %i sleeping (idle %i)",workerNo, pt->idleThreads);
 
 		   		pthread_cond_wait(&(pt->workers_idle),&(pt->mutex));
 
-		   		//LOG(LOG_INFO,"Worker %i waking",workerNo);
 		   		pt->idleThreads--;
+
+//		   		if(pt->idleThreads > 5)
+//		   			LOG(LOG_INFO,"Worker %i waking (idle %i)",workerNo, pt->idleThreads);
     			}
 			}
 		else if(pt->state==PTSTATE_TIDY_WAIT)

@@ -11,10 +11,8 @@
 static void initDispatchIntermediateBlock(RoutingDispatchIntermediate *block, MemDispenser *disp)
 {
 	block->entryCount=0;
-	if(disp!=NULL)
-		block->entries=dAllocCacheAligned(disp, TR_DISPATCH_READS_PER_INTERMEDIATE_BLOCK*sizeof(RoutingReadDispatchData *));
-	else
-		block->entries=NULL;
+	block->entries=dAllocCacheAligned(disp, TR_DISPATCH_READS_PER_INTERMEDIATE_BLOCK*sizeof(RoutingReadDispatchData *));
+
 }
 
 /*
@@ -26,13 +24,13 @@ static RoutingDispatchIntermediate *allocDispatchIntermediateBlock(MemDispenser 
 }
 */
 
-RoutingDispatchArray *allocDispatchArray()
+RoutingDispatchArray *allocDispatchArray(RoutingDispatchArray *nextPtr)
 {
 	MemDispenser *disp=dispenserAlloc("RoutingDispatchArray");
 
 	RoutingDispatchArray *array=dAlloc(disp, sizeof(RoutingDispatchArray));
 
-	array->nextPtr=NULL;
+	array->nextPtr=nextPtr;
 	array->disp=disp;
 	array->completionCount=0;
 
@@ -83,7 +81,7 @@ void assignToDispatchArrayEntry(RoutingDispatchArray *array, RoutingReadDispatch
 	u64 hash=hashForSmer(smerEntry);
 	u32 slice=sliceForSmer(smer,hash);
 
-	u32 group=slice >> SMER_DISPATCH_GROUP_SHIFT;
+	u32 group=(slice >> SMER_DISPATCH_GROUP_SHIFT);
 
 	assignReadDataToDispatchIntermediate(&(array->dispatches[group].data), readData, array->disp);
 }
@@ -126,8 +124,7 @@ static RoutingDispatchArray *cleanupRoutingDispatchArrays(RoutingDispatchArray *
 }
 
 
-
-void cleanupRoutingDispatchGroupState(RoutingDispatchGroupState *dispatchGroupState)
+void recycleRoutingDispatchGroupState(RoutingDispatchGroupState *dispatchGroupState)
 {
 	if(dispatchGroupState->disp!=NULL)
 		dispenserFree(dispatchGroupState->disp);
@@ -139,6 +136,16 @@ void cleanupRoutingDispatchGroupState(RoutingDispatchGroupState *dispatchGroupSt
 		initDispatchIntermediateBlock(dispatchGroupState->smerInboundDispatches+j, disp);
 
 	dispatchGroupState->outboundDispatches=cleanupRoutingDispatchArrays(dispatchGroupState->outboundDispatches);
+}
+
+
+void freeRoutingDispatchGroupState(RoutingDispatchGroupState *dispatchGroupState)
+{
+	if(dispatchGroupState->disp!=NULL)
+		dispenserFree(dispatchGroupState->disp);
+
+	dispatchGroupState->outboundDispatches=cleanupRoutingDispatchArrays(dispatchGroupState->outboundDispatches);
+
 }
 
 
@@ -263,6 +270,16 @@ void queueReadDispatchBlock(RoutingReadDispatchBlock *readBlock)
 		}
 }
 
+
+void showReadDispatchBlocks(RoutingBuilder *rb)
+{
+	int i;
+
+	for(i=0;i<TR_READBLOCK_DISPATCHES_INFLIGHT;i++)
+		{
+		LOG(LOG_INFO,"RDF: %i %i %i",i,rb->readDispatchBlocks[i].status,rb->readDispatchBlocks[i].completionCount);
+		}
+}
 
 int scanForCompleteReadDispatchBlock(RoutingBuilder *rb)
 {
@@ -402,8 +419,9 @@ static int assignReversedInboundDispatchesToSlices(RoutingDispatch *dispatches, 
 }
 
 
-static void processSlicesForGroup(RoutingDispatchGroupState *groupState)
+static int processSlicesForGroup(RoutingDispatchGroupState *groupState)
 {
+	int work=0;
 	RoutingDispatchArray *dispatchArray=groupState->outboundDispatches;
 
 	for(int i=0;i<SMER_DISPATCH_GROUP_SLICES;i++)
@@ -417,19 +435,30 @@ static void processSlicesForGroup(RoutingDispatchGroupState *groupState)
 			if(readData->indexCount==0) // Last Smer -
 				__sync_fetch_and_add(readData->completionCountPtr,-1);
 
-			else
+			else if(readData->indexCount>0)
 				{
 				readData->indexCount--;
 				assignToDispatchArrayEntry(dispatchArray, readData);
 				}
 
+			else // Wrapped
+				{
+				LOG(LOG_INFO,"Wrapped smer Index");
+				exit(1);
+				}
+
 			}
+
+		if(smerInboundDispatches->entryCount)
+			work=1;
 
 		smerInboundDispatches->entryCount=0;
 		}
+
+	return work;
 }
 
-
+/*
 static void prepareGroupOutbound(RoutingDispatchGroupState *groupState)
 {
 	RoutingDispatchArray *outboundDispatches=allocDispatchArray();
@@ -438,7 +467,7 @@ static void prepareGroupOutbound(RoutingDispatchGroupState *groupState)
 
 }
 
-
+*/
 
 static int scanForDispatchesForGroups(RoutingBuilder *rb, int startGroup, int endGroup, int force)
 {
@@ -465,14 +494,18 @@ static int scanForDispatchesForGroups(RoutingBuilder *rb, int startGroup, int en
 
 			// think about processing only with busy slices
 
-			prepareGroupOutbound(groupState);
+			//prepareGroupOutbound(groupState);
 
-			processSlicesForGroup(groupState);
+			RoutingDispatchArray *outboundDispatches=allocDispatchArray(groupState->outboundDispatches);
+			groupState->outboundDispatches=outboundDispatches;
 
-			queueDispatchArray(rb, groupState->outboundDispatches);
+
+			work+=processSlicesForGroup(groupState);
+
+			queueDispatchArray(rb, outboundDispatches);
 
 
-			cleanupRoutingDispatchGroupState(groupState);
+			recycleRoutingDispatchGroupState(groupState);
 
 			unlockRoutingDispatchGroupState(rb,i);
 

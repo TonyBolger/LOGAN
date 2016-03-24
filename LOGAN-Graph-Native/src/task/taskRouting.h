@@ -70,10 +70,12 @@ typedef struct routingReadDispatchDataStr {
 	u8 *quality; // 8
 	u32 seqLength; // 4
 
-	u32 indexCount; // 4
+	s32 indexCount; // 4
 	u32 *indexes; // 8
 	SmerId *smers; // 8
 	u8 *compFlags; // 8
+	u32 *slices; // 8
+
 	s32 *completionCountPtr; // 8
 
 } __attribute__((aligned (64))) RoutingReadDispatchData;

@@ -74,7 +74,7 @@ static int trDoIntermediate(ParallelTask *pt, int workerNo, int force)
 {
 	RoutingBuilder *rb=pt->dataPtr;
 
-//	LOG(LOG_INFO,"doIntermediate %i %i %i %i",workerNo,force,countReadBlocks(rb),countCompleteReadBlocks(rb));
+	LOG(LOG_INFO,"doIntermediate %i %i %i %i",workerNo,force, rb->allocatedReadLookupBlocks, rb->allocatedReadDispatchBlocks);
 
 	if(scanForCompleteReadDispatchBlocks(rb))
 		return 1;
@@ -96,6 +96,8 @@ static int trDoIntermediate(ParallelTask *pt, int workerNo, int force)
 
 	if(force)
 		return scanForDispatches(rb, workerNo, force);
+
+	showReadDispatchBlocks(rb);
 
 	return 0;
 }
@@ -130,15 +132,26 @@ RoutingBuilder *allocRoutingBuilder(Graph *graph, int threads)
 
 	for(int i=0;i<SMER_DISPATCH_GROUPS;i++)
 		{
-		rb->dispatchPtr[i]=NULL;
 		initRoutingDispatchGroupState(rb->dispatchGroupState+i);
+		rb->dispatchPtr[i]=NULL;
 		}
 
 	return rb;
 }
 
+static void dumpDispatchReadBlocks(int i, RoutingReadDispatchBlock *readDispatchBlock)
+{
+	LOG(LOG_INFO,"Cleanup RDF: %i %i %i",i,readDispatchBlock->status,readDispatchBlock->completionCount);
+}
+
 void freeRoutingBuilder(RoutingBuilder *rb)
 {
+	for(int i=0;i<TR_READBLOCK_DISPATCHES_INFLIGHT;i++)
+		dumpDispatchReadBlocks(i, rb->readDispatchBlocks+i);
+
+	for(int i=0;i<SMER_DISPATCH_GROUPS;i++)
+		freeRoutingDispatchGroupState(rb->dispatchGroupState+i);
+
 	ParallelTask *pt=rb->pt;
 	ParallelTaskConfig *ptc=pt->config;
 

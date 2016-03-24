@@ -433,6 +433,12 @@ int scanForAndDispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb)
 
 		int foundCount=extractIndexedSmerDataFromLookupPercolates(readLookup->smers, readLookup->compFlags, smerCount, smers, compFlags, slices, indexes, lookupReadBlock->smerEntryLookupsPercolates);
 
+		if(foundCount==0)
+			{
+			LOG(LOG_INFO,"Failed to find any valid smers for read");
+			exit(1);
+			}
+
 		int length=readLookup->seqLength;
 		int packLength=PAD_2BITLENGTH_BYTE(length);
 
@@ -443,16 +449,17 @@ int scanForAndDispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb)
 		memcpy(readDispatch->quality, readLookup->quality, length+1);
 
 		readDispatch->seqLength=length;
-		readDispatch->indexCount=foundCount-1;
+		int offset=foundCount-1;
+		readDispatch->indexCount=offset;
 
 		readDispatch->indexes=dAlloc(disp, foundCount*sizeof(u32));
-		memcpy(readDispatch->indexes, indexes, foundCount*sizeof(u32));
+		memcpy(readDispatch->indexes, indexes-offset, foundCount*sizeof(u32));
 
 		readDispatch->smers=dAlloc(disp, foundCount*sizeof(SmerId));
-		memcpy(readDispatch->smers, smers, foundCount*sizeof(SmerId));
+		memcpy(readDispatch->smers, smers-offset, foundCount*sizeof(SmerId));
 
 		readDispatch->compFlags=dAlloc(disp, foundCount*sizeof(u8));
-		memcpy(readDispatch->compFlags, compFlags, foundCount*sizeof(u8));
+		memcpy(readDispatch->compFlags, compFlags-offset, foundCount*sizeof(u8));
 
 		readDispatch->completionCountPtr=&(dispatchReadBlock->completionCount);
 

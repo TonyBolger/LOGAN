@@ -407,19 +407,26 @@ int main(int argc, char **argv)
 
 	char *fileTemplate=NULL;
 	int fileCount=0;
-	int threadCount=0;
+	int threadCountIndexing=0,threadCountRouting=0;
 
 	if(argc==3)
 		{
 		fileTemplate=argv[1];
 		fileCount=atoi(argv[2]);
-		threadCount=fileCount;
+		threadCountIndexing=threadCountRouting=fileCount;
 		}
 	else if(argc==4)
 		{
 		fileTemplate=argv[1];
 		fileCount=atoi(argv[2]);
-		threadCount=atoi(argv[3]);
+		threadCountIndexing=threadCountRouting=atoi(argv[3]);
+		}
+	else if(argc==5)
+		{
+		fileTemplate=argv[1];
+		fileCount=atoi(argv[2]);
+		threadCountIndexing=atoi(argv[3]);
+		threadCountRouting=atoi(argv[4]);
 		}
 	else
 		{
@@ -431,14 +438,14 @@ int main(int argc, char **argv)
 
 	//runTpfMaster(fileTemplate, fileCount, graph);
 
-	runIptMaster(fileTemplate, fileCount, threadCount, graph);
+	runIptMaster(fileTemplate, fileCount, threadCountIndexing, graph);
 
 	LOG(LOG_INFO,"Smer count: %i",smGetSmerCount(&(graph->smerMap)));
 	//smDumpSmerMap(&(graph->smerMap));
 
 	switchMode(graph);
 
-	runRptMaster(fileTemplate, fileCount, threadCount, graph);
+	runRptMaster(fileTemplate, fileCount, threadCountRouting, graph);
 
 	freeGraph(graph);
 

@@ -6,6 +6,7 @@ RoutingDispatchArray *allocDispatchArray();
 void assignToDispatchArrayEntry(RoutingDispatchArray *array, RoutingReadDispatchData *readData);
 
 void initRoutingDispatchGroupState(RoutingDispatchGroupState *dispatchGroupState);
+void freeRoutingDispatchGroupState(RoutingDispatchGroupState *dispatchGroupState);
 
 // Entry points for scanForAndDispatchLookupCompleteReadLookupBlocks
 int reserveReadDispatchBlock(RoutingBuilder *rb);
@@ -13,6 +14,8 @@ void unreserveReadDispatchBlock(RoutingBuilder *rb);
 
 RoutingReadDispatchBlock *allocateReadDispatchBlock(RoutingBuilder *rb);
 void queueReadDispatchBlock(RoutingReadDispatchBlock *readBlock);
+
+void showReadDispatchBlocks(RoutingBuilder *rb);
 
 // Entry points for trDoIntermediate
 int scanForCompleteReadDispatchBlocks(RoutingBuilder *rb);
