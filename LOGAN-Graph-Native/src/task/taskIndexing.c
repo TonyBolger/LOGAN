@@ -41,7 +41,7 @@ static int tiDoIngress(ParallelTask *pt, int workerNo,void *ingressPtr, int ingr
 
 	free(packedSeq);
 
-	return 0;
+	return 1;
 }
 
 /*

@@ -37,7 +37,60 @@ static int trDoIngress(ParallelTask *pt, int workerNo,void *ingressPtr, int ingr
 
 	queueReadsForSmerLookup(rec,ingressPosition,ingressSize,nodeSize,rb);
 
-	return 0;
+	return 1;
+}
+
+static void dumpUncleanDispatchReadBlocks(int blockNum, RoutingReadDispatchBlock *readDispatchBlock)
+{
+	if(readDispatchBlock->completionCount>0)
+		{
+		LOG(LOG_INFO,"INCOMPLETE: RDB BlockNum: %i Status: %i RemainingCount: %i",blockNum,readDispatchBlock->status,readDispatchBlock->completionCount);
+
+		for(int i=0;i<readDispatchBlock->readCount;i++)
+			{
+			if(readDispatchBlock->readData[i].indexCount!=-1)
+				{
+				int indexCount=readDispatchBlock->readData[i].indexCount;
+
+				if(indexCount>=0)
+					{
+					LOG(LOG_INFO,"INCOMPLETE: Blocked read: %i at indexCount %i in slice %i",i,indexCount, readDispatchBlock->readData[i].slices[indexCount]);
+					}
+				else
+					{
+					LOG(LOG_INFO,"INCOMPLETE: %i at indexCount %i",i,readDispatchBlock->readData[i].indexCount);
+					}
+				}
+			}
+		}
+
+}
+
+static void dumpUncleanDispatchGroup(int groupNum, RoutingDispatch *dispatchPtr, RoutingDispatchGroupState *dispatchGroupState)
+{
+	if(dispatchPtr!=NULL)
+		{
+		LOG(LOG_INFO,"INCOMPLETE: Dispatch ptr not null: %i", groupNum);
+		}
+
+	//dispatchGroupState->outboundDispatches;
+
+	for(int i=0;i<SMER_DISPATCH_GROUP_SLICES;i++)
+		{
+		if(dispatchGroupState->smerInboundDispatches[i].entryCount>0)
+			LOG(LOG_INFO,"INCOMPLETE: Inbound items: %i %i %i", groupNum, i, dispatchGroupState->smerInboundDispatches[i].entryCount);
+		}
+
+}
+
+static void dumpUnclean(RoutingBuilder *rb)
+{
+	for(int i=0;i<TR_READBLOCK_DISPATCHES_INFLIGHT;i++)
+		dumpUncleanDispatchReadBlocks(i, rb->readDispatchBlocks+i);
+
+	for(int i=0;i<SMER_DISPATCH_GROUPS;i++)
+		dumpUncleanDispatchGroup(i, rb->dispatchPtr[i], rb->dispatchGroupState+i);
+
 }
 
 
@@ -74,8 +127,6 @@ static int trDoIntermediate(ParallelTask *pt, int workerNo, int force)
 {
 	RoutingBuilder *rb=pt->dataPtr;
 
-	LOG(LOG_INFO,"doIntermediate %i %i %i %i",workerNo,force, rb->allocatedReadLookupBlocks, rb->allocatedReadDispatchBlocks);
-
 	if(scanForCompleteReadDispatchBlocks(rb))
 		return 1;
 
@@ -95,9 +146,26 @@ static int trDoIntermediate(ParallelTask *pt, int workerNo, int force)
 		}
 
 	if(force)
-		return scanForDispatches(rb, workerNo, force);
+		{
+		if(scanForDispatches(rb, workerNo, force))
+			return 1;
+		}
 
-	showReadDispatchBlocks(rb);
+//	showReadDispatchBlocks(rb);
+
+	if(rb->allocatedReadDispatchBlocks>0 || rb->allocatedReadLookupBlocks>0) // If in force mode, and not finished, rally the minions
+		{
+		if(force)
+			{
+			LOG(LOG_INFO,"doIntermediate Worker: %i Force: %i Allocated Lookups: %i Allocated Dispatches: %i",workerNo,force, rb->allocatedReadLookupBlocks, rb->allocatedReadDispatchBlocks);
+
+			if(rb->allocatedReadDispatchBlocks==TR_READBLOCK_DISPATCHES_INFLIGHT && rb->allocatedReadLookupBlocks==TR_READBLOCK_LOOKUPS_INFLIGHT)
+				dumpUnclean(rb);
+
+			}
+
+		//return force;
+		}
 
 	return 0;
 }
@@ -139,15 +207,11 @@ RoutingBuilder *allocRoutingBuilder(Graph *graph, int threads)
 	return rb;
 }
 
-static void dumpDispatchReadBlocks(int i, RoutingReadDispatchBlock *readDispatchBlock)
-{
-	LOG(LOG_INFO,"Cleanup RDF: %i %i %i",i,readDispatchBlock->status,readDispatchBlock->completionCount);
-}
+
 
 void freeRoutingBuilder(RoutingBuilder *rb)
 {
-	for(int i=0;i<TR_READBLOCK_DISPATCHES_INFLIGHT;i++)
-		dumpDispatchReadBlocks(i, rb->readDispatchBlocks+i);
+	dumpUnclean(rb);
 
 	for(int i=0;i<SMER_DISPATCH_GROUPS;i++)
 		freeRoutingDispatchGroupState(rb->dispatchGroupState+i);

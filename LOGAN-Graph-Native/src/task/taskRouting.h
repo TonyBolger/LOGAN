@@ -107,6 +107,7 @@ typedef struct routingDispatchArray {
 
 typedef struct routingReadDispatchBlockStr {
 	RoutingReadDispatchData readData[TR_INGRESS_BLOCKSIZE];
+	u32 readCount;
 
 	MemDispenser *disp;
 	s32 completionCount;

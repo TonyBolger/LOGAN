@@ -403,7 +403,7 @@ int scanForAndDispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb)
 	if(lookupReadBlock==NULL)
 		{
 		unreserveReadDispatchBlock(rb);
-		return 0;
+		return 1;
 		}
 
 	RoutingReadDispatchBlock *dispatchReadBlock=allocateReadDispatchBlock(rb);
@@ -421,11 +421,15 @@ int scanForAndDispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb)
 	extractLookupPercolatesFromEntryLookups(lookupReadBlock->smerEntryLookups, lookupReadBlock->smerEntryLookupsPercolates);
 
 	RoutingDispatchArray *dispArray=allocDispatchArray();
+	dispatchReadBlock->dispatchArray=dispArray;
 
 	RoutingReadLookupData *readLookup=lookupReadBlock->readData;
 	RoutingReadDispatchData *readDispatch=dispatchReadBlock->readData;
 
 	int reads=lookupReadBlock->readCount;
+
+	dispatchReadBlock->readCount=reads;
+	dispatchReadBlock->completionCount=reads;
 
 	for(int i=0;i<reads;i++)
 		{
@@ -461,6 +465,9 @@ int scanForAndDispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb)
 		readDispatch->compFlags=dAlloc(disp, foundCount*sizeof(u8));
 		memcpy(readDispatch->compFlags, compFlags-offset, foundCount*sizeof(u8));
 
+		readDispatch->slices=dAlloc(disp, foundCount*sizeof(u32));
+		memcpy(readDispatch->slices, slices-offset, foundCount*sizeof(u32));
+
 		readDispatch->completionCountPtr=&(dispatchReadBlock->completionCount);
 
 		assignToDispatchArrayEntry(dispArray, readDispatch);
@@ -469,9 +476,7 @@ int scanForAndDispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb)
 		readDispatch++;
 		}
 
-	dispatchReadBlock->completionCount=reads;
-	dispatchReadBlock->dispatchArray=dispArray;
-	//dispatchReadBlock->completionCount=0; // To allow immediate cleanup
+	//__sync_synchronize();
 
 	queueDispatchArray(rb, dispArray);
 

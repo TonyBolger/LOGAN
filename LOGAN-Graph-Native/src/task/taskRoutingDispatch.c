@@ -331,7 +331,7 @@ int scanForCompleteReadDispatchBlocks(RoutingBuilder *rb)
 	RoutingReadDispatchBlock *dispatchReadBlock=dequeueCompleteReadDispatchBlock(rb, dispatchReadBlockIndex);
 
 	if(dispatchReadBlock==NULL)
-		return 0;
+		return 1;
 
 	if(dispatchReadBlock->dispatchArray!=NULL)
 		{
@@ -433,7 +433,10 @@ static int processSlicesForGroup(RoutingDispatchGroupState *groupState)
 			RoutingReadDispatchData *readData=smerInboundDispatches->entries[j];
 
 			if(readData->indexCount==0) // Last Smer -
+				{
+				readData->indexCount--;
 				__sync_fetch_and_add(readData->completionCountPtr,-1);
+				}
 
 			else if(readData->indexCount>0)
 				{
@@ -458,16 +461,15 @@ static int processSlicesForGroup(RoutingDispatchGroupState *groupState)
 	return work;
 }
 
-/*
+
 static void prepareGroupOutbound(RoutingDispatchGroupState *groupState)
 {
-	RoutingDispatchArray *outboundDispatches=allocDispatchArray();
-	outboundDispatches->nextPtr=groupState->outboundDispatches;
+	RoutingDispatchArray *outboundDispatches=allocDispatchArray(groupState->outboundDispatches);
 	groupState->outboundDispatches=outboundDispatches;
 
 }
 
-*/
+
 
 static int scanForDispatchesForGroups(RoutingBuilder *rb, int startGroup, int endGroup, int force)
 {
@@ -494,17 +496,9 @@ static int scanForDispatchesForGroups(RoutingBuilder *rb, int startGroup, int en
 
 			// think about processing only with busy slices
 
-			//prepareGroupOutbound(groupState);
-
-			RoutingDispatchArray *outboundDispatches=allocDispatchArray(groupState->outboundDispatches);
-			groupState->outboundDispatches=outboundDispatches;
-
-
+			prepareGroupOutbound(groupState);
 			work+=processSlicesForGroup(groupState);
-
-			queueDispatchArray(rb, outboundDispatches);
-
-
+			queueDispatchArray(rb, groupState->outboundDispatches);
 			recycleRoutingDispatchGroupState(groupState);
 
 			unlockRoutingDispatchGroupState(rb,i);
