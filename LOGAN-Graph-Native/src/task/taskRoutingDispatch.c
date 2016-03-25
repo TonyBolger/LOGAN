@@ -376,13 +376,17 @@ void queueDispatchArray(RoutingBuilder *rb, RoutingDispatchArray *dispArray)
 static RoutingDispatch *buildPrevLinks(RoutingDispatch *dispatchEntry)
 {
 	RoutingDispatch *prev=NULL;
+	int count=0;
 
 	while(dispatchEntry!=NULL)
 		{
 		dispatchEntry->prevPtr=prev;
 		prev=dispatchEntry;
 		dispatchEntry=dispatchEntry->nextPtr;
+		count++;
 		}
+
+//	LOG(LOG_INFO,"Count is %i",count);
 
 	return prev;
 }

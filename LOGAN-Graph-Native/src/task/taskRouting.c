@@ -73,6 +73,9 @@ static void dumpUncleanDispatchGroup(int groupNum, RoutingDispatch *dispatchPtr,
 		LOG(LOG_INFO,"INCOMPLETE: Dispatch ptr not null: %i", groupNum);
 		}
 
+	if(dispatchGroupState->status!=0)
+		LOG(LOG_INFO,"INCOMPLETE: Status for %i is %i", groupNum,dispatchGroupState->status);
+
 	//dispatchGroupState->outboundDispatches;
 
 	for(int i=0;i<SMER_DISPATCH_GROUP_SLICES;i++)
