@@ -8,7 +8,7 @@
 #include "../common.h"
 
 
-
+#define MASTER_TIMEOUT 120
 
 
 
@@ -24,8 +24,20 @@ void waitForStartup(ParallelTask *pt)
 			return;
 			}
 
-	while(pt->state==PTSTATE_STARTUP)
-		pthread_cond_wait(&(pt->master_startup),&(pt->mutex));
+	struct timespec ts;
+
+	clock_gettime(CLOCK_REALTIME, &ts);
+	ts.tv_sec += MASTER_TIMEOUT;
+	int rc = 0;
+	while(pt->state==PTSTATE_STARTUP && rc==0)
+		{
+        rc = pthread_cond_timedwait(&(pt->master_startup),&(pt->mutex), &ts);
+        if (rc != 0)
+        	{
+        	LOG(LOG_INFO,"Master: WaitForStartup Timeout");
+        	exit(1);
+        	}
+		}
 
 	pthread_mutex_unlock(&(pt->mutex));
 
@@ -36,6 +48,7 @@ void waitForShutdown(ParallelTask *pt)
 {
 	LOG(LOG_INFO,"Master: Waiting for shutdown");
 
+
 	int lock=pthread_mutex_lock(&(pt->mutex));
 	if(lock!=0)
 		{
@@ -43,8 +56,20 @@ void waitForShutdown(ParallelTask *pt)
 		return;
 		}
 
-	while(pt->state!=PTSTATE_DEAD)
-		pthread_cond_wait(&(pt->master_shutdown), &(pt->mutex));
+	struct timespec ts;
+
+	clock_gettime(CLOCK_REALTIME, &ts);
+	ts.tv_sec += MASTER_TIMEOUT;
+	int rc = 0;
+	while(pt->state!=PTSTATE_DEAD && rc==0)
+		{
+        rc = pthread_cond_timedwait(&(pt->master_shutdown),&(pt->mutex), &ts);
+        if (rc != 0)
+        	{
+        	LOG(LOG_INFO,"Master: WaitForShutdown Timeout");
+        	exit(1);
+        	}
+		}
 
 	pthread_mutex_unlock(&(pt->mutex));
 
@@ -67,8 +92,21 @@ int queueIngress(ParallelTask *pt, void *ingressPtr, int ingressCount, int *ingr
 
 	//LOG(LOG_INFO,"Master: QueueIngress Wait");
 
-	while(pt->reqIngressPtr!=NULL)
-		pthread_cond_wait(&(pt->master_ingress),&(pt->mutex));
+	struct timespec ts;
+
+	clock_gettime(CLOCK_REALTIME, &ts);
+	ts.tv_sec += MASTER_TIMEOUT;
+	int rc = 0;
+	while(pt->reqIngressPtr!=NULL && rc==0)
+		{
+        rc = pthread_cond_timedwait(&(pt->master_ingress),&(pt->mutex), &ts);
+        if (rc != 0)
+        	{
+        	LOG(LOG_INFO,"Master: QueueIngress Timeout");
+        	exit(1);
+        	}
+
+		}
 
 	//LOG(LOG_INFO,"Master: QueueIngress Wait Done");
 
@@ -193,7 +231,7 @@ static int performTaskActive(ParallelTask *pt, int workerNo)
 				}
 			}
 		else
-			__sync_fetch_and_add(ingressUsageCount, 1); // Increase usage count if not last, to allow for 'queued usage'
+			__atomic_fetch_add(ingressUsageCount, 1, __ATOMIC_SEQ_CST); // Increase usage count if not last, to allow for 'queued usage'
 
 		// Do Ingress
 
@@ -207,7 +245,7 @@ static int performTaskActive(ParallelTask *pt, int workerNo)
 				LOG(LOG_CRITICAL,"Failed to lock for performTask: %s",strerror(lockRet));
 				}
 
-		__sync_fetch_and_add(ingressUsageCount, -1);
+		__atomic_fetch_sub(ingressUsageCount, 1, __ATOMIC_SEQ_CST);
 
 		return 1;
 		}
@@ -333,7 +371,7 @@ void performTask(ParallelTask *pt)
 	 *  If first in, set state to idle and wake master
 	 */
 
-	workerNo=__sync_fetch_and_add(&(pt->liveThreads),1);
+	workerNo=__atomic_fetch_add(&(pt->liveThreads),1, __ATOMIC_SEQ_CST);
 
 	//LOG(LOG_INFO,"Worker %i Register",workerNo);
 
@@ -476,7 +514,7 @@ void performTask(ParallelTask *pt)
 //	LOG(LOG_INFO,"Worker %i Deregister",workerNo);
 
 	pt->config->doDeregister(pt,workerNo);
-	int alive=__sync_sub_and_fetch(&(pt->liveThreads),1);
+	int alive=__atomic_sub_fetch(&(pt->liveThreads),1, __ATOMIC_SEQ_CST);
 
 //	LOG(LOG_INFO,"Worker %i - still alive %i",workerNo,alive);
 

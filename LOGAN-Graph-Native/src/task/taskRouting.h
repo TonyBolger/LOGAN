@@ -16,8 +16,7 @@
 #define TR_LOOKUPS_PER_PERCOLATE_BLOCK 16384
 
 //#define TR_DISPATCH_READS_PER_BLOCK 64
-#define TR_DISPATCH_READS_PER_INTERMEDIATE_BLOCK 4096
-
+#define TR_DISPATCH_READS_PER_INTERMEDIATE_BLOCK 256
 
 typedef struct routingReadLookupDataStr {
 	u8 *packedSeq; // 8
@@ -126,7 +125,7 @@ typedef struct routingDispatchGroupStateStr {
 	MemDispenser *disp;
 
 	RoutingDispatchIntermediate smerInboundDispatches[SMER_DISPATCH_GROUP_SLICES]; // Accumulator for inbound reads to this group
-	RoutingDispatchArray *outboundDispatches; // Lists with partially dispatched reads going to next dispatch group
+	RoutingDispatchArray *outboundDispatches; // List with partially dispatched reads going to next dispatch group
 
 } RoutingDispatchGroupState;
 

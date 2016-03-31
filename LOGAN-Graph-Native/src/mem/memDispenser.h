@@ -6,7 +6,7 @@
 
 #define MEM_BUMPER_EXITCODE 42
 #define MAX_NAME 100
-#define DISPENSER_BLOCKSIZE (1024*1024*16L)
+#define DISPENSER_BLOCKSIZE (1024*256*1L)
 #define DISPENSER_MAX (1024*1024*1024*2L)
 
 
@@ -35,6 +35,8 @@ typedef struct memDispenserStr
 
 MemDispenser *dispenserAlloc(const char *name);
 void dispenserFree(MemDispenser *dispenser);
+//void dispenserNukeFree(MemDispenser *disp, u8 val);
+
 int dispenserSize(MemDispenser *disp);
 void *dAlloc(MemDispenser *dispenser, size_t size);
 

@@ -40,7 +40,7 @@ void smCleanupSmerMap(SmerMap *smerMap) {
 	memset(smerMap, 0, sizeof(SmerMap));
 }
 
-
+/*
 
 static int scanForSmer_HS(SmerMapSlice *smerMapSlice, SmerEntry entry, u32 hash, u32 sliceNum)
 {
@@ -75,7 +75,44 @@ static int scanForSmer_HS(SmerMapSlice *smerMapSlice, SmerEntry entry, u32 hash,
 
 	return position;
 }
+*/
 
+static int scanForSmer_HS(SmerMapSlice *smerMapSlice, SmerEntry entry, u32 hash, u32 sliceNum)
+{
+	u32 mask=smerMapSlice->mask;
+	u32 position = hash & mask;
+	int scanCount = 0;
+
+	SmerEntry tmp=__atomic_load_n((smerMapSlice->smers + position), __ATOMIC_SEQ_CST);
+
+	while (tmp != SMER_DUMMY)
+		{
+		if (tmp == entry)
+			return position;
+
+		position++;
+		scanCount++;
+
+		if (position > mask)
+			{
+			position = 0;
+
+			if (scanCount > 200)
+				{
+				LOG(LOG_CRITICAL,"Filled hashmap: count %i from %i in %i for %x (got %x)",scanCount,(hash & mask), sliceNum, entry, tmp);
+				exit(1);
+				}
+			}
+
+		tmp=__atomic_load_n((smerMapSlice->smers + position), __ATOMIC_SEQ_CST);
+		}
+
+	if (scanCount > 60) {
+		LOG(LOG_INFO,"Scan count %i from %i in %i for %i",scanCount,(hash & mask), sliceNum, entry);
+	}
+
+	return position;
+}
 
 
 
@@ -102,10 +139,12 @@ static void findOrCreateSmer_HS(SmerMapSlice *smerMapSlice, SmerEntry entry, u32
 		{
 		int index=scanForSmer_HS(smerMapSlice, entry, hash, sliceNo);
 
-		if (smerMapSlice->smers[index]==entry)
+		if (__atomic_load_n(smerMapSlice->smers+index, __ATOMIC_SEQ_CST)==entry)
 			return;
 
-		if(__sync_val_compare_and_swap(smerMapSlice->smers+index, SMER_DUMMY, entry)==SMER_DUMMY)
+		SmerEntry current=SMER_DUMMY;
+
+		if(__atomic_compare_exchange_n(smerMapSlice->smers+index, &current, entry, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST))
 			return;
 		}
 }

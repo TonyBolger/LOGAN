@@ -74,7 +74,7 @@ static void dumpUncleanDispatchGroup(int groupNum, RoutingDispatch *dispatchPtr,
 		}
 
 	if(dispatchGroupState->status!=0)
-		LOG(LOG_INFO,"INCOMPLETE: Status for %i is %i", groupNum,dispatchGroupState->status);
+		LOG(LOG_INFO,"INCOMPLETE: DispatchGroup Status for %i is %i", groupNum,dispatchGroupState->status);
 
 	//dispatchGroupState->outboundDispatches;
 
@@ -131,44 +131,51 @@ static int trDoIntermediate(ParallelTask *pt, int workerNo, int force)
 	RoutingBuilder *rb=pt->dataPtr;
 
 	if(scanForCompleteReadDispatchBlocks(rb))
+		{
+		//LOG(LOG_INFO,"scanForCompleteReadDispatchBlocks OK");
 		return 1;
+		}
 
 	if(scanForAndDispatchLookupCompleteReadLookupBlocks(rb))
+		{
+		//LOG(LOG_INFO,"scanForAndDispatchLookupCompleteReadLookupBlocks OK");
 		return 1;
+		}
 
 	if(rb->allocatedReadDispatchBlocks==TR_READBLOCK_DISPATCHES_INFLIGHT)
 		{
 		if(scanForDispatches(rb, workerNo, force))
+			{
+			//LOG(LOG_INFO,"scanForDispatches 1");
 			return 1;
+			}
 		}
 
 	if((force)||(rb->allocatedReadLookupBlocks==TR_READBLOCK_LOOKUPS_INFLIGHT))
 		{
 		if(scanForSmerLookups(rb, workerNo))
+			{
+			//LOG(LOG_INFO,"scanForSmerLookups");
 			return 1;
+			}
 		}
 
 	if(force)
 		{
 		if(scanForDispatches(rb, workerNo, force))
-			return 1;
-		}
-
-//	showReadDispatchBlocks(rb);
-
-	if(rb->allocatedReadDispatchBlocks>0 || rb->allocatedReadLookupBlocks>0) // If in force mode, and not finished, rally the minions
-		{
-		if(force)
 			{
-			LOG(LOG_INFO,"doIntermediate Worker: %i Force: %i Allocated Lookups: %i Allocated Dispatches: %i",workerNo,force, rb->allocatedReadLookupBlocks, rb->allocatedReadDispatchBlocks);
-
-			if(rb->allocatedReadDispatchBlocks==TR_READBLOCK_DISPATCHES_INFLIGHT && rb->allocatedReadLookupBlocks==TR_READBLOCK_LOOKUPS_INFLIGHT)
-				dumpUnclean(rb);
-
+			//LOG(LOG_INFO,"scanForDispatches 2");
+			return 1;
 			}
-
-		//return force;
 		}
+
+	int arlb=__atomic_load_n(&rb->allocatedReadLookupBlocks, __ATOMIC_SEQ_CST);
+	int ardb=__atomic_load_n(&rb->allocatedReadDispatchBlocks, __ATOMIC_SEQ_CST);
+
+//	LOG(LOG_INFO,"trDoIntermediate: %i %i %i %i",workerNo, force, arlb, ardb);
+
+	if(arlb>0 || ardb>0) // If in force mode, and not finished, rally the minions
+		return force;
 
 	return 0;
 }

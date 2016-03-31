@@ -8,6 +8,8 @@ void assignToDispatchArrayEntry(RoutingDispatchArray *array, RoutingReadDispatch
 void initRoutingDispatchGroupState(RoutingDispatchGroupState *dispatchGroupState);
 void freeRoutingDispatchGroupState(RoutingDispatchGroupState *dispatchGroupState);
 
+int countNonEmptyDispatchGroups(RoutingBuilder *rb);
+
 // Entry points for scanForAndDispatchLookupCompleteReadLookupBlocks
 int reserveReadDispatchBlock(RoutingBuilder *rb);
 void unreserveReadDispatchBlock(RoutingBuilder *rb);

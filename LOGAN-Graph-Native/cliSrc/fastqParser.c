@@ -11,7 +11,7 @@
 
 static void waitForIdle(int *usageCount)
 {
-	while(!__sync_bool_compare_and_swap(usageCount,0,0))
+	while(__atomic_load_n(usageCount,__ATOMIC_SEQ_CST))
 		{
 		struct timespec req, rem;
 

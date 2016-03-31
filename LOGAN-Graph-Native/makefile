@@ -3,7 +3,7 @@
 CFLAGS=-std=gnu99 -pedantic -pedantic-errors -Wall -Werror -O3 -g
 #CFLAGS=-std=gnu99 -pedantic -pedantic-errors -Wall -Werror -O0 -g
 
-
+CC=gcc
 
 INC=-I"./src"
 CLI_INC=-I"./cliSrc"
@@ -79,28 +79,28 @@ bin:
 bin/LOGAN: $(CLI_OBJS) | bin  
 	@echo 'Building target: $@'
 	@echo 'Invoking: GCC C Linker'
-	gcc $(CFLAGS) -o "bin/LOGAN" $(CLI_OBJS) $(CLI_LIBS)
+	${CC} $(CFLAGS) -o "bin/LOGAN" $(CLI_OBJS) $(CLI_LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 
 bin/libLOGAN.so: $(JNI_OBJS) | bin 
 	@echo 'Building target: $@'
 	@echo 'Invoking: GCC C Linker'
-	gcc $(CFLAGS) -shared -p -o "bin/libLOGAN.so" $(JNI_OBJS)  
+	${CC} $(CFLAGS) -shared -p -o "bin/libLOGAN.so" $(JNI_OBJS)  
 	@echo 'Finished building target: $@'
 	@echo ' '
 
 bin/cli/common/%.o: ./src/%.c | bin
 	@echo 'Building file: $<'
 	@echo 'Invoking: GCC C Compiler'
-	gcc $(CFLAGS) $(INC) $(CLI_INC) -c -fmessage-length=0 -MMD -MP -MF"$(@:%.o=%.d)" -MT"$@" -o "$@" "$<"
+	${CC} $(CFLAGS) $(INC) $(CLI_INC) -c -fmessage-length=0 -MMD -MP -MF"$(@:%.o=%.d)" -MT"$@" -o "$@" "$<"
 	@echo 'Finished building: $<'
 	@echo ' '
 
 bin/cli/obj/%.o: ./cliSrc/%.c | bin
 	@echo 'Building file: $<'
 	@echo 'Invoking: GCC C Compiler'
-	gcc $(CFLAGS) $(INC) $(CLI_INC) -c -fmessage-length=0 -MMD -MP -MF"$(@:%.o=%.d)" -MT"$@" -o "$@" "$<"
+	${CC} $(CFLAGS) $(INC) $(CLI_INC) -c -fmessage-length=0 -MMD -MP -MF"$(@:%.o=%.d)" -MT"$@" -o "$@" "$<"
 	@echo 'Finished building: $<'
 	@echo ' '
 
@@ -108,14 +108,14 @@ bin/cli/obj/%.o: ./cliSrc/%.c | bin
 bin/jni/common/%.o: ./src/%.c | bin
 	@echo 'Building file: $<'
 	@echo 'Invoking: GCC C Compiler'
-	gcc $(CFLAGS) $(INC) $(JNI_INC) -p -c -fmessage-length=0 -fPIC -MMD -MP -MF"$(@:%.o=%.d)" -MT"$@" -o "$@" "$<"
+	${CC} $(CFLAGS) $(INC) $(JNI_INC) -p -c -fmessage-length=0 -fPIC -MMD -MP -MF"$(@:%.o=%.d)" -MT"$@" -o "$@" "$<"
 	@echo 'Finished building: $<'
 	@echo ' '
 
 bin/jni/obj/%.o: ./jniSrc/%.c | bin
 	@echo 'Building file: $<'
 	@echo 'Invoking: GCC C Compiler'
-	gcc $(CFLAGS) $(INC) $(JNI_INC) -p -c -fmessage-length=0 -fPIC -MMD -MP -MF"$(@:%.o=%.d)" -MT"$@" -o "$@" "$<"
+	${CC} $(CFLAGS) $(INC) $(JNI_INC) -p -c -fmessage-length=0 -fPIC -MMD -MP -MF"$(@:%.o=%.d)" -MT"$@" -o "$@" "$<"
 	@echo 'Finished building: $<'
 	@echo ' '
 	

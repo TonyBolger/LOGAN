@@ -57,7 +57,6 @@ static void expandIntermediateDispatchBlock(RoutingDispatchIntermediate *block, 
 	memcpy(entries,block->entries,oldEntrySize);
 	block->entries=entries;
 
-	//block->presenceAbsence=NULL;//dAlloc(disp, PAD_BYTELENGTH_8BYTE(PAD_1BITLENGTH_BYTE(size)));
 }
 
 
@@ -102,6 +101,22 @@ void initRoutingDispatchGroupState(RoutingDispatchGroupState *dispatchGroupState
 	dispatchGroupState->outboundDispatches=NULL;
 }
 
+/*
+void initRoutingDispatchGroupState(RoutingDispatchGroupState *dispatchGroupState)
+{
+	dispatchGroupState->status=0;
+	dispatchGroupState->forceCount=0;
+	dispatchGroupState->disp=NULL;
+
+	for(int j=0;j<SMER_DISPATCH_GROUP_SLICES;j++)
+		{
+		dispatchGroupState->smerInboundDispatches[j].entryCount=0;
+		dispatchGroupState->smerInboundDispatches[j].entries=NULL;
+		}
+
+	dispatchGroupState->outboundDispatches=NULL;
+}
+*/
 
 static RoutingDispatchArray *cleanupRoutingDispatchArrays(RoutingDispatchArray *in)
 {
@@ -111,23 +126,27 @@ static RoutingDispatchArray *cleanupRoutingDispatchArrays(RoutingDispatchArray *
 		{
 		RoutingDispatchArray *current=(*scan);
 
-		if(current->completionCount==0)
+		int compCount=__atomic_load_n(&current->completionCount, __ATOMIC_SEQ_CST);
+		if(compCount==0)
 			{
 			*scan=current->nextPtr;
 			dispenserFree(current->disp);
 			}
 		else
-			scan=&((*scan)->nextPtr);
+			scan=&(current->nextPtr);
 		}
+
 
 	return in;
 }
 
-
 void recycleRoutingDispatchGroupState(RoutingDispatchGroupState *dispatchGroupState)
 {
 	if(dispatchGroupState->disp!=NULL)
+		{
 		dispenserFree(dispatchGroupState->disp);
+		//dispatchGroupState->disp=NULL;
+		}
 
 	MemDispenser *disp=dispenserAlloc("DispatchGroupState");
 	dispatchGroupState->disp=disp;
@@ -149,7 +168,6 @@ void freeRoutingDispatchGroupState(RoutingDispatchGroupState *dispatchGroupState
 }
 
 
-
 static void queueDispatchForGroup(RoutingBuilder *rb, RoutingDispatch *dispatchForGroup, int groupNum)
 {
 	RoutingDispatch *current=NULL;
@@ -163,10 +181,10 @@ static void queueDispatchForGroup(RoutingBuilder *rb, RoutingDispatch *dispatchF
 			exit(0);
 			}
 
-		current=rb->dispatchPtr[groupNum];
-		dispatchForGroup->nextPtr=current;
+		current= __atomic_load_n(rb->dispatchPtr+groupNum, __ATOMIC_SEQ_CST);
+		__atomic_store_n(&(dispatchForGroup->nextPtr), current, __ATOMIC_SEQ_CST);
 		}
-	while(!__sync_bool_compare_and_swap(rb->dispatchPtr+groupNum,current,dispatchForGroup));
+	while(!__atomic_compare_exchange_n(rb->dispatchPtr+groupNum, &current, dispatchForGroup, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST));
 
 }
 
@@ -183,25 +201,41 @@ static RoutingDispatch *dequeueDispatchForGroup(RoutingBuilder *rb, int groupNum
 			exit(0);
 			}
 
-		current=rb->dispatchPtr[groupNum];
+		current= __atomic_load_n(rb->dispatchPtr+groupNum, __ATOMIC_SEQ_CST);
 
 		if(current==NULL)
 			return NULL;
 		}
-	while(!__sync_bool_compare_and_swap(rb->dispatchPtr+groupNum,current,NULL));
+	while(!__atomic_compare_exchange_n(rb->dispatchPtr+groupNum, &current, NULL, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST));
 
 	return current;
 }
 
 
+int countNonEmptyDispatchGroups(RoutingBuilder *rb)
+{
+	int count=0;
+
+	for(int i=0;i<SMER_DISPATCH_GROUPS;i++)
+		{
+		if(rb->dispatchPtr[i]!=NULL)
+			count++;
+		}
+
+	return count;
+}
+
+
 static int lockRoutingDispatchGroupState(RoutingBuilder *rb, int groupNum)
 {
-	return __sync_bool_compare_and_swap(&(rb->dispatchGroupState[groupNum].status),0,1);
+	u32 current=0;
+	return __atomic_compare_exchange_n(&(rb->dispatchGroupState[groupNum].status), &current, 1, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
 }
 
 static int unlockRoutingDispatchGroupState(RoutingBuilder *rb, int groupNum)
 {
-	if(!__sync_bool_compare_and_swap(&(rb->dispatchGroupState[groupNum].status),1,0))
+	u32 current=1;
+	if(!__atomic_compare_exchange_n(&(rb->dispatchGroupState[groupNum].status), &current, 0, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST))
 		{
 		LOG(LOG_INFO,"Tried to unlock DispatchState without lock, should never happen");
 		exit(1);
@@ -216,12 +250,12 @@ static int unlockRoutingDispatchGroupState(RoutingBuilder *rb, int groupNum)
 
 int reserveReadDispatchBlock(RoutingBuilder *rb)
 {
-	int allocated=rb->allocatedReadDispatchBlocks;
+	u64 allocated=__atomic_load_n(&(rb->allocatedReadDispatchBlocks), __ATOMIC_SEQ_CST);
 
 	if(allocated>=TR_READBLOCK_DISPATCHES_INFLIGHT)
 		return 0;
 
-	while(!__sync_bool_compare_and_swap(&(rb->allocatedReadDispatchBlocks),allocated,allocated+1))
+	while(!__atomic_compare_exchange_n(&(rb->allocatedReadDispatchBlocks),&allocated,allocated+1, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST))
 		{
 		allocated=rb->allocatedReadDispatchBlocks;
 
@@ -235,7 +269,7 @@ int reserveReadDispatchBlock(RoutingBuilder *rb)
 
 void unreserveReadDispatchBlock(RoutingBuilder *rb)
 {
-	__sync_fetch_and_add(&(rb->allocatedReadDispatchBlocks),-1);
+	__atomic_fetch_sub(&(rb->allocatedReadDispatchBlocks),1, __ATOMIC_SEQ_CST);
 }
 
 
@@ -248,9 +282,11 @@ RoutingReadDispatchBlock *allocateReadDispatchBlock(RoutingBuilder *rb)
 
 		for(i=0;i<TR_READBLOCK_DISPATCHES_INFLIGHT;i++)
 			{
-			if(rb->readDispatchBlocks[i].status==0)
+			u32 current=__atomic_load_n(&(rb->readDispatchBlocks[i].status), __ATOMIC_SEQ_CST);
+
+			if(current==0)
 				{
-				if(__sync_bool_compare_and_swap(&(rb->readDispatchBlocks[i].status),0,1))
+				if(__atomic_compare_exchange_n(&(rb->readDispatchBlocks[i].status),&current,1, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST))
 					return rb->readDispatchBlocks+i;
 				}
 			}
@@ -263,7 +299,9 @@ RoutingReadDispatchBlock *allocateReadDispatchBlock(RoutingBuilder *rb)
 
 void queueReadDispatchBlock(RoutingReadDispatchBlock *readBlock)
 {
-	if(!__sync_bool_compare_and_swap(&(readBlock->status),1,2))
+	u32 current=1;
+
+	if(!__atomic_compare_exchange_n(&(readBlock->status),&current,2, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST))
 		{
 		LOG(LOG_INFO,"Tried to queue dispatch readblock in wrong state, should never happen");
 		exit(1);
@@ -271,25 +309,16 @@ void queueReadDispatchBlock(RoutingReadDispatchBlock *readBlock)
 }
 
 
-void showReadDispatchBlocks(RoutingBuilder *rb)
-{
-	int i;
-
-	for(i=0;i<TR_READBLOCK_DISPATCHES_INFLIGHT;i++)
-		{
-		LOG(LOG_INFO,"RDF: %i %i %i",i,rb->readDispatchBlocks[i].status,rb->readDispatchBlocks[i].completionCount);
-		}
-}
-
 int scanForCompleteReadDispatchBlock(RoutingBuilder *rb)
 {
-	RoutingReadDispatchBlock *current;
+	RoutingReadDispatchBlock *readBlock;
 	int i;
 
 	for(i=0;i<TR_READBLOCK_DISPATCHES_INFLIGHT;i++)
 		{
-		current=rb->readDispatchBlocks+i;
-		if(current->status == 2 && current->completionCount==0)
+		readBlock=rb->readDispatchBlocks+i;
+
+		if(__atomic_load_n(&readBlock->status, __ATOMIC_SEQ_CST) == 2 && __atomic_load_n(&readBlock->completionCount, __ATOMIC_SEQ_CST) == 0)
 			return i;
 
 		}
@@ -298,12 +327,14 @@ int scanForCompleteReadDispatchBlock(RoutingBuilder *rb)
 
 RoutingReadDispatchBlock *dequeueCompleteReadDispatchBlock(RoutingBuilder *rb, int index)
 {
-	RoutingReadDispatchBlock *current=rb->readDispatchBlocks+index;
+	RoutingReadDispatchBlock *readBlock=rb->readDispatchBlocks+index;
 
-	if(current->status == 2 && current->completionCount==0)
+	u32 current=__atomic_load_n(&readBlock->status, __ATOMIC_SEQ_CST);
+
+	if(current == 2 && __atomic_load_n(&readBlock->completionCount, __ATOMIC_SEQ_CST)==0)
 		{
-		if(__sync_bool_compare_and_swap(&(current->status),2,3))
-			return current;
+		if(__atomic_compare_exchange_n(&(readBlock->status),&current, 3, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST))
+			return readBlock;
 		}
 
 	return NULL;
@@ -311,7 +342,9 @@ RoutingReadDispatchBlock *dequeueCompleteReadDispatchBlock(RoutingBuilder *rb, i
 
 void unallocateReadDispatchBlock(RoutingReadDispatchBlock *readBlock)
 {
-	if(!__sync_bool_compare_and_swap(&(readBlock->status),3,0))
+	u32 current=3;
+
+	if(!__atomic_compare_exchange_n(&(readBlock->status),&current, 0, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST))
 		{
 		LOG(LOG_INFO,"Tried to unreserve dispatch readblock in wrong state, should never happen");
 		exit(1);
@@ -335,9 +368,12 @@ int scanForCompleteReadDispatchBlocks(RoutingBuilder *rb)
 
 	if(dispatchReadBlock->dispatchArray!=NULL)
 		{
-		if(dispatchReadBlock->dispatchArray->completionCount!=0)
+		int dispCompletion=__atomic_load_n(&(dispatchReadBlock->dispatchArray->completionCount), __ATOMIC_SEQ_CST);
+
+		if(dispCompletion!=0)
 			{
 			LOG(LOG_INFO,"EECK - Dispatch array not completed");
+			exit(1);
 			}
 
 		else
@@ -368,8 +404,11 @@ void queueDispatchArray(RoutingBuilder *rb, RoutingDispatchArray *dispArray)
 	for(int i=0;i<SMER_DISPATCH_GROUPS;i++)
 		{
 		if(dispArray->dispatches[i].data.entryCount>0)
+			{
 			queueDispatchForGroup(rb,dispArray->dispatches+i,i);
+			}
 		}
+
 }
 
 
@@ -414,9 +453,11 @@ static int assignReversedInboundDispatchesToSlices(RoutingDispatch *dispatches, 
 			assignReadDataToDispatchIntermediate(smerInboundDispatches+inboundIndex, readData, dispatchGroupState->disp);
 			}
 
-		__sync_fetch_and_add(dispatches->completionCountPtr,-1);
+		RoutingDispatch *nextDispatches=dispatches->prevPtr;
 
-		dispatches=dispatches->prevPtr;
+		__atomic_fetch_sub(dispatches->completionCountPtr,1, __ATOMIC_SEQ_CST);
+
+		dispatches=nextDispatches;
 		}
 
 	return 0;
@@ -436,21 +477,21 @@ static int processSlicesForGroup(RoutingDispatchGroupState *groupState)
 			{
 			RoutingReadDispatchData *readData=smerInboundDispatches->entries[j];
 
-			if(readData->indexCount==0) // Last Smer -
+			int oldIndexCount=__atomic_fetch_sub(&(readData->indexCount),1, __ATOMIC_SEQ_CST);
+
+			if(oldIndexCount==0) // Last Smer -
 				{
-				readData->indexCount--;
-				__sync_fetch_and_add(readData->completionCountPtr,-1);
+				__atomic_fetch_sub(readData->completionCountPtr,1, __ATOMIC_SEQ_CST);
 				}
 
-			else if(readData->indexCount>0)
+			else if(oldIndexCount>0)
 				{
-				readData->indexCount--;
 				assignToDispatchArrayEntry(dispatchArray, readData);
 				}
 
 			else // Wrapped
 				{
-				LOG(LOG_INFO,"Wrapped smer Index");
+				LOG(LOG_INFO,"Wrapped smer Index %i",oldIndexCount);
 				exit(1);
 				}
 
@@ -475,39 +516,42 @@ static void prepareGroupOutbound(RoutingDispatchGroupState *groupState)
 
 
 
-static int scanForDispatchesForGroups(RoutingBuilder *rb, int startGroup, int endGroup, int force)
+static int scanForDispatchesForGroups(RoutingBuilder *rb, int startGroup, int endGroup, int force, int workerNo)
 {
 	int work=0;
 
 	for(int i=startGroup;i<endGroup;i++)
 		{
-		if(lockRoutingDispatchGroupState(rb, i))
+		RoutingDispatch *tmpPtr=__atomic_load_n(rb->dispatchPtr+i, __ATOMIC_SEQ_CST);
+
+		if(force || tmpPtr != NULL)
 			{
-			//LOG(LOG_INFO,"Processing dispatch group %i",i);
-
-			RoutingDispatchGroupState *groupState=rb->dispatchGroupState+i;
-
-			RoutingDispatch *dispatchEntry=dequeueDispatchForGroup(rb, i);
-
-			if(dispatchEntry!=NULL)
+			if(lockRoutingDispatchGroupState(rb, i))
 				{
-				work=1;
+				RoutingDispatchGroupState *groupState=rb->dispatchGroupState+i;
 
-				RoutingDispatch *reversed=buildPrevLinks(dispatchEntry);
+				RoutingDispatch *dispatchEntry=dequeueDispatchForGroup(rb, i);
 
-				assignReversedInboundDispatchesToSlices(reversed, groupState);
-  				}
+				if(dispatchEntry!=NULL)
+					{
+					work=1;
 
-			// think about processing only with busy slices
+					RoutingDispatch *reversed=buildPrevLinks(dispatchEntry);
+					assignReversedInboundDispatchesToSlices(reversed, groupState);
 
-			prepareGroupOutbound(groupState);
-			work+=processSlicesForGroup(groupState);
-			queueDispatchArray(rb, groupState->outboundDispatches);
-			recycleRoutingDispatchGroupState(groupState);
 
-			unlockRoutingDispatchGroupState(rb,i);
+					// Currently only processing with new incoming or force mode
+					// Longer term think about processing only with busy slices or force mode
 
-			//LOG(LOG_INFO,"Processed dispatch group %i",i);
+					prepareGroupOutbound(groupState);
+					work+=processSlicesForGroup(groupState);
+					queueDispatchArray(rb, groupState->outboundDispatches);
+
+					recycleRoutingDispatchGroupState(groupState);
+					}
+
+				unlockRoutingDispatchGroupState(rb,i);
+				}
 			}
 
 		}
@@ -523,8 +567,8 @@ int scanForDispatches(RoutingBuilder *rb, int workerNo, int force)
 
 	int work=0;
 
-	work=scanForDispatchesForGroups(rb,startPos,SMER_DISPATCH_GROUPS, force);
-	work+=scanForDispatchesForGroups(rb, 0, startPos, force);
+	work=scanForDispatchesForGroups(rb,startPos,SMER_DISPATCH_GROUPS, force, workerNo);
+	work+=scanForDispatchesForGroups(rb, 0, startPos, force, workerNo);
 
 	return work;
 }

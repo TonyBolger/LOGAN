@@ -12,9 +12,17 @@ static MemDispenserBlock *dispenserBlockAlloc()
 {
 	MemDispenserBlock *block=memalign(CACHE_ALIGNMENT_SIZE, sizeof(MemDispenserBlock));
 
+	if(block==NULL)
+		{
+		LOG(LOG_INFO,"Failed to alloc dispenser block");
+		exit(1);
+		}
+
 	block->prev=NULL;
 	block->allocated=0;
 	block->blocksize=DISPENSER_BLOCKSIZE;
+
+	//memset(block->data,0,DISPENSER_BLOCKSIZE);
 
 	return block;
 }
@@ -23,6 +31,12 @@ static MemDispenserBlock *dispenserBlockAlloc()
 MemDispenser *dispenserAlloc(const char *name)
 {
 	MemDispenser *disp=malloc(sizeof(MemDispenser));
+
+	if(disp==NULL)
+		{
+		LOG(LOG_INFO,"Failed to alloc dispenser");
+		exit(1);
+		}
 
 	disp->name=name;
 	disp->block=dispenserBlockAlloc();
@@ -69,6 +83,32 @@ void dispenserFree(MemDispenser *disp)
 
 	free(disp);
 }
+/*
+void dispenserNukeFree(MemDispenser *disp, u8 val)
+{
+	if(disp==NULL)
+		return;
+
+	int totalAllocated=0;
+
+	MemDispenserBlock *blockPtr=disp->block;
+
+	while(blockPtr!=NULL)
+		{
+		MemDispenserBlock *prevPtr=blockPtr->prev;
+
+		totalAllocated+=blockPtr->allocated;
+
+		memset(&(blockPtr->data),val,blockPtr->allocated);
+		free(blockPtr);
+		blockPtr=prevPtr;
+		}
+
+	//LOG(LOG_INFO,"NukeFreeing disp: %s",disp->name);
+
+	free(disp);
+}
+*/
 
 int dispenserSize(MemDispenser *disp)
 {
@@ -88,6 +128,7 @@ void *dAlloc(MemDispenser *disp, size_t size)
 		for(i=0;i<MAX_ALLOCATORS;i++)
 			fprintf(stderr,"%i %i\n",i,disp->allocatorUsage[i]);
 
+		raise(SIGSEGV);
 		return NULL;
 		}
 
@@ -109,6 +150,8 @@ void *dAlloc(MemDispenser *disp, size_t size)
 	if(block->allocated+size > block->blocksize)
 		{
 		fprintf(stderr,"Dispenser Local overallocation detected - wanted %i\n",(int)size);
+
+		raise(SIGSEGV);
 		return NULL;
 		}
 
