@@ -70,14 +70,16 @@ typedef struct routingReadDispatchDataStr {
 	u32 seqLength; // 4
 
 	s32 indexCount; // 4
-	u32 *indexes; // 8
+	s32 *completionCountPtr; // 8
+
+	// Split into aux structure with []. Add first/last. Consider smers/compSmers vs flags
+	u32 *readIndexes; // 8
 	SmerId *smers; // 8
 	u8 *compFlags; // 8
 	u32 *slices; // 8
+	u32 *sliceIndexes; // 8
 
-	s32 *completionCountPtr; // 8
-
-} __attribute__((aligned (64))) RoutingReadDispatchData;
+} __attribute__((aligned (32))) RoutingReadDispatchData;
 
 
 typedef struct routingDispatchIntermediateStr {

@@ -188,7 +188,7 @@ static void queueDispatchForGroup(RoutingBuilder *rb, RoutingDispatch *dispatchF
 
 }
 
-static RoutingDispatch *dequeueDispatchForGroup(RoutingBuilder *rb, int groupNum)
+static RoutingDispatch *dequeueDispatchForGroupList(RoutingBuilder *rb, int groupNum)
 {
 	RoutingDispatch *current=NULL;
 	int loopCount=0;
@@ -441,12 +441,8 @@ static int assignReversedInboundDispatchesToSlices(RoutingDispatch *dispatches, 
 			{
 			RoutingReadDispatchData *readData=dispatches->data.entries[i];
 
-			int index=readData->indexCount;
-
-			SmerId smer=readData->smers[index];
-			SmerEntry smerEntry=SMER_GET_BOTTOM(smer);
-			u64 hash=hashForSmer(smerEntry);
-			u32 slice=sliceForSmer(smer,hash);
+			int indexCount=readData->indexCount;
+			u32 slice=readData->slices[indexCount];
 
 			u32 inboundIndex=slice & SMER_DISPATCH_GROUP_SLICEMASK;
 
@@ -530,7 +526,7 @@ static int scanForDispatchesForGroups(RoutingBuilder *rb, int startGroup, int en
 				{
 				RoutingDispatchGroupState *groupState=rb->dispatchGroupState+i;
 
-				RoutingDispatch *dispatchEntry=dequeueDispatchForGroup(rb, i);
+				RoutingDispatch *dispatchEntry=dequeueDispatchForGroupList(rb, i);
 
 				if(dispatchEntry!=NULL)
 					{
@@ -538,7 +534,6 @@ static int scanForDispatchesForGroups(RoutingBuilder *rb, int startGroup, int en
 
 					RoutingDispatch *reversed=buildPrevLinks(dispatchEntry);
 					assignReversedInboundDispatchesToSlices(reversed, groupState);
-
 
 					// Currently only processing with new incoming or force mode
 					// Longer term think about processing only with busy slices or force mode

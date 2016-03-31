@@ -302,7 +302,7 @@ static int performTaskActive(ParallelTask *pt, int workerNo)
 	// 6th priority - shutdown
 	else if(pt->reqShutdown)
 		{
-		LOG(LOG_INFO,"New Shutdown Req");
+		//LOG(LOG_INFO,"New Shutdown Req");
 
    		pt->state=PTSTATE_SHUTDOWN_TIDY_WAIT;
    		return 1;
