@@ -287,7 +287,7 @@ void calculatePossibleSmers(u8 *data, s32 maxIndex, SmerId *smerIds)
 
 
 
-void calculatePossibleSmersComp(u8 *data, s32 maxIndex, SmerId *smerIds, u8 *compFlags)
+void calculatePossibleSmersAndCompSmers(u8 *data, s32 maxIndex, SmerId *smerAndCompIds)
 {
 	int i=0;
 
@@ -305,40 +305,16 @@ void calculatePossibleSmersComp(u8 *data, s32 maxIndex, SmerId *smerIds, u8 *com
 
 	while(maxIndex>0)
 		{
-		SmerId fmer, rmer;
-
 		// Offset 0
-		fmer=(fmerGen>>2)&SMER_MASK;
-		rmer=(rmerGen>>4)&SMER_MASK;
-		if(fmer<rmer)
-			{
-			smerIds[i] = fmer;
-			compFlags[i] = 0;
-			}
-		else
-			{
-			smerIds[i] = rmer;
-			compFlags[i] = 1;
-			}
-		i++;
+		smerAndCompIds[i++]=(fmerGen>>2)&SMER_MASK;
+		smerAndCompIds[i++]=(rmerGen>>4)&SMER_MASK;
 
 		if(!--maxIndex)
 			break;
 
 		// Offset 1
-		fmer=fmerGen&SMER_MASK;
-		rmer=(rmerGen>>6)&SMER_MASK;
-		if(fmer<rmer)
-			{
-			smerIds[i] = fmer;
-			compFlags[i] = 0;
-			}
-		else
-			{
-			smerIds[i] = rmer;
-			compFlags[i] = 1;
-			}
-		i++;
+		smerAndCompIds[i++]=fmerGen&SMER_MASK;
+		smerAndCompIds[i++]=(rmerGen>>6)&SMER_MASK;
 
 		if(!--maxIndex)
 			break;
@@ -349,37 +325,15 @@ void calculatePossibleSmersComp(u8 *data, s32 maxIndex, SmerId *smerIds, u8 *com
 		rmerGen=(rmerGen>>8) | (COMP_BASE_QUAD(reverseWithinBytes(tmp)) << (SMER_BITS-2));
 
 		// Offset 2
-		fmer=(fmerGen>>6)&SMER_MASK;
-		rmer=(rmerGen)&SMER_MASK;
-		if(fmer<rmer)
-			{
-			smerIds[i] = fmer;
-			compFlags[i] = 0;
-			}
-		else
-			{
-			smerIds[i] = rmer;
-			compFlags[i] = 1;
-			}
-		i++;
+		smerAndCompIds[i++]=(fmerGen>>6)&SMER_MASK;
+		smerAndCompIds[i++]=(rmerGen)&SMER_MASK;
 
 		if(!--maxIndex)
 			break;
 
 		// Offset 3
-		fmer=(fmerGen>>4)&SMER_MASK;
-		rmer=(rmerGen>>2)&SMER_MASK;
-		if(fmer<rmer)
-			{
-			smerIds[i] = fmer;
-			compFlags[i] = 0;
-			}
-		else
-			{
-			smerIds[i] = rmer;
-			compFlags[i] = 1;
-			}
-		i++;
+		smerAndCompIds[i++]=(fmerGen>>4)&SMER_MASK;
+		smerAndCompIds[i++]=(rmerGen>>2)&SMER_MASK;
 
 		maxIndex--;
 		}

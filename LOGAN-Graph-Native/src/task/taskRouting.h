@@ -22,10 +22,8 @@ typedef struct routingReadLookupDataStr {
 	u8 *packedSeq; // 8
 	u8 *quality; // 8
 	u32 seqLength; // 4 (+4)
-
-	SmerId *smers; // 8
-	u8 *compFlags; // 8
-} __attribute__((aligned (8))) RoutingReadLookupData;
+	SmerId *smers; // 8 pairs of (fsmer, rsmer)
+} __attribute__((aligned (32))) RoutingReadLookupData;
 
 
 // RoutingSmerEntryLookup has 24 bytes core
@@ -42,11 +40,11 @@ typedef struct routingSmerEntryLookupStr {
 	u64 entryCount; // 8
 	SmerEntry *entries; // 8
 
-} __attribute__((aligned (64))) RoutingSmerEntryLookup;
+} __attribute__((aligned (32))) RoutingSmerEntryLookup;
 
 typedef struct routingLookupPercolateStr {
 	u64 entryCount; // 8
-	u32 *entries; // 8
+	u32 *entries; // 8 - pairs of (slice, smerEntry)
 } __attribute__((aligned (16))) RoutingLookupPercolate;
 
 typedef struct routingReadLookupBlockStr {
@@ -72,10 +70,10 @@ typedef struct routingReadDispatchDataStr {
 	s32 indexCount; // 4
 	s32 *completionCountPtr; // 8
 
-	// Split into aux structure with []. Add first/last. Consider smers/compSmers vs flags
+	// Split into aux structure with []. Add first/last.
 	u32 *readIndexes; // 8
-	SmerId *smers; // 8
-	u8 *compFlags; // 8
+	SmerId *fsmers; // 8
+	SmerId *rsmers; // 8
 	u32 *slices; // 8
 	u32 *sliceIndexes; // 8
 

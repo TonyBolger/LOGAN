@@ -74,13 +74,20 @@ static void assignReadDataToDispatchIntermediate(RoutingDispatchIntermediate *in
 
 void assignToDispatchArrayEntry(RoutingDispatchArray *array, RoutingReadDispatchData *readData)
 {
-	SmerId smer=readData->smers[readData->indexCount];
+	SmerId fsmer=readData->fsmers[readData->indexCount];
+	SmerId rsmer=readData->rsmers[readData->indexCount];
+
+	SmerId smer=CANONICAL_SMER(fsmer,rsmer);
 
 	SmerEntry smerEntry=SMER_GET_BOTTOM(smer);
 	u64 hash=hashForSmer(smerEntry);
-	u32 slice=sliceForSmer(smer,hash);
+	u32 sliceNew=sliceForSmer(smer,hash);
 
+	u32 slice=readData->slices[readData->indexCount];
 	u32 group=(slice >> SMER_DISPATCH_GROUP_SHIFT);
+
+	if(sliceNew != slice)
+		LOG(LOG_INFO,"%08lx %08lx Slice %i %i Group %i %i",fsmer, rsmer, sliceNew, slice, group, readData->indexCount);
 
 	assignReadDataToDispatchIntermediate(&(array->dispatches[group].data), readData, array->disp);
 }
