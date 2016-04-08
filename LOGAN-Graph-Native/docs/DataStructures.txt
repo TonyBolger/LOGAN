@@ -250,7 +250,30 @@ Total: 755176 samples
     3654   0.5%  98.5%     3654   0.5% __memset_sse2
     2065   0.3%  98.8%     2135   0.3% smConsiderResize
 				
+		
+		1519.698321s using 8 threads (desktop)
 			
+Total: 962878 samples
+  118125  12.3%  12.3%   138564  14.4% assignReversedInboundDispatchesToSlices (inline)
+  109007  11.3%  23.6%   115401  12.0% extractIndexedSmerDataFromLookupPercolates (inline)
+  108088  11.2%  34.8%   108103  11.2% siitFindSmer
+   85924   8.9%  43.7%    85924   8.9% scanForSmer_HS.isra.1
+   71981   7.5%  51.2%    99350  10.3% assignSmersToLookupPercolates (inline)
+   56390   5.9%  57.1%    56390   5.9% testBloom
+   32914   3.4%  60.5%    37572   3.9% assignPercolatesToEntryLookups (inline)
+   31232   3.2%  63.7%    35020   3.6% calculatePossibleSmersComp
+   30662   3.2%  66.9%    30662   3.2% __memmove_ssse3_back
+   29344   3.0%  70.0%    29395   3.1% extractLookupPercolatesFromEntryLookups
+   28990   3.0%  73.0%    37321   3.9% assignToDispatchArrayEntry (inline)
+   28847   3.0%  76.0%    28987   3.0% readBufferedFastqLine (inline)
+   25661   2.7%  78.6%    25735   2.7% assignReadDataToDispatchIntermediate (inline)
+   25467   2.6%  81.3%   210242  21.8% scanForSmerLookupsForSlices
+   24884   2.6%  83.9%    62207   6.5% processSlicesForGroup (inline)
+   18599   1.9%  85.8%    20247   2.1% calculatePossibleSmers
+   16926   1.8%  87.6%    73316   7.6% saFindSmerEntry
+   13390   1.4%  88.9%    14575   1.5% hashForSmer
+   11552   1.2%  90.1%    99979  10.4% smFindIndexesOfExistingSmers
+    9234   1.0%  91.1%     9234   1.0% packSequence
 
 
 Leak detection:
@@ -377,16 +400,125 @@ T	0x54	84		0101 0100
 	Read batching for routing:
 		Currently 1000 reads per batch -> ~8 kmers per read -> 8K kmers per batch (~0.5 per slice). 
 		10000 reads per batch -> ~8 kmers per read -> 80K kmers per batch (~5 per slice). 
-	
-		
-
 
 	Sub-bloom filters:
 		Idea: Build one or more 'read batch specific' bloom filters from the smers within a read batch
 		Improves cache behaviour
 		
 		 
+New Dataset Analysis:
+
+
+Ecoli-1 (Q20): Seq: X Bp: Y
+
+Kmers: X
+Kmers  occuring <5: A B C D E
+X occurences of Kmers in reads
+X		Y.Z% in top 10	Z 
+
+Smers: X
+Smers  occuring <5: A B C D E
+X occurences of Smers in reads
+X		Y.Z% in top 10	Z 
+
+
+
+Ecoli-2 (Q20): Seq: X Bp: Y
+
+Kmers: X
+Kmers  occuring <5: A B C D E
+X occurences of Kmers in reads
+X		Y.Z% in top 10	Z 
+
+Smers: X
+Smers  occuring <5: A B C D E
+X occurences of Smers in reads
+X		Y.Z% in top 10	Z 
+
+
+
+Arabi-1 (Q20): Seq: X Bp: Y
+
+Kmers: X
+Kmers  occuring <5: A B C D E
+X occurences of Kmers in reads
+X		Y.Z% in top 10	Z 
+
+Smers: X
+Smers  occuring <5: A B C D E
+X occurences of Smers in reads
+X		Y.Z% in top 10	Z 
+
+
+
+
+Lyrata-1 (Q20): Seq: X Bp: Y
+
+Kmers: X
+Kmers  occuring <5: A B C D E
+X occurences of Kmers in reads
+X		Y.Z% in top 10	Z 
+
+Smers: X
+Smers  occuring <5: A B C D E
+X occurences of Smers in reads
+X		Y.Z% in top 10	Z 
+
+
+
 				
+Pen-1 (Q20): Seq: X Bp: Y
+
+Kmers: X
+Kmers  occuring <5: A B C D E
+X occurences of Kmers in reads
+X		Y.Z% in top 10	Z 
+
+Smers: X
+Smers  occuring <5: A B C D E
+X occurences of Smers in reads
+X		Y.Z% in top 10	Z 
+		
+
+
+Pen-2 (Q20): Seq: X Bp: Y
+
+Kmers: X
+Kmers  occuring <5: A B C D E
+X occurences of Kmers in reads
+X		Y.Z% in top 10	Z 
+
+Smers: X
+Smers  occuring <5: A B C D E
+X occurences of Smers in reads
+X		Y.Z% in top 10	Z 
+		
+
+
+Pen-3 (Q20): Seq: X Bp: Y
+
+Kmers: X
+Kmers  occuring <5: A B C D E
+X occurences of Kmers in reads
+X		Y.Z% in top 10	Z 
+
+Smers: X
+Smers  occuring <5: A B C D E
+X occurences of Smers in reads
+X		Y.Z% in top 10	Z 
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
 		
 		
 Arabi-1 Dataset: Seq: 30,361,968 Bp: 2,364,495,967

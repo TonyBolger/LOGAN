@@ -1,0 +1,223 @@
+
+/usr/local/tony/sratoolkit.2.1.10-centos_linux64/bin/fastq-dump --split-spot --split-files BLAH.sra
+gzip BLAH_1.fastq
+gzip BLAH_2.fastq
+
+
+
+for i in *_Q10_1P.fq.gz; do j=`echo $i | cut -f 1-2 -d _`; gunzip -c ${j}_* | gzip > $j.fq.gz; done
+for i in *_Q15_1P.fq.gz; do j=`echo $i | cut -f 1-2 -d _`; gunzip -c ${j}_* | gzip > $j.fq.gz; done
+for i in *_Q20_1P.fq.gz; do j=`echo $i | cut -f 1-2 -d _`; gunzip -c ${j}_* | gzip > $j.fq.gz; done
+
+
+
+for i in Q10 Q15 Q20; do 
+gunzip -c *_${i}_[12][PU].fq.gz | gzip > ${i}.fq.gz &
+done
+
+
+Dataset 1: Ecoli 1 
+
+SRX016044: Illumina whole genome shotgun sequencing of genomic DNA paired-end library 'Solexa-11748' containing sample MG1655(+CHLOR)#2
+1 ILLUMINA (Illumina Genome Analyzer II) run: 10.4M spots, 2.1G bases, 1.5Gb downloads
+
+UUID: 08ca921c-af73-4648-b2da-8297201215e5
+Design: Illumina sequencing of Escherichia coli str. K-12 substr. MG1655 via random selection
+Submitted by: Broad Institute (BI)
+Study: Genome sequencing with short reads
+PRJNA40075 • SRP001087 • All experiments • All runs
+show Abstract
+Sample: Generic sample from Escherichia coli str. K-12 substr. MG1655
+SAMN00839313 • SRS302375 • All experiments • All runs
+Organism: Escherichia coli str. K-12 substr. MG1655
+
+
+
+
+for i in SRR034509; do for q in 10 15 20; do
+  java -classpath ~/Projects/Silicana/Trimmomatic/dist/jar/trimmomatic-0.37.jar org.usadellab.trimmomatic.TrimmomaticPE -threads 6 -phred33 reads/Ecoli-1/${i}_1.fastq.gz reads/Ecoli-1/${i}_2.fastq.gz -baseout filteredReads/Ecoli-1/${i}_Q${q}.fq.gz ILLUMINACLIP:GAII_Clipping.fa:2:30:12 LEADING:3 TRAILING:3 SLIDINGWINDOW:4:${q} MINLEN:40 BASECOUNT:N:0:0
+done; done
+
+
+
+Runs: GAII - SRR034509
+
+File    Sequences       Bases		Coverage
+Unfiltered:  20707236        2091430836	450.77
+Q10.fq.gz:   11107925        864964924	186.53
+Q15.fq.gz:   9094608 677974186	146.13
+Q20.fq.gz:   7562003 543744341	117.19
+
+
+
+
+
+Dataset 2: Ecoli 2
+
+
+SRX131029: Whole Genome Sequencing and Assembly
+4 ILLUMINA (Illumina HiSeq 2000) runs: 44.1M spots, 9.3G bases, 5.3Gb downloads
+
+UUID: 4dba6693-a55e-4d42-b79f-7217a03cdf36
+Design: Fragment Library Construction
+Submitted by: Broad Institute (BI)
+Study: Genome sequencing with short reads
+PRJNA40075 • SRP001087 • All experiments • All runs
+show Abstract
+Sample: Generic sample from Escherichia coli str. K-12 substr. MG1655
+SAMN00839313 • SRS302375 • All experiments • All runs
+Organism: Escherichia coli str. K-12 substr. MG1655
+
+
+SRX131033: Whole Genome Sequencing and Assembly
+2 ILLUMINA (Illumina HiSeq 2000) runs: 26.9M spots, 5.7G bases, 3.2Gb downloads
+
+UUID: f5071aa0-5df2-4b96-a28b-dd3ff5d7a097
+Design: Fragment Library Construction
+Submitted by: Broad Institute (BI)
+Study: Genome sequencing with short reads
+PRJNA40075 • SRP001087 • All experiments • All runs
+show Abstract
+Sample: Generic sample from Escherichia coli str. K-12 substr. MG1655
+SAMN00839313 • SRS302375 • All experiments • All runs
+Organism: Escherichia coli str. K-12 substr. MG1655
+
+
+SRX131038: Whole Genome Sequencing and Assembly
+4 ILLUMINA (Illumina HiSeq 2000) runs: 47.5M spots, 10G bases, 5.6Gb downloads
+
+UUID: daff7c48-336e-4527-8f17-dca510a90a75
+Design: Fragment Library Construction
+Submitted by: Broad Institute (BI)
+Study: Genome sequencing with short reads
+PRJNA40075 • SRP001087 • All experiments • All runs
+show Abstract
+Sample: Generic sample from Escherichia coli str. K-12 substr. MG1655
+SAMN00839313 • SRS302375 • All experiments • All runs
+Organism: Escherichia coli str. K-12 substr. MG1655
+
+
+SRX131053: Whole Genome Sequencing and Assembly
+2 ILLUMINA (Illumina HiSeq 2000) runs: 23.3M spots, 4.9G bases, 2.8Gb downloads
+
+UUID: 6f089572-7094-41ca-ae0b-06ca5d9c572a
+Design: Fragment Library Construction
+Submitted by: Broad Institute (BI)
+Study: Genome sequencing with short reads
+PRJNA40075 • SRP001087 • All experiments • All runs
+show Abstract
+Sample: Generic sample from Escherichia coli str. K-12 substr. MG1655
+SAMN00839313 • SRS302375 • All experiments • All runs
+Organism: Escherichia coli str. K-12 substr. MG1655
+
+
+
+
+
+Runs: HiSeq - 
+
+SRR447621 SRR447647 SRR447688 SRR447698 SRR447625 SRR447685 SRR447630 SRR447638 SRR447643 SRR447662 SRR447664 SRR447689
+
+
+for i in SRR447621 SRR447625 SRR447630 SRR447638 SRR447643 SRR447647 SRR447662 SRR447664 SRR447685 SRR447688 SRR447689 SRR447698; do for q in 10 15 20; do
+  java -classpath ~/Projects/Silicana/Trimmomatic/dist/jar/trimmomatic-0.37.jar org.usadellab.trimmomatic.TrimmomaticPE -threads 6 -phred33 reads/Ecoli-2/${i}_1.fastq.gz reads/Ecoli-2/${i}_2.fastq.gz -baseout filteredReads/Ecoli-2/${i}_Q${q}.fq.gz ILLUMINACLIP:TruSeq3_Clipping.fa:2:30:12 LEADING:3 TRAILING:3 SLIDINGWINDOW:4:${q} MINLEN:40 BASECOUNT:N:0:0
+done; done
+
+
+
+File			Sequences		Bases			Coverage
+Unfiltered:  	283766708       28660437508		6177.25
+
+ 
+
+
+Dataset 3: Arabidopsis Col-0
+
+DS=Arabi-1
+
+for i in SRR519624; do for q in 10 15 20; do
+  java -classpath ~/Projects/Silicana/Trimmomatic/dist/jar/trimmomatic-0.37.jar org.usadellab.trimmomatic.TrimmomaticPE -threads 6 -phred33 reads/Arabi-1/${i}_1.fastq.gz reads/Arabi-1/${i}_2.fastq.gz -baseout filteredReads/Arabi-1/${i}_Q${q}.fq.gz ILLUMINACLIP:TruSeq3_Clipping.fa:2:30:12 LEADING:3 TRAILING:3 SLIDINGWINDOW:4:${q} MINLEN:40 BASECOUNT:N:0:0
+done; done
+
+
+
+SRX158512: Illumina sequencing of Col-0 genomic fragment library
+1 ILLUMINA (Illumina HiSeq 2000) run: 17.3M spots, 3.5G bases, 2.6Gb downloads
+
+Submitted by: GREGOR MENDEL INSTITUTE OF MOLECULAR PLANT BIOLOGY (GMI-MPB)
+Study: Raw data resource for Swedish Arabidopsis thaliana
+ • SRP012869 • All experiments • All runs
+show Abstract
+Sample: Arabidopsis thaliana individual sample Col-0
+SAMN01086391 • SRS349086 • All experiments • All runs
+Organism: Arabidopsis thaliana
+
+Runs: 
+
+SRR519624
+
+File    Sequences       Bases	Coverage
+Unfiltered: 34683594        3468359400	25.69
+
+
+
+
+
+Dataset 4: Arabidopsis lyrata
+
+
+for i in SRR353664; do for q in 10 15 20; do
+  java -classpath ~/Projects/Silicana/Trimmomatic/dist/jar/trimmomatic-0.37.jar org.usadellab.trimmomatic.TrimmomaticPE -threads 6 -phred33 reads/Lyrata-1/${i}_1.fastq.gz reads/Lyrata-1/${i}_2.fastq.gz -baseout filteredReads/Lyrata-1/${i}_Q${q}.fq.gz ILLUMINACLIP:TruSeq3_Clipping.fa:2:30:12 LEADING:3 TRAILING:3 SLIDINGWINDOW:4:${q} MINLEN:40 BASECOUNT:N:0:0
+done; done
+
+
+
+
+
+
+
+
+Dataset 5: Pennellii (Paired-end only)
+  
+
+
+for i in AA AB AC AD AE AF AG AH AI AJ AK AL AM AN AO AP AQ AR AS AT; do for q in 10 15 20; do
+  java -classpath ~/Projects/Silicana/Trimmomatic/dist/jar/trimmomatic-0.37.jar org.usadellab.trimmomatic.TrimmomaticPE -threads 6 -phred64 reads/${i}1.fq.gz reads/${i}2.fq.gz -baseout filteredReads/Pen-1/${i}_Q${q}.fq.gz ILLUMINACLIP:TruSeq3_Clipping.fa:2:30:12 LEADING:3 TRAILING:3 SLIDINGWINDOW:4:${q} MINLEN:40 BASECOUNT:N:0:0 TOPHRED33
+done; done 
+
+for i in BA BB BC BD BE BF BG BH BI BJ BK BL BM BN BO BP BQ BR BS; do for q in 10 15 20; do
+  java -classpath ~/Projects/Silicana/Trimmomatic/dist/jar/trimmomatic-0.37.jar org.usadellab.trimmomatic.TrimmomaticPE -threads 6 -phred64 reads/${i}1.fq.gz reads/${i}2.fq.gz -baseout filteredReads/Pen-2/${i}_Q${q}.fq.gz ILLUMINACLIP:TruSeq3_Clipping.fa:2:30:12 LEADING:3 TRAILING:3 SLIDINGWINDOW:4:${q} MINLEN:40 BASECOUNT:N:0:0 TOPHRED33
+done; done
+
+for i in DA DB DC DD DE DF; do for q in 10 15 20; do
+  java -classpath ~/Projects/Silicana/Trimmomatic/dist/jar/trimmomatic-0.37.jar org.usadellab.trimmomatic.TrimmomaticPE -threads 6 -phred64 reads/${i}1.fq.gz reads/${i}2.fq.gz -baseout filteredReads/Pen-3/${i}_Q${q}.fq.gz ILLUMINACLIP:TruSeq3_Clipping.fa:2:30:12 LEADING:3 TRAILING:3 SLIDINGWINDOW:4:${q} MINLEN:40 BASECOUNT:N:0:0 TOPHRED33
+done; done
+
+for i in DC; do for q in 10 15 20; do
+  java -classpath ~/Projects/Silicana/Trimmomatic/dist/jar/trimmomatic-0.37.jar org.usadellab.trimmomatic.TrimmomaticPE -threads 6 -phred33 reads/${i}1.fq.gz reads/${i}2.fq.gz -baseout filteredReads/Pen-3/${i}_Q${q}.fq.gz ILLUMINACLIP:TruSeq3_Clipping.fa:2:30:12 LEADING:3 TRAILING:3 SLIDINGWINDOW:4:${q} MINLEN:40 BASECOUNT:N:0:0
+done; done
+
+
+
+Dataset merge:
+
+for q in 10 15 20; do for d in 1P 2P 1U 2U; do cat dataSource/Arabidopsis_Col0/filteredReads/Arabi-1/*_Q${q}_${d}.fq.gz > data/Arabi-1_Q${q}_${d}.fq.gz; done; done
+for q in 10 15 20; do for d in 1P 2P 1U 2U; do cat dataSource/Escherichia_coli_K12/filteredReads/Ecoli-1/*_Q${q}_${d}.fq.gz > data/Ecoli-1_Q${q}_${d}.fq.gz; done; done
+for q in 10 15 20; do for d in 1P 2P 1U 2U; do cat dataSource/Escherichia_coli_K12/filteredReads/Ecoli-2/*_Q${q}_${d}.fq.gz > data/Ecoli-2_Q${q}_${d}.fq.gz; done; done
+for q in 10 15 20; do for d in 1P 2P 1U 2U; do cat dataSource/Lyrata/filteredReads/Lyrata-1/*_Q${q}_${d}.fq.gz > data/Lyrata-1_Q${q}_${d}.fq.gz; done; done
+for q in 10 15 20; do for d in 1P 2P 1U 2U; do cat dataSource/Pennellii/filteredReads/Pen-1/*_Q${q}_${d}.fq.gz > data/Pen-1_Q${q}_${d}.fq.gz; done; done
+for q in 10 15 20; do for d in 1P 2P 1U 2U; do cat dataSource/Pennellii/filteredReads/Pen-2/*_Q${q}_${d}.fq.gz > data/Pen-2_Q${q}_${d}.fq.gz; done; done
+for q in 10 15 20; do for d in 1P 2P 1U 2U; do cat dataSource/Pennellii/filteredReads/Pen-3/*_Q${q}_${d}.fq.gz > data/Pen-3_Q${q}_${d}.fq.gz; done; done
+
+for i in Arabi-1 Ecoli-1 Ecoli-2 Lyrata-1 Pen-1 Pen-2 Pen-3; do for q in 10 15 20; do java -classpath ~/Projects/Silicana/Coverage/bin coverage.LibStats ${i}_Q${q}_[12][PU].fq.gz > ${i}_Q${q}.libstats; done; done
+
+for i in Arabi-1 Ecoli-1 Ecoli-2 Lyrata-1 Pen-1 Pen-2 Pen-3; do for q in 10 15 20; do cat ${i}_Q${q}_[12][PU].fq.gz | gunzip > ${i}_Q${q}.fq; done; done
+
+
+DS=Ecoli-1_Q20
+
+grep "LOGAN INFO src/task/taskRoutingLookup.c(189)" ${DS}.out | cut -f 8 -d " " | sort | uniq -c > ${DS}.smer.count
+cat ${DS}.smer.count | tr -s " " | sed -e "s/^ //g" | cut -f 1 -d " " | sort -n | uniq -c > ${DS}.smer.histo
+
+
+

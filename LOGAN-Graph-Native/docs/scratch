@@ -81,3 +81,39 @@ LOGAN INFO src/task/taskRouting.c(52) 36.695999: INCOMPLETE AT END: Blocked read
 LOGAN INFO src/task/taskRouting.c(47) 36.696009: INCOMPLETE: RDB BlockNum: 18 Status: 2 RemainingCount: 4
 LOGAN INFO src/task/taskRouting.c(47) 36.696016: INCOMPLETE: RDB BlockNum: 19 Status: 2 RemainingCount: 7
 
+
+
+
+
+	AGAAGCATAAGTGATGATTAAAGAATTGCACGGGAATTTTAAGTGCTTAATTACCCGCACGACTTCTCTCGCGTCTCTCTCTTTTTTCTTCCTTTCTTT
+
+	AGAAGCATAAGTGATGATTAAAG 
+1	                      GAATTGCACGGGAATTTTAAGTG 
+	                                             CTTAATTACCCGCACGACTTCTC
+	                                             
+               
+						  GAATTGCACGGGAATTTTAAGTG 
+2						                         CTTAATTACCCGCACGACTTCTC 
+						                                                TCGCGTCTCTCTCTTTTTTCTTC
+						                                                						                                                
+												 CTTAATTACCCGCACGACTTCTC 
+3												 						TCGCGTCTCTCTCTTTTTTCTTC 
+												 								CTCTCTTTTTTCTTCCTTTCTTT
+												 								
+												 								
+												 								
+												 								
+												 								
+
+
+
+
+
+
+
+
+
+
+
+
+

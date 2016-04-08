@@ -145,7 +145,7 @@ static void extractLookupPercolatesFromEntryLookups(RoutingSmerEntryLookup *smer
 static int extractIndexedSmerDataFromLookupPercolates(SmerId *allSmers, int allSmerCount, SmerId *fsmers, SmerId *rsmers,
 			u32 *slices, u32 *sliceIndexes, u32 *readIndexes, RoutingLookupPercolate *smerLookupPercolates[])
 {
-	int indexCount=0;
+	int foundCount=0;
 
 	for(int i=0;i<allSmerCount;i++)
 		{
@@ -165,20 +165,44 @@ static int extractIndexedSmerDataFromLookupPercolates(SmerId *allSmers, int allS
 		u64 entryCount=percolate->entryCount+1;
 		int sliceIndex=percolate->entries[entryCount++];
 
+		if(i==0)
+			{
+			*(fsmers-foundCount)=fsmer;
+			*(rsmers-foundCount)=rsmer;
+			*(slices-foundCount)=slice;
+			*(sliceIndexes-foundCount)=sliceIndex;
+			*(readIndexes-foundCount)=i;
+			foundCount++;
+			}
+
 		if(sliceIndex!=SMER_DUMMY)
 			{
-			*(fsmers-indexCount)=fsmer;
-			*(rsmers-indexCount)=rsmer;
-			*(slices-indexCount)=slice;
-			*(sliceIndexes-indexCount)=sliceIndex;
-			*(readIndexes-indexCount)=i;
-			indexCount++;
+			*(fsmers-foundCount)=fsmer;
+			*(rsmers-foundCount)=rsmer;
+			*(slices-foundCount)=slice;
+			*(sliceIndexes-foundCount)=sliceIndex;
+			*(readIndexes-foundCount)=i;
+			foundCount++;
+
+			char buffer[SMER_BASES+1];
+			unpackSmer(smer, buffer);
+			LOG(LOG_INFO,"%05i %016lx %012lx %s",slice, hash, smer, buffer);
+			}
+
+		if(i==allSmerCount-1)
+			{
+			*(fsmers-foundCount)=fsmer;
+			*(rsmers-foundCount)=rsmer;
+			*(slices-foundCount)=slice;
+			*(sliceIndexes-foundCount)=sliceIndex;
+			*(readIndexes-foundCount)=i;
+			foundCount++;
 			}
 
 		percolate->entryCount=entryCount;
 		}
 
-	return indexCount;
+	return foundCount;
 }
 
 
@@ -429,8 +453,8 @@ int scanForAndDispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb)
 	MemDispenser *disp=dispenserAlloc("RoutingDispatch");
 	dispatchReadBlock->disp=disp;
 
-	s32 lastHit=lookupReadBlock->maxReadLength-nodeSize;
-	s32 maxHits=lastHit+20;
+	s32 lastHit=lookupReadBlock->maxReadLength-nodeSize+2; // Allow for F & L
+	s32 maxHits=lastHit+1;
 
 	u32 *readIndexes=(u32 *)alloca(maxHits*sizeof(u32))+lastHit;
 	SmerId *fsmers=(SmerId *)alloca(maxHits*sizeof(SmerId))+lastHit;
@@ -457,7 +481,7 @@ int scanForAndDispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb)
 
 		int foundCount=extractIndexedSmerDataFromLookupPercolates(readLookup->smers, smerCount, fsmers, rsmers, slices, sliceIndexes, readIndexes, lookupReadBlock->smerEntryLookupsPercolates);
 
-		if(foundCount==0)
+		if(foundCount==2)
 			{
 			LOG(LOG_INFO,"Failed to find any valid smers for read");
 			exit(1);
@@ -473,8 +497,9 @@ int scanForAndDispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb)
 		memcpy(readDispatch->quality, readLookup->quality, length+1);
 
 		readDispatch->seqLength=length;
+		//int offset=foundCount-1;
 		int offset=foundCount-1;
-		readDispatch->indexCount=offset;
+		readDispatch->indexCount=foundCount-2;
 
 		readDispatch->readIndexes=dAlloc(disp, foundCount*sizeof(u32));
 		memcpy(readDispatch->readIndexes, readIndexes-offset, foundCount*sizeof(u32));

@@ -87,7 +87,10 @@ void assignToDispatchArrayEntry(RoutingDispatchArray *array, RoutingReadDispatch
 	u32 group=(slice >> SMER_DISPATCH_GROUP_SHIFT);
 
 	if(sliceNew != slice)
-		LOG(LOG_INFO,"%08lx %08lx Slice %i %i Group %i %i",fsmer, rsmer, sliceNew, slice, group, readData->indexCount);
+		{
+		LOG(LOG_INFO,"SLICE MISMATCH: %08lx %08lx Slice %i %i Group %i %i",fsmer, rsmer, sliceNew, slice, group, readData->indexCount);
+		exit(1);
+		}
 
 	assignReadDataToDispatchIntermediate(&(array->dispatches[group].data), readData, array->disp);
 }
@@ -480,21 +483,39 @@ static int processSlicesForGroup(RoutingDispatchGroupState *groupState)
 			{
 			RoutingReadDispatchData *readData=smerInboundDispatches->entries[j];
 
-			int oldIndexCount=__atomic_fetch_sub(&(readData->indexCount),1, __ATOMIC_SEQ_CST);
+			/*
+			int index=readData->indexCount;
 
-			if(oldIndexCount==0) // Last Smer -
+			SmerId prevFmer=readData->fsmers[index+1];
+			SmerId currFmer=readData->fsmers[index];
+			SmerId nextFmer=readData->fsmers[index-1];
+
+			char bufferP[SMER_BASES+1]={0};
+			char bufferC[SMER_BASES+1]={0};
+			char bufferN[SMER_BASES+1]={0};
+
+			unpackSmer(prevFmer, bufferP);
+			unpackSmer(currFmer, bufferC);
+			unpackSmer(nextFmer, bufferN);
+
+			LOG(LOG_INFO,"%s %s %s",bufferP, bufferC, bufferN);
+			*/
+
+			int nextIndexCount=__atomic_sub_fetch(&(readData->indexCount),1, __ATOMIC_SEQ_CST);
+
+			if(nextIndexCount==0) // Past last Smer - read is done
 				{
 				__atomic_fetch_sub(readData->completionCountPtr,1, __ATOMIC_SEQ_CST);
 				}
 
-			else if(oldIndexCount>0)
+			else if(nextIndexCount>0)
 				{
 				assignToDispatchArrayEntry(dispatchArray, readData);
 				}
 
 			else // Wrapped
 				{
-				LOG(LOG_INFO,"Wrapped smer Index %i",oldIndexCount);
+				LOG(LOG_INFO,"Wrapped smer Index %i",nextIndexCount);
 				exit(1);
 				}
 

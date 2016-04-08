@@ -59,16 +59,6 @@ int saFindSmerEntry(SmerArraySlice *slice, SmerEntry smerEntry)
 
 	s32 index=siitFindSmer(slice->smerIT, slice->smerCount, smerEntry);
 
-	/*
-	if(index!=-1)
-		{
-		char buffer[SMER_BASES+1];
-
-		unpackSmer(smerId, buffer);
-		LOG(LOG_INFO,"%05i %016lx %012lx %s",sliceNo, hash, smerId, buffer);
-		}
-*/
-
 	return index;
 }
 
@@ -81,7 +71,19 @@ int saFindSmer(SmerArray *smerArray, SmerId smerId)
 	SmerEntry smerEntry=SMER_GET_BOTTOM(smerId);
 	SmerArraySlice *slice=smerArray->slice+sliceNo;
 
-	return saFindSmerEntry(slice, smerEntry);
+	s32 index=saFindSmerEntry(slice, smerEntry);
+
+	/*
+	if(index!=-1)
+		{
+		char buffer[SMER_BASES+1];
+
+		unpackSmer(smerId, buffer);
+		LOG(LOG_INFO,"%05i %016lx %012lx %s",sliceNo, hash, smerId, buffer);
+		}
+*/
+
+	return index;
 }
 
 
