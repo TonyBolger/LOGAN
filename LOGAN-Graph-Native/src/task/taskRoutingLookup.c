@@ -183,10 +183,11 @@ static int extractIndexedSmerDataFromLookupPercolates(SmerId *allSmers, int allS
 			*(sliceIndexes-foundCount)=sliceIndex;
 			*(readIndexes-foundCount)=i;
 			foundCount++;
-
+			/*
 			char buffer[SMER_BASES+1];
 			unpackSmer(smer, buffer);
 			LOG(LOG_INFO,"%05i %016lx %012lx %s",slice, hash, smer, buffer);
+			*/
 			}
 
 		if(i==allSmerCount-1)

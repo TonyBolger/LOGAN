@@ -42,32 +42,32 @@ void _log(int level, int decorate, char *file, int line, const char *fmt, ...)
 		switch (level)
 		{
 		case LOG_CRITICAL:
-			fprintf(stderr, "LOGAN CRITICAL %s(%i) %f: ", file, line, timestamp);
+			fprintf(stdout, "LOGAN CRITICAL %s(%i) %f: ", file, line, timestamp);
 			break;
 		case LOG_ERROR:
-			fprintf(stderr, "LOGAN ERROR %s(%i) %f: ", file, line, timestamp);
+			fprintf(stdout, "LOGAN ERROR %s(%i) %f: ", file, line, timestamp);
 			break;
 		case LOG_WARNING:
-			fprintf(stderr, "LOGAN WARNING %s(%i) %f: ", file, line, timestamp);
+			fprintf(stdout, "LOGAN WARNING %s(%i) %f: ", file, line, timestamp);
 			break;
 		case LOG_INFO:
-			fprintf(stderr, "LOGAN INFO %s(%i) %f: ", file, line, timestamp);
+			fprintf(stdout, "LOGAN INFO %s(%i) %f: ", file, line, timestamp);
 			break;
 		case LOG_TRACE:
-			fprintf(stderr, "LOGAN TRACE %s(%i) %f: ", file, line, timestamp);
+			fprintf(stdout, "LOGAN TRACE %s(%i) %f: ", file, line, timestamp);
 			break;
 		default:
-			fprintf(stderr, "LOGAN Level %i %s(%i) %f: ", level, file, line, timestamp);
+			fprintf(stdout, "LOGAN Level %i %s(%i) %f: ", level, file, line, timestamp);
 			break;
 		}
 	}
 
 	va_start(arglist,fmt);
-	vfprintf(stderr, fmt, arglist);
+	vfprintf(stdout, fmt, arglist);
 	va_end(arglist);
 
-	fprintf(stderr, "\n");
-	fflush(stderr);
+	fprintf(stdout, "\n");
+	//fflush(stderr);
 
 #ifdef LOCK_LOG
 	pthread_mutex_unlock(&logMutex);

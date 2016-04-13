@@ -7,8 +7,8 @@
 
 #include "../common.h"
 
-
-#define MASTER_TIMEOUT 120
+// Measured in seconds - Should never be hit unless workers block
+#define MASTER_TIMEOUT (60*15)
 
 
 
