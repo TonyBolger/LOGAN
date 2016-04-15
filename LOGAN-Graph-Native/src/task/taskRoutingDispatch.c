@@ -15,14 +15,14 @@ static void initDispatchIntermediateBlock(RoutingDispatchIntermediate *block, Me
 
 }
 
-/*
+
 static RoutingDispatchIntermediate *allocDispatchIntermediateBlock(MemDispenser *disp)
 {
-	RoutingDispatchIntermediate *block=dAllocCacheAligned(disp, sizeof(RoutingLookupPercolate));
+	RoutingDispatchIntermediate *block=dAlloc(disp, sizeof(RoutingDispatchIntermediate));
 	initDispatchIntermediateBlock(block, disp);
 	return block;
 }
-*/
+
 
 RoutingDispatchArray *allocDispatchArray(RoutingDispatchArray *nextPtr)
 {
@@ -470,7 +470,108 @@ static int assignReversedInboundDispatchesToSlices(RoutingDispatch *dispatches, 
 }
 
 
-static int processSlicesForGroup(RoutingDispatchGroupState *groupState)
+static RoutingDispatchIntermediate **indexDispatchesForSlice(RoutingDispatchIntermediate *smerInboundDispatches, int sliceSmerCount, MemDispenser *disp, int *usedCountPtr)
+{
+	RoutingDispatchIntermediate **smerDispatches=dAlloc(disp, sizeof(RoutingDispatchIntermediate *)* sliceSmerCount);
+	for(int i=0;i<sliceSmerCount;i++)
+		smerDispatches[i]=NULL;
+
+	RoutingDispatchIntermediate **usedSmerDispatches=dAlloc(disp, sizeof(RoutingDispatchIntermediate *)* sliceSmerCount);
+	for(int i=0;i<sliceSmerCount;i++)
+		usedSmerDispatches[i]=NULL;
+
+	int usedCount=0;
+	int maxCount=0;
+
+	for(int i=0;i<smerInboundDispatches->entryCount;i++)
+	{
+		RoutingReadDispatchData *readData=smerInboundDispatches->entries[i];
+		int sliceIndex=readData->sliceIndexes[readData->indexCount];
+
+		if(sliceIndex>=0 && sliceIndex<sliceSmerCount)
+			{
+			RoutingDispatchIntermediate *rdi=smerDispatches[sliceIndex];
+
+			if(rdi==NULL)
+				{
+				rdi=allocDispatchIntermediateBlock(disp);
+				smerDispatches[sliceIndex]=rdi;
+				usedSmerDispatches[usedCount++]=rdi;
+				}
+
+			assignReadDataToDispatchIntermediate(rdi,readData,disp);
+
+			if(rdi->entryCount>maxCount)
+				maxCount=rdi->entryCount;
+			}
+		else
+			{
+			LOG(LOG_CRITICAL,"Got invalid slice index %i",sliceIndex);
+			}
+	}
+
+	*usedCountPtr=usedCount;
+
+	if(maxCount>5)
+		LOG(LOG_INFO,"Indexes %i Max %i",usedCount,maxCount);
+
+	return usedSmerDispatches;
+
+}
+
+static void processGroupSlices(RoutingDispatchGroupState *groupState, SmerArraySlice *baseSlices)
+{
+	for(int i=0;i<SMER_DISPATCH_GROUP_SLICES;i++)
+		{
+		RoutingDispatchIntermediate *smerInboundDispatches=groupState->smerInboundDispatches+i;
+		SmerArraySlice *slice=baseSlices+i;
+
+		int indexLength=0;
+		RoutingDispatchIntermediate **indexedDispatches=indexDispatchesForSlice(smerInboundDispatches, slice->smerCount, groupState->disp, &indexLength);
+
+		if(indexLength>1000)
+			LOG(LOG_INFO,"Indexes %i (%p)",indexLength,indexedDispatches);
+		}
+
+}
+
+
+
+
+/*
+for(int j=0;j<smerInboundDispatches->entryCount;j++)
+	{
+	RoutingReadDispatchData *readData=smerInboundDispatches->entries[j];
+
+	int index=readData->indexCount;
+
+*/
+
+	/*
+	int index=readData->indexCount;
+
+	SmerId prevFmer=readData->fsmers[index+1];
+	SmerId currFmer=readData->fsmers[index];
+	SmerId nextFmer=readData->fsmers[index-1];
+
+	char bufferP[SMER_BASES+1]={0};
+	char bufferC[SMER_BASES+1]={0};
+	char bufferN[SMER_BASES+1]={0};
+
+	unpackSmer(prevFmer, bufferP);
+	unpackSmer(currFmer, bufferC);
+	unpackSmer(nextFmer, bufferN);
+
+	LOG(LOG_INFO,"%s %s %s",bufferP, bufferC, bufferN);
+	*/
+
+static void prepareGroupOutbound(RoutingDispatchGroupState *groupState)
+{
+	RoutingDispatchArray *outboundDispatches=allocDispatchArray(groupState->outboundDispatches);
+	groupState->outboundDispatches=outboundDispatches;
+}
+
+static int gatherGroupOutbound(RoutingDispatchGroupState *groupState)
 {
 	int work=0;
 	RoutingDispatchArray *dispatchArray=groupState->outboundDispatches;
@@ -482,24 +583,6 @@ static int processSlicesForGroup(RoutingDispatchGroupState *groupState)
 		for(int j=0;j<smerInboundDispatches->entryCount;j++)
 			{
 			RoutingReadDispatchData *readData=smerInboundDispatches->entries[j];
-
-			/*
-			int index=readData->indexCount;
-
-			SmerId prevFmer=readData->fsmers[index+1];
-			SmerId currFmer=readData->fsmers[index];
-			SmerId nextFmer=readData->fsmers[index-1];
-
-			char bufferP[SMER_BASES+1]={0};
-			char bufferC[SMER_BASES+1]={0};
-			char bufferN[SMER_BASES+1]={0};
-
-			unpackSmer(prevFmer, bufferP);
-			unpackSmer(currFmer, bufferC);
-			unpackSmer(nextFmer, bufferN);
-
-			LOG(LOG_INFO,"%s %s %s",bufferP, bufferC, bufferN);
-			*/
 
 			int nextIndexCount=__atomic_sub_fetch(&(readData->indexCount),1, __ATOMIC_SEQ_CST);
 
@@ -518,7 +601,6 @@ static int processSlicesForGroup(RoutingDispatchGroupState *groupState)
 				LOG(LOG_INFO,"Wrapped smer Index %i",nextIndexCount);
 				exit(1);
 				}
-
 			}
 
 		if(smerInboundDispatches->entryCount)
@@ -528,14 +610,6 @@ static int processSlicesForGroup(RoutingDispatchGroupState *groupState)
 		}
 
 	return work;
-}
-
-
-static void prepareGroupOutbound(RoutingDispatchGroupState *groupState)
-{
-	RoutingDispatchArray *outboundDispatches=allocDispatchArray(groupState->outboundDispatches);
-	groupState->outboundDispatches=outboundDispatches;
-
 }
 
 
@@ -566,8 +640,12 @@ static int scanForDispatchesForGroups(RoutingBuilder *rb, int startGroup, int en
 					// Currently only processing with new incoming or force mode
 					// Longer term think about processing only with busy slices or force mode
 
+					SmerArraySlice *baseSlice=rb->graph->smerArray.slice+(i << SMER_DISPATCH_GROUP_SHIFT);
+					processGroupSlices(groupState, baseSlice);
+
 					prepareGroupOutbound(groupState);
-					work+=processSlicesForGroup(groupState);
+					work+=gatherGroupOutbound(groupState);
+
 					queueDispatchArray(rb, groupState->outboundDispatches);
 
 					recycleRoutingDispatchGroupState(groupState);

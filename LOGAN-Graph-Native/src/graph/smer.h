@@ -31,27 +31,6 @@ typedef struct smerMapStr
 
 /********************** Definitions for SmerArray **********************/
 
-typedef struct smerArrayUpdateStr
-{
-	u32 seqLength;
-
-	char packedSeq[];
-} SmerArrayUpdate;
-
-
-/*
-// Each block represents up to 65536 Smers, with a common bp prefix
-
-typedef struct smerArrayBlockStr
-{
-	SmerEntry *smer;
-	u32 numSmers;
-
-	// Ptr / Offsets to tail and route info
-	//
-
-} SmerArrayBlock;
-*/
 
 // Each slice smers, with a common 7bp prefix
 
@@ -59,6 +38,7 @@ typedef struct smerArraySliceStr
 {
 	//SmerArrayBlock *blocks[SMER_MAP_BLOCKS_PER_SLICE];
 	SmerEntry *smerIT;
+	u8 **smerData;
 	s32 smerCount;
 	Bloom bloom;
 

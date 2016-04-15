@@ -22,6 +22,11 @@ s32 saInitSmerArray(SmerArray *smerArray, SmerMap *smerMap) {
 		smGetSortedSliceSmerEntries(mapSlices+i,smerTmp);
 
 		arraySlices[i].smerIT=siitInitImplicitTree(smerTmp,count);
+		arraySlices[i].smerData=smSmerDataArrayAlloc(count);
+
+		for(int j=0;j<count;j++)
+			arraySlices[i].smerData[j]=NULL;
+
 		arraySlices[i].smerCount=count;
 
 		Bloom *bloom=&(arraySlices[i].bloom);
@@ -43,7 +48,10 @@ void saCleanupSmerArray(SmerArray *smerArray) {
 	for (i = 0; i < SMER_SLICES; i++)
 		{
 		if (smerArray->slice[i].smerIT != NULL)
+			{
 			smSmerEntryArrayFree(smerArray->slice[i].smerIT);
+			smSmerDataArrayFree(smerArray->slice[i].smerData);
+			}
 
 		freeBloom(&(smerArray->slice[i].bloom));
 		}

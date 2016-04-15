@@ -388,7 +388,7 @@ T	0x54	84		0101 0100
 			Pattern filters also possible (SIMD advantages)
 		
 	Read batching for lookup: 
-		Currently 1000 reads per batch -> ~80 kmers per read -> 80K kmers per batch (~5 per slice). 640KB kmer in flight
+		1000 reads per batch -> ~80 kmers per read -> 80K kmers per batch (~5 per slice). 640KB kmer in flight
 		10000 reads per batch -> ~80 kmers per read -> 800K kmers per batch (~50 per slice). 6.4MB kmer in flight
 		
 		Multiple batches:
@@ -396,9 +396,8 @@ T	0x54	84		0101 0100
 		20 batches, 10K per batch -> ~80 kmers per read -> 16M kmers per batch (~1000 per slice) 128MB kmer in flight
 		100 batches, 10K per batch -> ~80 kmers per read -> 80M kmers per batch (~5000 per slice) 640MB kmer in flight
 
-
 	Read batching for routing:
-		Currently 1000 reads per batch -> ~8 kmers per read -> 8K kmers per batch (~0.5 per slice). 
+		1000 reads per batch -> ~8 kmers per read -> 8K kmers per batch (~0.5 per slice). 
 		10000 reads per batch -> ~8 kmers per read -> 80K kmers per batch (~5 per slice). 
 
 	Sub-bloom filters:

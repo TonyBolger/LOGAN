@@ -110,6 +110,33 @@ void dispenserNukeFree(MemDispenser *disp, u8 val)
 }
 */
 
+void dispenserReset(MemDispenser *dispenser)
+{
+	MemDispenserBlock *blockPtr=dispenser->block;
+
+	if(blockPtr!=NULL)
+		{
+		blockPtr->allocated=0;
+
+		blockPtr=blockPtr->prev;
+
+		while(blockPtr!=NULL)
+			{
+			MemDispenserBlock *prevPtr=blockPtr->prev;
+			free(blockPtr);
+			blockPtr=prevPtr;
+			}
+		}
+
+	dispenser->allocated=0;
+
+	int i=0;
+	for(i=0;i<MAX_ALLOCATORS;i++)
+		dispenser->allocatorUsage[i]=0;
+
+}
+
+
 int dispenserSize(MemDispenser *disp)
 {
 	return disp->allocated;

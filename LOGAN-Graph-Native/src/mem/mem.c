@@ -80,6 +80,22 @@ void smSmerEntryArrayFree(SmerEntry *array)
 }
 
 
+u8 **smSmerDataArrayAlloc(int length)
+{
+	size_t size=((long)length)*sizeof(u8 *);
+
+	u8 **array = gAllocC(size);
+	return array;
+}
+
+void smSmerDataArrayFree(u8 **array)
+{
+	gFree(array);
+}
+
+
+
+
 
 
 /*
