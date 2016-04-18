@@ -221,7 +221,7 @@ Total: 29311 samples
      147   0.7%  94.1%      147   0.7% __memset_sse2
  		
  		
-	
+
 		Pen-1: Reads: 450786851 reads Smers: 53888249 
 		
 		Jellyfish 2.2: 1417.936s 
@@ -388,7 +388,7 @@ T	0x54	84		0101 0100
 			Pattern filters also possible (SIMD advantages)
 		
 	Read batching for lookup: 
-		Currently 1000 reads per batch -> ~80 kmers per read -> 80K kmers per batch (~5 per slice). 640KB kmer in flight
+		1000 reads per batch -> ~80 kmers per read -> 80K kmers per batch (~5 per slice). 640KB kmer in flight
 		10000 reads per batch -> ~80 kmers per read -> 800K kmers per batch (~50 per slice). 6.4MB kmer in flight
 		
 		Multiple batches:
@@ -396,9 +396,8 @@ T	0x54	84		0101 0100
 		20 batches, 10K per batch -> ~80 kmers per read -> 16M kmers per batch (~1000 per slice) 128MB kmer in flight
 		100 batches, 10K per batch -> ~80 kmers per read -> 80M kmers per batch (~5000 per slice) 640MB kmer in flight
 
-
 	Read batching for routing:
-		Currently 1000 reads per batch -> ~8 kmers per read -> 8K kmers per batch (~0.5 per slice). 
+		1000 reads per batch -> ~8 kmers per read -> 8K kmers per batch (~0.5 per slice). 
 		10000 reads per batch -> ~8 kmers per read -> 80K kmers per batch (~5 per slice). 
 
 	Sub-bloom filters:
@@ -406,190 +405,35 @@ T	0x54	84		0101 0100
 		Improves cache behaviour
 		
 		 
-New Dataset Analysis:
+		 
+		 
+Tail/Route tables:
 
-
-Ecoli-1 (Q20): Seq: X Bp: Y
-
-Kmers: X
-Kmers  occuring <5: A B C D E
-X occurences of Kmers in reads
-X		Y.Z% in top 10	Z 
-
-Smers: X
-Smers  occuring <5: A B C D E
-X occurences of Smers in reads
-X		Y.Z% in top 10	Z 
-
-
-
-Ecoli-2 (Q20): Seq: X Bp: Y
-
-Kmers: X
-Kmers  occuring <5: A B C D E
-X occurences of Kmers in reads
-X		Y.Z% in top 10	Z 
-
-Smers: X
-Smers  occuring <5: A B C D E
-X occurences of Smers in reads
-X		Y.Z% in top 10	Z 
-
-
-
-Arabi-1 (Q20): Seq: X Bp: Y
-
-Kmers: X
-Kmers  occuring <5: A B C D E
-X occurences of Kmers in reads
-X		Y.Z% in top 10	Z 
-
-Smers: X
-Smers  occuring <5: A B C D E
-X occurences of Smers in reads
-X		Y.Z% in top 10	Z 
-
-
-
-
-Lyrata-1 (Q20): Seq: X Bp: Y
-
-Kmers: X
-Kmers  occuring <5: A B C D E
-X occurences of Kmers in reads
-X		Y.Z% in top 10	Z 
-
-Smers: X
-Smers  occuring <5: A B C D E
-X occurences of Smers in reads
-X		Y.Z% in top 10	Z 
-
-
-
-				
-Pen-1 (Q20): Seq: X Bp: Y
-
-Kmers: X
-Kmers  occuring <5: A B C D E
-X occurences of Kmers in reads
-X		Y.Z% in top 10	Z 
-
-Smers: X
-Smers  occuring <5: A B C D E
-X occurences of Smers in reads
-X		Y.Z% in top 10	Z 
+	Issues:
+		Batching:
+			Common Smers should delay reads until a group is accumulated
+			Rare Smers should process reads ASAP
 		
-
-
-Pen-2 (Q20): Seq: X Bp: Y
-
-Kmers: X
-Kmers  occuring <5: A B C D E
-X occurences of Kmers in reads
-X		Y.Z% in top 10	Z 
-
-Smers: X
-Smers  occuring <5: A B C D E
-X occurences of Smers in reads
-X		Y.Z% in top 10	Z 
+		Tail/Route data grows with each Smer update		
+					
+		Low memory overhead (<10% or less)
+			Additional data for tracking
+			Internal fragmentation
 		
-
-
-Pen-3 (Q20): Seq: X Bp: Y
-
-Kmers: X
-Kmers  occuring <5: A B C D E
-X occurences of Kmers in reads
-X		Y.Z% in top 10	Z 
-
-Smers: X
-Smers  occuring <5: A B C D E
-X occurences of Smers in reads
-X		Y.Z% in top 10	Z 
+		Low CPU overhead (copy-based compaction etc).		 
+		 
 		
+		 
+		 
+		 
+		 
+		 
+		 
+		 
+		 
+		 
+
 		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-Arabi-1 Dataset: Seq: 30,361,968 Bp: 2,364,495,967
-
-Kmers: 154717256
-Kmers  occuring <5: 42518318 2434485 1976988 2988053 4500337
-
-1696347756 occurences of Kmers in reads
-
-4004635		0.2360739% in top 10	394418
-35389971	2.086245% in top 100	309504
-82001337	4.833993% in top 1k	17894
-167078291	9.849295% in top 10k	6549
-285329471	16.82022% in top 100k	551
-465014713	27.4127% in top 1m	57
-656224623	38.68456% in top 10m	17
-1606781157	94.72003% in top 100m	6
-
-
-Smers: 7970136
-Smers occuring <5: 1394227 103341 109399 178212 270757
-
-220840462 occurences of Smers in reads
-
-3963627		 1.794792% in top 10		390927
-34285440	15,52498% in top 100		264374
-67480501	30.55622% in top 1k		13637
-115890440	52.477% in top 10k		1371
-146946106	66.53948% in top 100k		110
-166856524	75.55523% in top 1m		15
-
-
-Pen-1 Dataset: Seq: 454,198,372 Bp: 56,836,998,064
-
-Kmers: 1137524116
-Kmers occuring <5: 458338907 31811731 6550250 3139858 1831085
-
-46841584193 occurences of kmers in reads
-
-47503721		0.1014136 in top 10		4494887
-391456096 		0.8357021 in top 100	3135391
-1045360512		2.231693 in top 1k		245888
-1979096824		4.225085 in top 10k		64412
-4552130255		9.718139 in top 100k	18558
-9634462522		20.56818 in top 1m		2120
-14877262117		31.7608 in top 10m		255
-23697100801		50.58988 in top 100m	63
-46704060077		99.70641 in top 1b		1
-
-
-Smers: 53836270
-Smers occuring <5: 16363353 1308815 294895 150991 92072
-
-6720647410 occurences of Smers in reads
-
-9838707		 0.1463952% in top 10		961497
-76152605	 1.133114% in top 100		576106
-357584366	 5.320683% in top 1k		192420
-1104283164	16.43120% in top 10k		47353
-2827041244	42.06501% in top 100k		9819
-4536447409	67.50015% in top 1m			562
-5652556089	84.10732% in top 10m		59
-
-
-
-
-
-
-
-
-
 
 
 

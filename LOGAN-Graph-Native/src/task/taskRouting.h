@@ -117,6 +117,13 @@ typedef struct routingReadDispatchBlockStr {
 } RoutingReadDispatchBlock;
 
 
+typedef struct routingSliceStateStr {
+	MemDispenser *activeDisp;
+	MemDispenser *inactiveDisp;
+
+
+} RoutingSliceState;
+
 
 typedef struct routingDispatchGroupStateStr {
 
@@ -126,6 +133,8 @@ typedef struct routingDispatchGroupStateStr {
 
 	RoutingDispatchIntermediate smerInboundDispatches[SMER_DISPATCH_GROUP_SLICES]; // Accumulator for inbound reads to this group
 	RoutingDispatchArray *outboundDispatches; // List with partially dispatched reads going to next dispatch group
+
+	RoutingSliceState slice[SMER_DISPATCH_GROUP_SLICES];
 
 } RoutingDispatchGroupState;
 

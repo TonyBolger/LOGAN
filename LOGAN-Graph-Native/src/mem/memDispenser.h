@@ -37,6 +37,8 @@ MemDispenser *dispenserAlloc(const char *name);
 void dispenserFree(MemDispenser *dispenser);
 //void dispenserNukeFree(MemDispenser *disp, u8 val);
 
+void dispenserReset(MemDispenser *dispenser);
+
 int dispenserSize(MemDispenser *disp);
 void *dAlloc(MemDispenser *dispenser, size_t size);
 
