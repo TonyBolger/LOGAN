@@ -209,28 +209,46 @@ for q in 10 15 20; do for d in 1P 2P 1U 2U; do cat dataSource/Pennellii/filtered
 for q in 10 15 20; do for d in 1P 2P 1U 2U; do cat dataSource/Pennellii/filteredReads/Pen-2/*_Q${q}_${d}.fq.gz > data/Pen-2_Q${q}_${d}.fq.gz; done; done
 for q in 10 15 20; do for d in 1P 2P 1U 2U; do cat dataSource/Pennellii/filteredReads/Pen-3/*_Q${q}_${d}.fq.gz > data/Pen-3_Q${q}_${d}.fq.gz; done; done
 
-for i in Arabi-1 Ecoli-1 Ecoli-2 Lyrata-1 Pen-1 Pen-2 Pen-3; do for q in 10 15 20; do java -classpath ~/Projects/Silicana/Coverage/bin coverage.LibStats ${i}_Q${q}_[12][PU].fq.gz > ${i}_Q${q}.libstats; done; done
+for q in 10 15 20; do for d in 1P 2P 1U 2U; do cat data/Pen-1_Q${q}_${d}.fq.gz data/Pen-2_Q${q}_${d}.fq.gz data/Pen-3_Q${q}_${d}.fq.gz > data/Pen-4_Q${q}_${d}.fq.gz; done; done
+
+for i in Arabi-1 Ecoli-1 Ecoli-2 Lyrata-1 Pen-1 Pen-2 Pen-3 Pen-4; do for q in 10 15 20; do java -classpath ~/Projects/Silicana/Coverage/bin coverage.LibStats ${i}_Q${q}_[12][PU].fq.gz > ${i}_Q${q}.libstats; done; done
+
+for i in Pen-4; do for q in 10 15 20; do java -classpath ~/Projects/Silicana/Coverage/bin coverage.LibStats ${i}_Q${q}_[12][PU].fq.gz > ${i}_Q${q}.libstats; done; done
 
 for i in Pen-1; do for q in 10 15 20; do java -classpath ~/Projects/Silicana/Coverage/bin coverage.LibStats ${i}_Q${q}_[12][PU].fq.gz > ${i}_Q${q}.libstats & done; done
-sleep 1
-wait
 
 for i in Pen-2; do for q in 10 15 20; do java -classpath ~/Projects/Silicana/Coverage/bin coverage.LibStats ${i}_Q${q}_[12][PU].fq.gz > ${i}_Q${q}.libstats & done; done
-sleep 1
-wait
 
 for i in Pen-3; do for q in 10 15 20; do java -classpath ~/Projects/Silicana/Coverage/bin coverage.LibStats ${i}_Q${q}_[12][PU].fq.gz > ${i}_Q${q}.libstats & done; done
-sleep 1
-wait
+
+for i in Pen-4; do for q in 10 15 20; do java -classpath ~/Projects/Silicana/Coverage/bin coverage.LibStats ${i}_Q${q}_[12][PU].fq.gz > ${i}_Q${q}.libstats & done; done
 
 
-for i in Arabi-1 Ecoli-1 Ecoli-2 Lyrata-1 Pen-1 Pen-2 Pen-3; do for q in 10 15 20; do cat ${i}_Q${q}_[12][PU].fq.gz | gunzip > ${i}_Q${q}.fq; done; done
+
+for i in Arabi-1 Ecoli-1 Ecoli-2 Lyrata-1 Pen-1 Pen-2 Pen-3 Pen-4; do for q in 10 15 20; do cat ${i}_Q${q}_[12][PU].fq.gz | gunzip > ${i}_Q${q}.fq; done; done
 
 for i in Pen-1; do for q in 10 15 20; do cat ${i}_Q${q}_[12][PU].fq.gz | gunzip > ${i}_Q${q}.fq & done; done
 
 for i in Pen-2; do for q in 10 15 20; do cat ${i}_Q${q}_[12][PU].fq.gz | gunzip > ${i}_Q${q}.fq & done; done
 
 for i in Pen-3; do for q in 10 15 20; do cat ${i}_Q${q}_[12][PU].fq.gz | gunzip > ${i}_Q${q}.fq & done; done
+
+for i in Pen-4; do for q in 10 15 20; do cat ${i}_Q${q}_[12][PU].fq.gz | gunzip > ${i}_Q${q}.fq & done; done
+
+for i in Pen-4; do for q in 20; do cat ${i}_Q${q}_[12][PU].fq.gz | gunzip > ${i}_Q${q}.fq & done; done
+
+
+
+Jellyfish:
+
+jellyfish count -m 23 -C -s 10000000 -t 4 data/__DATASET___Q__QUAL__.fq -o jf/__DATASET___Q__QUAL__.jf
+
+for i in Pen-1 Pen-2 Pen-3 Pen-4; do for q in 10 15 20; do jellyfish histo -l 1 -h 1000000000 -t 4 -o jf/${i}_Q${q}.jf.histo jf/${i}_Q${q}.jf; done; done
+
+
+LOGAN:
+
+for i in Arabi-1 Ecoli-1 Ecoli-2 Lyrata-1 Pen-1 Pen-2 Pen-3 Pen-4; do for q in 10 15 20; do 
 
 
 
