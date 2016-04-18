@@ -16,7 +16,7 @@ static void initDispatchIntermediateBlock(RoutingDispatchIntermediate *block, Me
 }
 
 
-static RoutingDispatchIntermediate *allocDispatchIntermediateBlock(MemDispenser *disp)
+RoutingDispatchIntermediate *allocDispatchIntermediateBlock(MemDispenser *disp)
 {
 	RoutingDispatchIntermediate *block=dAlloc(disp, sizeof(RoutingDispatchIntermediate));
 	initDispatchIntermediateBlock(block, disp);
@@ -470,18 +470,26 @@ static int assignReversedInboundDispatchesToSlices(RoutingDispatch *dispatches, 
 }
 
 
-static RoutingDispatchIntermediate **indexDispatchesForSlice(RoutingDispatchIntermediate *smerInboundDispatches, int sliceSmerCount, MemDispenser *disp, int *usedCountPtr)
+static int indexDispatchesForSlice(RoutingDispatchIntermediate *smerInboundDispatches, int sliceSmerCount, MemDispenser *disp,
+		RoutingDispatchIntermediate **indexedDispatches, u32 *sliceIndexes)
 {
-	RoutingDispatchIntermediate **smerDispatches=dAlloc(disp, sizeof(RoutingDispatchIntermediate *)* sliceSmerCount);
-	for(int i=0;i<sliceSmerCount;i++)
-		smerDispatches[i]=NULL;
+//	int size=sizeof(RoutingDispatchIntermediate *) *sliceSmerCount;
+	//RoutingDispatchIntermediate **smerDispatches=dAlloc(disp, size);
 
-	RoutingDispatchIntermediate **usedSmerDispatches=dAlloc(disp, sizeof(RoutingDispatchIntermediate *)* sliceSmerCount);
-	for(int i=0;i<sliceSmerCount;i++)
-		usedSmerDispatches[i]=NULL;
+//	LOG(LOG_INFO,"%i %p %i %p %p",sliceSmerCount,smerDispatches, size, indexedDispatches, sliceIndexes);
+
+	RoutingDispatchIntermediate **smerDispatches=dAlloc(disp, sizeof(RoutingDispatchIntermediate *)*  sliceSmerCount);
+
+	for(int j=0;j<sliceSmerCount;j++)
+		{
+//		indexedDispatches[j]=NULL;
+//		sliceIndexes[j]=-1;
+		smerDispatches[j]=NULL;
+		}
 
 	int usedCount=0;
-	int maxCount=0;
+//	int maxCount=0;
+
 
 	for(int i=0;i<smerInboundDispatches->entryCount;i++)
 	{
@@ -496,13 +504,14 @@ static RoutingDispatchIntermediate **indexDispatchesForSlice(RoutingDispatchInte
 				{
 				rdi=allocDispatchIntermediateBlock(disp);
 				smerDispatches[sliceIndex]=rdi;
-				usedSmerDispatches[usedCount++]=rdi;
+				indexedDispatches[usedCount]=rdi;
+				sliceIndexes[usedCount++]=sliceIndex;
 				}
 
 			assignReadDataToDispatchIntermediate(rdi,readData,disp);
 
-			if(rdi->entryCount>maxCount)
-				maxCount=rdi->entryCount;
+//			if(rdi->entryCount>maxCount)
+//				maxCount=rdi->entryCount;
 			}
 		else
 			{
@@ -510,14 +519,15 @@ static RoutingDispatchIntermediate **indexDispatchesForSlice(RoutingDispatchInte
 			}
 	}
 
-	*usedCountPtr=usedCount;
-
-	if(maxCount>5)
-		LOG(LOG_INFO,"Indexes %i Max %i",usedCount,maxCount);
-
-	return usedSmerDispatches;
+	return usedCount;
 
 }
+
+static void processReadsForSmer(RoutingDispatchIntermediate *rdi, u32 sliceIndex, SmerArraySlice *baseSlices, MemDispenser *disp)
+{
+	//LOG(LOG_INFO, "Index: %i Reads %i",sliceIndex,rdi->entryCount);
+}
+
 
 static void processGroupSlices(RoutingDispatchGroupState *groupState, SmerArraySlice *baseSlices)
 {
@@ -526,11 +536,26 @@ static void processGroupSlices(RoutingDispatchGroupState *groupState, SmerArrayS
 		RoutingDispatchIntermediate *smerInboundDispatches=groupState->smerInboundDispatches+i;
 		SmerArraySlice *slice=baseSlices+i;
 
-		int indexLength=0;
-		RoutingDispatchIntermediate **indexedDispatches=indexDispatchesForSlice(smerInboundDispatches, slice->smerCount, groupState->disp, &indexLength);
+		RoutingDispatchIntermediate **indexedDispatches=dAlloc(groupState->disp, sizeof(RoutingDispatchIntermediate *)*  slice->smerCount);
+		u32 *sliceIndexes=dAlloc(groupState->disp, sizeof(u32)*slice->smerCount);
 
-		if(indexLength>1000)
-			LOG(LOG_INFO,"Indexes %i (%p)",indexLength,indexedDispatches);
+		for(int j=0;j<slice->smerCount;j++)
+			{
+			indexedDispatches[j]=NULL;
+			sliceIndexes[j]=-1;
+			}
+
+
+		//RoutingDispatchIntermediate **smerTmpDispatches=dAlloc(groupState->disp, sizeof(RoutingDispatchIntermediate *)*  slice->smerCount);
+
+
+//		LOG(LOG_INFO,"%i for %i",smerInboundDispatches->entryCount, slice->smerCount);
+
+		int indexLength=indexDispatchesForSlice(smerInboundDispatches, slice->smerCount, groupState->disp, indexedDispatches, sliceIndexes);//, smerTmpDispatches);
+
+		for(int j=0;j<indexLength;j++)
+			processReadsForSmer(indexedDispatches[j], sliceIndexes[j], baseSlices, groupState->disp);
+
 		}
 
 }

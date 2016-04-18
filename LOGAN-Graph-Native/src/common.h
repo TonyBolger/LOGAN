@@ -31,6 +31,12 @@
 #define PAD_BYTELENGTH_32BYTE(L) (((L)+31)&~31)
 #define PAD_BYTELENGTH_64BYTE(L) (((L)+63)&~63)
 
+#define QUAD_ALIGNMENT_MASK 7
+#define QUAD_ALIGNMENT_SIZE 8
+
+#define CACHE_ALIGNMENT_MASK 63
+#define CACHE_ALIGNMENT_SIZE 64
+
 
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
 #define MAX(X,Y) ((X) > (Y) ? (X) : (Y))
@@ -164,6 +170,7 @@ typedef struct swqBufferStr {
 
 
 #include "mem/memDispenser.h"
+#include "mem/memStreamer.h"
 
 #include "util/bitMap.h"
 #include "util/bitPacking.h"
@@ -175,6 +182,7 @@ typedef struct swqBufferStr {
 #include "task/task.h"
 
 #include "graph/smer.h"
+#include "graph/seqTail.h"
 #include "graph/graph.h"
 
 #include "task/taskIndexing.h"

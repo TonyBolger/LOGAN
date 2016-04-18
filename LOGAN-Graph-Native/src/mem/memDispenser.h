@@ -1,5 +1,5 @@
-#ifndef __MEM_UTIL_H
-#define __MEM_UTIL_H
+#ifndef __MEM_DISPENSER_H
+#define __MEM_DISPENSER_H
 
 #include "../common.h"
 
@@ -41,6 +41,7 @@ void dispenserReset(MemDispenser *dispenser);
 
 int dispenserSize(MemDispenser *disp);
 void *dAlloc(MemDispenser *dispenser, size_t size);
+void *dAllocLogged(MemDispenser *dispenser, size_t size);
 
 void *dAllocQuadAligned(MemDispenser *disp, size_t size);
 void *dAllocCacheAligned(MemDispenser *disp, size_t size);

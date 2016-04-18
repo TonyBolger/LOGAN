@@ -424,7 +424,10 @@ Tail/Route tables:
 		 
 		
 		 
-		 
+Each slice contains 500-5000 Smers:
+
+	Need to group by Smer, orientation and upstream edge (or smer+length), but preserve order within these
+	
 		 
 		 
 		 

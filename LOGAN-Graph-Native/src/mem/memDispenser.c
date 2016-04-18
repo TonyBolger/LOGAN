@@ -1,11 +1,6 @@
 
 #include "../common.h"
 
-#define QUAD_ALIGNMENT_MASK 7
-#define QUAD_ALIGNMENT_SIZE 8
-
-#define CACHE_ALIGNMENT_MASK 63
-#define CACHE_ALIGNMENT_SIZE 64
 
 
 static MemDispenserBlock *dispenserBlockAlloc()
@@ -128,6 +123,7 @@ void dispenserReset(MemDispenser *dispenser)
 			}
 		}
 
+	dispenser->block->prev=NULL;
 	dispenser->allocated=0;
 
 	int i=0;
@@ -191,6 +187,58 @@ void *dAlloc(MemDispenser *disp, size_t size)
 
 	return usrPtr;
 }
+
+
+void *dAllocLogged(MemDispenser *disp, size_t size)
+{
+	if(size==0)
+		return NULL;
+
+	if(disp->allocated>DISPENSER_MAX)
+		{
+		fprintf(stderr,"Dispenser Overallocation detected - wanted %i\n",(int)size);
+		int i;
+		for(i=0;i<MAX_ALLOCATORS;i++)
+			fprintf(stderr,"%i %i\n",i,disp->allocatorUsage[i]);
+
+		raise(SIGSEGV);
+		return NULL;
+		}
+
+	//if(size>10000)
+		//fprintf(stderr,"Large Alloc %i\n",(int)size);
+
+	size_t allocSize=size;
+
+	if(disp->block == NULL || disp->block->allocated+allocSize > disp->block->blocksize)
+		{
+		MemDispenserBlock *newBlock=dispenserBlockAlloc();
+
+		newBlock->prev=disp->block;
+		disp->block=newBlock;
+		}
+
+	MemDispenserBlock *block=disp->block;
+
+	if(block->allocated+size > block->blocksize)
+		{
+		fprintf(stderr,"Dispenser Local overallocation detected - wanted %i\n",(int)size);
+
+		raise(SIGSEGV);
+		return NULL;
+		}
+
+	void *usrPtr=block->data+block->allocated;
+
+	block->allocated+=allocSize;
+	disp->allocated+=allocSize;
+
+	LOG(LOG_INFO,"Alloced %i at %p - %i %i %i",allocSize,usrPtr,disp->allocated,block->allocated,DISPENSER_BLOCKSIZE);
+
+	return usrPtr;
+}
+
+
 
 
 void *dAllocQuadAligned(MemDispenser *disp, size_t size)
