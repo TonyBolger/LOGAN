@@ -17,8 +17,10 @@ CLI_OBJS += \
 ./bin/cli/common/graph/smer.o \
 ./bin/cli/common/graph/smerArray.o \
 ./bin/cli/common/graph/smerMap.o \
+./bin/cli/common/graph/seqTail.o \
 ./bin/cli/common/mem/mem.o \
 ./bin/cli/common/mem/memDispenser.o \
+./bin/cli/common/mem/memStreamer.o \
 ./bin/cli/common/task/task.o \
 ./bin/cli/common/task/taskIndexing.o \
 ./bin/cli/common/task/taskRouting.o \
@@ -38,11 +40,13 @@ CLI_DEPS := $(CLI_OBJS:.o=.d)
 
 JNI_OBJS += \
 ./bin/jni/common/graph/graph.o \
+./bin/jni/common/graph/seqTail.o \
 ./bin/jni/common/graph/smer.o \
 ./bin/jni/common/graph/smerArray.o \
 ./bin/jni/common/graph/smerMap.o \
 ./bin/jni/common/mem/mem.o \
 ./bin/jni/common/mem/memDispenser.o \
+./bin/jni/common/mem/memStreamer.o \
 ./bin/jni/common/task/task.o \
 ./bin/jni/common/task/taskIndexing.o \
 ./bin/jni/common/task/taskRouting.o \

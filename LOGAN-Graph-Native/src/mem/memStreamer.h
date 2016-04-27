@@ -24,7 +24,7 @@ typedef struct memStreamerStr
 
 	int allocated;
 
-	void *currentPtr;
+	u8 *currentPtr;
 	u32 currentSize;
 } MemStreamer;
 

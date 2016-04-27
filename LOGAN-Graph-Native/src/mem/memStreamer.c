@@ -2,7 +2,7 @@
 #include "../common.h"
 
 
-static MemStreamerBlock *dispenserBlockAlloc()
+static MemStreamerBlock *streamerBlockAlloc()
 {
 	MemStreamerBlock *block=memalign(CACHE_ALIGNMENT_SIZE, sizeof(MemStreamerBlock));
 
@@ -32,7 +32,7 @@ MemStreamer *streamerAlloc()
 		exit(1);
 		}
 
-	strm->block=dispenserBlockAlloc();
+	strm->block=streamerBlockAlloc();
 	strm->allocated=0;
 
 	strm->currentPtr=NULL;
@@ -79,7 +79,7 @@ void streamerReset(MemStreamer *strm)
 
 		while(blockPtr!=NULL)
 			{
-			MemDispenserBlock *prevPtr=blockPtr->prev;
+			MemStreamerBlock *prevPtr=blockPtr->prev;
 			free(blockPtr);
 			blockPtr=prevPtr;
 			}
