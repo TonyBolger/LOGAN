@@ -317,7 +317,8 @@ T	0x54	84		0101 0100
 	
 	Pack -> Smer
 	
-	Smers are represented in big endian format (first base 'higher') 
+	Smers are represented in big endian format (first base 'higher') - thus numerical packed sorting matches base alphabetical sorting
+	
 	
 		
 	Rmer:             -- -- -- --  -- -- -- --  23 22 21 20  19 18 17 16  15 14 13 12  11 10 09 08  07 06 05 04  03 02 01 00

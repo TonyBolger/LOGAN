@@ -525,6 +525,10 @@ static int indexDispatchesForSlice(RoutingDispatchIntermediate *smerInboundDispa
 
 static void processReadsForSmer(RoutingDispatchIntermediate *rdi, u32 sliceIndex, SmerArraySlice *baseSlices, MemDispenser *disp)
 {
+	// Lookup/Create prefix/suffix tails as needed
+
+	//
+
 	//LOG(LOG_INFO, "Index: %i Reads %i",sliceIndex,rdi->entryCount);
 }
 

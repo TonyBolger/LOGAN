@@ -9,7 +9,7 @@ SeqTailBuilder *allocSeqTailBuilder(u8 *data, MemStreamer *strm, MemDispenser *d
 	builder->strm=strm;
 	builder->disp=disp;
 
-	if(strm!=NULL)
+	if(strm!=NULL) // read only mode
 		{
 
 		}
