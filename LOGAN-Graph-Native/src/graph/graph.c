@@ -34,7 +34,8 @@ void addPathSmers(Graph *graph, u32 dataLength, u8 *data)
 
 	SmerMap *smerMap=&(graph->smerMap);
 
-	s32 indexMaxDistance=graph->config.sparseness;
+	//s32 indexMaxDistance=graph->config.sparseness;
+	s32 indexMaxDistance=graph->config.sparseness-1;
 	s32 maxValidIndex=dataLength-graph->config.nodeSize;
 
 //	LOG(LOG_INFO,"Max dist: %i",indexMaxDistance);
@@ -51,7 +52,7 @@ void addPathSmers(Graph *graph, u32 dataLength, u8 *data)
 	//LOG(LOG_INFO, "Existing Indexes: ");
 	//LogIndexes(oldIndexes, oldIndexCount, smerIds);
 
-	s32 prevIndex=-1;
+	s32 prevIndex=-1; // TODO: Consider -1 vs 0 here (length of first edge)
 
 	int i,j;
 	s32 distance;

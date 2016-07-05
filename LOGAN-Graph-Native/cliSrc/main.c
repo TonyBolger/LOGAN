@@ -441,6 +441,7 @@ int main(int argc, char **argv)
 	runIptMaster(fileTemplate, fileCount, threadCountIndexing, graph);
 
 	LOG(LOG_INFO,"Smer count: %i",smGetSmerCount(&(graph->smerMap)));
+
 	//smDumpSmerMap(&(graph->smerMap));
 
 	switchMode(graph);

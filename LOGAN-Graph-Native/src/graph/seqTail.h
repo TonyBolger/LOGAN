@@ -8,23 +8,28 @@
 
 typedef struct seqTailBuilderStr
 {
-	u8 *data;
-
-	s32 dataSize;
-	s32 dataCount;
-
-	MemStreamer *strm;
 	MemDispenser *disp;
+
+	s64 *oldTails;
+	s64 *newTails;
+
+	s32 oldTailCount;
+	s32 newTailCount;
+
+	s32 newTailAlloc;
+	s32 totalPackedSize;
+
 } SeqTailBuilder;
 
 
 
-SeqTailBuilder *allocSeqTailBuilder(u8 *data, MemStreamer *strm, MemDispenser *disp);
-u8 *finalizeSeqTailBuilder();
+u8 *initSeqTailBuilder(SeqTailBuilder *builder, u8 *data, MemDispenser *disp);
 
-s32 findSeqTail(SmerId *smer, int tailLength);
-s32 findOrCreateSeqTail(SmerId *smer, int tailLength);
+s32 getSeqTailBuilderPackedSize(SeqTailBuilder *seqTailBuilder);
+void writeSeqTailBuilderPackedData(SeqTailBuilder *seqTailBuilder, u8 *data);
 
+s32 findSeqTail(SeqTailBuilder *seqTailBuilder, SmerId smer, s32 tailLength);
+s32 findOrCreateSeqTail(SeqTailBuilder *seqTailBuilder, SmerId smer, s32 tailLength);
 
 
 
