@@ -1,6 +1,6 @@
 Preset					Genome	Threads		MapSize	MapSlices
 
-Can I assemble, Boss? 	10Mb	4					16	
+Can I assemble, Boss? 	10Mb	4					16
 Hey, not too tough		100Mb	8					32
 Assemble me plenty		1Gb		16					32
 Ultra-Assembly			10Gb	32					64
@@ -18,19 +18,19 @@ I am Death incarnate!
 Doom:
 
 I'm too young to die
-*Hey, not too rough	
+*Hey, not too rough
 *Hurt me plenty
 *Ultra-Violence
 *Nightmare!
 
 
 
-for i in 1 2 4 8 16 32; do 
-	~/LOGAN data/Ecoli-2/split_Q20_%02i_%02i.fq $i 2> out_1.$i ; 
-	~/LOGAN data/Ecoli-2/split_Q20_%02i_%02i.fq $i 2> out_2.$i ; 
-	~/LOGAN data/Ecoli-2/split_Q20_%02i_%02i.fq $i 2> out_3.$i ; 
-	~/LOGAN data/Ecoli-2/split_Q20_%02i_%02i.fq $i 2> out_4.$i ; 
-	~/LOGAN data/Ecoli-2/split_Q20_%02i_%02i.fq $i 2> out_5.$i ; 
+for i in 1 2 4 8 16 32; do
+	~/LOGAN data/Ecoli-2/split_Q20_%02i_%02i.fq $i 2> out_1.$i ;
+	~/LOGAN data/Ecoli-2/split_Q20_%02i_%02i.fq $i 2> out_2.$i ;
+	~/LOGAN data/Ecoli-2/split_Q20_%02i_%02i.fq $i 2> out_3.$i ;
+	~/LOGAN data/Ecoli-2/split_Q20_%02i_%02i.fq $i 2> out_4.$i ;
+	~/LOGAN data/Ecoli-2/split_Q20_%02i_%02i.fq $i 2> out_5.$i ;
 done
 
 
@@ -40,7 +40,7 @@ Node Indexing:
 
 Parallelization:
 
-1) Thread-per-file:	
+1) Thread-per-file:
 
 2) Thread-per-block, serial files:
 
@@ -53,9 +53,9 @@ Parallelization:
 
 C Parsing:
 
-1) 3 Buffers: Active ingress, Queued ingress, Parsing.    
+1) 3 Buffers: Active ingress, Queued ingress, Parsing.
 
-  
+
 LOGAN INFO src/task/taskRouting.c(149) 36.666270: doIntermediate Worker: 7 Force: 1 Allocated Lookups: 20 Allocated Dispatches: 20
 LOGAN INFO src/task/taskRouting.c(47) 36.666282: INCOMPLETE: RDB BlockNum: 0 Status: 2 RemainingCount: 8
 LOGAN INFO src/task/taskRouting.c(47) 36.666289: INCOMPLETE: RDB BlockNum: 1 Status: 2 RemainingCount: 4
@@ -87,23 +87,18 @@ LOGAN INFO src/task/taskRouting.c(47) 36.696016: INCOMPLETE: RDB BlockNum: 19 St
 
 	AGAAGCATAAGTGATGATTAAAGAATTGCACGGGAATTTTAAGTGCTTAATTACCCGCACGACTTCTCTCGCGTCTCTCTCTTTTTTCTTCCTTTCTTT
 
-	AGAAGCATAAGTGATGATTAAAG 
-1	                      GAATTGCACGGGAATTTTAAGTG 
+	AGAAGCATAAGTGATGATTAAAG
+1	                      GAATTGCACGGGAATTTTAAGTG
 	                                             CTTAATTACCCGCACGACTTCTC
-	                                             
-               
-						  GAATTGCACGGGAATTTTAAGTG 
-2						                         CTTAATTACCCGCACGACTTCTC 
+
+
+						  GAATTGCACGGGAATTTTAAGTG
+2						                         CTTAATTACCCGCACGACTTCTC
 						                                                TCGCGTCTCTCTCTTTTTTCTTC
-						                                                						                                                
-												 CTTAATTACCCGCACGACTTCTC 
-3												 						TCGCGTCTCTCTCTTTTTTCTTC 
+
+												 CTTAATTACCCGCACGACTTCTC
+3												 						TCGCGTCTCTCTCTTTTTTCTTC
 												 								CTCTCTTTTTTCTTCCTTTCTTT
-												 								
-												 								
-												 								
-												 								
-												 								
 
 
 
@@ -111,6 +106,36 @@ LOGAN INFO src/task/taskRouting.c(47) 36.696016: INCOMPLETE: RDB BlockNum: 19 St
 
 
 
+
+
+TestPen:
+
+01234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789
+AATAATTTCATTGAGTATTCAATGGTTCTGAGATTTCTTAACACAGATAAATAATCTTTTCAACCTCACGAAAATGATTATAAATTCCATGTATTAGTGCAATTGGTGCACTTATAGATTGTTGGTTATGCAAATGCTAG
+
+AATAATTTCATTGAGTATTCAA
+                      TGGTTCTGAGATTTCTTAACACA*
+                      TGTGTTAAGAAATCTCAGAACCA
+                                             GATAAATAATCTTTTCAACCTCA*
+                                             TGAGGTTGAAAAGATTATTTATC
+                                                                    CGAAAATGATTATAAATTCCATG
+                                                                    CATGGAATTTATAATCATTTTCG*
+                                                                                           TATTAGTGCAATTGGTGCACTTA
+                                                                                           TAAGTGCACCAATTGCACTAATA*
+                                                                                                                  TAGATTGTTGGTTATGCAAATGC
+                                                                                                                  GCATTTGCATAACCAACAATCTA*
+                                                                                                                                         TAG
+
+
+AATAATTTCATTGAGTATTCAAx (22) 		TGGTTCTGAGATTTCTTAACACA 			GATAAATAATCTTTTCAACCTCA (23)
+
+TGGTTCTGAGATTTCTTAACACA (23) 		GATAAATAATCTTTTCAACCTCA 			CGAAAATGATTATAAATTCCATG (23)
+
+GATAAATAATCTTTTCAACCTCA (23) 		CGAAAATGATTATAAATTCCATG (rc) 		TATTAGTGCAATTGGTGCACTTA (23)
+
+CGAAAATGATTATAAATTCCATG (23) 		TATTAGTGCAATTGGTGCACTTA (rc) 		TAGATTGTTGGTTATGCAAATGC (23)
+
+TATTAGTGCAATTGGTGCACTTA (23) 		TAGATTGTTGGTTATGCAAATGC (rc) 		xxxxxxxxxxxxxxxxxxxxTAG (3)
 
 
 

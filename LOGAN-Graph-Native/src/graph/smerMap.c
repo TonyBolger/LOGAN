@@ -344,7 +344,8 @@ static void smDumpSmerMapSlice(SmerMapSlice *smerMapSlice, int sliceNum)
 			}
 		}
 
-	LOG(LOG_INFO,"SLICE %i SIZE %i",sliceNum, count);
+	if(count>0)
+		LOG(LOG_INFO,"SLICE %i SIZE %i",sliceNum, count);
 }
 
 
