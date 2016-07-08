@@ -164,7 +164,7 @@ u8 *writeRouteTableBuilderPackedData(RouteTableBuilder *builder, u8 *data)
 	return data;
 }
 
-s32 mergeRoutes(RouteTableBuilder *builder, SmerId smer, s32 tailLength)
+s32 mergeRoutes(RouteTableBuilder *builder, RoutingDispatchIntermediate *rdi, RoutePatch *forwardRoutePatches, RoutePatch *reverseRoutePatches, s32 forwardRoutePatchCount, s32 reverseRoutePatchCount)
 {
 	return 0;
 }
