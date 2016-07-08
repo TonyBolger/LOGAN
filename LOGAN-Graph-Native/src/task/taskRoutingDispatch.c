@@ -523,13 +523,45 @@ static int indexDispatchesForSlice(RoutingDispatchIntermediate *smerInboundDispa
 
 }
 
-
- void processReadsForSmer(RoutingDispatchIntermediate *rdi, u32 sliceIndex, SmerArraySlice *baseSlices, MemDispenser *disp)
+static int forwardPrefixSorter(const void *a, const void *b)
 {
-	u8 *smerData=baseSlices->smerData[sliceIndex];
+	RoutePatch *pa=(RoutePatch *)a;
+	RoutePatch *pb=(RoutePatch *)b;
 
-	if(smerData!=NULL)
-		LOG(LOG_INFO, "Index: %i of %i Entries %i Data: %p",sliceIndex,baseSlices->smerCount, rdi->entryCount, smerData);
+	int diff=pa->prefixIndex-pb->prefixIndex;
+	if(diff)
+		return diff;
+
+	return pa->rdiIndex-pb->rdiIndex; // Follow original order
+}
+
+static int reverseSuffixSorter(const void *a, const void *b)
+{
+	RoutePatch *pa=(RoutePatch *)a;
+	RoutePatch *pb=(RoutePatch *)b;
+
+	int diff=pa->suffixIndex-pb->suffixIndex;
+	if(diff)
+		return diff;
+
+	return pa->rdiIndex-pb->rdiIndex; // Follow original order
+//	return pb->rdiIndex-pa->rdiIndex; // Reverse original order
+}
+
+static void dumpPatches(RoutePatch *patches, int patchCount)
+{
+	for(int i=0;i<patchCount;i++)
+		LOG(LOG_INFO,"Patch: P: %i S: %i #: %i",patches[i].prefixIndex, patches[i].suffixIndex, patches[i].rdiIndex);
+}
+
+
+
+ void processReadsForSmer(RoutingDispatchIntermediate *rdi, u32 sliceIndex, SmerArraySlice *slice, MemDispenser *disp)
+{
+	u8 *smerData=slice->smerData[sliceIndex];
+
+	//if(smerData!=NULL)
+//		LOG(LOG_INFO, "Index: %i of %i Entries %i Data: %p",sliceIndex,slice->smerCount, rdi->entryCount, smerData);
 
 	SeqTailBuilder prefixBuilder, suffixBuilder;
 
@@ -538,8 +570,13 @@ static int indexDispatchesForSlice(RoutingDispatchIntermediate *smerInboundDispa
 
 	int entryCount=rdi->entryCount;
 
-	s32 *prefixIndexes=dAlloc(disp,sizeof(s32)*entryCount);
-	s32 *suffixIndexes=dAlloc(disp,sizeof(s32)*entryCount);
+	int forwardCount=0;
+	int reverseCount=0;
+
+	RoutePatch *forwardPatches=dAlloc(disp,sizeof(RoutePatch)* entryCount);
+	RoutePatch *reversePatches=dAlloc(disp,sizeof(RoutePatch)* entryCount);
+
+	// First, lookup tail indexes, creating tails if necessary
 
 	for(int i=0;i<entryCount;i++)
 	{
@@ -578,8 +615,9 @@ static int indexDispatchesForSlice(RoutingDispatchIntermediate *smerInboundDispa
 				int prefixLength=rdd->readIndexes[index]-rdd->readIndexes[index+1];
 				int suffixLength=rdd->readIndexes[index-1]-rdd->readIndexes[index];
 
-				prefixIndexes[i]=findOrCreateSeqTail(&prefixBuilder, prefixSmer, prefixLength);
-				suffixIndexes[i]=findOrCreateSeqTail(&suffixBuilder, suffixSmer, suffixLength);
+				forwardPatches[forwardCount].rdiIndex=i;
+				forwardPatches[forwardCount].prefixIndex=findOrCreateSeqTail(&prefixBuilder, prefixSmer, prefixLength);
+				forwardPatches[forwardCount].suffixIndex=findOrCreateSeqTail(&suffixBuilder, suffixSmer, suffixLength);
 
 				if(0)
 					{
@@ -591,9 +629,11 @@ static int indexDispatchesForSlice(RoutingDispatchIntermediate *smerInboundDispa
 					unpackSmer(currFmer, bufferN);
 					unpackSmer(suffixSmer, bufferS);
 
-					LOG(LOG_INFO,"Node Orientation: %s (%i) @ %i %s %s (%i) @ %i",bufferP, prefixLength, prefixIndexes[i],  bufferN, bufferS, suffixLength, suffixIndexes[i]);
+					LOG(LOG_INFO,"Node Orientation: %s (%i) @ %i %s %s (%i) @ %i",
+							bufferP, prefixLength, forwardPatches[forwardCount].prefixIndex,  bufferN, bufferS, suffixLength, forwardPatches[forwardCount].suffixIndex);
 					}
 
+				forwardCount++;
 			}
 		else	// Reverse-complement Read Orientation
 			{
@@ -603,8 +643,9 @@ static int indexDispatchesForSlice(RoutingDispatchIntermediate *smerInboundDispa
 				int prefixLength=rdd->readIndexes[index-1]-rdd->readIndexes[index];
 				int suffixLength=rdd->readIndexes[index]-rdd->readIndexes[index+1];
 
-				prefixIndexes[i]=findOrCreateSeqTail(&prefixBuilder, prefixSmer, prefixLength);
-				suffixIndexes[i]=findOrCreateSeqTail(&suffixBuilder, suffixSmer, suffixLength);
+				reversePatches[reverseCount].rdiIndex=i;
+				reversePatches[reverseCount].prefixIndex=findOrCreateSeqTail(&prefixBuilder, prefixSmer, prefixLength);
+				reversePatches[reverseCount].suffixIndex=findOrCreateSeqTail(&suffixBuilder, suffixSmer, suffixLength);
 
 				if(0)
 					{
@@ -616,20 +657,53 @@ static int indexDispatchesForSlice(RoutingDispatchIntermediate *smerInboundDispa
 					unpackSmer(currRmer, bufferN);
 					unpackSmer(suffixSmer, bufferS);
 
-					LOG(LOG_INFO,"Node Orientation: %s (%i) @ %i %s %s (%i) @ %i",bufferP, prefixLength, prefixIndexes[i],  bufferN, bufferS, suffixLength, suffixIndexes[i]);
+					LOG(LOG_INFO,"Node Orientation: %s (%i) @ %i %s %s (%i) @ %i",
+							bufferP, prefixLength, reversePatches[forwardCount].prefixIndex,  bufferN, bufferS, suffixLength, reversePatches[forwardCount].suffixIndex);
 					}
+
+				reverseCount++;
 			}
 	}
 
+	// Then sort new forward and reverse routes, if more than one
 
-	int prefixPackedSize=getSeqTailBuilderPackedSize(&prefixBuilder);
-	int suffixPackedSize=getSeqTailBuilderPackedSize(&suffixBuilder);
+	if(forwardCount>1)
+		{
+		qsort(forwardPatches, forwardCount, sizeof(RoutePatch), forwardPrefixSorter);
 
-	u8 *prefixPackedData=dAlloc(disp, prefixPackedSize);
-	u8 *suffixPackedData=dAlloc(disp, suffixPackedSize);
+		if(forwardCount>5)
+			{
+			LOG(LOG_INFO,"Forward Patches %i",forwardCount);
+			dumpPatches(forwardPatches, forwardCount);
+			}
+		}
 
-	writeSeqTailBuilderPackedData(&prefixBuilder, prefixPackedData);
-	writeSeqTailBuilderPackedData(&suffixBuilder, suffixPackedData);
+	if(reverseCount>1)
+		{
+		qsort(reversePatches, reverseCount, sizeof(RoutePatch), reverseSuffixSorter);
+
+		if(reverseCount>5)
+			{
+			LOG(LOG_INFO,"Reverse Patches %i",reverseCount);
+			dumpPatches(reversePatches, reverseCount);
+			}
+		}
+
+
+
+	if(getSeqTailBuilderDirty(&prefixBuilder) || getSeqTailBuilderDirty(&suffixBuilder))
+		{
+		int prefixPackedSize=getSeqTailBuilderPackedSize(&prefixBuilder);
+		int suffixPackedSize=getSeqTailBuilderPackedSize(&suffixBuilder);
+		int routePackedSize=0;
+
+		u8 *packedData=dAlloc(slice->sliceDisp, prefixPackedSize+suffixPackedSize+routePackedSize);
+
+		u8 *dataTmp=writeSeqTailBuilderPackedData(&prefixBuilder, packedData);
+		dataTmp=writeSeqTailBuilderPackedData(&suffixBuilder, dataTmp);
+
+		slice->smerData[sliceIndex]=packedData;
+		}
 
 }
 
@@ -639,32 +713,25 @@ static void processGroupSlices(RoutingDispatchGroupState *groupState, SmerArrayS
 	for(int i=0;i<SMER_DISPATCH_GROUP_SLICES;i++)
 		{
 		RoutingDispatchIntermediate *smerInboundDispatches=groupState->smerInboundDispatches+i;
-		SmerArraySlice *slice=baseSlices+i;
 
-		RoutingDispatchIntermediate **indexedDispatches=dAlloc(groupState->disp, sizeof(RoutingDispatchIntermediate *)*  slice->smerCount);
-		u32 *sliceIndexes=dAlloc(groupState->disp, sizeof(u32)*slice->smerCount);
-
-		for(int j=0;j<slice->smerCount;j++)
+		if(smerInboundDispatches->entryCount>0)
 			{
-			indexedDispatches[j]=NULL;
-			sliceIndexes[j]=-1;
+			SmerArraySlice *slice=baseSlices+i;
+
+			// Wasteful approach for groups with few reads - change to qsort based on sliceIndex
+			RoutingDispatchIntermediate **indexedDispatches=dAlloc(groupState->disp, sizeof(RoutingDispatchIntermediate *)*  slice->smerCount);
+			u32 *sliceIndexes=dAlloc(groupState->disp, sizeof(u32)*slice->smerCount);
+
+			for(int j=0;j<slice->smerCount;j++)
+				{
+				indexedDispatches[j]=NULL;
+				sliceIndexes[j]=-1;
+				}
+
+			int indexLength=indexDispatchesForSlice(smerInboundDispatches, slice->smerCount, groupState->disp, indexedDispatches, sliceIndexes);//, smerTmpDispatches);
+			for(int j=0;j<indexLength;j++)
+				processReadsForSmer(indexedDispatches[j], sliceIndexes[j], slice, groupState->disp);
 			}
-
-
-		//RoutingDispatchIntermediate **smerTmpDispatches=dAlloc(groupState->disp, sizeof(RoutingDispatchIntermediate *)*  slice->smerCount);
-
-
-//		LOG(LOG_INFO,"%i entries for slice with %i smers",smerInboundDispatches->entryCount, slice->smerCount);
-
-		int indexLength=indexDispatchesForSlice(smerInboundDispatches, slice->smerCount, groupState->disp, indexedDispatches, sliceIndexes);//, smerTmpDispatches);
-
-		for(int j=0;j<indexLength;j++)
-			{
-//			LOG(LOG_INFO,"Smer Data %p at Index %i",indexedDispatches[j], sliceIndexes[j]);
-
-			processReadsForSmer(indexedDispatches[j], sliceIndexes[j], slice, groupState->disp);
-			}
-
 		}
 
 }

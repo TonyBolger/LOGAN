@@ -41,7 +41,7 @@ typedef struct smerArraySliceStr
 	u8 **smerData;
 	s32 smerCount;
 	Bloom bloom;
-
+	MemDispenser *sliceDisp;
 } SmerArraySlice;
 
 

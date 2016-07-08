@@ -14,10 +14,11 @@ CLI_LIBS = -lrt -lpthread
 
 CLI_OBJS += \
 ./bin/cli/common/graph/graph.o \
+./bin/cli/common/graph/routeTable.o \
+./bin/cli/common/graph/seqTail.o \
 ./bin/cli/common/graph/smer.o \
 ./bin/cli/common/graph/smerArray.o \
 ./bin/cli/common/graph/smerMap.o \
-./bin/cli/common/graph/seqTail.o \
 ./bin/cli/common/mem/mem.o \
 ./bin/cli/common/mem/memDispenser.o \
 ./bin/cli/common/mem/memStreamer.o \
@@ -40,6 +41,7 @@ CLI_DEPS := $(CLI_OBJS:.o=.d)
 
 JNI_OBJS += \
 ./bin/jni/common/graph/graph.o \
+./bin/jni/common/graph/routeTable.o \
 ./bin/jni/common/graph/seqTail.o \
 ./bin/jni/common/graph/smer.o \
 ./bin/jni/common/graph/smerArray.o \

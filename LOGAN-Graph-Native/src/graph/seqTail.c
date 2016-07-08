@@ -9,7 +9,10 @@ u8 *initSeqTailBuilder(SeqTailBuilder *builder, u8 *data, MemDispenser *disp)
 	s32 totalPackedSize=1;
 
 	if(data!=NULL)
+		{
 		oldCount=*data++;
+		//LOG(LOG_INFO,"Loading %i tails from %p",oldCount,(data-1));
+		}
 
 	if(oldCount>0)
 		{
@@ -17,13 +20,17 @@ u8 *initSeqTailBuilder(SeqTailBuilder *builder, u8 *data, MemDispenser *disp)
 
 		for(int i=0;i<oldCount;i++)
 			{
+			//LOG(LOG_INFO,"Tail from %p",data);
+
 			s64 len=*data++;// Packing: Length byte, followed by packed 4 base per byte, as needed
+
+			//LOG(LOG_INFO,"Tail Length: %li",len);
 
 			int bytes=(len+3)>>2;
 			totalPackedSize+=bytes+1;
 
 			SmerId smer=0;
-			while(--bytes)
+			while(bytes--)
 				smer=smer<<8 | *(data++);
 
 			builder->oldTails[i]=(len<<48) | smer;
@@ -45,6 +52,11 @@ u8 *initSeqTailBuilder(SeqTailBuilder *builder, u8 *data, MemDispenser *disp)
 }
 
 
+s32 getSeqTailBuilderDirty(SeqTailBuilder *seqTailBuilder)
+{
+	return seqTailBuilder->newTailCount!=0;
+}
+
 s32 getSeqTailBuilderPackedSize(SeqTailBuilder *seqTailBuilder)
 {
 	return seqTailBuilder->totalPackedSize;
@@ -52,6 +64,7 @@ s32 getSeqTailBuilderPackedSize(SeqTailBuilder *seqTailBuilder)
 
 static s32 writeSeqTailBuilderPackedDataSingle(u8 *data, SmerId smer, s32 smerLength)
 {
+	//LOG(LOG_INFO,"Writing tail of %i to %p",smerLength,data);
 	int bytes=(smerLength+7)>>2;
 
 	*data=smerLength;
@@ -60,6 +73,9 @@ static s32 writeSeqTailBuilderPackedDataSingle(u8 *data, SmerId smer, s32 smerLe
 	while(smerLength>0)
 		{
 		*(--pos)=smer;
+
+//		LOG(LOG_INFO,"Writing at %p",pos);
+
 		smer>>=8;
 		smerLength-=4;
 		}
@@ -67,18 +83,18 @@ static s32 writeSeqTailBuilderPackedDataSingle(u8 *data, SmerId smer, s32 smerLe
 	return bytes;
 }
 
-void writeSeqTailBuilderPackedData(SeqTailBuilder *seqTailBuilder, u8 *data)
+u8 *writeSeqTailBuilderPackedData(SeqTailBuilder *builder, u8 *data)
 {
 	u8 *initData=data;
 
-	int oldCount=seqTailBuilder->oldTailCount;
-	int newCount=seqTailBuilder->newTailCount;
+	int oldCount=builder->oldTailCount;
+	int newCount=builder->newTailCount;
 
 	*(data++)=oldCount+newCount;
 
 	for(int i=0;i<oldCount;i++)
 		{
-		s64 tail=seqTailBuilder->oldTails[i];
+		s64 tail=builder->oldTails[i];
 		SmerId smer=tail & SMER_MASK;
 		s32 smerLength = tail >> 48;
 
@@ -87,7 +103,7 @@ void writeSeqTailBuilderPackedData(SeqTailBuilder *seqTailBuilder, u8 *data)
 
 	for(int i=0;i<newCount;i++)
 		{
-		s64 tail=seqTailBuilder->newTails[i];
+		s64 tail=builder->newTails[i];
 		SmerId smer=tail & SMER_MASK;
 		s32 smerLength = tail >> 48;
 
@@ -96,45 +112,54 @@ void writeSeqTailBuilderPackedData(SeqTailBuilder *seqTailBuilder, u8 *data)
 
 	int size=data-initData;
 
-	if(size!=seqTailBuilder->totalPackedSize)
+	if(size!=builder->totalPackedSize)
 	{
-		LOG(LOG_INFO,"Size %i did not match expected size %i",size,seqTailBuilder->totalPackedSize);
+		LOG(LOG_INFO,"Size %i did not match expected size %i",size,builder->totalPackedSize);
+		exit(1);
 	}
 
+	return data;
 }
 
 
 
-static s32 findSeqTailIndex(SeqTailBuilder *seqTailBuilder, s64 tail)
+static s32 findSeqTailIndex(SeqTailBuilder *builder, s64 tail)
 {
-	int oldCount=seqTailBuilder->oldTailCount;
+	int oldCount=builder->oldTailCount;
 
 	for(int i=0;i<oldCount;i++)
-		if(seqTailBuilder->oldTails[i]==tail)
+		if(builder->oldTails[i]==tail)
+			{
+//			LOG(LOG_INFO,"found old");
 			return i+1;
+			}
 
-	int newCount=seqTailBuilder->newTailCount;
+	int newCount=builder->newTailCount;
 
 	for(int i=0;i<newCount;i++)
-		if(seqTailBuilder->newTails[i]==tail)
+		if(builder->newTails[i]==tail)
+			{
+//			LOG(LOG_INFO,"found new");
 			return oldCount+i+1;
+			}
+
 
 	return -1;
 }
 
-s32 findSeqTail(SeqTailBuilder *seqTailBuilder, SmerId smer, s32 tailLength)
+s32 findSeqTail(SeqTailBuilder *builder, SmerId smer, s32 tailLength)
 {
 	if(tailLength==0)
 		return 0;
 
 	s64 tail=((s64)smer)|(((s64)tailLength)<<48);
 
-	return findSeqTailIndex(seqTailBuilder, tail);
+	return findSeqTailIndex(builder, tail);
 }
 
 #define NEWTAIL_MINCOUNT 1
 
-s32 findOrCreateSeqTail(SeqTailBuilder *seqTailBuilder, SmerId smer, s32 tailLength)
+s32 findOrCreateSeqTail(SeqTailBuilder *builder, SmerId smer, s32 tailLength)
 {
 	if(tailLength==0)
 		return 0;
@@ -144,31 +169,33 @@ s32 findOrCreateSeqTail(SeqTailBuilder *seqTailBuilder, SmerId smer, s32 tailLen
 
 	s64 tail=(((s64)smer) & smerMask) | (((s64)tailLength)<<48);
 
-	s32 index=findSeqTailIndex(seqTailBuilder, tail);
+	s32 index=findSeqTailIndex(builder, tail);
 
 	if(index>=0)
 		{
 		return index;
 		}
 
-	if(seqTailBuilder->newTailAlloc==0)
+	if(builder->newTailAlloc==0)
 		{
-		seqTailBuilder->newTails=dAlloc(seqTailBuilder->disp, sizeof(s64) * NEWTAIL_MINCOUNT);
-		seqTailBuilder->newTailAlloc=NEWTAIL_MINCOUNT;
+		builder->newTails=dAlloc(builder->disp, sizeof(s64) * NEWTAIL_MINCOUNT);
+		builder->newTailAlloc=NEWTAIL_MINCOUNT;
 		}
-	else if(seqTailBuilder->newTailCount>=seqTailBuilder->newTailAlloc)
+	else if(builder->newTailCount>=builder->newTailAlloc)
 		{
-		int newTailAlloc=seqTailBuilder->newTailAlloc*2;
-		s64 *newTails=dAlloc(seqTailBuilder->disp, sizeof(s64)*newTailAlloc);
-		memcpy(newTails, seqTailBuilder->newTails, sizeof(s64)*seqTailBuilder->newTailAlloc);
+		int newTailAlloc=builder->newTailAlloc*2;
+		s64 *newTails=dAlloc(builder->disp, sizeof(s64)*newTailAlloc);
+		memcpy(newTails, builder->newTails, sizeof(s64)*builder->newTailAlloc);
 
-		seqTailBuilder->newTails=newTails;
-		seqTailBuilder->newTailAlloc=newTailAlloc;
+		builder->newTails=newTails;
+		builder->newTailAlloc=newTailAlloc;
 		}
 
-	seqTailBuilder->newTails[seqTailBuilder->newTailCount++]=tail;
-	seqTailBuilder->totalPackedSize+=(tailLength+7)>>2; // Round up plus size byte
+//	LOG(LOG_INFO,"make new");
 
-	return seqTailBuilder->oldTailCount+seqTailBuilder->newTailCount; // Increment provides offset
+	builder->newTails[builder->newTailCount++]=tail;
+	builder->totalPackedSize+=(tailLength+7)>>2; // Round up plus size byte
+
+	return builder->oldTailCount+builder->newTailCount; // Increment provides offset
 }
 

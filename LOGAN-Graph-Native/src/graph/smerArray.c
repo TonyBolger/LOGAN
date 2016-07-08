@@ -37,6 +37,8 @@ s32 saInitSmerArray(SmerArray *smerArray, SmerMap *smerMap) {
 			setBloom(bloom,smerTmp[j]);
 
 		smSmerEntryArrayFree(smerTmp);
+
+		arraySlices[i].sliceDisp=dispenserAlloc("slice");
 		}
 
 	return total;

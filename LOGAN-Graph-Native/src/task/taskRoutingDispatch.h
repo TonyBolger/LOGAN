@@ -1,6 +1,16 @@
 #ifndef __TASKROUTINGDISPATCH_H
 #define __TASKROUTINGDISPATCH_H
 
+typedef struct routePatchStr
+{
+	s32 rdiIndex;
+
+	s32 prefixIndex;
+	s32 suffixIndex;
+
+} RoutePatch;
+
+
 
 RoutingDispatchArray *allocDispatchArray();
 void assignToDispatchArrayEntry(RoutingDispatchArray *array, RoutingReadDispatchData *readData);
