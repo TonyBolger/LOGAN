@@ -281,8 +281,8 @@ Total: 962878 samples
 Updated Profiles:
 
 	Ecoli-1:
-	
-	
+
+
 	Total: 9270 samples
      867   9.4%   9.4%      867   9.4% scanForSmer_HS.isra.1
      853   9.2%  18.6%     1048  11.3% indexDispatchesForSlice (inline)
@@ -304,9 +304,9 @@ Updated Profiles:
      144   1.6%  78.3%      158   1.7% calculatePossibleSmersAndCompSmers
      130   1.4%  79.7%      130   1.4% readBufferedFastqLine (inline)
      129   1.4%  81.1%      135   1.5% dAlloc
-	
+
 	Ecoli-2:
-	
+
    81650  13.9%  13.9%    94561  16.0% indexDispatchesForSlice (inline)
    73623  12.5%  26.3%    79955  13.6% assignReversedInboundDispatchesToSlices (inline)
    67831  11.5%  37.9%    95898  16.3% processReadsForSmer
@@ -327,9 +327,9 @@ Updated Profiles:
     6849   1.2%  83.4%     6849   1.2% __memset_avx2
     6475   1.1%  84.5%    48870   8.3% scanForSmerLookupsForSlices
     6411   1.1%  85.5%     6415   1.1% extractLookupPercolatesFromEntryLookups
-	
-	
-	
+
+
+
 
 	Arabi-1:
 
@@ -402,7 +402,8 @@ T	0x54	84		0101 0100
 
 	Pack -> Smer
 
-	Smers are represented in big endian format (first base 'higher')
+
+	Smers are represented in big endian format (first base 'higher') - thus numerical packed sorting matches base alphabetical sorting
 
 
 	Rmer:             -- -- -- --  -- -- -- --  23 22 21 20  19 18 17 16  15 14 13 12  11 10 09 08  07 06 05 04  03 02 01 00
