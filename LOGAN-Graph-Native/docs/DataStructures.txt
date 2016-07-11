@@ -521,7 +521,25 @@ Each slice contains 500-5000 Smers:
 
 
 
+Building Tails Routes:
 
+Equivalent RC reads share prefix,smer and suffix
+
+
+Canonical Reads map as: rc(-1) -> prefix, (0) -> smer, (1) -> suffix
+RevComp Reads map as:   rc(-1) -> suffix, rc(0) -> smer, (1) -> prefix
+
+Canonical Orientation (assuming forward mer arrays):
+
+	Smer = Fmer[0]
+	Prefix = Rmer[-1]
+	Suffix = Fmer[+1]
+
+RevComp Orientation:
+
+	Smer = Rmer[0]
+	Prefix = Fmer[+1]
+	Suffix = Rmer[-1]
 
 
 

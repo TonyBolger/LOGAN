@@ -147,5 +147,37 @@ void saVerifyIndexing(s32 maxAllowedDistance, s32 *indexes, u32 indexCount, int 
 }
 
 
+/*
 
+
+typedef struct smerLinkedStr
+{
+	SmerId smerId;
+	u32 compFlag;
+
+	u64 *prefixData;
+	SmerId *prefixSmers;
+	u8 *prefixSmerExists;
+	u32 prefixCount;
+
+	u64 *suffixData;
+	SmerId *suffixSmers;
+	u8 *suffixSmerExists;
+	u32 suffixCount;
+
+	RouteTableEntry *forwardRouteEntries;
+	RouteTableEntry *reverseRouteEntries;
+	u32 forwardRouteCount;
+	u32 reverseRouteCount;
+
+} SmerLinked;
+
+
+
+ */
+
+SmerLinked *saGetLinkedSmer(SmerArray *smerArray, SmerId rootSmerId, MemDispenser *disp)
+{
+	return NULL;
+}
 

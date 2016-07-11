@@ -51,6 +51,45 @@ typedef struct smerArrayStr
 } SmerArray;
 
 
+
+/******************* Definitions for Data Insert/Retrieval ******************/
+
+typedef struct routeTableEntryStr
+{
+	s32 prefix;
+	s32 suffix;
+	s32 width;
+} RouteTableEntry;
+
+
+#define SMER_EXISTS_FORWARD (1)
+#define SMER_EXISTS_NOT (0)
+#define SMER_EXISTS_REVERSE (-1)
+
+typedef struct smerLinkedStr
+{
+	SmerId smerId;
+	u32 compFlag;
+
+	s64 *prefixData;
+	SmerId *prefixSmers;
+	u8 *prefixSmerExists;
+	s32 prefixCount;
+
+	s64 *suffixData;
+	SmerId *suffixSmers;
+	u8 *suffixSmerExists;
+	s32 suffixCount;
+
+	RouteTableEntry *forwardRouteEntries;
+	RouteTableEntry *reverseRouteEntries;
+	u32 forwardRouteCount;
+	u32 reverseRouteCount;
+
+} SmerLinked;
+
+
+
 #define CANONICAL_SMER(F,R) ((fsmer)<=(rsmer)?(fsmer):(rsmer))
 
 /********************** Shared functionality **********************/
@@ -107,6 +146,7 @@ int saFindSmer(SmerArray *smerArray, SmerId smerId);
 u32 saFindIndexesOfExistingSmers(SmerArray *smerArray, u8 *data, s32 maxIndex, s32 *oldIndexes, SmerId *smerIds);
 void saVerifyIndexing(s32 maxAllowedDistance, s32 *indexes, u32 indexCount, int dataLength, int maxValidIndex);
 
+SmerLinked *saGetLinkedSmer(SmerArray *smerArray, SmerId rootSmerId, MemDispenser *disp);
 
 #endif
 

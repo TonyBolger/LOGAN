@@ -12,6 +12,7 @@
 
 // Small format:  0 W W W P P S S  F F F F R R R R
 
+// Max: W=2^63, P=2^15, S=2^15, F=2^16, R=2^16
 
 int getRouteTableHeaderSize(int prefixBits, u32 suffixBits, u32 widthBits, u32 forwardEntries, u32 reverseEntries)
 {
@@ -86,8 +87,8 @@ int decodeHeader(u8 *packedData, u32 *prefixBits, u32 *suffixBits, u32 *widthBit
 		w=(tmp1&0x3F)+1;
 		p=((tmp2>>4)&0xF)+1;
 		s=(tmp2&0xF)+1;
-		f=*((short *)(packedData+2));
-		r=*((short *)(packedData+4));
+		f=*((u16 *)(packedData+2));
+		r=*((u16 *)(packedData+4));
 
 		size=6;
 		}
@@ -137,35 +138,394 @@ int decodeHeader(u8 *packedData, u32 *prefixBits, u32 *suffixBits, u32 *widthBit
 
 
 
+static u32 bitsRequired(u32 value)
+{
+	if(value==0)
+		return 1;
+
+	return 32-__builtin_clz(value);
+}
 
 
 
 
 
 
+/*
+ * 	MemDispenser *disp;
+
+	RouteTableEntry *oldForwardRoutes;
+	RouteTableEntry *oldReverseRoutes;
+
+	RouteTableEntry *newForwardRoutes;
+	RouteTableEntry *newReverseRoutes;
+
+	s32 oldForwardRouteCount;
+	s32 oldReverseRouteCount;
+	s32 newForwardRouteCount;
+	s32 newReverseRouteCount;
+
+	s32 newForwardRouteAlloc;
+	s32 newReverseRouteAlloc;
+
+	s32 maxPrefix;
+	s32 maxSuffix;
+	s32 maxWidth;
+
+	s32 totalPackedSize;
+ *
+ */
+
+
+static void unpackRoutes(u8 *data, int prefixBits, int suffixBits, int widthBits,
+		RouteTableEntry *forwardEntries, RouteTableEntry *reverseEntries, u32 forwardEntryCount, u32 reverseEntryCount,
+		int *maxPrefixPtr, int *maxSuffixPtr, int *maxWidthPtr)
+{
+	int maxPrefix=0,maxSuffix=0,maxWidth=0;
+
+	BitUnpacker unpacker;
+	initUnpacker(&unpacker, data, 0);
+
+	for(int i=0;i<forwardEntryCount;i++)
+		{
+		s32 prefix=unpackBits(&unpacker, prefixBits);
+		s32 suffix=unpackBits(&unpacker, suffixBits);
+		s32 width=unpackBits(&unpacker, widthBits)+1;
+
+		maxPrefix=MAX(maxPrefix,prefix);
+		maxSuffix=MAX(maxSuffix,suffix);
+		maxWidth=MAX(maxWidth,width);
+
+		forwardEntries[i].prefix=prefix;
+		forwardEntries[i].suffix=suffix;
+		forwardEntries[i].width=width;
+		}
+
+	for(int i=0;i<reverseEntryCount;i++)
+		{
+		s32 prefix=unpackBits(&unpacker, prefixBits);
+		s32 suffix=unpackBits(&unpacker, suffixBits);
+		s32 width=unpackBits(&unpacker, widthBits)+1;
+
+		maxPrefix=MAX(maxPrefix,prefix);
+		maxSuffix=MAX(maxSuffix,suffix);
+		maxWidth=MAX(maxWidth,width);
+
+		reverseEntries[i].prefix=prefix;
+		reverseEntries[i].suffix=suffix;
+		reverseEntries[i].width=width;
+		}
+
+	if(maxPrefixPtr!=NULL)
+		*maxPrefixPtr=maxPrefix;
+
+	if(maxSuffixPtr!=NULL)
+		*maxSuffixPtr=maxSuffix;
+
+	if(maxWidthPtr!=NULL)
+		*maxWidthPtr=maxWidth;
+}
+
+u8 *readRouteTableBuilderPackedData(RouteTableBuilder *builder, u8 *data)
+{
+	int maxPrefix=0,maxSuffix=0,maxWidth=0;
+	u32 prefixBits=0, suffixBits=0, widthBits=0, forwardEntryCount=0, reverseEntryCount=0;
+	int headerSize=2;
+
+	if(data!=NULL)
+		{
+		int headerSize=decodeHeader(data, &prefixBits, &suffixBits, &widthBits, &forwardEntryCount, &reverseEntryCount);
+
+		data+=headerSize;
+
+		builder->oldForwardEntries=dAlloc(builder->disp, sizeof(RouteTableEntry)*forwardEntryCount);
+		builder->oldReverseEntries=dAlloc(builder->disp, sizeof(RouteTableEntry)*reverseEntryCount);
+
+		builder->oldForwardEntryCount=forwardEntryCount;
+		builder->oldReverseEntryCount=reverseEntryCount;
+
+		unpackRoutes(data, prefixBits, suffixBits, widthBits,
+				builder->oldForwardEntries,builder->oldReverseEntries,forwardEntryCount,reverseEntryCount,
+				&maxPrefix, &maxSuffix, &maxWidth);
+		}
+	else
+		{
+		builder->oldForwardEntries=NULL;
+		builder->oldReverseEntries=NULL;
+
+		builder->oldForwardEntryCount=0;
+		builder->oldReverseEntryCount=0;
+		}
+
+	builder->maxPrefix=maxPrefix;
+	builder->maxSuffix=maxSuffix;
+	builder->maxWidth=maxWidth;
+
+	int tableSize=PAD_1BITLENGTH_BYTE(prefixBits+suffixBits+widthBits)*(forwardEntryCount+reverseEntryCount);
+	builder->totalPackedSize=headerSize+tableSize;
+
+	return data;
+}
 
 u8 *initRouteTableBuilder(RouteTableBuilder *builder, u8 *data, MemDispenser *disp)
 {
-	return NULL;
+	builder->disp=disp;
+
+	data=readRouteTableBuilderPackedData(builder,data);
+
+	builder->newForwardEntries=NULL;
+	builder->newReverseEntries=NULL;
+
+	builder->newForwardEntryCount=0;
+	builder->newReverseEntryCount=0;
+
+	builder->newForwardEntryAlloc=0;
+	builder->newReverseEntryAlloc=0;
+
+	return data;
 }
 
 s32 getRouteTableBuilderDirty(RouteTableBuilder *builder)
 {
-	return 0;
+	return builder->newForwardEntryCount>0;
 }
 
 s32 getRouteTableBuilderPackedSize(RouteTableBuilder *builder)
 {
-	return 0;
+	return builder->totalPackedSize;
 }
 
 u8 *writeRouteTableBuilderPackedData(RouteTableBuilder *builder, u8 *data)
 {
-	return data;
+	u32 prefixBits=bitsRequired(builder->maxPrefix);
+	u32 suffixBits=bitsRequired(builder->maxSuffix);
+	u32 widthBits=bitsRequired(builder->maxWidth-1);
+
+	RouteTableEntry *forwardEntries,*reverseEntries;
+	u32 forwardEntryCount,reverseEntryCount;
+
+	if(builder->newForwardEntryCount>0)
+		{
+		forwardEntries=builder->newForwardEntries;
+		reverseEntries=builder->newReverseEntries;
+		forwardEntryCount=builder->newForwardEntryCount;
+		reverseEntryCount=builder->newReverseEntryCount;
+		}
+	else
+		{
+		forwardEntries=builder->oldForwardEntries;
+		reverseEntries=builder->oldReverseEntries;
+		forwardEntryCount=builder->oldForwardEntryCount;
+		reverseEntryCount=builder->oldReverseEntryCount;
+		}
+
+	int headerSize=encodeRouteTableHeader(data,prefixBits,suffixBits,widthBits,forwardEntryCount,reverseEntryCount);
+	data+=headerSize;
+
+	BitPacker packer;
+	initPacker(&packer, data, 0);
+
+	for(int i=0;i<forwardEntryCount;i++)
+		{
+		packBits(&packer, prefixBits, forwardEntries[i].prefix);
+		packBits(&packer, suffixBits, forwardEntries[i].suffix);
+		packBits(&packer, widthBits, forwardEntries[i].width-1);
+		}
+	for(int i=0;i<reverseEntryCount;i++)
+		{
+		packBits(&packer, prefixBits, reverseEntries[i].prefix);
+		packBits(&packer, suffixBits, reverseEntries[i].suffix);
+		packBits(&packer, widthBits, reverseEntries[i].width-1);
+		}
+
+	int tableSize=PAD_1BITLENGTH_BYTE(prefixBits+suffixBits+widthBits)*(forwardEntryCount+reverseEntryCount);
+
+	return data+tableSize;
 }
 
-s32 mergeRoutes(RouteTableBuilder *builder, RoutingDispatchIntermediate *rdi, RoutePatch *forwardRoutePatches, RoutePatch *reverseRoutePatches, s32 forwardRoutePatchCount, s32 reverseRoutePatchCount)
+void mergeRoutes(RouteTableBuilder *builder, RoutePatch *forwardRoutePatches, RoutePatch *reverseRoutePatches, s32 forwardRoutePatchCount, s32 reverseRoutePatchCount)
 {
-	return 0;
+	u32 oldForwardEntryCount=builder->oldForwardEntryCount;
+	u32 oldReverseEntryCount=builder->oldReverseEntryCount;
+
+	RouteTableEntry *oldForwardEntries=builder->oldForwardEntries;
+	RouteTableEntry *oldReverseEntries=builder->oldReverseEntries;
+
+	if(builder->newForwardEntryCount>0)
+		{
+		LOG(LOG_INFO,"RouteTableBuilder: Already contains new routes before merge");
+		return;
+		}
+
+	int newForwardEntryCount=oldForwardEntryCount+forwardRoutePatchCount;
+	int newReverseEntryCount=oldReverseEntryCount+reverseRoutePatchCount;
+
+//	if((newForwardEntryCount>1000) || newReverseEntryCount>1000)
+//		LOG(LOG_INFO,"Merging Route Table with %i %i (%i)",newForwardEntryCount, newReverseEntryCount, builder->maxWidth);
+
+	RouteTableEntry *forwardEntries=dAlloc(builder->disp, sizeof(RouteTableEntry) * newForwardEntryCount);
+	RouteTableEntry *reverseEntries=dAlloc(builder->disp, sizeof(RouteTableEntry) * newReverseEntryCount);
+
+	builder->newForwardEntries=forwardEntries;
+	builder->newForwardEntryCount=newForwardEntryCount;
+
+	builder->newReverseEntries=reverseEntries;
+	builder->newReverseEntryCount=newReverseEntryCount;
+
+	int maxPrefix=0,maxSuffix=0,maxWidth=0;
+
+	u32 prefix=-1;
+	u32 suffix=-1;
+	u32 width=-1;
+
+	for(int i=0;i<oldForwardEntryCount;i++)
+		{
+		prefix=oldForwardEntries[i].prefix;
+		suffix=oldForwardEntries[i].suffix;
+		width=oldForwardEntries[i].width;
+
+		maxPrefix=MAX(maxPrefix,prefix);
+		maxSuffix=MAX(maxSuffix,suffix);
+		maxWidth=MAX(maxWidth,width);
+
+		forwardEntries[i].prefix=prefix;
+		forwardEntries[i].suffix=suffix;
+		forwardEntries[i].width=width;
+		}
+
+	forwardEntries+=oldForwardEntryCount;
+	forwardEntries--;
+
+	for(int i=0;i<forwardRoutePatchCount;i++)
+		{
+		u32 wantedPrefix=forwardRoutePatches[i].prefixIndex;
+		u32 wantedSuffix=forwardRoutePatches[i].suffixIndex;
+
+		if(prefix==wantedPrefix && suffix==wantedSuffix)
+			{
+			//LOG(LOG_INFO,"F merge");
+			forwardEntries->width=++width;
+			newForwardEntryCount--;
+			}
+		else
+			{
+			forwardEntries++;
+
+			prefix=wantedPrefix;
+			suffix=wantedSuffix;
+			width=1;
+
+			forwardEntries->prefix=prefix;
+			forwardEntries->suffix=suffix;
+			forwardEntries->width=width;
+			}
+
+		maxPrefix=MAX(maxPrefix,prefix);
+		maxSuffix=MAX(maxSuffix,suffix);
+		maxWidth=MAX(maxWidth,width);
+		}
+
+	prefix=-1;
+	suffix=-1;
+	width=-1;
+
+	for(int i=0;i<oldReverseEntryCount;i++)
+		{
+		prefix=oldReverseEntries[i].prefix;
+		suffix=oldReverseEntries[i].suffix;
+		width=oldReverseEntries[i].width;
+
+		maxPrefix=MAX(maxPrefix,prefix);
+		maxSuffix=MAX(maxSuffix,suffix);
+		maxWidth=MAX(maxWidth,width);
+
+		reverseEntries[i].prefix=prefix;
+		reverseEntries[i].suffix=suffix;
+		reverseEntries[i].width=width;
+		}
+
+	reverseEntries+=oldReverseEntryCount;
+	reverseEntries--;
+
+	for(int i=0;i<reverseRoutePatchCount;i++)
+		{
+		u32 wantedPrefix=reverseRoutePatches[i].prefixIndex;
+		u32 wantedSuffix=reverseRoutePatches[i].suffixIndex;
+
+		if(prefix==wantedPrefix && suffix==wantedSuffix)
+			{
+			//LOG(LOG_INFO,"R merge");
+			reverseEntries->width=++width;
+
+			newReverseEntryCount--;
+			}
+		else
+			{
+			reverseEntries++;
+
+			prefix=wantedPrefix;
+			suffix=wantedSuffix;
+			width=1;
+
+			reverseEntries->prefix=prefix;
+			reverseEntries->suffix=suffix;
+			reverseEntries->width=width;
+			}
+
+		maxPrefix=MAX(maxPrefix,prefix);
+		maxSuffix=MAX(maxSuffix,suffix);
+		maxWidth=MAX(maxWidth,width);
+		}
+
+
+	builder->newForwardEntryCount=newForwardEntryCount;
+	builder->newReverseEntryCount=newReverseEntryCount;
+
+
+	u32 prefixBits=bitsRequired(builder->maxPrefix);
+	u32 suffixBits=bitsRequired(builder->maxSuffix);
+	u32 widthBits=bitsRequired(builder->maxWidth-1);
+
+	int headerSize=getRouteTableHeaderSize(prefixBits,suffixBits,widthBits,newForwardEntryCount,newReverseEntryCount);
+	int tableSize=PAD_1BITLENGTH_BYTE(prefixBits+suffixBits+widthBits)*(newForwardEntryCount+newReverseEntryCount);
+
+	builder->totalPackedSize=headerSize+tableSize;
 }
+
+
+void unpackRouteTableForSmerLinked(SmerLinked *smerLinked, u8 *data, MemDispenser *disp)
+{
+	u32 prefixBits=0, suffixBits=0, widthBits=0, forwardEntryCount=0, reverseEntryCount=0;
+
+	if(data!=NULL)
+		{
+		data+=decodeHeader(data, &prefixBits, &suffixBits, &widthBits, &forwardEntryCount, &reverseEntryCount);
+
+		smerLinked->forwardRouteEntries=dAlloc(disp, sizeof(RouteTableEntry)*forwardEntryCount);
+		smerLinked->reverseRouteEntries=dAlloc(disp, sizeof(RouteTableEntry)*reverseEntryCount);
+
+		smerLinked->forwardRouteCount=forwardEntryCount;
+		smerLinked->reverseRouteCount=reverseEntryCount;
+
+		unpackRoutes(data, prefixBits, suffixBits, widthBits,
+				smerLinked->forwardRouteEntries, smerLinked->reverseRouteEntries, forwardEntryCount, reverseEntryCount,
+				NULL,NULL,NULL);
+		}
+	else
+		{
+		smerLinked->forwardRouteEntries=NULL;
+		smerLinked->reverseRouteEntries=NULL;
+
+		smerLinked->forwardRouteCount=0;
+		smerLinked->reverseRouteCount=0;
+		}
+
+
+}
+
+
+
+
+
+
 

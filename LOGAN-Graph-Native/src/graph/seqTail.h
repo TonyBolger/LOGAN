@@ -32,5 +32,7 @@ u8 *writeSeqTailBuilderPackedData(SeqTailBuilder *seqTailBuilder, u8 *data);
 s32 findSeqTail(SeqTailBuilder *seqTailBuilder, SmerId smer, s32 tailLength);
 s32 findOrCreateSeqTail(SeqTailBuilder *seqTailBuilder, SmerId smer, s32 tailLength);
 
+void *unpackPrefixesForSmerLinked(SmerLinked *smerLinked, u8 *data, MemDispenser *disp);
+void *unpackSuffixesForSmerLinked(SmerLinked *smerLinked, u8 *data, MemDispenser *disp);
 
 #endif

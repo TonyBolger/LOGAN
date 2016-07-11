@@ -1,12 +1,33 @@
 
 #include "../common.h"
 
-u8 *initSeqTailBuilder(SeqTailBuilder *builder, u8 *data, MemDispenser *disp)
-{
-	builder->disp=disp;
 
-	int oldCount=0;
+
+static u32 unpackTails(u8 *data, s64 *tails, s32 tailCount)
+{
+	u32 packedSize=0;
+
+	for(int i=0;i<tailCount;i++)
+		{
+		s64 len=*data++;// Packing: Length byte, followed by packed 4 base per byte, as needed
+
+		int bytes=(len+3)>>2;
+		packedSize+=bytes+1;
+
+		SmerId smer=0;
+		while(bytes--)
+			smer=smer<<8 | *(data++);
+
+		tails[i]=(len<<48) | smer;
+		}
+
+	return packedSize;
+}
+
+static u8 *readSeqTailBuilderPackedData(SeqTailBuilder *builder, u8 *data)
+{
 	s32 totalPackedSize=1;
+	int oldCount=0;
 
 	if(data!=NULL)
 		{
@@ -16,25 +37,8 @@ u8 *initSeqTailBuilder(SeqTailBuilder *builder, u8 *data, MemDispenser *disp)
 
 	if(oldCount>0)
 		{
-		builder->oldTails=dAlloc(disp, sizeof(s64) * oldCount);
-
-		for(int i=0;i<oldCount;i++)
-			{
-			//LOG(LOG_INFO,"Tail from %p",data);
-
-			s64 len=*data++;// Packing: Length byte, followed by packed 4 base per byte, as needed
-
-			//LOG(LOG_INFO,"Tail Length: %li",len);
-
-			int bytes=(len+3)>>2;
-			totalPackedSize+=bytes+1;
-
-			SmerId smer=0;
-			while(bytes--)
-				smer=smer<<8 | *(data++);
-
-			builder->oldTails[i]=(len<<48) | smer;
-			}
+		builder->oldTails=dAlloc(builder->disp, sizeof(s64) * oldCount);
+		totalPackedSize+=unpackTails(data, builder->oldTails, oldCount);
 		}
 	else
 		{
@@ -43,6 +47,16 @@ u8 *initSeqTailBuilder(SeqTailBuilder *builder, u8 *data, MemDispenser *disp)
 
 	builder->oldTailCount=oldCount;
 	builder->totalPackedSize=totalPackedSize;
+
+	return data;
+
+}
+
+u8 *initSeqTailBuilder(SeqTailBuilder *builder, u8 *data, MemDispenser *disp)
+{
+	builder->disp=disp;
+
+	data=readSeqTailBuilderPackedData(builder,data);
 
 	builder->newTails=NULL;
 	builder->newTailCount=0;
@@ -199,3 +213,38 @@ s32 findOrCreateSeqTail(SeqTailBuilder *builder, SmerId smer, s32 tailLength)
 	return builder->oldTailCount+builder->newTailCount; // Increment provides offset
 }
 
+
+void *unpackPrefixesForSmerLinked(SmerLinked *smerLinked, u8 *data, MemDispenser *disp)
+{
+	if(data!=NULL)
+		{
+		smerLinked->prefixCount=*data++;
+		smerLinked->prefixData=dAlloc(disp, sizeof(s64)*smerLinked->prefixCount);
+
+		data+=unpackTails(data, smerLinked->prefixData, smerLinked->prefixCount);
+
+		smerLinked->prefixSmers=dAlloc(disp, sizeof(SmerId)*smerLinked->prefixCount);
+		// Populate prefixSmers
+
+		smerLinked->prefixSmerExists=dAlloc(disp, sizeof(u8)*smerLinked->prefixCount);
+		memset(smerLinked->prefixSmerExists, 0, sizeof(u8)*smerLinked->prefixCount);
+
+		return data;
+		}
+	else
+		{
+		smerLinked->prefixCount=0;
+		smerLinked->prefixData=NULL;
+		smerLinked->prefixSmers=NULL;
+		smerLinked->prefixSmerExists=NULL;
+
+		return NULL;
+		}
+
+}
+
+
+void *unpackSuffixesForSmerLinked(SmerLinked *smerLinked, u8 *data, MemDispenser *disp)
+{
+	return data;
+}

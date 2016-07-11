@@ -3,31 +3,32 @@
 
 #include "../common.h"
 
-typedef struct routeTableEntryStr
+typedef struct routePatchStr
 {
-	s32 prefix;
-	s32 suffix;
-	s32 width;
-} RouteTableEntry;
+	s32 rdiIndex;
+
+	s32 prefixIndex;
+	s32 suffixIndex;
+} RoutePatch;
 
 
 typedef struct routeTableBuilderStr
 {
 	MemDispenser *disp;
 
-	RouteTableEntry *oldForwardRoutes;
-	RouteTableEntry *oldReverseRoutes;
+	RouteTableEntry *oldForwardEntries;
+	RouteTableEntry *oldReverseEntries;
 
-	RouteTableEntry *newForwardRoutes;
-	RouteTableEntry *newReverseRoutes;
+	RouteTableEntry *newForwardEntries;
+	RouteTableEntry *newReverseEntries;
 
-	s32 oldForwardRouteCount;
-	s32 oldReverseRouteCount;
-	s32 newForwardRouteCount;
-	s32 newReverseRouteCount;
+	u32 oldForwardEntryCount;
+	u32 oldReverseEntryCount;
+	u32 newForwardEntryCount;
+	u32 newReverseEntryCount;
 
-	s32 newForwardRouteAlloc;
-	s32 newReverseRouteAlloc;
+	u32 newForwardEntryAlloc;
+	u32 newReverseEntryAlloc;
 
 	s32 maxPrefix;
 	s32 maxSuffix;
@@ -45,8 +46,8 @@ s32 getRouteTableBuilderDirty(RouteTableBuilder *builder);
 s32 getRouteTableBuilderPackedSize(RouteTableBuilder *builder);
 u8 *writeRouteTableBuilderPackedData(RouteTableBuilder *builder, u8 *data);
 
-s32 mergeRoutes(RouteTableBuilder *builder, RoutingDispatchIntermediate *rdi, RoutePatch *forwardRoutePatches, RoutePatch *reverseRoutePatches, s32 forwardRoutePatchCount, s32 reverseRoutePatchCount);
+void mergeRoutes(RouteTableBuilder *builder, RoutePatch *forwardRoutePatches, RoutePatch *reverseRoutePatches, s32 forwardRoutePatchCount, s32 reverseRoutePatchCount);
 
-
+void unpackRouteTableForSmerLinked(SmerLinked *smerLinked, u8 *data, MemDispenser *disp);
 
 #endif

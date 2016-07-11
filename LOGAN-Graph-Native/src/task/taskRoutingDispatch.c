@@ -548,12 +548,13 @@ static int reverseSuffixSorter(const void *a, const void *b)
 //	return pb->rdiIndex-pa->rdiIndex; // Reverse original order
 }
 
-static void dumpPatches(RoutePatch *patches, int patchCount)
+/*
+void dumpPatches(RoutePatch *patches, int patchCount)
 {
 	for(int i=0;i<patchCount;i++)
 		LOG(LOG_INFO,"Patch: P: %i S: %i #: %i",patches[i].prefixIndex, patches[i].suffixIndex, patches[i].rdiIndex);
 }
-
+*/
 
 
  void processReadsForSmer(RoutingDispatchIntermediate *rdi, u32 sliceIndex, SmerArraySlice *slice, MemDispenser *disp)
@@ -564,9 +565,11 @@ static void dumpPatches(RoutePatch *patches, int patchCount)
 //		LOG(LOG_INFO, "Index: %i of %i Entries %i Data: %p",sliceIndex,slice->smerCount, rdi->entryCount, smerData);
 
 	SeqTailBuilder prefixBuilder, suffixBuilder;
+	RouteTableBuilder routeTableBuilder;
 
 	smerData=initSeqTailBuilder(&prefixBuilder, smerData, disp);
 	smerData=initSeqTailBuilder(&suffixBuilder, smerData, disp);
+	smerData=initRouteTableBuilder(&routeTableBuilder, smerData, disp);
 
 	int entryCount=rdi->entryCount;
 
@@ -670,37 +673,41 @@ static void dumpPatches(RoutePatch *patches, int patchCount)
 	if(forwardCount>1)
 		{
 		qsort(forwardPatches, forwardCount, sizeof(RoutePatch), forwardPrefixSorter);
-
+/*
 		if(forwardCount>5)
 			{
 			LOG(LOG_INFO,"Forward Patches %i",forwardCount);
 			dumpPatches(forwardPatches, forwardCount);
 			}
+			*/
 		}
 
 	if(reverseCount>1)
 		{
 		qsort(reversePatches, reverseCount, sizeof(RoutePatch), reverseSuffixSorter);
-
+/*
 		if(reverseCount>5)
 			{
 			LOG(LOG_INFO,"Reverse Patches %i",reverseCount);
 			dumpPatches(reversePatches, reverseCount);
 			}
+			*/
 		}
 
 
+	mergeRoutes(&routeTableBuilder, forwardPatches, reversePatches, forwardCount, reverseCount);
 
-	if(getSeqTailBuilderDirty(&prefixBuilder) || getSeqTailBuilderDirty(&suffixBuilder))
+	if(getSeqTailBuilderDirty(&prefixBuilder) || getSeqTailBuilderDirty(&suffixBuilder) || getRouteTableBuilderDirty(&routeTableBuilder))
 		{
 		int prefixPackedSize=getSeqTailBuilderPackedSize(&prefixBuilder);
 		int suffixPackedSize=getSeqTailBuilderPackedSize(&suffixBuilder);
-		int routePackedSize=0;
+		int routeTablePackedSize=getRouteTableBuilderPackedSize(&routeTableBuilder);
 
-		u8 *packedData=dAlloc(slice->sliceDisp, prefixPackedSize+suffixPackedSize+routePackedSize);
+		u8 *packedData=dAlloc(slice->sliceDisp, prefixPackedSize+suffixPackedSize+routeTablePackedSize);
 
 		u8 *dataTmp=writeSeqTailBuilderPackedData(&prefixBuilder, packedData);
 		dataTmp=writeSeqTailBuilderPackedData(&suffixBuilder, dataTmp);
+		dataTmp=writeRouteTableBuilderPackedData(&routeTableBuilder, dataTmp);
 
 		slice->smerData[sliceIndex]=packedData;
 		}
