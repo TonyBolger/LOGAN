@@ -8,8 +8,6 @@
 #ifndef __BIT_PACKING_H
 #define __BIT_PACKING_H
 
-#include "../common.h"
-
 
 typedef struct bitPackerStr {
 	u8 *data;

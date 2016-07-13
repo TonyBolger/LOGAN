@@ -1,5 +1,5 @@
 
-#include "../common.h"
+#include "common.h"
 
 
 
@@ -26,7 +26,7 @@ static u32 unpackTails(u8 *data, s64 *tails, s32 tailCount)
 
 static u8 *readSeqTailBuilderPackedData(SeqTailBuilder *builder, u8 *data)
 {
-	s32 totalPackedSize=1;
+	s32 totalPackedSize=0;
 	int oldCount=0;
 
 	if(data!=NULL)
@@ -46,9 +46,9 @@ static u8 *readSeqTailBuilderPackedData(SeqTailBuilder *builder, u8 *data)
 		}
 
 	builder->oldTailCount=oldCount;
-	builder->totalPackedSize=totalPackedSize;
+	builder->totalPackedSize=totalPackedSize+1;
 
-	return data;
+	return data+totalPackedSize;
 
 }
 
@@ -103,6 +103,9 @@ u8 *writeSeqTailBuilderPackedData(SeqTailBuilder *builder, u8 *data)
 
 	int oldCount=builder->oldTailCount;
 	int newCount=builder->newTailCount;
+
+	//if(oldCount+newCount>4)
+//		LOG(LOG_INFO,"Writing %i %i tails to %p",oldCount,newCount,data);
 
 	*(data++)=oldCount+newCount;
 
@@ -205,7 +208,7 @@ s32 findOrCreateSeqTail(SeqTailBuilder *builder, SmerId smer, s32 tailLength)
 		builder->newTailAlloc=newTailAlloc;
 		}
 
-//	LOG(LOG_INFO,"make new");
+//	LOG(LOG_INFO,"make new %li %i",smer,tailLength);
 
 	builder->newTails[builder->newTailCount++]=tail;
 	builder->totalPackedSize+=(tailLength+7)>>2; // Round up plus size byte

@@ -1,6 +1,6 @@
 
 
-#include "../common.h"
+#include "common.h"
 
 
 s32 saInitSmerArray(SmerArray *smerArray, SmerMap *smerMap) {

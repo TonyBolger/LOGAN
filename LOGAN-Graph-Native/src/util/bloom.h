@@ -8,8 +8,6 @@
 #ifndef __BLOOM_H
 #define __BLOOM_H
 
-#include "../common.h"
-
 typedef struct BloomStr
 {
 	u64 *data;

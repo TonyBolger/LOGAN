@@ -150,7 +150,7 @@ void queueShutdown(ParallelTask *pt);
 
 // Worker entry point
 
-void performTask(ParallelTask *pt);
+void performTask_worker(ParallelTask *pt);
 
 
 

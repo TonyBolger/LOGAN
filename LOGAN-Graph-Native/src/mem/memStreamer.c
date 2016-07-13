@@ -1,5 +1,5 @@
 
-#include "../common.h"
+#include "common.h"
 
 
 static MemStreamerBlock *streamerBlockAlloc()

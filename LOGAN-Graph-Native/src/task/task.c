@@ -5,7 +5,7 @@
  *      Author: tony
  */
 
-#include "../common.h"
+#include "common.h"
 
 // Measured in seconds - Should never be hit unless workers block
 #define MASTER_TIMEOUT (60*60*24)
@@ -358,7 +358,7 @@ void performTidy(ParallelTask *pt, int workerNo)
 
 
 
-void performTask(ParallelTask *pt)
+void performTask_worker(ParallelTask *pt)
 {
 	int workerNo=-1;
 	int ret=0;

@@ -1,5 +1,7 @@
 package logan.graph;
 
+import java.io.File;
+import java.io.IOException;
 
 public class Graph {
 
@@ -56,6 +58,7 @@ public class Graph {
 		checkHandleAndMode(Mode.INDEX);
 		
 		switchMode_Native(graphHandle);
+		currentMode=Mode.ROUTE;
 	}
 	
 	
@@ -120,11 +123,29 @@ public class Graph {
 			waitStartup_Native(builderHandle);
 		}
 
-		public void processReads(byte data[], int offsets[], int chunkSize)
+		public void free()
+		{
+			free_Native(builderHandle);
+			builderHandle=0;
+		}
+		
+		/*
+		public void processReadData(byte data[], int offsets[], int chunkSize)
 		{
 			processReads_Native(builderHandle, data, offsets, chunkSize);
 		}
-	
+	*/
+		
+		public void processReadFiles(File files[]) throws IOException
+		{
+			byte filePaths[][]=new byte[files.length][];
+			
+			for(int i=0;i<files.length;i++)
+				filePaths[i]=files[i].getCanonicalPath().getBytes();
+			
+			processReadFiles_Native(builderHandle, filePaths);
+		}
+		
 		public void shutdown()
 		{
 			shutdown_Native(builderHandle);
@@ -135,22 +156,23 @@ public class Graph {
 			waitShutdown_Native(builderHandle);
 		}
 
-		public void perform()
+		public void workerPerformTasks()
 		{
-			perform_Native(builderHandle);
+			workerPerformTasks_Native(builderHandle);
 		}
 		
 		
 		private native void waitStartup_Native(long builderHandle);
 		
-		private native void processReads_Native(long builderHandle, byte data[], int offsets[], int chunkSize);  
+		//private native void processReadData_Native(long builderHandle, byte data[], int offsets[], int chunkSize);  
+		private native void processReadFiles_Native(long builderHandle, byte filePaths[][]);  
 		
 		private native void shutdown_Native(long builderHandle);
 		private native void waitShutdown_Native(long builderHandle);
 		
-		private native void perform_Native(long builderHandle);
+		private native void workerPerformTasks_Native(long builderHandle);
 		
-		
+		private native void free_Native(long builderHandle);
 	}
 	
 
@@ -165,18 +187,52 @@ public class Graph {
 			this.builderHandle=builderHandle;
 		}
 		
+		public void free()
+		{
+			free_Native(builderHandle);
+			builderHandle=0;
+		}
+		
+		public void waitStartup()
+		{
+			waitStartup_Native(builderHandle);
+		}
+		
+		public void processReadFiles(File files[]) throws IOException
+		{
+			byte filePaths[][]=new byte[files.length][];
+			
+			for(int i=0;i<files.length;i++)
+				filePaths[i]=files[i].getCanonicalPath().getBytes();
+			
+			processReadFiles_Native(builderHandle, filePaths);
+		}
+		
 		public void shutdown()
 		{
-			this.builderHandle=0;
+			shutdown_Native(builderHandle);
+		}
+
+		public void waitShutdown()
+		{
+			waitShutdown_Native(builderHandle);
+		}
+
+		public void workerPerformTasks()
+		{
+			workerPerformTasks_Native(builderHandle);
 		}
 		
 		private native void waitStartup_Native(long builderHandle);
 		
-		private native void processReads_Native(long builderHandle, byte data[], int offsets[], int chunkSize);  
-		
+		//private native void processReads_Native(long builderHandle, byte data[], int offsets[], int chunkSize);  
+		private native void processReadFiles_Native(long builderHandle, byte filePaths[][]);
+				
 		private native void shutdown_Native(long builderHandle);
 		private native void waitShutdown_Native(long builderHandle);
 		
-		private native void perform_Native(long builderHandle);
+		private native void workerPerformTasks_Native(long builderHandle);
+		
+		private native void free_Native(long builderHandle);
 	}
 }

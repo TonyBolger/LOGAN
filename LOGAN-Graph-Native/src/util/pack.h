@@ -8,8 +8,6 @@
 #ifndef __PACK_H
 #define __PACK_H
 
-#include "../common.h"
-
 
 /*
  * The COMP_BASE constants depend on the binary encoding in packChar

@@ -5,7 +5,7 @@
  *      Author: tony
  */
 
-#include "../common.h"
+#include "common.h"
 
 
 static void initDispatchIntermediateBlock(RoutingDispatchIntermediate *block, MemDispenser *disp)
@@ -728,13 +728,13 @@ static void processGroupSlices(RoutingDispatchGroupState *groupState, SmerArrayS
 			// Wasteful approach for groups with few reads - change to qsort based on sliceIndex
 			RoutingDispatchIntermediate **indexedDispatches=dAlloc(groupState->disp, sizeof(RoutingDispatchIntermediate *)*  slice->smerCount);
 			u32 *sliceIndexes=dAlloc(groupState->disp, sizeof(u32)*slice->smerCount);
-
+/*
 			for(int j=0;j<slice->smerCount;j++)
 				{
 				indexedDispatches[j]=NULL;
 				sliceIndexes[j]=-1;
 				}
-
+*/
 			int indexLength=indexDispatchesForSlice(smerInboundDispatches, slice->smerCount, groupState->disp, indexedDispatches, sliceIndexes);//, smerTmpDispatches);
 			for(int j=0;j<indexLength;j++)
 				processReadsForSmer(indexedDispatches[j], sliceIndexes[j], slice, groupState->disp);

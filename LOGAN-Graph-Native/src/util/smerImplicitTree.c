@@ -5,7 +5,7 @@
  *      Author: tony
  */
 
-#include "smerImplicitTree.h"
+#include "common.h"
 
 typedef struct implicitTreeLevel_str
 {

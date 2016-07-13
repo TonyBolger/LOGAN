@@ -5,7 +5,7 @@
  *      Author: tony
  */
 
-#include "../common.h"
+#include "common.h"
 
 
 static RoutingLookupPercolate *allocPercolateBlock(MemDispenser *disp)

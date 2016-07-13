@@ -5,7 +5,7 @@
  *      Author: tony
  */
 
-#include "../common.h"
+#include "common.h"
 
 
 void initHashedBitMap(HashedBitMap *bitMap, u64 *data, u32 hash)

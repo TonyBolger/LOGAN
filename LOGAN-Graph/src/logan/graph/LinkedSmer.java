@@ -6,16 +6,14 @@ public class LinkedSmer {
 	private long smerId;
 	private Tail prefixes[];
 	private Tail suffixes[];
-	private Route routes[];
-	private int forwardRoutes;
-	private int reverseRoutes;
+	private Route forwardRoutes[];
+	private Route reverseRoutes[];
 	
-	public LinkedSmer(long smerId, Tail prefixes[], Tail suffixes[], Route routes[], int forwardRoutes, int reverseRoutes)
+	public LinkedSmer(long smerId, Tail prefixes[], Tail suffixes[], Route forwardRoutes[], Route reverseRoutes[])
 	{
 		this.smerId=smerId;
 		this.prefixes=prefixes;
 		this.suffixes=suffixes;
-		this.routes=routes;
 		this.forwardRoutes=forwardRoutes;
 		this.reverseRoutes=reverseRoutes;
 	}
@@ -32,15 +30,11 @@ public class LinkedSmer {
 		return suffixes;
 	}
 
-	public Route[] getRoutes() {
-		return routes;
-	}
-	
-	public int getForwardRoutes() {
+	public Route[] getForwardRoutes() {
 		return forwardRoutes;
 	}
-
-	public int getReverseRoutes() {
+	
+	public Route[] getReverseRoutes() {
 		return reverseRoutes;
 	}
 
@@ -55,8 +49,11 @@ public class LinkedSmer {
 		sb.append("], Suffixes: [");
 		for(Tail s: suffixes)
 			sb.append(s.toString());
-		sb.append("], Routes: [");
-		for(Route r: routes)
+		sb.append("], ForwardRoutes: [");
+		for(Route r: forwardRoutes)
+			sb.append(r.toString());
+		sb.append("], ReverseRoutes: [");
+		for(Route r: reverseRoutes)
 			sb.append(r.toString());
 		sb.append("] ]");
 		
@@ -130,21 +127,21 @@ public class LinkedSmer {
 	{
 		// Order should be by upstream, then by downstream
 		
-		if(forwardRoutes>0)
+		if(forwardRoutes!=null && forwardRoutes.length>0)
 			{
-			int lastUpstream=routes[0].prefix;
-			int lastDownstream=routes[0].suffix;
-			int lastWidth=routes[0].width;
+			int lastUpstream=forwardRoutes[0].prefix;
+			int lastDownstream=forwardRoutes[0].suffix;
+			int lastWidth=forwardRoutes[0].width;
 			
-			for(int i=1;i<forwardRoutes;i++)
+			for(int i=1;i<forwardRoutes.length;i++)
 				{
-				int upstream=routes[i].prefix;
-				int downstream=routes[i].suffix;
-				int width=routes[i].width;
+				int upstream=forwardRoutes[i].prefix;
+				int downstream=forwardRoutes[i].suffix;
+				int width=forwardRoutes[i].width;
 				
 				if(upstream<lastUpstream)
 					{
-					System.out.println("Node with F: "+forwardRoutes+" R: "+reverseRoutes+
+					System.out.println("Node with F: "+forwardRoutes.length+" R: "+reverseRoutes.length+
 							" Invalid order at "+i+" in forward: Previous "+lastUpstream+","+lastDownstream+" ("+lastWidth+") Current "+upstream+","+downstream+" ("+width+")");
 					return false;
 					}
@@ -155,23 +152,21 @@ public class LinkedSmer {
 				}
 			}
 
-		if(reverseRoutes>0)
+		if(reverseRoutes!=null && reverseRoutes.length>0)
 			{
-			int lastIndex=forwardRoutes+reverseRoutes-1;
+			int lastUpstream=reverseRoutes[0].suffix;
+			int lastDownstream=reverseRoutes[0].prefix;
+			int lastWidth=reverseRoutes[0].width;
 			
-			int lastUpstream=routes[lastIndex].suffix;
-			int lastDownstream=routes[lastIndex].prefix;
-			int lastWidth=routes[lastIndex].width;
-			
-			for(int i=lastIndex-1;i>=forwardRoutes;i--)
+			for(int i=0;i<reverseRoutes.length;i--)
 				{
-				int upstream=routes[i].suffix;
-				int downstream=routes[i].prefix;
-				int width=routes[i].width;
+				int upstream=reverseRoutes[i].suffix;
+				int downstream=reverseRoutes[i].prefix;
+				int width=reverseRoutes[i].width;
 				
 				if(upstream<lastUpstream)
 					{
-					System.out.println("Node with F: "+forwardRoutes+" R: "+reverseRoutes+
+					System.out.println("Node with F: "+forwardRoutes.length+" R: "+reverseRoutes.length+
 							" Invalid order at "+i+" in reverse: Previous "+lastUpstream+","+lastDownstream+" ("+lastWidth+") Current "+upstream+","+downstream+" ("+width+")");
 					return false;
 					}
@@ -192,7 +187,7 @@ public class LinkedSmer {
 	// Prefix     <- this
 	// SmerId -> tailData
 	
-	
+	/*
 	private int prefixSmerIndex(long smerId, boolean compFlag, byte tailData[])
 	{
 		int count=0,val=0;
@@ -234,8 +229,9 @@ public class LinkedSmer {
 
 		throw new RuntimeException("suffix Multismers: "+count+" From "+this.toString()+" to "+smerId+" with length "+tailData[0]);
 	}
+	*/
 	
-	
+	/*
 	private int prefixOffsetOfRoute(int prefix, int routeIndex, boolean comp) {
 		int prefixOffset=0;
 		
@@ -348,19 +344,17 @@ public class LinkedSmer {
 		throw new RuntimeException("Failed to find suffixRouteContext");
 	}
 	
-	
+	*/
 	
 	public static class Tail
 	{
 		private byte data[];
 		private long smerId;
-		private boolean compFlag;
 		private boolean smerExists;
 		
-		public Tail(byte data[], long smerId, boolean compFlag, boolean smerExists) {
+		public Tail(byte data[], long smerId, boolean smerExists) {
 			this.data = data;
 			this.smerId = smerId;
-			this.compFlag = compFlag;
 			this.smerExists = smerExists;
 		}
 
@@ -370,10 +364,6 @@ public class LinkedSmer {
 
 		public long getSmerId() {
 			return smerId;
-		}
-
-		public boolean isCompFlag() {
-			return compFlag;
 		}
 
 		public boolean isSmerExists() {
@@ -421,7 +411,7 @@ public class LinkedSmer {
 		
 		@Override
 		public String toString() {
-			return "Tail [compFlag=" + compFlag + ", seq="
+			return "Tail [seq="
 					+ getTailSequence(false) + ", smerExists=" + smerExists
 					+ ", smerId=" + smerId + "]";
 		}
@@ -499,6 +489,7 @@ public class LinkedSmer {
 				throw new RuntimeException();
 		}
 		
+		/*
 		public static Context makeReadBeginContext(LinkedSmer smer, WhichTail tail, int routeIndex, int localPosition)
 		{
 			Route route=smer.routes[routeIndex];
@@ -508,7 +499,7 @@ public class LinkedSmer {
 			else
 				return new Context(smer, true, route.suffix, WhichTail.SUFFIX, smer.suffixOffsetOfRoute(route.suffix, routeIndex, true)+localPosition);
 		}
-	
+	*/
 		public LinkedSmer getSmer() {
 			return smer;
 		}
@@ -582,7 +573,7 @@ public class LinkedSmer {
 				}
 
 		}
-
+/*
 		public String readToEnd(LinkedSmerCache cache, int s, int maxSteps)
 		{
 			StringBuilder sb=new StringBuilder();
@@ -632,10 +623,10 @@ public class LinkedSmer {
 				}
 		}
 		
+		*/
 		
 		
-		
-		
+		/*
 		
 		
 		public Context swapTail()
@@ -685,13 +676,6 @@ public class LinkedSmer {
 		
 		public Context followTailLink(LinkedSmerCache cache)
 		{
-			/*		
-			private LinkedSmer smer;
-			private boolean compFlag;
-			private int tailIndex;
-			private WhichTail tail;
-			private int tailPosition;
-			*/
 
 			if(tailIndex==0)
 				return null;
@@ -771,7 +755,7 @@ public class LinkedSmer {
 					return null;
 				}
 			}
-		
+		*/
 	}
 	
 	

@@ -6,7 +6,7 @@
  */
 
 
-#include "../common.h"
+#include "common.h"
 
 /* Not sure if mid(2^x,2^(x+1)) primes make sense here */
 

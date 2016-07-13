@@ -8,8 +8,6 @@
 #ifndef __IMPLICITTREE_H
 #define __IMPLICITTREE_H
 
-#include "../common.h"
-
 
 SmerEntry *siitInitImplicitTree(SmerEntry *sortedSmers, u32 smerCount);
 void siitFreeImplicitTree(SmerEntry *smerIds);

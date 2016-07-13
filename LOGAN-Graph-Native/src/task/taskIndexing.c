@@ -7,7 +7,6 @@
 
 #include "common.h"
 
-#include "fastqParser.h"
 
 
 static void tiDoRegister(ParallelTask *pt, int workerNo)

@@ -8,8 +8,6 @@
 #ifndef __BIT_MAP_H
 #define __BIT_MAP_H
 
-#include "../common.h"
-
 
 #define BIT_MAP_MASK 0x3F;
 #define BIT_MAP_SHIFT 6;

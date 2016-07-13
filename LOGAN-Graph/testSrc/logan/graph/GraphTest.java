@@ -1,7 +1,11 @@
 package logan.graph;
 
+import java.io.File;
+import java.io.IOException;
+
 import junit.framework.TestCase;
 import logan.graph.Graph.IndexBuilder;
+import logan.graph.Graph.RouteBuilder;
 
 public class GraphTest extends TestCase {
 
@@ -10,7 +14,7 @@ public class GraphTest extends TestCase {
 	protected void setUp() throws Exception {
 		super.setUp();
 		
-		DeBruijnGraphConfig config=new DeBruijnGraphConfig(10, 20);
+		DeBruijnGraphConfig config=new DeBruijnGraphConfig(23, 23);
 		graph=new Graph(config);
 	}
 
@@ -24,74 +28,113 @@ public class GraphTest extends TestCase {
 		
 	}
 	*/
+		
 	
-	public void testGraphIndexer() throws InterruptedException
-	{
-		int threadCount=4;
-		
-		Thread.sleep(50);
-		System.out.println("Starting threads");
-		Thread.sleep(50);
-		
-		
+	
+	public void graphIndexingHelper(File files[], int threadCount) throws InterruptedException, IOException
+	{	
 		final IndexBuilder ib=graph.makeIndexBuilder(threadCount);
-		
+		 
+		System.out.println("Indexing: Starting threads");
 		Thread threads[]=new Thread[threadCount];
 		for(int i=0;i<threads.length;i++)
 			{
 			threads[i]=new Thread(new Runnable() {
 				@Override
 				public void run() {
-					System.out.println("Java Worker started");
-					
-					ib.perform();
-					
-					System.out.println("Java Worker stopped");
+					System.out.println("Indexing: Worker started");
+					ib.workerPerformTasks();
+					System.out.println("Indexing: Worker stopped");
 				}});
 			
 			threads[i].start();
 			}
 		
 		
-		System.out.println("Main waiting startup");
-		
-		Thread.sleep(50);
-		
+		System.out.println("Indexing: Waiting startup");
 		ib.waitStartup();
+		System.out.println("Indexing: Completed startup");
 		
-		System.out.println("Main Started");
+		System.out.println("Indexing: Ingress");
+		ib.processReadFiles(files);
 		
-		Thread.sleep(250);
-		
-		System.out.println("Main Ingress");
-		
-		ib.processReads(null, null, 20);
-		
-		Thread.sleep(10000);
-		
-		System.out.println("Main Ingress2");
-		
-		ib.processReads(null, null, 20);
-		
-		System.out.println("Main shutdown");
-		
+		System.out.println("Indexing: Shutdown");
 		ib.shutdown();
-		
-		System.out.println("Main waiting shutdown");
-		
+		System.out.println("Indexing: Waiting shutdown");
 		ib.waitShutdown();
+		System.out.println("Indexing: Shutdown complete");
 		
-		System.out.println("Main Shutdown complete");
-		
-		Thread.sleep(250);
-		
-		System.out.println("Joining threads");
-		
+		System.out.println("Indexing: joining threads");
 		for(int i=0;i<threads.length;i++)
-			threads[i].join();
+			threads[i].join();		
+		System.out.println("Indexing: All threads joined");
 		
-		System.out.println("All Joined");
+		System.out.println("Indexing: Freeing");
+		
+		ib.free();
+	}
+
+	
+	public void graphRoutingHelper(File files[], int threadCount) throws InterruptedException, IOException
+	{	
+		final RouteBuilder rb=graph.makeRouteBuilder(threadCount);
+		 
+		System.out.println("Routing: Starting threads");
+		Thread threads[]=new Thread[threadCount];
+		for(int i=0;i<threads.length;i++)
+			{
+			threads[i]=new Thread(new Runnable() {
+				@Override
+				public void run() {
+					System.out.println("Routing: Worker started");
+					rb.workerPerformTasks();
+					System.out.println("Routing: Worker stopped");
+				}});
+			
+			threads[i].start();
+			}
+		
+		
+		System.out.println("Routing: Waiting startup");
+		rb.waitStartup();
+		System.out.println("Routing: Completed startup");
+		
+		System.out.println("Routing: Ingress");
+		rb.processReadFiles(files);
+		
+		System.out.println("Routing: Shutdown");
+		rb.shutdown();
+		System.out.println("Routing: Waiting shutdown");
+		rb.waitShutdown();
+		System.out.println("Routing: Shutdown complete");
+		
+		System.out.println("Routing: joining threads");
+		for(int i=0;i<threads.length;i++)
+			threads[i].join();		
+		System.out.println("Routing: All threads joined");
+		
+		System.out.println("Routing: Freeing");
+		
+		rb.free();
+	}
+
+	
+	public void testIndexing() throws Exception
+	{
+		File files[]={new File("../data/Ecoli-1_Q20.fq")};
+	
+		int threadCount=1;
+		
+		graphIndexingHelper(files,threadCount);
+		System.out.println("Indexing complete");
+		
+		graph.switchMode();
+		
+		graphRoutingHelper(files,threadCount);
+		System.out.println("Routing complete");
 		
 	}
+	
+
 
 }
