@@ -30,12 +30,17 @@ static int tiDoIngress(ParallelTask *pt, int workerNo,void *ingressPtr, int ingr
 	int i=0;
 	int ingressLast=ingressPosition+ingressSize;
 
+	Graph *graph=ib->graph;
+	SmerMap *smerMap=&(graph->smerMap);
+	int nodeSize=graph->config.nodeSize;
+	int sparseness=graph->config.sparseness;
+
 	for(i=ingressPosition;i<ingressLast;i++)
 		{
 		SequenceWithQuality *currentRec=rec->rec+i;
 
 		packSequence(currentRec->seq, packedSeq, currentRec->length);
-		addPathSmers(ib->graph, currentRec->length, packedSeq);
+		smAddPathSmers(smerMap, currentRec->length, packedSeq, nodeSize, sparseness);
 		}
 
 	free(packedSeq);

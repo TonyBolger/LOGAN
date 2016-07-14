@@ -221,23 +221,43 @@ void *unpackPrefixesForSmerLinked(SmerLinked *smerLinked, u8 *data, MemDispenser
 {
 	if(data!=NULL)
 		{
-		smerLinked->prefixCount=*data++;
-		smerLinked->prefixData=dAlloc(disp, sizeof(s64)*smerLinked->prefixCount);
 
-		data+=unpackTails(data, smerLinked->prefixData, smerLinked->prefixCount);
+		smerLinked->prefixCount=*data++;
+		smerLinked->prefixes=dAlloc(disp, sizeof(s64)*smerLinked->prefixCount);
+
+		data+=unpackTails(data, smerLinked->prefixes, smerLinked->prefixCount);
 
 		smerLinked->prefixSmers=dAlloc(disp, sizeof(SmerId)*smerLinked->prefixCount);
-		// Populate prefixSmers
-
 		smerLinked->prefixSmerExists=dAlloc(disp, sizeof(u8)*smerLinked->prefixCount);
-		memset(smerLinked->prefixSmerExists, 0, sizeof(u8)*smerLinked->prefixCount);
+
+		SmerId smer=complementSmerId(smerLinked->smerId);
+
+		for(int i=0;i<smerLinked->prefixCount;i++)
+			{
+			s64 prefix=smerLinked->prefixes[i];
+			int lenBits=(prefix>>47);
+
+			SmerId targetRC=(prefix|(smer<<lenBits))&SMER_MASK;
+			SmerId target=complementSmerId(targetRC);
+
+			if(target<targetRC)
+				{
+				smerLinked->prefixSmers[i]=target;
+				smerLinked->prefixSmerExists[i]=1;
+				}
+			else
+				{
+				smerLinked->prefixSmers[i]=targetRC;
+				smerLinked->prefixSmerExists[i]=-1;
+				}
+			}
 
 		return data;
 		}
 	else
 		{
 		smerLinked->prefixCount=0;
-		smerLinked->prefixData=NULL;
+		smerLinked->prefixes=NULL;
 		smerLinked->prefixSmers=NULL;
 		smerLinked->prefixSmerExists=NULL;
 
@@ -249,5 +269,47 @@ void *unpackPrefixesForSmerLinked(SmerLinked *smerLinked, u8 *data, MemDispenser
 
 void *unpackSuffixesForSmerLinked(SmerLinked *smerLinked, u8 *data, MemDispenser *disp)
 {
-	return data;
+	if(data!=NULL)
+		{
+		smerLinked->suffixCount=*data++;
+		smerLinked->suffixes=dAlloc(disp, sizeof(s64)*smerLinked->suffixCount);
+
+		data+=unpackTails(data, smerLinked->suffixes, smerLinked->suffixCount);
+
+		smerLinked->suffixSmers=dAlloc(disp, sizeof(SmerId)*smerLinked->suffixCount);
+		smerLinked->suffixSmerExists=dAlloc(disp, sizeof(u8)*smerLinked->suffixCount);
+
+		SmerId smer=smerLinked->smerId;
+
+		for(int i=0;i<smerLinked->suffixCount;i++)
+			{
+			s64 suffix=smerLinked->suffixes[i];
+			int lenBits=(suffix>>47);
+
+			SmerId target=(suffix|(smer<<lenBits))&SMER_MASK;
+			SmerId targetRC=complementSmerId(target);
+
+			if(target<targetRC)
+				{
+				smerLinked->suffixSmers[i]=target;
+				smerLinked->suffixSmerExists[i]=1;
+				}
+			else
+				{
+				smerLinked->suffixSmers[i]=targetRC;
+				smerLinked->suffixSmerExists[i]=-1;
+				}
+			}
+
+		return data;
+		}
+	else
+		{
+		smerLinked->suffixCount=0;
+		smerLinked->suffixes=NULL;
+		smerLinked->suffixSmers=NULL;
+		smerLinked->suffixSmerExists=NULL;
+
+		return NULL;
+		}
 }

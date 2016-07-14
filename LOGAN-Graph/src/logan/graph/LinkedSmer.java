@@ -45,10 +45,10 @@ public class LinkedSmer {
 		sb.append(", Seq: "+unpackSmer(23));
 		sb.append(", Prefixes: [");
 		for(Tail p: prefixes)
-			sb.append(p.toString());
+			sb.append(p.toString(true));
 		sb.append("], Suffixes: [");
 		for(Tail s: suffixes)
-			sb.append(s.toString());
+			sb.append(s.toString(false));
 		sb.append("], ForwardRoutes: [");
 		for(Route r: forwardRoutes)
 			sb.append(r.toString());
@@ -187,39 +187,20 @@ public class LinkedSmer {
 	// Prefix     <- this
 	// SmerId -> tailData
 	
-	/*
-	private int prefixSmerIndex(long smerId, boolean compFlag, byte tailData[])
+	private static long TAIL_LENGTH_MASK=0xFFFF000000000000L;
+	
+	private int prefixSmerIndex(long smerId, boolean compFlag, long tailData)
 	{
 		int count=0,val=0;
+		
+		long maskedTail=tailData & TAIL_LENGTH_MASK;
+		byte exists=(byte)(compFlag?-1:1);
 		
 		for(int i=0;i<prefixes.length;i++)
-			if(prefixes[i].smerExists && prefixes[i].smerId==smerId && prefixes[i].compFlag==compFlag && prefixes[i].data[0]==tailData[0])
+			if(prefixes[i].smerExists==exists && prefixes[i].smerId==smerId && (prefixes[i].data & TAIL_LENGTH_MASK)==maskedTail)
 				{
 				val=i;
 				count++;
-				}
-		
-		if(count==1)
-			return val;
-		else if(count==0)
-			return -1;
-
-		throw new RuntimeException("prefix Multismers: "+count+" From "+this.toString()+" to "+smerId+" with length "+tailData[0]);
-	}
-
-	// Which suffix of this smer links to the given smer-tailData combo
-	
-	private int suffixSmerIndex(long smerId, boolean compFlag, byte tailData[])
-	{
-		int count=0,val=0;
-		
-		for(int i=0;i<suffixes.length;i++)
-			{
-			if(suffixes[i].smerExists && suffixes[i].smerId==smerId && suffixes[i].compFlag==compFlag && suffixes[i].data[0]==tailData[0])
-				{
-				val=i;
-				count++;
-				}
 			}
 		
 		if(count==1)
@@ -227,23 +208,49 @@ public class LinkedSmer {
 		else if(count==0)
 			return -1;
 
-		throw new RuntimeException("suffix Multismers: "+count+" From "+this.toString()+" to "+smerId+" with length "+tailData[0]);
+		throw new RuntimeException("prefix Multismers: "+count+" From "+this.toString()+" to "+smerId+" with length "+(maskedTail>>48));
 	}
-	*/
+
+	// Which suffix of this smer links to the given smer-tailData combo
+	
+	private int suffixSmerIndex(long smerId, boolean compFlag, long tailData)
+	{
+		int count=0,val=0;
+		
+		long maskedTail=tailData & TAIL_LENGTH_MASK;
+		byte exists=(byte)(compFlag?-1:1);
+
+		for(int i=0;i<suffixes.length;i++)
+			{
+			if(suffixes[i].smerExists==exists && suffixes[i].smerId==smerId && (suffixes[i].data & TAIL_LENGTH_MASK)==maskedTail)
+				{
+				val=i;
+				count++;
+				}
+			}			
+		
+		if(count==1)
+			return val;
+		else if(count==0)
+			return -1;
+
+		throw new RuntimeException("suffix Multismers: "+count+" From "+this.toString()+" to "+smerId+" with length "+(maskedTail>>48));
+	}
 	
 	/*
-	private int prefixOffsetOfRoute(int prefix, int routeIndex, boolean comp) {
+	private int prefixOffsetOfRoute(int prefix, int routeIndex, boolean comp) 
+	{
 		int prefixOffset=0;
 		
 		if(!comp)
 			{
 			for(int i=0;i<routeIndex;i++)
-				if(routes[i].prefix==prefix)
-					prefixOffset+=routes[i].width;
+				if(forwardRoutes[i].prefix==prefix)
+					prefixOffset+=forwardRoutes[i].width;
 			}
 		else 
 			{
-			for(int i=routes.length-1;i>routeIndex;i--)
+			for(int i=revrsroutes.length-1;i>routeIndex;i--)
 				if(routes[i].prefix==prefix)
 					prefixOffset+=routes[i].width;
 			}
@@ -348,17 +355,17 @@ public class LinkedSmer {
 	
 	public static class Tail
 	{
-		private byte data[];
+		private long data;
 		private long smerId;
-		private boolean smerExists;
+		private byte smerExists;
 		
-		public Tail(byte data[], long smerId, boolean smerExists) {
+		public Tail(long data, long smerId, byte smerExists) {
 			this.data = data;
 			this.smerId = smerId;
 			this.smerExists = smerExists;
 		}
 
-		public byte[] getData() {
+		public long getData() {
 			return data;
 		}
 
@@ -366,46 +373,33 @@ public class LinkedSmer {
 			return smerId;
 		}
 
-		public boolean isSmerExists() {
+		public byte isSmerExists() {
 			return smerExists;
 		}
 
-		public String getTailSequence(boolean reverse)
+		final static char canonicalBases[]={'A','C','G','T'};
+		final static char complementBases[]={'T','G','C','A'};
+		
+		public String getTailSequence(boolean reverseComplement)
 		{
-			int len = data[0];
+			int len = (int)(data>>48);
 
 			StringBuilder sb = new StringBuilder();
 			
+			long base = data;
+			
+			char decode[]=reverseComplement?complementBases:canonicalBases;
+			
 			for (int i = 0; i < len; i++)
 				{
-				int base = data[1 + (i >> 2)];
-
-				base >>= (2 * (3 - (i & 0x3)));
-
-				switch (base & 0x3)
-					{
-					case 0:
-						sb.append("A");
-						break;
-
-					case 1:
-						sb.append("C");
-						break;
-
-					case 2:
-						sb.append("G");
-						break;
-
-					case 3:
-						sb.append("T");
-						break;
-					}
+				sb.append(decode[(int)(base & 0x3)]);
+				base>>=2;
 				}
 
-			if(reverse)
-				return sb.reverse().toString();
-			else
+			if(reverseComplement)
 				return sb.toString();
+			else
+				return sb.reverse().toString();
 		}
 		
 		
@@ -415,7 +409,12 @@ public class LinkedSmer {
 					+ getTailSequence(false) + ", smerExists=" + smerExists
 					+ ", smerId=" + smerId + "]";
 		}
-		
+
+		public String toString(boolean rev) {
+			return "Tail [seq="
+					+ getTailSequence(rev) + ", smerExists=" + smerExists
+					+ ", smerId=" + smerId + "]";
+		}
 		
 	}
 	
@@ -451,9 +450,15 @@ public class LinkedSmer {
 		
 	}
 	
-	
+	public static enum WhichRouteTable
+	{
+		FORWARD(),
+		REVERSE();
+	}
+		
 	public static class RouteContext
 	{
+		private WhichRouteTable routeTable;
 		private int routeIndex;
 		private int localPosition;
 	}

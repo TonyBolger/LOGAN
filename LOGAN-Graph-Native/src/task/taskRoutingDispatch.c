@@ -587,7 +587,7 @@ void dumpPatches(RoutePatch *patches, int patchCount)
 
 		int index=rdd->indexCount;
 
-		if(0)
+		if(1)
 		{
 			SmerId currSmer=rdd->fsmers[index];
 			SmerId prevSmer=rdd->fsmers[index+1];
@@ -612,8 +612,8 @@ void dumpPatches(RoutePatch *patches, int patchCount)
 
 		if(currFmer<=currRmer) // Canonical Read Orientation
 			{
-				SmerId prefixSmer=rdd->rsmers[index+1];
-				SmerId suffixSmer=rdd->fsmers[index-1];
+				SmerId prefixSmer=rdd->rsmers[index+1]; // Previous smer in read, reversed
+				SmerId suffixSmer=rdd->fsmers[index-1]; // Next smer in read
 
 				int prefixLength=rdd->readIndexes[index]-rdd->readIndexes[index+1];
 				int suffixLength=rdd->readIndexes[index-1]-rdd->readIndexes[index];
@@ -622,7 +622,7 @@ void dumpPatches(RoutePatch *patches, int patchCount)
 				forwardPatches[forwardCount].prefixIndex=findOrCreateSeqTail(&prefixBuilder, prefixSmer, prefixLength);
 				forwardPatches[forwardCount].suffixIndex=findOrCreateSeqTail(&suffixBuilder, suffixSmer, suffixLength);
 
-				if(0)
+				if(1)
 					{
 					char bufferP[SMER_BASES+1]={0};
 					char bufferN[SMER_BASES+1]={0};
@@ -640,8 +640,8 @@ void dumpPatches(RoutePatch *patches, int patchCount)
 			}
 		else	// Reverse-complement Read Orientation
 			{
-				SmerId prefixSmer=rdd->fsmers[index-1];
-				SmerId suffixSmer=rdd->rsmers[index+1];
+				SmerId prefixSmer=rdd->fsmers[index-1]; // Next smer in read
+				SmerId suffixSmer=rdd->rsmers[index+1]; // Previous smer in read, reversed
 
 				int prefixLength=rdd->readIndexes[index-1]-rdd->readIndexes[index];
 				int suffixLength=rdd->readIndexes[index]-rdd->readIndexes[index+1];
@@ -650,7 +650,7 @@ void dumpPatches(RoutePatch *patches, int patchCount)
 				reversePatches[reverseCount].prefixIndex=findOrCreateSeqTail(&prefixBuilder, prefixSmer, prefixLength);
 				reversePatches[reverseCount].suffixIndex=findOrCreateSeqTail(&suffixBuilder, suffixSmer, suffixLength);
 
-				if(0)
+				if(1)
 					{
 					char bufferP[SMER_BASES+1]={0};
 					char bufferN[SMER_BASES+1]={0};

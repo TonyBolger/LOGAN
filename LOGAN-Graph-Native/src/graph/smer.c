@@ -49,6 +49,38 @@ int smerEntryCompar(const void *ptr1, const void *ptr2)
 
 }
 
+SmerId complementSmerId(SmerId id)
+{
+	if(SMER_CBITS==32)
+		{
+		id = ((id >> 2) & 0x33333333) | ((id << 2) & 0xcccccccc);
+		id = ((id >> 4) & 0x0f0f0f0f) | ((id << 4) & 0xf0f0f0f0);
+		id = ((id >> 8) & 0x00ff00ff) | ((id << 8) & 0xff00ff00);
+		id = ((id >> 16) & 0x0000ffff) | ((id << 16) & 0xffff0000);
+
+		id = COMP_BASE_HEX(id);
+		}
+	else if(SMER_CBITS==64)
+		{
+		id = ((id >> 2) & 0x3333333333333333L) | ((id << 2) & 0xccccccccccccccccL);
+		id = ((id >> 4) & 0x0f0f0f0f0f0f0f0fL) | ((id << 4) & 0xf0f0f0f0f0f0f0f0L);
+		id = ((id >> 8) & 0x00ff00ff00ff00ffL) | ((id << 8) & 0xff00ff00ff00ff00L);
+		id = ((id >> 16)& 0x0000ffff0000ffffL) | ((id << 16)& 0xffff0000ffff0000L);
+		id = ((id >> 32)& 0x00000000ffffffffL) | ((id << 32)& 0xffffffff00000000L);
+
+		id = COMP_BASE_32(id);
+		}
+
+	id>>=(SMER_CBITS-SMER_BITS);
+
+	return id;
+}
+
+
+
+
+
+
 /*
 int u32Compar(const void *ptr1, const void *ptr2)
 {

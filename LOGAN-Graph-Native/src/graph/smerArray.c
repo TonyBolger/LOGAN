@@ -73,48 +73,39 @@ int saFindSmerEntry(SmerArraySlice *slice, SmerEntry smerEntry)
 }
 
 
-int saFindSmer(SmerArray *smerArray, SmerId smerId)
+s32 saFindSmer(SmerArray *smerArray, SmerId smerId)
 {
 	u64 hash = hashForSmer(smerId);
-	int sliceNo=sliceForSmer(smerId, hash);
+	int sliceNum=sliceForSmer(smerId, hash);
 
 	SmerEntry smerEntry=SMER_GET_BOTTOM(smerId);
-	SmerArraySlice *slice=smerArray->slice+sliceNo;
+	SmerArraySlice *slice=smerArray->slice+sliceNum;
 
 	s32 index=saFindSmerEntry(slice, smerEntry);
-
-	/*
-	if(index!=-1)
-		{
-		char buffer[SMER_BASES+1];
-
-		unpackSmer(smerId, buffer);
-		LOG(LOG_INFO,"%05i %016lx %012lx %s",sliceNo, hash, smerId, buffer);
-		}
-*/
-
 	return index;
 }
 
 
+u8 *saFindSmerAndData(SmerArray *smerArray, SmerId smerId, s32 *sliceNumPtr, s32 *indexPtr)
+{
+	u64 hash = hashForSmer(smerId);
+	int sliceNum=sliceForSmer(smerId, hash);
 
+	SmerEntry smerEntry=SMER_GET_BOTTOM(smerId);
+	SmerArraySlice *slice=smerArray->slice+sliceNum;
+	if(sliceNumPtr!=NULL)
+		*sliceNumPtr=sliceNum;
 
+	s32 index=saFindSmerEntry(slice, smerEntry);
+	if(indexPtr!=NULL)
+		*indexPtr=index;
 
-u32 saFindIndexesOfExistingSmers(SmerArray *smerArray, u8 *data, s32 maxIndex,
-		s32 *oldIndexes, SmerId *smerIds) {
-	u32 oldIndexCount = 0;
-	u32 i;
+	if(index>=0)
+		return slice->smerData[index];
 
-	for (i = 0; i <= maxIndex; i++) {
-		SmerId smerId = smerIds[i];
-
-		int smerIndex=saFindSmer(smerArray, smerId);
-		if (smerIndex != -1)
-			oldIndexes[oldIndexCount++] = i;
-	}
-
-	return oldIndexCount;
+	return NULL;
 }
+
 
 
 
@@ -178,6 +169,88 @@ typedef struct smerLinkedStr
 
 SmerLinked *saGetLinkedSmer(SmerArray *smerArray, SmerId rootSmerId, MemDispenser *disp)
 {
-	return NULL;
+	int sliceNum, index;
+	u8 *data=saFindSmerAndData(smerArray, rootSmerId, &sliceNum, &index);
+
+	if(index<0)
+		{
+		//LOG(LOG_INFO,"Linked Smer: Not Found");
+		return NULL;
+		}
+
+	SmerLinked *smerLinked=dAlloc(disp,sizeof(SmerLinked));
+	smerLinked->smerId=rootSmerId;
+
+	if(data==NULL)
+		{
+		//LOG(LOG_INFO,"Linked Smer: No data");
+		memset(smerLinked,0,sizeof(SmerLinked));
+		}
+	else
+		{
+		//LOG(LOG_INFO,"Linked Smer: Got data 1");
+
+		data=unpackPrefixesForSmerLinked(smerLinked, data, disp);
+
+		data=unpackSuffixesForSmerLinked(smerLinked, data, disp);
+
+		unpackRouteTableForSmerLinked(smerLinked, data, disp);
+
+		for(int i=0;i<smerLinked->prefixCount;i++)
+			if(saFindSmer(smerArray, smerLinked->prefixSmers[i])<0)
+				smerLinked->prefixSmerExists[i]=0;
+
+		for(int i=0;i<smerLinked->suffixCount;i++)
+			if(saFindSmer(smerArray, smerLinked->suffixSmers[i])<0)
+				smerLinked->suffixSmerExists[i]=0;
+
+		//LOG(LOG_INFO,"Linked Smer: Got data 4 - %i %i",smerLinked->forwardRouteCount, smerLinked->reverseRouteCount);
+		}
+
+	smerLinked->smerId=rootSmerId;
+
+	return smerLinked;
 }
+
+
+
+u32 saGetSmerCount(SmerArray *smerArray) {
+	int total = 0;
+
+	for (int i = 0; i < SMER_SLICES; i++)
+		total+=smerArray->slice[i].smerCount;
+
+	return total;
+}
+
+static int saGetSliceSmerIds(SmerArraySlice *smerArraySlice, int sliceNum, SmerId *smerIdArray)
+{
+	SmerId *ptr=smerIdArray;
+
+	for(int i=0;i<smerArraySlice->smerCount;i++)
+		{
+		SmerEntry entry=smerArraySlice->smerIT[i];
+		SmerId id=recoverSmerId(sliceNum, entry);
+		*(ptr++)=id;
+		}
+
+	int count=ptr-smerIdArray;
+
+	return count;
+}
+
+
+
+void saGetSmerIds(SmerArray *smerArray, SmerId *smerIds)
+{
+	for (int i = 0; i < SMER_SLICES; i++)
+		{
+		int count=saGetSliceSmerIds(smerArray->slice+i, i, smerIds);
+		smerIds+=count;
+		}
+}
+
+
+
+
 

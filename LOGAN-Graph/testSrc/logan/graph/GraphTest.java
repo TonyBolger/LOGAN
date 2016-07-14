@@ -119,20 +119,55 @@ public class GraphTest extends TestCase {
 	}
 
 	
-	public void testIndexing() throws Exception
+	public void testIndexingAndRouting() throws Exception
 	{
-		File files[]={new File("../data/Ecoli-1_Q20.fq")};
+		//File files[]={new File("../data/Ecoli-1_Q20.fq")};
+		File files[]={new File("../data/Single.fq")};
 	
 		int threadCount=1;
 		
 		graphIndexingHelper(files,threadCount);
 		System.out.println("Indexing complete");
 		
+		long smers[];
+		
+		System.out.println("Smer Count (after Index): "+graph.getSmerCount());
+		smers=graph.getSmerIds();
+		
+		System.out.println("Smer Array Length: "+smers.length);
+		if(smers.length<10)
+			{
+			for(long smer: smers)
+				System.out.println(smer);
+			}
+		
 		graph.switchMode();
 		
-		graphRoutingHelper(files,threadCount);
-		System.out.println("Routing complete");
 		
+		graphRoutingHelper(files,threadCount);
+		System.out.println("Routing complete1");
+
+		graphRoutingHelper(files,threadCount);
+		System.out.println("Routing complete2");
+
+		
+		System.out.println("Smer Count (after Route): "+graph.getSmerCount());
+		smers=graph.getSmerIds();
+		
+		System.out.println("Smer Array Length: "+smers.length);
+		if(smers.length<10)
+			{
+			for(long smer: smers)
+				System.out.println(smer);
+			
+			for(long smer: smers)
+				{
+				LinkedSmer linkedSmer=graph.getLinkedSmer(smer);
+				System.out.println(linkedSmer);
+				}
+			
+			}
+				
 	}
 	
 

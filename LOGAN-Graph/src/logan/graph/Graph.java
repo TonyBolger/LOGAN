@@ -3,6 +3,7 @@ package logan.graph;
 import java.io.File;
 import java.io.IOException;
 
+
 public class Graph {
 
 	enum Mode {INDEX,ROUTE};
@@ -34,6 +35,20 @@ public class Graph {
 		return config;
 	}
 
+	public int getSmerCount()
+	{
+		checkHandleAndMode(null);
+		
+		return getSmerCount_Native(graphHandle);
+	}
+	
+	public long[] getSmerIds()
+	{
+		checkHandleAndMode(null);
+		
+		return getSmerIds_Native(graphHandle);
+	}
+		
 	public IndexBuilder makeIndexBuilder(int threads) throws GraphException
 	{
 		checkHandleAndMode(Mode.INDEX);
@@ -66,8 +81,7 @@ public class Graph {
 	{
 		checkHandleAndMode(Mode.ROUTE);
 
-		return null;
-		//return SA_getLinkedSmer_Native(graphHandle, smerId);
+		return getLinkedSmer_Native(graphHandle, smerId);
 	}
 
 	/* Sanity checks */
@@ -83,22 +97,52 @@ public class Graph {
 		if (graphHandle == 0)
 			throw new GraphException("Graph " + this + " has a null native handle");
 		
-		if(currentMode!=expected)
+		if(expected !=null && currentMode!=expected)
 			throw new GraphException("Graph " + this + " not in expected mode ("+expected+")");
 	}
 	
+	/* Native Query (Both Modes) */
 	
+	private native int getSmerCount_Native(long graphHandle);
+	private native long[] getSmerIds_Native(long graphHandle);
+		
+	/* Native Query (Map Mode) */
+
+	//private native void getSmerPathCounts_Native(long graphHandle, long smerIds[], int smerPaths[]);
+
+	/* Native Query (Array Mode) */
+
+	private native LinkedSmer getLinkedSmer_Native(long graphHandle, long smerId);
 	
-	/* Native Query */
+//	private native int SA_validateSmer_Native(long graphHandle, long smerId); 
 	
+    private native byte[] getRawSmerData_Native(long graphHandle, long smerId);	
+//	private native byte[] getRawSmerPrefix_Native(long graphHandle, long smerId);
+//	private native byte[] getRawSmerSuffix_Native(long graphHandle, long smerId);
+//	private native byte[] getRawSmerRoutes_Native(long graphHandle, long smerId);
+
+//	private native void SA_getSmerStats_Native(long graphHandle, int startIndex, int endIndex, long smerIds[], 
+//			int smerPrefixes[], int smerPrefixBases[], int smerSuffixes[], int smerSuffixBases[], 
+//			int smerRoutePrefixBits[], int smerRouteSuffixBits[], int smerRouteWidthBits[], 
+//			int smerRouteForwardEntries[], int smerRouteReverseEntries[], int smerRoutes[]);  
 	
-	/* Native Update */
+	/* Native Update (Map Mode) */
 	
 	private native long makeIndexBuilder_Native(long graphHandle, int threads);
-	private native long makeRouteBuilder_Native(long graphHandle, int threads);
+	private native void addRawSmers_Native(long graphHandle, long smerIds[]);
 		
+	/* Native Update (Array Mode) */
+	
+	private native long makeRouteBuilder_Native(long graphHandle, int threads);
+
+	private native void setRawSmerData_Native(long graphHandle, long smerId, byte data[]);	
+//	private native void setRawSmerPrefix_Native(long graphHandle, long smerId, byte prefix[]);
+//	private native void setRawSmerSuffix_Native(long graphHandle, long smerId, byte suffix[]);
+//	private native void setRawSmerRoutes_Native(long graphHandle, long smerId, byte routes[]);
 	
 	/* Native Other */
+
+//	private native void SA_getMemPoolStats_Native(long graphHandle,  int poolCount[], int itemCount[], int itemEmpty[], int itemSize[], long allocSize[]);
 	
 	private native void switchMode_Native(long graphHandle);
 	
@@ -106,7 +150,8 @@ public class Graph {
 	private native void free_Native(long graphHandle);
 
 	private native void dump_Native(long graphHandle);
-
+	
+	
 	
 	/* Helpers */
 	

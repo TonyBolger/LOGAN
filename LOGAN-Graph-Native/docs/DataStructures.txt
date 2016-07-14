@@ -529,6 +529,13 @@ Equivalent RC reads share prefix,smer and suffix
 Canonical Reads map as: rc(-1) -> prefix, (0) -> smer, (1) -> suffix
 RevComp Reads map as:   rc(-1) -> suffix, rc(0) -> smer, (1) -> prefix
 
+Smers are stored with last base as LSBs 
+Tails are stored with last base as LSBs, length as top 16 bits
+
+Prefix is stored in reverse complement (vs smer), Suffix is stored in canonical orientation
+
+
+
 Canonical Orientation (assuming forward mer arrays):
 
 	Smer = Fmer[0]
@@ -542,6 +549,12 @@ RevComp Orientation:
 	Suffix = Rmer[-1]
 
 
+Recovering Prefix:
+??((Smer >> length) || prefix 
+
+Recovering Suffix:
+
+((Smer << length) || suffix ) & mask
 
 
 

@@ -1,13 +1,13 @@
 
 #CFLAGS=-std=gnu99 -pedantic -pedantic-errors -Wall -Werror -O3 
-#CFLAGS=-std=gnu99 -pedantic -pedantic-errors -Wall -Werror -O3 -g
-CFLAGS=-std=gnu99 -pedantic -pedantic-errors -Wall -Werror -O0 -g
+CFLAGS=-std=gnu99 -pedantic -pedantic-errors -Wall -Werror -O3 -g
+#CFLAGS=-std=gnu99 -pedantic -pedantic-errors -Wall -Werror -O0 -g
 
 CC=gcc
 
 INC=-I"./src"
 CLI_INC=-I"./cliSrc"
-JNI_INC=-I/usr/lib/jvm/java/include/ -I/usr/lib/jvm/java/include/linux/ -I"./cliSrc" -I"./jniSrc" -I"./jniHeaders"
+JNI_INC=-I/usr/lib/jvm/java/include/ -I/usr/lib/jvm/java/include/linux/ -I"./jniSrc" -I"./jniHeaders"
 
 CLI_LIBS = -lrt -lpthread
 #CLI_LIBS = -lrt -lpthread -lprofiler
@@ -19,6 +19,7 @@ CLI_OBJS += \
 ./bin/cli/common/graph/smer.o \
 ./bin/cli/common/graph/smerArray.o \
 ./bin/cli/common/graph/smerMap.o \
+./bin/cli/common/io/fastqParser.o \
 ./bin/cli/common/mem/mem.o \
 ./bin/cli/common/mem/memDispenser.o \
 ./bin/cli/common/mem/memStreamer.o \
@@ -33,7 +34,6 @@ CLI_OBJS += \
 ./bin/cli/common/util/log.o \
 ./bin/cli/common/util/pack.o \
 ./bin/cli/common/util/smerImplicitTree.o \
-./bin/cli/obj/fastqParser.o \
 ./bin/cli/obj/main.o 
 
 CLI_DEPS := $(CLI_OBJS:.o=.d)
@@ -46,6 +46,7 @@ JNI_OBJS += \
 ./bin/jni/common/graph/smer.o \
 ./bin/jni/common/graph/smerArray.o \
 ./bin/jni/common/graph/smerMap.o \
+./bin/jni/common/io/fastqParser.o \
 ./bin/jni/common/mem/mem.o \
 ./bin/jni/common/mem/memDispenser.o \
 ./bin/jni/common/mem/memStreamer.o \
@@ -72,12 +73,14 @@ bin:
 	mkdir -p bin/cli/obj
 	mkdir -p bin/cli/common
 	mkdir -p bin/cli/common/graph
+	mkdir -p bin/cli/common/io
 	mkdir -p bin/cli/common/mem
 	mkdir -p bin/cli/common/task
 	mkdir -p bin/cli/common/util
 	mkdir -p bin/jni/obj
 	mkdir -p bin/jni/common
 	mkdir -p bin/jni/common/graph
+	mkdir -p bin/jni/common/io
 	mkdir -p bin/jni/common/mem
 	mkdir -p bin/jni/common/task
 	mkdir -p bin/jni/common/util
@@ -92,7 +95,7 @@ bin/LOGAN: $(CLI_OBJS) | bin
 bin/libLOGAN.so: $(JNI_OBJS) | bin 
 	@echo 'Building target: $@'
 	@echo 'Invoking: GCC C Linker'
-	${CC} $(CFLAGS) -shared -p -o "bin/libLOGAN.so" $(JNI_OBJS)  
+	${CC} $(CFLAGS) -shared -o "bin/libLOGAN.so" $(JNI_OBJS)  
 	@echo 'Finished building target: $@'
 	@echo ' '
 
@@ -114,14 +117,14 @@ bin/cli/obj/%.o: ./cliSrc/%.c | bin
 bin/jni/common/%.o: ./src/%.c | bin
 	@echo 'Building file: $<'
 	@echo 'Invoking: GCC C Compiler'
-	${CC} $(CFLAGS) $(INC) $(JNI_INC) -p -c -fmessage-length=0 -fPIC -MMD -MP -MF"$(@:%.o=%.d)" -MT"$@" -o "$@" "$<"
+	${CC} $(CFLAGS) $(INC) $(JNI_INC) -c -fmessage-length=0 -fPIC -MMD -MP -MF"$(@:%.o=%.d)" -MT"$@" -o "$@" "$<"
 	@echo 'Finished building: $<'
 	@echo ' '
 
 bin/jni/obj/%.o: ./jniSrc/%.c | bin
 	@echo 'Building file: $<'
 	@echo 'Invoking: GCC C Compiler'
-	${CC} $(CFLAGS) $(INC) $(JNI_INC) -p -c -fmessage-length=0 -fPIC -MMD -MP -MF"$(@:%.o=%.d)" -MT"$@" -o "$@" "$<"
+	${CC} $(CFLAGS) $(INC) $(JNI_INC) -c -fmessage-length=0 -fPIC -MMD -MP -MF"$(@:%.o=%.d)" -MT"$@" -o "$@" "$<"
 	@echo 'Finished building: $<'
 	@echo ' '
 	

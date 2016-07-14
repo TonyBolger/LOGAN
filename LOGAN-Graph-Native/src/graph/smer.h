@@ -9,9 +9,6 @@
 #define __SMER_H
 
 
-#include "../common.h"
-
-
 /********************** Definitions for SmerMap **********************/
 
 typedef struct smerMapSliceStr
@@ -69,14 +66,13 @@ typedef struct routeTableEntryStr
 typedef struct smerLinkedStr
 {
 	SmerId smerId;
-	u32 compFlag;
 
-	s64 *prefixData;
+	s64 *prefixes;
 	SmerId *prefixSmers;
 	u8 *prefixSmerExists;
 	s32 prefixCount;
 
-	s64 *suffixData;
+	s64 *suffixes;
 	SmerId *suffixSmers;
 	u8 *suffixSmerExists;
 	s32 suffixCount;
@@ -101,7 +97,9 @@ int smerEntryCompar(const void *ptr1, const void *ptr2);
 
 //int u32Compar(const void *ptr1, const void *ptr2);
 
-//SmerId complementSmerId(SmerId id);
+SmerId complementSmerId(SmerId id);
+
+
 //SmerId shuffleSmerIdRight(SmerId id, u8 base);
 //SmerId shuffleSmerIdLeft(SmerId id, u8 base);
 
@@ -128,9 +126,11 @@ void smDumpSmerMap(SmerMap *smerMap);
 u32 smGetSmerSliceCount(SmerMapSlice *smerMapSlice);
 void smGetSortedSliceSmerEntries(SmerMapSlice *smerMapSlice, SmerEntry *array);
 
-u32 smGetSmerCount(SmerMap *smerMap);
+void smAddPathSmers(SmerMap *smerMap, u32 dataLength, u8 *data, s32 nodeSize, s32 sparseness);
 
-//void smGetSortedSmerIds(SmerMap *smerMap, SmerId *array);
+u32 smGetSmerCount(SmerMap *smerMap);
+void smGetSmerIds(SmerMap *smerMap, SmerId *smerIds);
+
 //void smGetSmerPathCounts(SmerMap *smerMap, SmerId *smerIds, u32 *smerPaths);
 
 
@@ -141,12 +141,14 @@ s32 saInitSmerArray(SmerArray *smerArray, SmerMap *smerMap);
 void saCleanupSmerArray(SmerArray *smerArray);
 
 int saFindSmerEntry(SmerArraySlice *slice, SmerEntry smerEntry);
-int saFindSmer(SmerArray *smerArray, SmerId smerId);
+//int saFindSmer(SmerArray *smerArray, SmerId smerId);
 
-u32 saFindIndexesOfExistingSmers(SmerArray *smerArray, u8 *data, s32 maxIndex, s32 *oldIndexes, SmerId *smerIds);
 void saVerifyIndexing(s32 maxAllowedDistance, s32 *indexes, u32 indexCount, int dataLength, int maxValidIndex);
 
 SmerLinked *saGetLinkedSmer(SmerArray *smerArray, SmerId rootSmerId, MemDispenser *disp);
+
+u32 saGetSmerCount(SmerArray *smerArray);
+void saGetSmerIds(SmerArray *smerArray, SmerId *smerIds);
 
 #endif
 

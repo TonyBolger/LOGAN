@@ -377,34 +377,57 @@ u32 smGetSmerSliceCount(SmerMapSlice *smerMapSlice)
 }
 
 
-
-void smGetSortedSliceSmerEntries(SmerMapSlice *smerMapSlice, SmerEntry *array)
+static int smGetSliceSmerEntries(SmerMapSlice *smerMapSlice, SmerEntry *entryArray)
 {
-	int i;
-	SmerEntry *ptr=array;
+	SmerEntry *ptr=entryArray;
 
-	for(i=0;i<=smerMapSlice->mask;i++)
+	for(int i=0;i<=smerMapSlice->mask;i++)
 		{
 		SmerEntry entry=smerMapSlice->smers[i];
 		if(entry!=SMER_DUMMY)
 			{
-			SmerId id=recoverSmerId(i, entry);
+			//SmerId id=recoverSmerId(i, entry);
+			*(ptr++)=entry;
+			}
+		}
+
+	int count=ptr-entryArray;
+
+	return count;
+}
+
+void smGetSortedSliceSmerEntries(SmerMapSlice *smerMapSlice, SmerEntry *array)
+{
+	int count=smGetSliceSmerEntries(smerMapSlice, array);
+	qsort(array, count, sizeof(SmerEntry), smerEntryCompar);
+}
+
+static int smGetSliceSmerIds(SmerMapSlice *smerMapSlice, int sliceNum, SmerId *smerArray)
+{
+	SmerId *ptr=smerArray;
+
+	for(int i=0;i<=smerMapSlice->mask;i++)
+		{
+		SmerEntry entry=smerMapSlice->smers[i];
+		if(entry!=SMER_DUMMY)
+			{
+			SmerId id=recoverSmerId(sliceNum, entry);
 			*(ptr++)=id;
 			}
 		}
 
-	int count=ptr-array;
+	int count=ptr-smerArray;
 
-	qsort(array, count, sizeof(SmerEntry), smerEntryCompar);
+	return count;
 }
 
 
 
-u32 smGetSmerCount(SmerMap *smerMap) {
+u32 smGetSmerCount(SmerMap *smerMap)
+{
 	int total = 0;
-	int i;
 
-	for (i = 0; i < SMER_SLICES; i++)
+	for (int i = 0; i < SMER_SLICES; i++)
 		{
 		int count=smGetSmerSliceCount(smerMap->slice+i);
 		total+=count;
@@ -412,6 +435,123 @@ u32 smGetSmerCount(SmerMap *smerMap) {
 
 	return total;
 }
+
+
+void smGetSmerIds(SmerMap *smerMap, SmerId *smerIds)
+{
+	for(int i = 0; i < SMER_SLICES; i++)
+		{
+		int count=smGetSliceSmerIds(smerMap->slice+i, i, smerIds);
+		smerIds+=count;
+		}
+
+}
+
+
+static int checkStealthIndexing(s32 *indexes, u32 indexCount, SmerId *smerIds, SmerId smerId)
+{
+	int i=0;
+
+	for(i=0;i<indexCount;i++)
+	{
+		if(smerIds[indexes[i]]==smerId)
+			return 1;
+	}
+
+	return 0;
+}
+
+
+
+
+void smAddPathSmers(SmerMap *smerMap, u32 dataLength, u8 *data, s32 nodeSize, s32 sparseness)
+{
+	//LOG(LOG_INFO, "Asked to preindex path of %i", dataLength);
+
+	s32 indexMaxDistance=sparseness;
+	s32 maxValidIndex=dataLength-nodeSize;
+
+	//	LOG(LOG_INFO,"Max dist: %i",indexMaxDistance);
+
+	s32 *oldIndexes=lAlloc((maxValidIndex+1)*sizeof(u32));
+	s32 *newIndexes=lAlloc((maxValidIndex+1)*sizeof(u32));
+	u32 newIndexCount=0;
+
+	SmerId *smerIds=lAlloc((maxValidIndex+1)*sizeof(SmerId));
+	calculatePossibleSmers(data, maxValidIndex, smerIds);
+
+	u32 oldIndexCount=smFindIndexesOfExistingSmers(smerMap, data, maxValidIndex, oldIndexes, smerIds, indexMaxDistance);
+
+	//LOG(LOG_INFO, "Existing Indexes: ");
+	//LogIndexes(oldIndexes, oldIndexCount, smerIds);
+
+	s32 prevIndex=-1; // TODO: Consider -1 vs 0 here (length of first edge)
+
+	int i,j;
+	s32 distance;
+
+	for(i=0;i<oldIndexCount;i++)
+		{
+		s32 index=oldIndexes[i];
+		distance=index-prevIndex;
+
+		if(distance>=indexMaxDistance)
+			{
+			for(j=prevIndex+1;j<index;j++)
+				{
+				SmerId smerId=smerIds[j];
+
+				distance=j-prevIndex;
+
+				if(checkStealthIndexing(newIndexes, newIndexCount, smerIds, smerId))
+					{
+					prevIndex=j;
+					}
+				else if (distance>=indexMaxDistance)
+					{
+					newIndexes[newIndexCount++]=j;
+					prevIndex=j;
+					}
+				}
+			}
+		prevIndex=index;
+		}
+
+	for(j=prevIndex+1;j<=maxValidIndex;j++)
+		{
+		SmerId smerId=smerIds[j];
+
+		distance=j-prevIndex;
+
+		if(checkStealthIndexing(newIndexes, newIndexCount, smerIds, smerId))
+			{
+			prevIndex=j;
+			}
+		else if (distance>=indexMaxDistance)
+			{
+			newIndexes[newIndexCount++]=j;
+			prevIndex=j;
+			}
+		}
+
+	if(oldIndexCount==0 && newIndexCount==0)
+		newIndexes[newIndexCount++]=maxValidIndex/2;
+
+	//LOG(LOG_INFO, "New Indexes: ");
+	//LogIndexes(newIndexes, newIndexCount, smerIds);
+
+	//LOG(LOG_INFO, "Len %i Old %i New %i Existing %i",dataLength, oldIndexCount, newIndexCount, graph->smerMap.entryCount);
+
+	if(newIndexCount>0)
+		{
+		//LOG(LOG_INFO, "Creating %i",newIndexCount);
+		smCreateIndexedSmers(smerMap, newIndexCount, newIndexes, smerIds);
+		}
+}
+
+
+
+
 
 
 

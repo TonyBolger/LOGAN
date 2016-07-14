@@ -142,3 +142,76 @@ TATTAGTGCAATTGGTGCACTTA (23) 		TAGATTGTTGGTTATGCAAATGC (rc) 		xxxxxxxxxxxxxxxxxx
 
 
 
+
+AGAAGCATAAGTGATGATTAAAGAATTGCACGGGAATTTTAAGTGCTTAATTACCCGCACGACTTCTCTCGCGTCTCTCTCTTTTTTCTTCCTTTCTTT
+
+AGAAGCATAAGTGATGATTAAA-
+TCTTCGTATTCACTACTAATTT-
+                      CACTTAAAATTCCCGTGCAATTC
+                      GAATTGCACGGGAATTTTAAGTG*
+                                             CTTAATTACCCGCACGACTTCTC*
+                                             GAGAAGTCGTGCGGGTAATTAAG                                           
+                                                                    GAAGAAAAAAGAGAGAGACGCGA
+                                                                    TCGCGTCTCTCTCTTTTTTCTTC*
+                                                                                          -GAAAGAAA
+                                                                                          -CTTTCTTT
+
+LOGAN INFO src/task/taskRoutingDispatch.c(607) 0.095508: Read Orientation: AGAAGCATAAGTGATGATTAAAG (22) GAATTGCACGGGAATTTTAAGTG CTTAATTACCCGCACGACTTCTC (23)
+LOGAN INFO src/task/taskRoutingDispatch.c(664) 0.095510: Node Orientation: CTTAATTACCCGCACGACTTCTC (23) @ 1 CACTTAAAATTCCCGTGCAATTC CTTTAATCATCACTTATGCTTCT (22) @ 1
+
+LOGAN INFO src/task/taskRoutingDispatch.c(607) 0.095536: Read Orientation: GAATTGCACGGGAATTTTAAGTG (23) CTTAATTACCCGCACGACTTCTC TCGCGTCTCTCTCTTTTTTCTTC (23)
+LOGAN INFO src/task/taskRoutingDispatch.c(636) 0.095538: Node Orientation: CACTTAAAATTCCCGTGCAATTC (23) @ 1 CTTAATTACCCGCACGACTTCTC TCGCGTCTCTCTCTTTTTTCTTC (23) @ 1
+
+LOGAN INFO src/task/taskRoutingDispatch.c(607) 0.095560: Read Orientation: CTTAATTACCCGCACGACTTCTC (23) TCGCGTCTCTCTCTTTTTTCTTC CTCTCTTTTTTCTTCCTTTCTTT (8)
+LOGAN INFO src/task/taskRoutingDispatch.c(664) 0.095562: Node Orientation: CTCTCTTTTTTCTTCCTTTCTTT (8) @ 1 GAAGAAAAAAGAGAGAGACGCGA GAGAAGTCGTGCGGGTAATTAAG (23) @ 1
+
+Fwd Read:
+AGAAGCATAAGTGATGATTAAAGAATTGCACGGGAATTTTAAGTGCTTAATTACCCGCACGACTTCTCTCGCGTCTCTCTCTTTTTTCTTCCTTTCTTT
+
+                      GAATTGCACGGGAATTTTAAGTG
+                                             CTTAATTACCCGCACGACTTCTC
+                                                                    TCGCGTCTCTCTCTTTTTTCTTC
+
+
+Rev Read:
+AAAGAAAGGAAGAAAAAAGAGAGAGACGCGAGAGAAGTCGTGCGGGTAATTAAGCACTTAAAATTCCCGTGCAATTCTTTAATCATCACTTATGCTTCT
+
+AAAGAAAG
+        GAAGAAAAAAGAGAGAGACGCGA
+        					   GAGAAGTCGTGCGGGTAATTAAG
+        					   
+        					   GAGAAGTCGTGCGGGTAATTAAG
+                                                      CACTTAAAATTCCCGTGCAATTC
+                                                                             TTTAATCATCACTTATGCTTCT
+                               
+
+LinkedSmer [ID: 35734163693976, Seq: GAAGAAAAAAGAGAGAGACGCGA, Prefixes: [Tail [seq=AAAGAAAG, smerExists=false, smerId=0]], Suffixes: [Tail [seq=GAGAAGTCGTGCGGGTAATTAAG, smerExists=false, smerId=0]], ForwardRoutes: [], ReverseRoutes: [Route [prefix=1, suffix=1, width=2]] ]
+
+LinkedSmer [ID: 19722747175997, Seq: CACTTAAAATTCCCGTGCAATTC, Prefixes: [Tail [seq=GAGAAGTCGTGCGGGTAATTAAG, smerExists=false, smerId=0]], Suffixes: [Tail [seq=TTTAATCATCACTTATGCTTCT, smerExists=false, smerId=0]], ForwardRoutes: [], ReverseRoutes: [Route [prefix=1, suffix=1, width=2]] ]
+
+LinkedSmer [ID: 34149646829533, Seq: CTTAATTACCCGCACGACTTCTC, Prefixes: [Tail [seq=GAATTGCACGGGAATTTTAAGTG, smerExists=false, smerId=0]], Suffixes: [Tail [seq=TCGCGTCTCTCTCTTTTTTCTTC, smerExists=false, smerId=0]], ForwardRoutes: [Route [prefix=1, suffix=1, width=2]], ReverseRoutes: [] ]
+
+
+
+LinkedSmer [ID: 19722747175997, Seq: CACTTAAAATTCCCGTGCAATTC, 
+	Prefixes: [Tail [seq=GAGAAGTCGTGCGGGTAATTAAG, smerExists=-1, smerId=34149646829533]], 
+	Suffixes: [Tail [seq=TTTAATCATCACTTATGCTTCT, smerExists=0, smerId=8953981538050]], 
+	ForwardRoutes: [], ReverseRoutes: [Route [prefix=1, suffix=1, width=2]] ]
+
+LinkedSmer [ID: 34149646829533, Seq: CTTAATTACCCGCACGACTTCTC, 
+	Prefixes: [Tail [seq=GAATTGCACGGGAATTTTAAGTG, smerExists=-1, smerId=19722747175997]], 
+	Suffixes: [Tail [seq=TCGCGTCTCTCTCTTTTTTCTTC, smerExists=-1, smerId=35734163693976]], 
+	ForwardRoutes: [Route [prefix=1, suffix=1, width=2]], ReverseRoutes: [] ]
+
+LinkedSmer [ID: 35734163693976, Seq: GAAGAAAAAAGAGAGAGACGCGA, 
+	Prefixes: [Tail [seq=AAAGAAAG, smerExists=0, smerId=552448557602]], 
+	Suffixes: [Tail [seq=GAGAAGTCGTGCGGGTAATTAAG, smerExists=-1, smerId=34149646829533]], 
+	ForwardRoutes: [], ReverseRoutes: [Route [prefix=1, suffix=1, width=2]] ]
+
+
+LinkedSmer [ID: 35734163693976, Seq: GAAGAAAAAAGAGAGAGACGCGA, Prefixes: [Tail [seq=AAAGAAAG, smerExists=0, smerId=552448557602]], Suffixes: [Tail [seq=GAGAAGTCGTGCGGGTAATTAAG, smerExists=-1, smerId=34149646829533]], ForwardRoutes: [], ReverseRoutes: [Route [prefix=1, suffix=1, width=2]] ]
+LOGAN INFO jniSrc/JNI_graph.c(475) 0.096717: Linked Smer: 0x7f0d7c0000c0
+LinkedSmer [ID: 19722747175997, Seq: CACTTAAAATTCCCGTGCAATTC, Prefixes: [Tail [seq=GAGAAGTCGTGCGGGTAATTAAG, smerExists=-1, smerId=34149646829533]], Suffixes: [Tail [seq=TTTAATCATCACTTATGCTTCT, smerExists=0, smerId=8953981538050]], ForwardRoutes: [], ReverseRoutes: [Route [prefix=1, suffix=1, width=2]] ]
+LOGAN INFO jniSrc/JNI_graph.c(475) 0.096805: Linked Smer: 0x7f0d7c0000c0
+LinkedSmer [ID: 34149646829533, Seq: CTTAATTACCCGCACGACTTCTC, Prefixes: [Tail [seq=GAATTGCACGGGAATTTTAAGTG, smerExists=-1, smerId=19722747175997]], Suffixes: [Tail [seq=TCGCGTCTCTCTCTTTTTTCTTC, smerExists=-1, smerId=35734163693976]], ForwardRoutes: [Route [prefix=1, suffix=1, width=2]], ReverseRoutes: [] ]
+
