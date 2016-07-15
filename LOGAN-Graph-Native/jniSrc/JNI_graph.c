@@ -472,7 +472,7 @@ JNIEXPORT jobject JNICALL Java_logan_graph_Graph_getLinkedSmer_1Native
 	SmerLinked *linked=saGetLinkedSmer(smerArray, (SmerId)jSmerId, dispenser);
 	jobject jObj=NULL;
 
-	LOG(LOG_INFO,"Linked Smer: %p",linked);
+	//LOG(LOG_INFO,"Linked Smer: %p",linked);
 
 	if(linked!=NULL)
 		{

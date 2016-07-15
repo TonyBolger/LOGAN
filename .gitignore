@@ -1,3 +1,11 @@
+LOGAN-Graph-Native/.cproject
+LOGAN-Graph-Native/.project
+LOGAN-Graph-Native/.settings/
+LOGAN-Graph-Native/bin/
+LOGAN-Graph/.classpath
+LOGAN-Graph/.project
+LOGAN-Graph/bin/
 LOGAN-Graph-Native/gmon.out
 LOGAN-Graph-Native/jniHeaders/*
 LOGAN-Graph/Logan_gc.log
+data/

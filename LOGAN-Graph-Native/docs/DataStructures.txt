@@ -529,7 +529,7 @@ Equivalent RC reads share prefix,smer and suffix
 Canonical Reads map as: rc(-1) -> prefix, (0) -> smer, (1) -> suffix
 RevComp Reads map as:   rc(-1) -> suffix, rc(0) -> smer, (1) -> prefix
 
-Smers are stored with last base as LSBs 
+Smers are stored with last base as LSBs
 Tails are stored with last base as LSBs, length as top 16 bits
 
 Prefix is stored in reverse complement (vs smer), Suffix is stored in canonical orientation
@@ -549,12 +549,88 @@ RevComp Orientation:
 	Suffix = Rmer[-1]
 
 
-Recovering Prefix:
-??((Smer >> length) || prefix 
 
-Recovering Suffix:
 
-((Smer << length) || suffix ) & mask
+
+Node/Edge Positions:
+
+Node Positions can be numbered as follows:
+
+Option 1: (Old) Forward routes, then reverse routes
+Option 2: (Current) Forward and reverse routes separately
+
+Edge Positions originating from forward/reverse routes must be distinguishable
+
+Option 1: (Old): Count route in forward table, then routes in reverse table
+	Edge-Node transition depends on direction through node (arriving on a suffix reverses route table ordering)
+	Edge-Edge transitions maintain position
+
+Option 2: (Current): Store routing table flag also in edge context
+	Edge-Node transition maintains forward/reverse routing table flag in edge
+	Edge-Edge transition needs to set routing table flag depending on orientation of target smer
+
+
+
+
+Transitions:
+
+Canonical->Canonical: Original sequence direction
+	Suffix->Prefix. Forward Routes -> Forward Routes
+
+Canonical<-Canonical: Complementary sequence direction
+	Prefix->Suffix. Forward Routes -> Forward Routes
+
+
+Canonical->Complementary: Original sequence direction,
+	Suffix->Suffix. Forward Routes -> Reverse Routes
+
+Canonical<-Complementary: Complementary sequence direction
+	Suffix->Suffix: Reverse Routes -> Forward Routes
+
+
+Complementary->Canonical: Original sequence direction,
+	Prefix->Prefix. Reverse Routes -> Forward Routes
+
+Complementary<-Canonical: Complementary sequence direction
+	Prefix->Prefix: Forward Routes -> Reverse Routes
+
+
+Complementary->Complementary: Original sequence direction,
+	Prefix->Suffix. Reverse Routes -> Reverse Routes
+
+Complementary<-Complementary: Complementary sequence direction
+	Suffix->Prefix: Reverse Routes -> Reverse Routes
+
+
+
+
+
+------
+
+Canonical<-Canonical: Complementary sequence direction
+	Prefix->Suffix. Forward Routes -> Forward Routes
+
+Complementary<-Canonical: Complementary sequence direction
+	Prefix->Prefix: Forward Routes -> Reverse Routes
+
+
+
+Complementary->Canonical: Original sequence direction,
+	Prefix->Prefix. Reverse Routes -> Forward Routes
+
+Complementary->Complementary: Original sequence direction,
+	Prefix->Suffix. Reverse Routes -> Reverse Routes
+
+
+
+
+
+
+
+
+
+
+
 
 
 
