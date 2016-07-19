@@ -121,12 +121,22 @@ public class GraphTest extends TestCase {
 
 	public void testIndexingAndRouting() throws Exception
 	{
+		try
+			{
 		//File files[]={new File("../data/Ecoli-1_Q20.fq")};
-		File files[]={new File("../data/Single.fq")};
+		//File files[]={new File("../data/Single.fq")};
 
+			
+//		File files1[]={new File("../data/Ecoli-1_Q20.fq")};
+//		File files2[]={new File("../data/Ecoli-1_Q20.fq")};
+
+		File files1[]={new File("../data/Arabi-1_Q20.fq")};
+		File files2[]={new File("../data/Arabi-1_Q20.fq")};
+
+		
 		int threadCount=1;
 
-		graphIndexingHelper(files,threadCount);
+		graphIndexingHelper(files1,threadCount);
 		System.out.println("Indexing complete");
 
 		long smers[];
@@ -144,12 +154,11 @@ public class GraphTest extends TestCase {
 		graph.switchMode();
 
 
-		graphRoutingHelper(files,threadCount);
+		graphRoutingHelper(files2,threadCount);
 		System.out.println("Routing complete1");
 
-		graphRoutingHelper(files,threadCount);
-		System.out.println("Routing complete2");
-
+//		graphRoutingHelper(files,threadCount);
+//		System.out.println("Routing complete2");
 
 		System.out.println("Smer Count (after Route): "+graph.getSmerCount());
 		smers=graph.getSmerIds();
@@ -172,6 +181,13 @@ public class GraphTest extends TestCase {
 
 			}
 			*/
+		
+			}
+		catch(Exception e)
+			{
+			e.printStackTrace();
+			throw e;
+			}
 	}
 
 

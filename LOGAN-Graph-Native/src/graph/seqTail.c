@@ -31,7 +31,9 @@ static u8 *readSeqTailBuilderPackedData(SeqTailBuilder *builder, u8 *data)
 
 	if(data!=NULL)
 		{
-		oldCount=*data++;
+		u16 *countPtr=(u16 *)data;
+		oldCount=*countPtr;
+		data+=2;
 		//LOG(LOG_INFO,"Loading %i tails from %p",oldCount,(data-1));
 		}
 
@@ -46,7 +48,7 @@ static u8 *readSeqTailBuilderPackedData(SeqTailBuilder *builder, u8 *data)
 		}
 
 	builder->oldTailCount=oldCount;
-	builder->totalPackedSize=totalPackedSize+1;
+	builder->totalPackedSize=totalPackedSize+2;
 
 	return data+totalPackedSize;
 
@@ -107,7 +109,9 @@ u8 *writeSeqTailBuilderPackedData(SeqTailBuilder *builder, u8 *data)
 	//if(oldCount+newCount>4)
 //		LOG(LOG_INFO,"Writing %i %i tails to %p",oldCount,newCount,data);
 
-	*(data++)=oldCount+newCount;
+	u16 *countPtr=(u16 *)data;
+	*countPtr=oldCount+newCount;
+	data+=2;
 
 	for(int i=0;i<oldCount;i++)
 		{
@@ -221,14 +225,16 @@ void *unpackPrefixesForSmerLinked(SmerLinked *smerLinked, u8 *data, MemDispenser
 {
 	if(data!=NULL)
 		{
+		u16 *countPtr=(u16 *)data;
+		smerLinked->prefixCount=*countPtr;
+		data+=2;
 
-		smerLinked->prefixCount=*data++;
 		smerLinked->prefixes=dAlloc(disp, sizeof(s64)*smerLinked->prefixCount);
 
 		data+=unpackTails(data, smerLinked->prefixes, smerLinked->prefixCount);
 
 		smerLinked->prefixSmers=dAlloc(disp, sizeof(SmerId)*smerLinked->prefixCount);
-		smerLinked->prefixSmerExists=dAlloc(disp, sizeof(u8)*smerLinked->prefixCount);
+		smerLinked->prefixSmerExists=dAlloc(disp, sizeof(s8)*smerLinked->prefixCount);
 
 		SmerId smer=complementSmerId(smerLinked->smerId);
 
@@ -239,6 +245,8 @@ void *unpackPrefixesForSmerLinked(SmerLinked *smerLinked, u8 *data, MemDispenser
 
 			SmerId targetRC=(prefix|(smer<<lenBits))&SMER_MASK;
 			SmerId target=complementSmerId(targetRC);
+
+			//LOG(LOG_INFO,"Prefix Check %li vs %li",target,targetRC);
 
 			if(target<targetRC)
 				{
@@ -271,13 +279,16 @@ void *unpackSuffixesForSmerLinked(SmerLinked *smerLinked, u8 *data, MemDispenser
 {
 	if(data!=NULL)
 		{
-		smerLinked->suffixCount=*data++;
+		u16 *countPtr=(u16 *)data;
+		smerLinked->suffixCount=*countPtr;
+		data+=2;
+
 		smerLinked->suffixes=dAlloc(disp, sizeof(s64)*smerLinked->suffixCount);
 
 		data+=unpackTails(data, smerLinked->suffixes, smerLinked->suffixCount);
 
 		smerLinked->suffixSmers=dAlloc(disp, sizeof(SmerId)*smerLinked->suffixCount);
-		smerLinked->suffixSmerExists=dAlloc(disp, sizeof(u8)*smerLinked->suffixCount);
+		smerLinked->suffixSmerExists=dAlloc(disp, sizeof(s8)*smerLinked->suffixCount);
 
 		SmerId smer=smerLinked->smerId;
 
@@ -288,6 +299,8 @@ void *unpackSuffixesForSmerLinked(SmerLinked *smerLinked, u8 *data, MemDispenser
 
 			SmerId target=(suffix|(smer<<lenBits))&SMER_MASK;
 			SmerId targetRC=complementSmerId(target);
+
+			//LOG(LOG_INFO,"Suffix Check %li vs %li",target,targetRC);
 
 			if(target<targetRC)
 				{

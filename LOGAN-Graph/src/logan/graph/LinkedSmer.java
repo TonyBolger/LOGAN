@@ -3,7 +3,9 @@ package logan.graph;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class LinkedSmer {
 
@@ -21,8 +23,19 @@ public class LinkedSmer {
 
 	public static enum WhichRouteTable
 	{
-		FORWARD(),
-		REVERSE();
+		FORWARD((byte)1), REVERSE((byte)-1);
+		
+		private byte exists;
+		
+		WhichRouteTable(byte exists)
+		{
+			this.exists=exists;
+		}
+		
+		private byte getExists()
+		{
+			return exists;
+		}
 	}
 
 	public static enum WhichSequenceDirection
@@ -72,16 +85,16 @@ public class LinkedSmer {
 		StringBuilder sb=new StringBuilder();
 		sb.append("LinkedSmer [ID: "+smerId);
 		sb.append(", Seq: "+unpackSmer(23));
-		sb.append(", Prefixes: [");
+		sb.append(", \nPrefixes("+prefixes.length+"): [");
 		for(Tail p: prefixes)
-			sb.append(p.toString(true));
-		sb.append("], Suffixes: [");
+			sb.append(p.toString(false));
+		sb.append("], \nSuffixes("+suffixes.length+"): [");
 		for(Tail s: suffixes)
 			sb.append(s.toString(false));
-		sb.append("], ForwardRoutes: [");
+		sb.append("], \nForwardRoutes("+forwardRoutes.length+"): [");
 		for(Route r: forwardRoutes)
 			sb.append(r.toString());
-		sb.append("], ReverseRoutes: [");
+		sb.append("], \nReverseRoutes("+reverseRoutes.length+"): [");
 		for(Route r: reverseRoutes)
 			sb.append(r.toString());
 		sb.append("] ]");
@@ -151,7 +164,7 @@ public class LinkedSmer {
 		return sb.toString();
 	}
 
-
+/*
 	public boolean verifyRouteOrder()
 	{
 		// Order should be by upstream, then by downstream
@@ -209,7 +222,7 @@ public class LinkedSmer {
 		return true;
 	}
 
-
+*/
 
 	// Which prefix of this smer links to the given smer-tailData combo
 
@@ -218,22 +231,21 @@ public class LinkedSmer {
 
 	private static long TAIL_LENGTH_MASK=0xFFFF000000000000L;
 
-	private int prefixSmerIndex(long smerId, boolean compFlag, long tailData)
+	private int prefixSmerIndex(long smerId, byte exists, long tailData)
 	{
 		int count=0,val=0;
 
 		long maskedTail=tailData & TAIL_LENGTH_MASK;
-		byte exists=(byte)(compFlag?-1:1);
 
 		for(int i=0;i<prefixes.length;i++)
 			if(prefixes[i].smerExists==exists && prefixes[i].smerId==smerId && (prefixes[i].data & TAIL_LENGTH_MASK)==maskedTail)
 				{
 				val=i;
 				count++;
-			}
+				}
 
 		if(count==1)
-			return val;
+			return val+1;
 		else if(count==0)
 			return -1;
 
@@ -242,12 +254,11 @@ public class LinkedSmer {
 
 	// Which suffix of this smer links to the given smer-tailData combo
 
-	private int suffixSmerIndex(long smerId, boolean compFlag, long tailData)
+	private int suffixSmerIndex(long smerId, byte exists, long tailData)
 	{
 		int count=0,val=0;
 
 		long maskedTail=tailData & TAIL_LENGTH_MASK;
-		byte exists=(byte)(compFlag?-1:1);
 
 		for(int i=0;i<suffixes.length;i++)
 			{
@@ -259,13 +270,159 @@ public class LinkedSmer {
 			}
 
 		if(count==1)
-			return val;
+			return val+1;
 		else if(count==0)
 			return -1;
 
 		throw new RuntimeException("suffix Multismers: "+count+" From "+this.toString()+" to "+smerId+" with length "+(maskedTail>>48));
 	}
 
+
+	public void verifyTailIndexes()
+	{
+		for(Route route: forwardRoutes)
+			{
+			if(route.prefix>prefixes.length)
+				throw new RuntimeException("Dangling prefix in forward route - Found: "+route.prefix+" Max: "+prefixes.length);
+				
+			if(route.suffix>suffixes.length)			
+				throw new RuntimeException("Dangling suffix in forward route - Found: "+route.suffix+" Max: "+suffixes.length);			
+			}
+		
+		for(Route route: reverseRoutes)
+			{
+			if(route.prefix>prefixes.length)
+				throw new RuntimeException("Dangling prefix in reverse route - Found: "+route.prefix+" Max: "+prefixes.length);
+				
+			if(route.suffix>suffixes.length)			
+				throw new RuntimeException("Dangling suffix in reverse route - Found: "+route.suffix+" Max: "+suffixes.length);			
+			}		
+	}
+
+	public void verifyUniqueTails()
+	{
+		Set<Long> set=new HashSet<Long>();
+		for(Tail prefix: prefixes)
+			{
+			if(set.contains(prefix.data))
+				throw new RuntimeException("Non unique prefix: "+prefix.getTailSequence(false)+" in "+this);
+
+			set.add(prefix.data);
+			}
+			
+		set.clear();
+		
+		for(Tail suffix: suffixes)
+			{
+			if(set.contains(suffix.data))
+				throw new RuntimeException("Non unique suffix: "+suffix.getTailSequence(false)+" in "+this);
+
+			set.add(suffix.data);
+			}
+	}
+
+	private int calcForwardWidthForPrefix(int targetPrefixIndex)
+	{
+		int width=0;
+		for(Route route: forwardRoutes)
+			{
+			if(route.prefix==targetPrefixIndex)
+				width+=route.width;
+			}
+		return width;
+	}
+
+	private int calcForwardWidthForSuffix(int targetSuffixIndex)
+	{
+		int width=0;
+		for(Route route: forwardRoutes)
+			{
+			if(route.suffix==targetSuffixIndex)
+				width+=route.width;
+			}
+		return width;
+	}
+
+	private int calcReverseWidthForPrefix(int targetPrefixIndex)
+	{
+		int width=0;
+		for(Route route: reverseRoutes)
+			{
+			if(route.prefix==targetPrefixIndex)
+				width+=route.width;
+			}
+		return width;
+	}
+
+	private int calcReverseWidthForSuffix(int targetSuffixIndex)
+	{
+		int width=0;
+		for(Route route: reverseRoutes)
+			{
+			if(route.suffix==targetSuffixIndex)
+				width+=route.width;
+			}
+		return width;
+	}
+	
+
+	private Route findForwardRouteAndEdgeOffsetsForPrefix(int targetPrefixIndex, int targetPrefixOffset, int prefixOffsets[], int suffixOffsets[])
+	{
+		for(Route route: forwardRoutes)
+			{
+			if((route.prefix==targetPrefixIndex)&&(targetPrefixOffset>=prefixOffsets[route.prefix])&&(targetPrefixOffset<prefixOffsets[route.prefix]+route.width))
+				return route;
+			
+			prefixOffsets[route.prefix]+=route.width;
+			suffixOffsets[route.suffix]+=route.width;
+			}
+		
+		return null;
+	}
+	
+	private Route findForwardRouteAndEdgeOffsetsForSuffix(int targetSuffixIndex, int targetSuffixOffset, int prefixOffsets[], int suffixOffsets[])
+	{
+		for(Route route: forwardRoutes)
+			{
+			if((route.suffix==targetSuffixIndex)&&(targetSuffixOffset>=suffixOffsets[route.suffix])&&(targetSuffixOffset<suffixOffsets[route.suffix]+route.width))
+				return route;
+		
+			prefixOffsets[route.prefix]+=route.width;
+			suffixOffsets[route.suffix]+=route.width;
+			}
+	
+		return null;
+	}
+	
+	private Route findReverseRouteAndEdgeOffsetsForPrefix(int targetPrefixIndex, int targetPrefixOffset, int prefixOffsets[], int suffixOffsets[])
+	{
+		for(Route route: reverseRoutes)
+			{
+			if((route.prefix==targetPrefixIndex)&&(targetPrefixOffset>=prefixOffsets[route.prefix])&&(targetPrefixOffset<prefixOffsets[route.prefix]+route.width))
+				return route;
+		
+			prefixOffsets[route.prefix]+=route.width;
+			suffixOffsets[route.suffix]+=route.width;
+			}
+	
+		return null;
+	}
+	
+	private Route findReverseRouteAndEdgeOffsetsForSuffix(int targetSuffixIndex, int targetSuffixOffset, int prefixOffsets[], int suffixOffsets[])
+	{
+		for(Route route: reverseRoutes)
+			{
+			if((route.suffix==targetSuffixIndex)&&(targetSuffixOffset>=suffixOffsets[route.suffix])&&(targetSuffixOffset<suffixOffsets[route.suffix]+route.width))
+				return route;
+	
+			prefixOffsets[route.prefix]+=route.width;
+			suffixOffsets[route.suffix]+=route.width;
+			}
+
+		return null;
+	}
+	
+	
 	/*
 	private int prefixOffsetOfRoute(int prefix, int routeIndex, boolean comp)
 	{
@@ -432,7 +589,7 @@ public class LinkedSmer {
 					{
 					if(route.suffix==0 || smer.suffixes[route.suffix-1].smerExists==0) // Sequence starts at null / unlinked suffix
 						{
-						int tailPosition=prefixPositions[route.suffix];
+						int tailPosition=suffixPositions[route.suffix];
 
 						for(int i=0;i<route.width;i++)
 							contexts.add(new EdgeContext(smer, route.suffix, WhichTail.SUFFIX, WhichRouteTable.REVERSE, tailPosition+i));
@@ -585,15 +742,15 @@ public class LinkedSmer {
 	{
 		private LinkedSmer smer;
 		private int tailIndex;
-		private WhichTail tail;
+		private WhichTail whichTail;
 		private WhichRouteTable routeTable;
 		private int edgePosition;
 
-		public EdgeContext(LinkedSmer smer, int tailIndex, WhichTail tail, WhichRouteTable routeTable, int edgePosition)
-		{
+		public EdgeContext(LinkedSmer smer, int tailIndex, WhichTail whichTail, WhichRouteTable routeTable, int edgePosition)
+		{			
 			this.smer=smer;
 			this.tailIndex=tailIndex;
-			this.tail=tail;
+			this.whichTail=whichTail;
 			this.routeTable=routeTable;
 			this.edgePosition=edgePosition;
 		}
@@ -605,42 +762,164 @@ public class LinkedSmer {
 
 		public EdgeContext transitionAcrossNode(WhichSequenceDirection direction)
 		{
-			return null;
+			int prefixOffsets[]=new int[smer.prefixes.length+1];
+			int suffixOffsets[]=new int[smer.suffixes.length+1];
+			
+			if(whichTail==WhichTail.PREFIX) // Level 1: Transitioning from a prefix
+				{
+				if(routeTable==WhichRouteTable.FORWARD) // Level 2: Transitioning from a prefix of a canonical node, implies forward direction
+					{
+					if(direction!=WhichSequenceDirection.ORIGINAL)
+						throw new RuntimeException("AcrossNode transition from Prefix of canonical node requires forward direction");
+					
+					Route targetRoute=smer.findForwardRouteAndEdgeOffsetsForPrefix(tailIndex, edgePosition, prefixOffsets, suffixOffsets);
+					if(targetRoute==null)
+						throw new RuntimeException("Unable to find route for "+whichTail+" with index "+tailIndex+" and position "+edgePosition+" in "+smer+" with max "+prefixOffsets[tailIndex]);
+					
+					int routeOffset=edgePosition-prefixOffsets[tailIndex];
+					
+					return new EdgeContext(smer, targetRoute.suffix, WhichTail.SUFFIX, WhichRouteTable.FORWARD, suffixOffsets[targetRoute.suffix]+routeOffset);
+					}
+				else
+					{
+					if(direction!=WhichSequenceDirection.REVERSECOMP)
+						throw new RuntimeException("AcrossNode transition from Prefix of complementary node requires reverse direction");
+					
+					Route targetRoute=smer.findReverseRouteAndEdgeOffsetsForPrefix(tailIndex, edgePosition, prefixOffsets, suffixOffsets);
+					if(targetRoute==null)
+						throw new RuntimeException("Unable to find route for "+whichTail+" with index "+tailIndex+" and position "+edgePosition+" in "+smer+" with max "+prefixOffsets[tailIndex]);
+					
+					int routeOffset=edgePosition-prefixOffsets[tailIndex];
+					
+					return new EdgeContext(smer, targetRoute.suffix, WhichTail.SUFFIX, WhichRouteTable.REVERSE, suffixOffsets[targetRoute.suffix]+routeOffset);
+					}
+				}
+			else // Level 1: Transitioning from a suffix
+				{
+				if(routeTable==WhichRouteTable.FORWARD) // Level 2: Transitioning from a prefix of a canonical node, implies reverse direction
+					{
+					if(direction!=WhichSequenceDirection.REVERSECOMP)
+						throw new RuntimeException("AcrossNode transition from Suffix of complement node requires reverse direction");
+					
+					Route targetRoute=smer.findForwardRouteAndEdgeOffsetsForSuffix(tailIndex, edgePosition, prefixOffsets, suffixOffsets);
+					if(targetRoute==null)
+						throw new RuntimeException("Unable to find route for "+whichTail+" with index "+tailIndex+" and position "+edgePosition+" in "+smer+" with max "+suffixOffsets[tailIndex]);
+						
+					int routeOffset=edgePosition-suffixOffsets[tailIndex];
+
+					return new EdgeContext(smer, targetRoute.prefix, WhichTail.PREFIX, WhichRouteTable.FORWARD, prefixOffsets[targetRoute.prefix]+routeOffset);
+					}
+				else
+					{
+					if(direction!=WhichSequenceDirection.ORIGINAL)
+						throw new RuntimeException("AcrossNode transition from Prefix of complement node requires forward direction");
+				
+					Route targetRoute=smer.findReverseRouteAndEdgeOffsetsForSuffix(tailIndex, edgePosition, prefixOffsets, suffixOffsets);
+					if(targetRoute==null)
+						throw new RuntimeException("Unable to find route for "+whichTail+" with index "+tailIndex+" and position "+edgePosition+" in "+smer+" with max "+suffixOffsets[tailIndex]);
+					
+					int routeOffset=edgePosition-suffixOffsets[tailIndex];
+					
+					return new EdgeContext(smer, targetRoute.prefix, WhichTail.PREFIX, WhichRouteTable.REVERSE, prefixOffsets[targetRoute.prefix]+routeOffset);				
+					}
+				}
 		}
+
+
+		public static void verifyTailWidth(LinkedSmer smer1, WhichTail which1, int index1, LinkedSmer smer2, WhichTail which2, int index2, byte exists)
+		{
+			int width1F, width1R, width2F, width2R;
+			
+			if(which1==WhichTail.PREFIX)
+				{
+				width1F=smer1.calcForwardWidthForPrefix(index1);
+				width1R=smer1.calcReverseWidthForPrefix(index1);
+				}
+			else
+				{
+				width1F=smer1.calcForwardWidthForSuffix(index1);
+				width1R=smer1.calcReverseWidthForSuffix(index1);
+				}
+				
+			if(which2==WhichTail.PREFIX)
+				{
+				width2F=smer2.calcForwardWidthForPrefix(index2);
+				width2R=smer2.calcReverseWidthForPrefix(index2);
+				}
+			else
+				{
+				width2F=smer2.calcForwardWidthForSuffix(index2);
+				width2R=smer2.calcReverseWidthForSuffix(index2);
+				}
+				
+			if(exists<0)
+				{
+				if(width1F!=width2R || width1R!=width2F)
+					{								
+					throw new RuntimeException("Linking edge width mismatch (ori: "+exists+") "+width1F+" "+width1R+" "+width2F+" "+width2R+
+						"\n"+which1+" "+index1+
+						"\n"+smer1+
+						"\n"+which2+" "+index2+
+						"\n"+smer2);
+					}
+				}
+			else
+				{
+				if(width1F!=width2F || width1R!=width2R)
+					{
+					throw new RuntimeException("Linking edge width mismatch (ori: "+exists+") "+width1F+" "+width1R+" "+width2F+" "+width2R+
+						"\n"+which1+" "+index1+
+						"\n"+smer1+
+						"\n"+which2+" "+index2+
+						"\n"+smer2);
+					}
+				}
+		}
+		
 
 		public EdgeContext transitionToLinkingEdge(WhichSequenceDirection direction, LinkedSmer targetSmer)
 		{
 			if(tailIndex==0)
 				return null;
 
-			if(targetSmer==null)
-				throw new RuntimeException("Null target smer");
-
-			if(tail==WhichTail.PREFIX) // Level 1: Linking from a prefix
+			if(whichTail==WhichTail.PREFIX) // Level 1: Linking from a prefix
 				{
-				byte exists=smer.prefixes[tailIndex-1].smerExists;
+				Tail tail=smer.prefixes[tailIndex-1];
 
-				if(exists==0)
+				if(tail.smerExists==0)
 					return null;
 
-				long targetSmerId=smer.prefixes[tailIndex-1].smerId;
-
-				if(targetSmer.getSmerId()!=targetSmerId)
-					throw new RuntimeException("Incorrect target smer. Got: "+targetSmer.getSmerId()+" Expected: "+targetSmerId);
+				if(targetSmer==null)
+					throw new RuntimeException("Null target smer");
+			
+				if(targetSmer.getSmerId()!=tail.smerId)
+					throw new RuntimeException("Incorrect target smer. Got: "+targetSmer.getSmerId()+" Expected: "+tail.smerId);
 
 				if(routeTable==WhichRouteTable.FORWARD) // Level 2: Linking from a prefix of a canonical Node, implies reverse direction
 					{
 					if(direction!=WhichSequenceDirection.REVERSECOMP)
 						throw new RuntimeException("LinkingEdgeTransition from prefix of canonical node requires reverse direction");
 
-					if(exists>0) // Reverse to Canonical Target: Arriving at suffix, forward routing table
+					if(tail.smerExists>0) // Reverse to target in same orientation (canonical): Arriving at suffix, forward routing table
 						{
-						int targetTailIndex=0; // do suffix lookup
+						int targetTailIndex=targetSmer.suffixSmerIndex(smer.getSmerId(), tail.smerExists, tail.data); // do suffix lookup
+						if(targetTailIndex<0)
+							throw new RuntimeException("Unable to find linking suffix for "+tail+" in "+tail.smerExists+" of "+targetSmer+" to "+smer);
+						
+						verifyTailWidth(smer,whichTail,tailIndex,targetSmer,WhichTail.SUFFIX,targetTailIndex,tail.smerExists);
+						
+						//System.out.println("Transition 0 - "+targetTailIndex);
 						return new EdgeContext(targetSmer, targetTailIndex, WhichTail.SUFFIX, WhichRouteTable.FORWARD, edgePosition);
 						}
-					else // Reverse to Complement Target: Arriving at prefix, reverse routing table
+					else // Reverse to target in same orientation (complement): Arriving at prefix, reverse routing table
 						{
-						int targetTailIndex=0; // do prefix lookup
+						int targetTailIndex=targetSmer.prefixSmerIndex(smer.getSmerId(), tail.smerExists, tail.data); // do prefix lookup
+						if(targetTailIndex<0)
+							throw new RuntimeException("Unable to find linking prefix for "+tail+" in "+tail.smerExists+" of "+targetSmer+" to "+smer);
+						
+						verifyTailWidth(smer,whichTail,tailIndex,targetSmer,WhichTail.PREFIX,targetTailIndex,tail.smerExists);
+						
+						//System.out.println("Transition 1 - "+targetTailIndex);
 						return new EdgeContext(targetSmer, targetTailIndex, WhichTail.PREFIX, WhichRouteTable.REVERSE, edgePosition);
 						}
 
@@ -650,65 +929,101 @@ public class LinkedSmer {
 					if(direction!=WhichSequenceDirection.ORIGINAL)
 						throw new RuntimeException("LinkingEdgeTransition from prefix of complmentary node requires forward direction");
 
-					if(exists>0) // Forward to Canonical Target: Arriving at prefix, forward routing table
+					if(tail.smerExists>0) // Forward to Target in same orientation (complement): Arriving at suffix, reverse routing table
 						{
-						int targetTailIndex=0; // do prefix lookup
-						return new EdgeContext(targetSmer, targetTailIndex, WhichTail.PREFIX, WhichRouteTable.FORWARD, edgePosition);
-						}
-					else // Forward to Complement target: Arriving at suffix, reverse routing table
-						{
-						int targetTailIndex=0; // do suffix lookup
+						int targetTailIndex=targetSmer.suffixSmerIndex(smer.getSmerId(), tail.smerExists, tail.data); // do suffix lookup
+						if(targetTailIndex<0)
+							throw new RuntimeException("Unable to find linking suffix for "+tail+" in "+tail.smerExists+" of "+targetSmer+" to "+smer);
+
+						verifyTailWidth(smer,whichTail,tailIndex,targetSmer,WhichTail.SUFFIX,targetTailIndex,tail.smerExists);
+
+						//System.out.println("Transition 2 - "+targetTailIndex);
 						return new EdgeContext(targetSmer, targetTailIndex, WhichTail.SUFFIX, WhichRouteTable.REVERSE, edgePosition);
+						}
+					else // Forward to Target in opposite orientation (canonical): Arriving at prefix, forward routing table 
+						{
+						int targetTailIndex=targetSmer.prefixSmerIndex(smer.getSmerId(), tail.smerExists, tail.data); // do prefix lookup
+						if(targetTailIndex<0)
+							throw new RuntimeException("Unable to find linking prefix for "+tail+" in "+tail.smerExists+" of "+targetSmer+" to "+smer);
+
+						verifyTailWidth(smer,whichTail,tailIndex,targetSmer,WhichTail.PREFIX,targetTailIndex,tail.smerExists);
+
+						//System.out.println("Transition 3 - "+targetTailIndex);
+						return new EdgeContext(targetSmer, targetTailIndex, WhichTail.PREFIX, WhichRouteTable.FORWARD, edgePosition);
 						}
 					}
 				}
 			else // Level 1: Linking from a suffix
 				{
-				byte exists=smer.suffixes[tailIndex-1].smerExists;
+				Tail tail=smer.suffixes[tailIndex-1];
 
-				if(exists==0)
+				if(tail.smerExists==0)
 					return null;
 
-				long targetSmerId=smer.suffixes[tailIndex-1].smerId;
-
-				if(targetSmer.getSmerId()!=targetSmerId)
-					throw new RuntimeException("Incorrect target smer. Got: "+targetSmer.getSmerId()+" Expected: "+targetSmerId);
+				if(targetSmer==null)
+					throw new RuntimeException("Null target smer");
+			
+				if(targetSmer.getSmerId()!=tail.smerId)
+					throw new RuntimeException("Incorrect target smer. Got: "+targetSmer.getSmerId()+" Expected: "+tail.smerId);
 
 				if(routeTable==WhichRouteTable.FORWARD) // Level 2: Linking from a suffix of a canonical Node, implies forward direction
 					{
 					if(direction!=WhichSequenceDirection.ORIGINAL)
 						throw new RuntimeException("LinkingEdgeTransition from suffix of conanonical node requires forward direction");
 
-					if(exists>0) // Forward to Canonical Target: Arriving at prefix, forward routing table
+					if(tail.smerExists>0) // Forward to target in same orientation (canonical): Arriving at prefix, forward routing table
 						{
-
+						int targetTailIndex=targetSmer.prefixSmerIndex(smer.getSmerId(), tail.smerExists, tail.data); // do prefix lookup
+						if(targetTailIndex<0)
+							throw new RuntimeException("Unable to find linking prefix for "+tail+" in "+tail.smerExists+" of "+targetSmer+" to "+smer);
+						
+						verifyTailWidth(smer,whichTail,tailIndex,targetSmer,WhichTail.PREFIX,targetTailIndex,tail.smerExists);
+						
+						//System.out.println("Transition 4 - "+targetTailIndex);
+						return new EdgeContext(targetSmer, targetTailIndex, WhichTail.PREFIX, WhichRouteTable.FORWARD, edgePosition);						
 						}
-					else // Forward to Complement Target: Arriving at suffix, reverse routing table
+					else // Forward to target in opposite orientation (complement): Arriving at suffix, reverse routing table
 						{
+						int targetTailIndex=targetSmer.suffixSmerIndex(smer.getSmerId(), tail.smerExists, tail.data); // do suffix lookup
+						if(targetTailIndex<0)
+							throw new RuntimeException("Unable to find linking suffix for "+tail+" in "+tail.smerExists+" of "+targetSmer+" to "+smer);
 
+						verifyTailWidth(smer,whichTail,tailIndex,targetSmer,WhichTail.SUFFIX,targetTailIndex,tail.smerExists);
+
+						//System.out.println("Transition 5 - "+targetTailIndex);
+						return new EdgeContext(targetSmer, targetTailIndex, WhichTail.SUFFIX, WhichRouteTable.REVERSE, edgePosition);
 						}
-
 					}
 				else  // Level 2: Linking from a suffix of a complement Node, implies reverse direction
 					{
 					if(direction!=WhichSequenceDirection.REVERSECOMP)
 						throw new RuntimeException("LinkingEdgeTransition from suffix of complmentary node requires reverse direction");
 
-					if(exists>0) // Reverse to Canonical Target: Arriving at suffix, forward routing table
+					if(tail.smerExists>0) // Reverse to target in same orientation (complement): Arriving at prefix, reverse routing table
 						{
-
+						int targetTailIndex=targetSmer.prefixSmerIndex(smer.getSmerId(), routeTable.getExists(), tail.data); // do prefix lookup
+						if(targetTailIndex<0)
+							throw new RuntimeException("Unable to find linking prefix for "+tail+" in "+tail.smerExists+" of "+targetSmer+" to "+smer);
+						
+						verifyTailWidth(smer,whichTail,tailIndex,targetSmer,WhichTail.PREFIX,targetTailIndex,tail.smerExists);
+						
+						//System.out.println("Transition 6 - "+targetTailIndex);
+						return new EdgeContext(targetSmer, targetTailIndex, WhichTail.PREFIX, WhichRouteTable.REVERSE, edgePosition);
 						}
-					else // Reverse to Complement Target: Arriving at prefix, reverse routing table
+					else // Reverse to target in opposite orientation (canonical): Arriving at suffix, forward routing table
 						{
+						int targetTailIndex=targetSmer.suffixSmerIndex(smer.getSmerId(), routeTable.getExists(), tail.data); // do suffix lookup
+						if(targetTailIndex<0)
+							throw new RuntimeException("Unable to find linking suffix for "+tail+" in "+tail.smerExists+" of "+targetSmer+" to "+smer);
 
+						verifyTailWidth(smer,whichTail,tailIndex,targetSmer,WhichTail.SUFFIX,targetTailIndex,tail.smerExists);
+
+						//System.out.println("Transition 7 - "+targetTailIndex);
+						return new EdgeContext(targetSmer, targetTailIndex, WhichTail.SUFFIX, WhichRouteTable.FORWARD, edgePosition);
 						}
 					}
 
 				}
-
-
-
-			return null;
 		}
 
 
@@ -717,7 +1032,7 @@ public class LinkedSmer {
 			if(tailIndex==0)
 				return -1;
 
-			if(tail==WhichTail.PREFIX)
+			if(whichTail==WhichTail.PREFIX)
 				{
 				if(smer.prefixes[tailIndex-1].smerExists==0)
 					return -1;
@@ -770,7 +1085,7 @@ public class LinkedSmer {
 		}
 
 		public WhichTail whichTail() {
-			return tail;
+			return whichTail;
 		}
 
 		public WhichRouteTable whichRouteTable()
@@ -785,7 +1100,7 @@ public class LinkedSmer {
 
 		@Override
 		public String toString() {
-			return "Context [smer=" + smer.smerId + ", tailIndex=" + tailIndex + ", tail=" + tail
+			return "Context [smer=" + smer.smerId + ", tailIndex=" + tailIndex + ", whichTail=" + whichTail
 					+ ", routeTable=" + routeTable + ", tailPosition=" + edgePosition
 					+ "]";
 		}
@@ -803,7 +1118,7 @@ public class LinkedSmer {
 				return false;
 			if (tailIndex != other.tailIndex)
 				return false;
-			if (!tail.equals(other.tail))
+			if (!whichTail.equals(other.whichTail))
 				return false;
 			if (routeTable != other.routeTable)
 				return false;

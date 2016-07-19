@@ -579,6 +579,8 @@ void dumpPatches(RoutePatch *patches, int patchCount)
 	RoutePatch *forwardPatches=dAlloc(disp,sizeof(RoutePatch)* entryCount);
 	RoutePatch *reversePatches=dAlloc(disp,sizeof(RoutePatch)* entryCount);
 
+	//int debug=0;
+
 	// First, lookup tail indexes, creating tails if necessary
 
 	for(int i=0;i<entryCount;i++)
@@ -587,7 +589,7 @@ void dumpPatches(RoutePatch *patches, int patchCount)
 
 		int index=rdd->indexCount;
 
-		if(1)
+		if(0)
 		{
 			SmerId currSmer=rdd->fsmers[index];
 			SmerId prevSmer=rdd->fsmers[index+1];
@@ -612,6 +614,9 @@ void dumpPatches(RoutePatch *patches, int patchCount)
 
 		if(currFmer<=currRmer) // Canonical Read Orientation
 			{
+				//if(currFmer==11473037899172)
+				//	debug=1;
+
 				SmerId prefixSmer=rdd->rsmers[index+1]; // Previous smer in read, reversed
 				SmerId suffixSmer=rdd->fsmers[index-1]; // Next smer in read
 
@@ -622,7 +627,7 @@ void dumpPatches(RoutePatch *patches, int patchCount)
 				forwardPatches[forwardCount].prefixIndex=findOrCreateSeqTail(&prefixBuilder, prefixSmer, prefixLength);
 				forwardPatches[forwardCount].suffixIndex=findOrCreateSeqTail(&suffixBuilder, suffixSmer, suffixLength);
 
-				if(1)
+				if(0)
 					{
 					char bufferP[SMER_BASES+1]={0};
 					char bufferN[SMER_BASES+1]={0};
@@ -640,6 +645,9 @@ void dumpPatches(RoutePatch *patches, int patchCount)
 			}
 		else	// Reverse-complement Read Orientation
 			{
+				//if(currFmer==11473037899172)
+				//	debug=2;
+
 				SmerId prefixSmer=rdd->fsmers[index-1]; // Next smer in read
 				SmerId suffixSmer=rdd->rsmers[index+1]; // Previous smer in read, reversed
 
@@ -650,7 +658,7 @@ void dumpPatches(RoutePatch *patches, int patchCount)
 				reversePatches[reverseCount].prefixIndex=findOrCreateSeqTail(&prefixBuilder, prefixSmer, prefixLength);
 				reversePatches[reverseCount].suffixIndex=findOrCreateSeqTail(&suffixBuilder, suffixSmer, suffixLength);
 
-				if(1)
+				if(0)
 					{
 					char bufferP[SMER_BASES+1]={0};
 					char bufferN[SMER_BASES+1]={0};
@@ -693,10 +701,25 @@ void dumpPatches(RoutePatch *patches, int patchCount)
 			}
 			*/
 		}
-
-
+/*
+	if(debug)
+		{
+		LOG(LOG_INFO,"Builder has Size: %i Max: %i %i %i Count: %i %i",
+				routeTableBuilder.totalPackedSize,
+				routeTableBuilder.maxPrefix,routeTableBuilder.maxSuffix,routeTableBuilder.maxWidth,
+				routeTableBuilder.oldForwardEntryCount,routeTableBuilder.oldReverseEntryCount);
+		LOG(LOG_INFO,"Adding %i %i",forwardCount,reverseCount);
+		}
+*/
 	mergeRoutes(&routeTableBuilder, forwardPatches, reversePatches, forwardCount, reverseCount);
-
+/*
+	if(debug)
+		LOG(LOG_INFO,"Builder has Size: %i Max: %i %i %i Count: %i %i %i %i",
+				routeTableBuilder.totalPackedSize,
+				routeTableBuilder.maxPrefix,routeTableBuilder.maxSuffix,routeTableBuilder.maxWidth,
+				routeTableBuilder.oldForwardEntryCount,routeTableBuilder.oldReverseEntryCount,
+				routeTableBuilder.newForwardEntryCount,routeTableBuilder.newReverseEntryCount);
+*/
 	if(getSeqTailBuilderDirty(&prefixBuilder) || getSeqTailBuilderDirty(&suffixBuilder) || getRouteTableBuilderDirty(&routeTableBuilder))
 		{
 		int prefixPackedSize=getSeqTailBuilderPackedSize(&prefixBuilder);

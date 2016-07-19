@@ -234,7 +234,7 @@ static u8 *readRouteTableBuilderPackedData(RouteTableBuilder *builder, u8 *data)
 
 	if(data!=NULL)
 		{
-		int headerSize=decodeHeader(data, &prefixBits, &suffixBits, &widthBits, &forwardEntryCount, &reverseEntryCount);
+		headerSize=decodeHeader(data, &prefixBits, &suffixBits, &widthBits, &forwardEntryCount, &reverseEntryCount);
 
 		data+=headerSize;
 
@@ -261,7 +261,7 @@ static u8 *readRouteTableBuilderPackedData(RouteTableBuilder *builder, u8 *data)
 	builder->maxSuffix=maxSuffix;
 	builder->maxWidth=maxWidth;
 
-	int tableSize=PAD_1BITLENGTH_BYTE(prefixBits+suffixBits+widthBits)*(forwardEntryCount+reverseEntryCount);
+	int tableSize=PAD_1BITLENGTH_BYTE((prefixBits+suffixBits+widthBits)*(forwardEntryCount+reverseEntryCount));
 	builder->totalPackedSize=headerSize+tableSize;
 
 	return data;
@@ -271,7 +271,7 @@ u8 *initRouteTableBuilder(RouteTableBuilder *builder, u8 *data, MemDispenser *di
 {
 	builder->disp=disp;
 
-	LOG(LOG_INFO,"RouteTable init from %p",data);
+//	LOG(LOG_INFO,"RouteTable init from %p",data);
 	data=readRouteTableBuilderPackedData(builder,data);
 
 	builder->newForwardEntries=NULL;
@@ -301,6 +301,12 @@ u8 *writeRouteTableBuilderPackedData(RouteTableBuilder *builder, u8 *data)
 	u32 prefixBits=bitsRequired(builder->maxPrefix);
 	u32 suffixBits=bitsRequired(builder->maxSuffix);
 	u32 widthBits=bitsRequired(builder->maxWidth-1);
+
+	if(prefixBits==15 || suffixBits==15 || widthBits==63)
+		{
+		LOG(LOG_INFO,"Header near full: %i %i %i", builder->maxPrefix, builder->maxSuffix, builder->maxWidth);
+		}
+
 
 	RouteTableEntry *forwardEntries,*reverseEntries;
 	u32 forwardEntryCount,reverseEntryCount;
@@ -339,7 +345,7 @@ u8 *writeRouteTableBuilderPackedData(RouteTableBuilder *builder, u8 *data)
 		packBits(&packer, widthBits, reverseEntries[i].width-1);
 		}
 
-	int tableSize=PAD_1BITLENGTH_BYTE(prefixBits+suffixBits+widthBits)*(forwardEntryCount+reverseEntryCount);
+	int tableSize=PAD_1BITLENGTH_BYTE((prefixBits+suffixBits+widthBits)*(forwardEntryCount+reverseEntryCount));
 
 	return data+tableSize;
 }
@@ -352,7 +358,7 @@ void mergeRoutes(RouteTableBuilder *builder, RoutePatch *forwardRoutePatches, Ro
 	RouteTableEntry *oldForwardEntries=builder->oldForwardEntries;
 	RouteTableEntry *oldReverseEntries=builder->oldReverseEntries;
 
-	if(builder->newForwardEntryCount>0)
+	if(builder->newForwardEntryCount>0 || builder->newReverseEntryCount>0)
 		{
 		LOG(LOG_INFO,"RouteTableBuilder: Already contains new routes before merge");
 		return;
@@ -481,6 +487,10 @@ void mergeRoutes(RouteTableBuilder *builder, RoutePatch *forwardRoutePatches, Ro
 	builder->newForwardEntryCount=newForwardEntryCount;
 	builder->newReverseEntryCount=newReverseEntryCount;
 
+	builder->maxPrefix=maxPrefix;
+	builder->maxSuffix=maxSuffix;
+	builder->maxWidth=maxWidth;
+
 //	LOG(LOG_INFO,"Merging Route Table resulted in %i %i",newForwardEntryCount, newReverseEntryCount);
 
 	u32 prefixBits=bitsRequired(builder->maxPrefix);
@@ -488,7 +498,7 @@ void mergeRoutes(RouteTableBuilder *builder, RoutePatch *forwardRoutePatches, Ro
 	u32 widthBits=bitsRequired(builder->maxWidth-1);
 
 	int headerSize=getRouteTableHeaderSize(prefixBits,suffixBits,widthBits,newForwardEntryCount,newReverseEntryCount);
-	int tableSize=PAD_1BITLENGTH_BYTE(prefixBits+suffixBits+widthBits)*(newForwardEntryCount+newReverseEntryCount);
+	int tableSize=PAD_1BITLENGTH_BYTE((prefixBits+suffixBits+widthBits)*(newForwardEntryCount+newReverseEntryCount));
 
 	builder->totalPackedSize=headerSize+tableSize;
 }
