@@ -9,11 +9,14 @@ import java.util.Set;
 
 public class LinkedSmer {
 
-
+	private final static int SMER_LENGTH=23;
+	
+	private final static char CANONICAL_BASES[]={'A','C','G','T'};
+	private final static char COMPLEMENT_BASES[]={'T','G','C','A'};
+	
 	public static enum WhichTail
 	{
-		PREFIX(),
-		SUFFIX();
+		PREFIX(), SUFFIX();
 
 		static WhichTail other(WhichTail tail)
 		{
@@ -23,25 +26,23 @@ public class LinkedSmer {
 
 	public static enum WhichRouteTable
 	{
-		FORWARD((byte)1), REVERSE((byte)-1);
+		FORWARD(), REVERSE();
 		
-		private byte exists;
-		
-		WhichRouteTable(byte exists)
+		static WhichRouteTable other(WhichRouteTable routeTable)
 		{
-			this.exists=exists;
+			return routeTable==FORWARD?REVERSE:FORWARD;
 		}
 		
-		private byte getExists()
-		{
-			return exists;
-		}
 	}
 
 	public static enum WhichSequenceDirection
 	{
-		ORIGINAL(),
-		REVERSECOMP();
+		ORIGINAL(), REVERSECOMP();
+		
+		static WhichSequenceDirection other(WhichSequenceDirection direction)
+		{
+			return direction==ORIGINAL?REVERSECOMP:ORIGINAL;
+		}
 	}
 
 
@@ -84,13 +85,14 @@ public class LinkedSmer {
 	{
 		StringBuilder sb=new StringBuilder();
 		sb.append("LinkedSmer [ID: "+smerId);
-		sb.append(", Seq: "+unpackSmer(23));
+		sb.append(", Seq: ");
+		extractSequence(sb, WhichSequenceDirection.ORIGINAL);
 		sb.append(", \nPrefixes("+prefixes.length+"): [");
 		for(Tail p: prefixes)
-			sb.append(p.toString(false));
+			sb.append(p.toString());
 		sb.append("], \nSuffixes("+suffixes.length+"): [");
 		for(Tail s: suffixes)
-			sb.append(s.toString(false));
+			sb.append(s.toString());
 		sb.append("], \nForwardRoutes("+forwardRoutes.length+"): [");
 		for(Route r: forwardRoutes)
 			sb.append(r.toString());
@@ -133,34 +135,35 @@ public class LinkedSmer {
 	}
 
 
-	private String unpackSmer(int s)
+	private static void extractPackedSequence(long data, int length, StringBuilder sb, WhichSequenceDirection direction)
 	{
-		StringBuilder sb = new StringBuilder();
-
-		for (int i = s-1; i >= 0; i--)
+		if(direction==WhichSequenceDirection.ORIGINAL)
 			{
-			int base = (int)(smerId >> 2 * i);
-
-			switch (base & 0x3)
+			for (int i = length-1; i >= 0; i--)
 				{
-				case 0:
-					sb.append("A");
-					break;
-
-				case 1:
-					sb.append("C");
-					break;
-
-				case 2:
-					sb.append("G");
-					break;
-
-				case 3:
-					sb.append("T");
-					break;
+				int base = (int)(data >> 2 * i) & 0x3;
+				sb.append(CANONICAL_BASES[base]);
 				}
 			}
+		else
+			{
+			for (int i = 0; i<length; i++)
+				{
+				int base = (int)(data >> 2 * i) & 0x3;
+				sb.append(COMPLEMENT_BASES[base]);
+				}
+			}		
+	}
+	
+	private void extractSequence(StringBuilder sb, WhichSequenceDirection direction)
+	{
+		extractPackedSequence(smerId, SMER_LENGTH, sb, direction);
+	}
 
+	public String getSequence(WhichSequenceDirection direction)
+	{
+		StringBuilder sb=new StringBuilder();
+		extractSequence(sb,direction);
 		return sb.toString();
 	}
 
@@ -230,6 +233,8 @@ public class LinkedSmer {
 	// SmerId -> tailData
 
 	private static long TAIL_LENGTH_MASK=0xFFFF000000000000L;
+	private static int TAIL_LENGTH_SHIFT=48;
+	private static long TAIL_BASES_MASK=0x0000FFFFFFFFFFFFL;
 
 	private int prefixSmerIndex(long smerId, byte exists, long tailData)
 	{
@@ -249,7 +254,7 @@ public class LinkedSmer {
 		else if(count==0)
 			return -1;
 
-		throw new RuntimeException("prefix Multismers: "+count+" From "+this.toString()+" to "+smerId+" with length "+(maskedTail>>48));
+		throw new RuntimeException("prefix Multismers: "+count+" From "+this.toString()+" to "+smerId+" with length "+(maskedTail>>TAIL_LENGTH_SHIFT));
 	}
 
 	// Which suffix of this smer links to the given smer-tailData combo
@@ -274,7 +279,7 @@ public class LinkedSmer {
 		else if(count==0)
 			return -1;
 
-		throw new RuntimeException("suffix Multismers: "+count+" From "+this.toString()+" to "+smerId+" with length "+(maskedTail>>48));
+		throw new RuntimeException("suffix Multismers: "+count+" From "+this.toString()+" to "+smerId+" with length "+(maskedTail>>TAIL_LENGTH_SHIFT));
 	}
 
 
@@ -305,7 +310,7 @@ public class LinkedSmer {
 		for(Tail prefix: prefixes)
 			{
 			if(set.contains(prefix.data))
-				throw new RuntimeException("Non unique prefix: "+prefix.getTailSequence(false)+" in "+this);
+				throw new RuntimeException("Non unique prefix: "+prefix.getSequence(WhichSequenceDirection.ORIGINAL)+" in "+this);
 
 			set.add(prefix.data);
 			}
@@ -315,7 +320,7 @@ public class LinkedSmer {
 		for(Tail suffix: suffixes)
 			{
 			if(set.contains(suffix.data))
-				throw new RuntimeException("Non unique suffix: "+suffix.getTailSequence(false)+" in "+this);
+				throw new RuntimeException("Non unique suffix: "+suffix.getSequence(WhichSequenceDirection.ORIGINAL)+" in "+this);
 
 			set.add(suffix.data);
 			}
@@ -645,42 +650,26 @@ public class LinkedSmer {
 			return smerExists;
 		}
 
-		final static char canonicalBases[]={'A','C','G','T'};
-		final static char complementBases[]={'T','G','C','A'};
-
-		public String getTailSequence(boolean reverseComplement)
+		public void extractSequence(StringBuilder sb, WhichSequenceDirection direction)
 		{
-			int len = (int)(data>>48);
+			int length = (int)(data>>TAIL_LENGTH_SHIFT);
+			long bases=data&TAIL_BASES_MASK;
+			
+			extractPackedSequence(bases, length, sb, direction);			
+		}
 
-			StringBuilder sb = new StringBuilder();
-
-			long base = data;
-
-			char decode[]=reverseComplement?complementBases:canonicalBases;
-
-			for (int i = 0; i < len; i++)
-				{
-				sb.append(decode[(int)(base & 0x3)]);
-				base>>=2;
-				}
-
-			if(reverseComplement)
-				return sb.toString();
-			else
-				return sb.reverse().toString();
+		public String getSequence(WhichSequenceDirection direction)
+		{
+			StringBuilder sb=new StringBuilder();
+			extractSequence(sb,direction);
+			return sb.toString();
 		}
 
 
 		@Override
 		public String toString() {
 			return "Tail [seq="
-					+ getTailSequence(false) + ", smerExists=" + smerExists
-					+ ", smerId=" + smerId + "]";
-		}
-
-		public String toString(boolean rev) {
-			return "Tail [seq="
-					+ getTailSequence(rev) + ", smerExists=" + smerExists
+					+ getSequence(WhichSequenceDirection.ORIGINAL) + ", smerExists=" + smerExists
 					+ ", smerId=" + smerId + "]";
 		}
 
@@ -1001,7 +990,7 @@ public class LinkedSmer {
 
 					if(tail.smerExists>0) // Reverse to target in same orientation (complement): Arriving at prefix, reverse routing table
 						{
-						int targetTailIndex=targetSmer.prefixSmerIndex(smer.getSmerId(), routeTable.getExists(), tail.data); // do prefix lookup
+						int targetTailIndex=targetSmer.prefixSmerIndex(smer.getSmerId(), tail.smerExists, tail.data); // do prefix lookup
 						if(targetTailIndex<0)
 							throw new RuntimeException("Unable to find linking prefix for "+tail+" in "+tail.smerExists+" of "+targetSmer+" to "+smer);
 						
@@ -1012,7 +1001,7 @@ public class LinkedSmer {
 						}
 					else // Reverse to target in opposite orientation (canonical): Arriving at suffix, forward routing table
 						{
-						int targetTailIndex=targetSmer.suffixSmerIndex(smer.getSmerId(), routeTable.getExists(), tail.data); // do suffix lookup
+						int targetTailIndex=targetSmer.suffixSmerIndex(smer.getSmerId(), tail.smerExists, tail.data); // do suffix lookup
 						if(targetTailIndex<0)
 							throw new RuntimeException("Unable to find linking suffix for "+tail+" in "+tail.smerExists+" of "+targetSmer+" to "+smer);
 
@@ -1048,6 +1037,48 @@ public class LinkedSmer {
 				}
 
 		}
+
+		public void extractSequence(StringBuilder sb, WhichSequenceDirection direction, boolean includeNode)
+		{
+//			smer, tailIndex, whichTail, routeTable, edgePosition
+
+			// whichTail PREFIX vs SUFFIX
+			// whichRouteTable FORWARD vs REVERSE
+				
+			//Prefix forward = !direction
+			//Suffix forward = direction
+			
+			//Prefix reverse = direction
+			//Suffix reverse = !direction				
+				
+			if(routeTable==WhichRouteTable.REVERSE)
+				direction=WhichSequenceDirection.other(direction);
+								
+			Tail tail;		
+			WhichSequenceDirection tailDirection;
+						
+			if(tailIndex>0)
+				{
+				if(whichTail==WhichTail.PREFIX)
+					{
+					tail=smer.prefixes[tailIndex-1];
+					tailDirection=WhichSequenceDirection.other(direction);
+					}
+				else
+					{
+					tail=smer.suffixes[tailIndex-1];
+					tailDirection=direction;				
+					}
+				
+				tail.extractSequence(sb, tailDirection);
+				}
+				
+			
+			if(includeNode)
+				smer.extractSequence(sb, direction);
+				
+		}
+
 
 
 		/*

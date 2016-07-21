@@ -17,7 +17,7 @@ public class GraphWalker
 	}
 
 	
-	public void followEdge(LinkedSmer.EdgeContext edge, boolean loud)
+	public void followEdge(LinkedSmer.EdgeContext edge, StringBuilder sb, boolean loud)
 	{
 		//System.out.println("Following: "+edge);
 		
@@ -33,6 +33,12 @@ public class GraphWalker
 			System.out.println();
 			}
 		*/
+	
+		
+		if(edge!=null)
+			{
+			edge.extractSequence(sb, WhichSequenceDirection.ORIGINAL,true);
+			}
 		
 		int maxCount=1000;
 		
@@ -44,6 +50,8 @@ public class GraphWalker
 				System.out.println("Across Node: "+edge);
 				System.out.println();
 				}
+			
+			edge.extractSequence(sb, WhichSequenceDirection.ORIGINAL, false);
 			
 			LinkedSmer linkingSmer=cache.getLinkedSmer(edge.getLinkingSmerId());
 			if(loud)
@@ -60,12 +68,14 @@ public class GraphWalker
 				}
 			}
 	
+		
 	}
 	
 	public void dump()
 	{
 		long smerIds[]=graph.getSmerIds();
 		int reads=0;
+		int smerCount=0;
 		
 		for(long smerId: smerIds)
 			{
@@ -85,7 +95,10 @@ public class GraphWalker
 				{
 				try
 					{
-					followEdge(edge,false);
+					StringBuilder sb=new StringBuilder();
+					followEdge(edge,sb,false);
+					
+					System.out.println("SEQ: "+sb.toString());
 					}
 				catch(RuntimeException e)
 					{
@@ -94,10 +107,15 @@ public class GraphWalker
 					}
 				}
 		
+			if(++smerCount%1000000==0)
+				System.out.println("Processed "+smerCount+" smers with "+reads+" reads");
 			}
 
-		System.out.println("Followed "+reads);
+		System.out.println("Dump complete");
+		System.out.println("Processed "+smerCount+" smers with "+reads+" reads");
 
 	}
 
+
+	
 }

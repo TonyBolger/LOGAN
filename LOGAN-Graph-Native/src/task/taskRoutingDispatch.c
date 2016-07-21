@@ -548,6 +548,7 @@ static int reverseSuffixSorter(const void *a, const void *b)
 //	return pb->rdiIndex-pa->rdiIndex; // Reverse original order
 }
 
+
 /*
 void dumpPatches(RoutePatch *patches, int patchCount)
 {
@@ -557,7 +558,7 @@ void dumpPatches(RoutePatch *patches, int patchCount)
 */
 
 
- void processReadsForSmer(RoutingDispatchIntermediate *rdi, u32 sliceIndex, SmerArraySlice *slice, MemDispenser *disp)
+int processReadsForSmer(RoutingDispatchIntermediate *rdi, u32 sliceIndex, SmerArraySlice *slice, RoutingReadDispatchData **orderedDispatches, MemDispenser *disp)
 {
 	u8 *smerData=slice->smerData[sliceIndex];
 
@@ -614,9 +615,6 @@ void dumpPatches(RoutePatch *patches, int patchCount)
 
 		if(currFmer<=currRmer) // Canonical Read Orientation
 			{
-				//if(currFmer==11473037899172)
-				//	debug=1;
-
 				SmerId prefixSmer=rdd->rsmers[index+1]; // Previous smer in read, reversed
 				SmerId suffixSmer=rdd->fsmers[index-1]; // Next smer in read
 
@@ -624,6 +622,8 @@ void dumpPatches(RoutePatch *patches, int patchCount)
 				int suffixLength=rdd->readIndexes[index-1]-rdd->readIndexes[index];
 
 				forwardPatches[forwardCount].rdiIndex=i;
+				//*(orderedDispatches++)=rdi->entries[i];
+
 				forwardPatches[forwardCount].prefixIndex=findOrCreateSeqTail(&prefixBuilder, prefixSmer, prefixLength);
 				forwardPatches[forwardCount].suffixIndex=findOrCreateSeqTail(&suffixBuilder, suffixSmer, suffixLength);
 
@@ -645,9 +645,6 @@ void dumpPatches(RoutePatch *patches, int patchCount)
 			}
 		else	// Reverse-complement Read Orientation
 			{
-				//if(currFmer==11473037899172)
-				//	debug=2;
-
 				SmerId prefixSmer=rdd->fsmers[index-1]; // Next smer in read
 				SmerId suffixSmer=rdd->rsmers[index+1]; // Previous smer in read, reversed
 
@@ -655,6 +652,8 @@ void dumpPatches(RoutePatch *patches, int patchCount)
 				int suffixLength=rdd->readIndexes[index]-rdd->readIndexes[index+1];
 
 				reversePatches[reverseCount].rdiIndex=i;
+				//*(orderedDispatches++)=rdi->entries[i];
+
 				reversePatches[reverseCount].prefixIndex=findOrCreateSeqTail(&prefixBuilder, prefixSmer, prefixLength);
 				reversePatches[reverseCount].suffixIndex=findOrCreateSeqTail(&suffixBuilder, suffixSmer, suffixLength);
 
@@ -682,25 +681,26 @@ void dumpPatches(RoutePatch *patches, int patchCount)
 		{
 		qsort(forwardPatches, forwardCount, sizeof(RoutePatch), forwardPrefixSorter);
 /*
-		if(forwardCount>5)
+		if(forwardCount>100)
 			{
 			LOG(LOG_INFO,"Forward Patches %i",forwardCount);
 			dumpPatches(forwardPatches, forwardCount);
 			}
-			*/
+*/
 		}
 
 	if(reverseCount>1)
 		{
 		qsort(reversePatches, reverseCount, sizeof(RoutePatch), reverseSuffixSorter);
 /*
-		if(reverseCount>5)
+		if(reverseCount>100)
 			{
 			LOG(LOG_INFO,"Reverse Patches %i",reverseCount);
 			dumpPatches(reversePatches, reverseCount);
 			}
-			*/
+*/
 		}
+
 /*
 	if(debug)
 		{
@@ -712,6 +712,13 @@ void dumpPatches(RoutePatch *patches, int patchCount)
 		}
 */
 	mergeRoutes(&routeTableBuilder, forwardPatches, reversePatches, forwardCount, reverseCount);
+
+	for(int i=0;i<forwardCount;i++)
+		*(orderedDispatches++)=rdi->entries[forwardPatches[i].rdiIndex];
+
+	for(int i=0;i<reverseCount;i++)
+		*(orderedDispatches++)=rdi->entries[reversePatches[i].rdiIndex];
+
 /*
 	if(debug)
 		LOG(LOG_INFO,"Builder has Size: %i Max: %i %i %i Count: %i %i %i %i",
@@ -735,22 +742,20 @@ void dumpPatches(RoutePatch *patches, int patchCount)
 		slice->smerData[sliceIndex]=packedData;
 		}
 
+	return entryCount;
 }
 
 
-static void processGroupSlices(RoutingDispatchGroupState *groupState, SmerArraySlice *baseSlices)
+static void processSlice(RoutingDispatchIntermediate *smerInboundDispatches,  SmerArraySlice *slice, RoutingReadDispatchData **orderedDispatches, MemDispenser *disp)
 {
-	for(int i=0;i<SMER_DISPATCH_GROUP_SLICES;i++)
-		{
-		RoutingDispatchIntermediate *smerInboundDispatches=groupState->smerInboundDispatches+i;
+	//for(int i=0;i<SMER_DISPATCH_GROUP_SLICES;i++)
+		//{
 
 		if(smerInboundDispatches->entryCount>0)
 			{
-			SmerArraySlice *slice=baseSlices+i;
-
 			// Wasteful approach for groups with few reads - change to qsort based on sliceIndex
-			RoutingDispatchIntermediate **indexedDispatches=dAlloc(groupState->disp, sizeof(RoutingDispatchIntermediate *)*  slice->smerCount);
-			u32 *sliceIndexes=dAlloc(groupState->disp, sizeof(u32)*slice->smerCount);
+			RoutingDispatchIntermediate **indexedDispatches=dAlloc(disp, sizeof(RoutingDispatchIntermediate *)*  slice->smerCount);
+			u32 *sliceIndexes=dAlloc(disp, sizeof(u32)*slice->smerCount);
 /*
 			for(int j=0;j<slice->smerCount;j++)
 				{
@@ -758,11 +763,17 @@ static void processGroupSlices(RoutingDispatchGroupState *groupState, SmerArrayS
 				sliceIndexes[j]=-1;
 				}
 */
-			int indexLength=indexDispatchesForSlice(smerInboundDispatches, slice->smerCount, groupState->disp, indexedDispatches, sliceIndexes);//, smerTmpDispatches);
+			int indexLength=indexDispatchesForSlice(smerInboundDispatches, slice->smerCount, disp, indexedDispatches, sliceIndexes);//, smerTmpDispatches);
+
+			int dispatchOffset=0;
 			for(int j=0;j<indexLength;j++)
-				processReadsForSmer(indexedDispatches[j], sliceIndexes[j], slice, groupState->disp);
+				{
+				int entryCount=processReadsForSmer(indexedDispatches[j], sliceIndexes[j], slice, orderedDispatches+dispatchOffset, disp);
+				dispatchOffset+=entryCount;
+				}
+
 			}
-		}
+		//}
 
 }
 
@@ -802,18 +813,23 @@ static void prepareGroupOutbound(RoutingDispatchGroupState *groupState)
 	groupState->outboundDispatches=outboundDispatches;
 }
 
-static int gatherGroupOutbound(RoutingDispatchGroupState *groupState)
+static int gatherSliceOutbound(RoutingDispatchGroupState *groupState, int sliceNum, RoutingReadDispatchData **orderedDispatches)
 {
 	int work=0;
 	RoutingDispatchArray *dispatchArray=groupState->outboundDispatches;
 
-	for(int i=0;i<SMER_DISPATCH_GROUP_SLICES;i++)
-		{
-		RoutingDispatchIntermediate *smerInboundDispatches=groupState->smerInboundDispatches+i;
+//	for(int i=0;i<SMER_DISPATCH_GROUP_SLICES;i++)
+//		{
+		RoutingDispatchIntermediate *smerInboundDispatches=groupState->smerInboundDispatches+sliceNum;
 
 		for(int j=0;j<smerInboundDispatches->entryCount;j++)
 			{
-			RoutingReadDispatchData *readData=smerInboundDispatches->entries[j];
+//			int entryIndex=rdiIndexes[j];
+
+			//if(entryIndex!=j)
+//				LOG(LOG_INFO,"Mismatch %i vs %i",entryIndex,j);
+
+			RoutingReadDispatchData *readData=orderedDispatches[j];
 
 			int nextIndexCount=__atomic_sub_fetch(&(readData->indexCount),1, __ATOMIC_SEQ_CST);
 
@@ -838,7 +854,7 @@ static int gatherGroupOutbound(RoutingDispatchGroupState *groupState)
 			work=1;
 
 		smerInboundDispatches->entryCount=0;
-		}
+//		}
 
 	return work;
 }
@@ -873,11 +889,29 @@ static int scanForDispatchesForGroups(RoutingBuilder *rb, int startGroup, int en
 
 					//LOG(LOG_INFO,"Begin group %i",i);
 
-					SmerArraySlice *baseSlice=rb->graph->smerArray.slice+(i << SMER_DISPATCH_GROUP_SHIFT);
-					processGroupSlices(groupState, baseSlice);
-
 					prepareGroupOutbound(groupState);
-					work+=gatherGroupOutbound(groupState);
+
+					SmerArraySlice *baseSlice=rb->graph->smerArray.slice+(i << SMER_DISPATCH_GROUP_SHIFT);
+					for(int j=0;j<SMER_DISPATCH_GROUP_SLICES;j++)
+						{
+						RoutingDispatchIntermediate *smerInboundDispatches=groupState->smerInboundDispatches+j;
+						int inboundEntryCount=smerInboundDispatches->entryCount;
+						SmerArraySlice *slice=baseSlice+j;
+
+						if(inboundEntryCount>0)
+							{
+							RoutingReadDispatchData **orderedDispatches=dAlloc(groupState->disp, sizeof(RoutingReadDispatchData *)*inboundEntryCount);
+
+							processSlice(smerInboundDispatches, slice, orderedDispatches, groupState->disp);
+
+//							LOG(LOG_INFO,"IndexGroup:");
+
+//							for(int i=0;i<inboundEntryCount;i++)
+//								LOG(LOG_INFO,"%i",rdiIndexes[i]);
+
+							work+=gatherSliceOutbound(groupState, j, orderedDispatches);
+							}
+						}
 
 					queueDispatchArray(rb, groupState->outboundDispatches);
 
