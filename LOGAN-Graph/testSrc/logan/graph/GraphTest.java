@@ -10,12 +10,16 @@ import logan.graph.Graph.RouteBuilder;
 public class GraphTest extends TestCase {
 
 	Graph graph;
+	TestHelper helper;
 
 	protected void setUp() throws Exception {
 		super.setUp();
 
 		DeBruijnGraphConfig config=new DeBruijnGraphConfig(23, 23);
 		graph=new Graph(config);
+		
+		helper=new TestHelper(graph);
+		
 	}
 
 	protected void tearDown() throws Exception {
@@ -31,92 +35,7 @@ public class GraphTest extends TestCase {
 
 
 
-	public void graphIndexingHelper(File files[], int threadCount) throws InterruptedException, IOException
-	{
-		final IndexBuilder ib=graph.makeIndexBuilder(threadCount);
 
-		System.out.println("Indexing: Starting threads");
-		Thread threads[]=new Thread[threadCount];
-		for(int i=0;i<threads.length;i++)
-			{
-			threads[i]=new Thread(new Runnable() {
-				@Override
-				public void run() {
-					System.out.println("Indexing: Worker started");
-					ib.workerPerformTasks();
-					System.out.println("Indexing: Worker stopped");
-				}});
-
-			threads[i].start();
-			}
-
-
-		System.out.println("Indexing: Waiting startup");
-		ib.waitStartup();
-		System.out.println("Indexing: Completed startup");
-
-		System.out.println("Indexing: Ingress");
-		ib.processReadFiles(files);
-
-		System.out.println("Indexing: Shutdown");
-		ib.shutdown();
-		System.out.println("Indexing: Waiting shutdown");
-		ib.waitShutdown();
-		System.out.println("Indexing: Shutdown complete");
-
-		System.out.println("Indexing: joining threads");
-		for(int i=0;i<threads.length;i++)
-			threads[i].join();
-		System.out.println("Indexing: All threads joined");
-
-		System.out.println("Indexing: Freeing");
-
-		ib.free();
-	}
-
-
-	public void graphRoutingHelper(File files[], int threadCount) throws InterruptedException, IOException
-	{
-		final RouteBuilder rb=graph.makeRouteBuilder(threadCount);
-
-		System.out.println("Routing: Starting threads");
-		Thread threads[]=new Thread[threadCount];
-		for(int i=0;i<threads.length;i++)
-			{
-			threads[i]=new Thread(new Runnable() {
-				@Override
-				public void run() {
-					System.out.println("Routing: Worker started");
-					rb.workerPerformTasks();
-					System.out.println("Routing: Worker stopped");
-				}});
-
-			threads[i].start();
-			}
-
-
-		System.out.println("Routing: Waiting startup");
-		rb.waitStartup();
-		System.out.println("Routing: Completed startup");
-
-		System.out.println("Routing: Ingress");
-		rb.processReadFiles(files);
-
-		System.out.println("Routing: Shutdown");
-		rb.shutdown();
-		System.out.println("Routing: Waiting shutdown");
-		rb.waitShutdown();
-		System.out.println("Routing: Shutdown complete");
-
-		System.out.println("Routing: joining threads");
-		for(int i=0;i<threads.length;i++)
-			threads[i].join();
-		System.out.println("Routing: All threads joined");
-
-		System.out.println("Routing: Freeing");
-
-		rb.free();
-	}
 
 
 	public void testIndexingAndRouting() throws Exception
@@ -124,19 +43,19 @@ public class GraphTest extends TestCase {
 		try
 			{
 		//File files[]={new File("../data/Ecoli-1_Q20.fq")};
-		//File files[]={new File("../data/Single.fq")};
 
+//		File files1[]={new File("../data/Single.fq")};
+//		File files2[]={new File("../data/Single.fq")};
 			
-//		File files1[]={new File("../data/Ecoli-1_Q20.fq")};
-//		File files2[]={new File("../data/Ecoli-1_Q20.fq")};
+		File files1[]={new File("../data/Ecoli-1_Q20_10.fq")};
+		File files2[]={new File("../data/Ecoli-1_Q20_10.fq")};
 
-		File files1[]={new File("../data/Arabi-1_Q20.fq")};
-		File files2[]={new File("../data/Arabi-1_Q20.fq")};
+//		File files1[]={new File("../data/Arabi-1_Q20.fq")};
+//		File files2[]={new File("../data/Arabi-1_Q20_10m.fq")};
 
-		
 		int threadCount=1;
 
-		graphIndexingHelper(files1,threadCount);
+		helper.graphIndexingHelper(files1,threadCount);
 		System.out.println("Indexing complete");
 
 		long smers[];
@@ -154,7 +73,7 @@ public class GraphTest extends TestCase {
 		graph.switchMode();
 
 
-		graphRoutingHelper(files2,threadCount);
+		helper.graphRoutingHelper(files2,threadCount);
 		System.out.println("Routing complete1");
 
 //		graphRoutingHelper(files,threadCount);
