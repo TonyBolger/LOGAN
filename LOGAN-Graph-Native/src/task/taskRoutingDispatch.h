@@ -2,7 +2,7 @@
 #define __TASKROUTINGDISPATCH_H
 
 RoutingDispatchArray *allocDispatchArray();
-void assignToDispatchArrayEntry(RoutingDispatchArray *array, RoutingReadDispatchData *readData);
+void assignToDispatchArrayEntry(RoutingDispatchArray *array, RoutingReadData *readData);
 
 void initRoutingDispatchGroupState(RoutingDispatchGroupState *dispatchGroupState);
 void freeRoutingDispatchGroupState(RoutingDispatchGroupState *dispatchGroupState);

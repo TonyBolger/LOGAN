@@ -18,6 +18,7 @@
 #include <stdarg.h>
 #include <sys/time.h>
 #include <signal.h>
+#include <limits.h>
 
 #define PAD_1BITLENGTH_BYTE(L) (((L)+7)>>3)
 #define PAD_2BITLENGTH_BYTE(L) (((L)+3)>>2)

@@ -469,7 +469,7 @@ int scanForAndDispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb)
 	dispatchReadBlock->dispatchArray=dispArray;
 
 	RoutingReadLookupData *readLookup=lookupReadBlock->readData;
-	RoutingReadDispatchData *readDispatch=dispatchReadBlock->readData;
+	RoutingReadData *readDispatch=dispatchReadBlock->readData;
 
 	int reads=lookupReadBlock->readCount;
 
@@ -516,6 +516,9 @@ int scanForAndDispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb)
 
 		readDispatch->sliceIndexes=dAlloc(disp, foundCount*sizeof(u32));
 		memcpy(readDispatch->sliceIndexes, sliceIndexes-offset, foundCount*sizeof(u32));
+
+		readDispatch->minEdgePosition=0;
+		readDispatch->maxEdgePosition=INT_MAX;
 
 		readDispatch->completionCountPtr=&(dispatchReadBlock->completionCount);
 

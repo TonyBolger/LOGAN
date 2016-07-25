@@ -62,27 +62,12 @@ typedef struct routingReadLookupBlockStr {
 
 
 
-typedef struct routingReadDispatchDataStr {
-	u8 *packedSeq; // 8
-	u8 *quality; // 8
-	u32 seqLength; // 4
 
-	s32 indexCount; // 4
-	s32 *completionCountPtr; // 8
-
-	// Split into aux structure with []. Add first/last.
-	u32 *readIndexes; // 8
-	SmerId *fsmers; // 8
-	SmerId *rsmers; // 8
-	u32 *slices; // 8
-	u32 *sliceIndexes; // 8
-
-} __attribute__((aligned (32))) RoutingReadDispatchData;
 
 
 typedef struct routingDispatchIntermediateStr {
 	u64 entryCount; // 8
-	RoutingReadDispatchData **entries; // 8
+	RoutingReadData **entries; // 8
 } __attribute__((aligned (16))) RoutingDispatchIntermediate;
 
 
@@ -105,7 +90,7 @@ typedef struct routingDispatchArray {
 } RoutingDispatchArray;
 
 typedef struct routingReadDispatchBlockStr {
-	RoutingReadDispatchData readData[TR_INGRESS_BLOCKSIZE];
+	RoutingReadData readData[TR_INGRESS_BLOCKSIZE];
 	u32 readCount;
 
 	MemDispenser *disp;

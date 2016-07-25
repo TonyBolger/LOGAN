@@ -350,7 +350,168 @@ u8 *writeRouteTableBuilderPackedData(RouteTableBuilder *builder, u8 *data)
 	return data+tableSize;
 }
 
-void mergeRoutes(RouteTableBuilder *builder, RoutePatch *forwardRoutePatches, RoutePatch *reverseRoutePatches, s32 forwardRoutePatchCount, s32 reverseRoutePatchCount)
+/*
+static RoutePatchMergePositionOrderedReadset *mergeRoutes_buildForwardMergeTree(RoutePatch **patchScanPtr, RoutePatch *patchEnd, MemDispenser *disp)
+{
+	RoutePatch *scanPtr=*patchScanPtr;
+	int targetUpstream=scanPtr->prefixIndex;
+
+	int minEdgePosition=(*(scanPtr->rdiPtr))->minEdgePosition;
+	int maxEdgePosition=(*(scanPtr->rdiPtr))->maxEdgePosition;
+
+	RoutePatchMergeWideReadset *readSet=dAlloc(disp, sizeof(RoutePatchMergeWideReadset));
+	readSet->firstRoutePatch=scanPtr;
+	readSet->minEdgeOffset=minEdgePosition;
+	readSet->maxEdgeOffset=maxEdgePosition-minEdgePosition;
+
+	RoutePatchMergePositionOrderedReadset *firstOrderedReadset=dAlloc(disp, sizeof(RoutePatchMergePositionOrderedReadset));
+	firstOrderedReadset->next=NULL;
+	firstOrderedReadset->firstWideReadset=readSet;
+
+	firstOrderedReadset->minEdgePosition=minEdgePosition;
+	firstOrderedReadset->maxEdgePosition=maxEdgePosition;
+
+	//RoutePatchMergePositionOrderedReadset **appendOrderedReadset=&(firstOrderedReadset->next);
+
+	scanPtr++;
+
+
+	while(scanPtr<patchEnd && scanPtr->prefixIndex==targetUpstream)
+		{
+		minEdgePosition=(*(scanPtr->rdiPtr))->minEdgePosition;
+		maxEdgePosition=(*(scanPtr->rdiPtr))->maxEdgePosition;
+
+		RoutePatchMergePositionOrderedReadset **scanOrderedReadset=&firstOrderedReadset;
+
+		while(*scanOrderedReadset!=NULL && (*scanOrderedReadset)->maxEdgePosition < minEdgePosition) // Skip all non-overlapping lists before target
+			scanOrderedReadset=&((*scanOrderedReadset)->next);
+
+		if((*scanOrderedReadset)->minEdgePosition >= maxEdgePosition) // New Ordered list needed, with top-level renumber
+			{
+			RoutePatchMergePositionOrderedReadset *newOrderedReadset=dAlloc(disp, sizeof(RoutePatchMergePositionOrderedReadset));
+			newOrderedReadset->next=(*scanOrderedReadset)->next;
+			*scanOrderedReadset=newOrderedReadset;
+
+			newOrderedReadset->minEdgePosition=minEdgePosition;
+			newOrderedReadset->maxEdgePosition=maxEdgePosition;
+
+			readSet=dAlloc(disp, sizeof(RoutePatchMergeWideReadset));
+			readSet->firstRoutePatch=scanPtr;
+			readSet->minEdgeOffset=minEdgePosition;
+			readSet->maxEdgeOffset=maxEdgePosition-minEdgePosition;
+
+			newOrderedReadset->firstWideReadset=readSet;
+			}
+		else // Existing ordered list found, need parent widen and two level renumber
+			{
+
+			}
+
+
+
+
+		scanPtr++;
+		}
+
+
+	*patchScanPtr=scanPtr;
+	return firstOrderedReadset;
+}
+
+*/
+
+
+
+void mergeRoutes_ordered(RouteTableBuilder *builder, RoutePatch *forwardRoutePatches, RoutePatch *reverseRoutePatches, s32 forwardRoutePatchCount, s32 reverseRoutePatchCount,
+		s32 maxNewPrefix, s32 maxNewSuffix, MemDispenser *disp)
+{
+	if(builder->newForwardEntryCount>0 || builder->newReverseEntryCount>0)
+		{
+		LOG(LOG_INFO,"RouteTableBuilder: Already contains new routes before merge");
+		return;
+		}
+
+	//int maxForwardEntryCount=builder->oldForwardEntryCount+forwardRoutePatchCount*2;
+	//int maxReverseEntryCount=builder->oldReverseEntryCount+reverseRoutePatchCount*2;
+
+	//RouteTableEntry *forwardEntries=dAlloc(builder->disp, sizeof(RouteTableEntry) * maxForwardEntryCount);
+	//RouteTableEntry *reverseEntries=dAlloc(builder->disp, sizeof(RouteTableEntry) * maxReverseEntryCount);
+
+	/*
+	builder->newForwardEntries=forwardEntries;
+	builder->newForwardEntryCount=maxForwardEntryCount;
+
+	builder->newReverseEntries=reverseEntries;
+	builder->newReverseEntryCount=maxReverseEntryCount;
+*/
+
+	int maxPrefix=MAX(maxNewPrefix, builder->maxPrefix);
+	int maxSuffix=MAX(maxNewSuffix, builder->maxSuffix);
+//	int maxWidth=0;
+
+	int prefixOffsetSize=sizeof(int)*(maxPrefix+1);
+	int suffixOffsetSize=sizeof(int)*(maxSuffix+1);
+
+	s32 *prefixOffsets=alloca(prefixOffsetSize);
+	s32 *suffixOffsets=alloca(suffixOffsetSize);
+
+	memset(prefixOffsets,0,prefixOffsetSize);
+	memset(suffixOffsets,0,suffixOffsetSize);
+
+	RouteTableEntry *oldEntryPtr=builder->oldForwardEntries;
+	RouteTableEntry *oldEntryEnd=oldEntryPtr+builder->oldForwardEntryCount;
+
+	RoutePatch *patchPtr=forwardRoutePatches;
+	RoutePatch *patchEnd=patchPtr+forwardRoutePatchCount;
+	RoutePatch *patchScanPtr=NULL;
+
+	while(patchPtr<patchEnd)
+		{
+		int patchScanUpstream=patchPtr->prefixIndex;
+		patchScanPtr=patchPtr+1;
+
+		if(patchScanPtr<patchEnd && patchScanPtr->prefixIndex==patchScanUpstream)
+			{
+//			patchScanPtr=patchPtr;
+//			RoutePatchMergePositionOrderedReadset *orderedReadset=mergeRoutes_buildForwardMergeTree(&patchScanPtr, patchEnd, disp);
+			patchScanPtr=patchPtr+1;
+
+	//		printf("MERGE: Scenario 0 -  %i %i",orderedReadset->minEdgePosition, orderedReadset->maxEdgePosition);
+			printf("MERGE: Scenario 0\n");
+
+			// Evil case: Multiple patches in prefix (orderedReadset)
+			}
+		else
+			{
+			// Medium case: Single patch in prefix (patchPtr)
+			printf("MERGE: Scenario 1\n");
+			}
+
+//		oldEntryPtr++; // (optional) consume old entry
+
+		patchPtr=patchScanPtr; // consume patch(es)
+		}
+
+	while(oldEntryPtr<oldEntryEnd) // extra olds, transfer entries unchanged
+		{
+		printf("MERGE: Scenario 2\n");
+
+		oldEntryPtr++;
+		}
+
+
+
+
+
+
+}
+
+
+
+// 'Mostly-Append' version of merge routes, with minimal actual merging, combining only the last old route with new routes
+
+void mergeRoutes_appendMostly(RouteTableBuilder *builder, RoutePatch *forwardRoutePatches, RoutePatch *reverseRoutePatches, s32 forwardRoutePatchCount, s32 reverseRoutePatchCount,
+		s32 maxNewPrefix, s32 maxNewSuffix, MemDispenser *disp)
 {
 	u32 oldForwardEntryCount=builder->oldForwardEntryCount;
 	u32 oldReverseEntryCount=builder->oldReverseEntryCount;
@@ -378,7 +539,9 @@ void mergeRoutes(RouteTableBuilder *builder, RoutePatch *forwardRoutePatches, Ro
 	builder->newReverseEntries=reverseEntries;
 	builder->newReverseEntryCount=newReverseEntryCount;
 
-	int maxPrefix=0,maxSuffix=0,maxWidth=0;
+	int maxPrefix=MAX(maxNewPrefix, builder->maxPrefix);
+	int maxSuffix=MAX(maxNewSuffix, builder->maxSuffix);
+	int maxWidth=0;
 
 	u32 prefix=-1;
 	u32 suffix=-1;
@@ -390,8 +553,6 @@ void mergeRoutes(RouteTableBuilder *builder, RoutePatch *forwardRoutePatches, Ro
 		suffix=oldForwardEntries[i].suffix;
 		width=oldForwardEntries[i].width;
 
-		maxPrefix=MAX(maxPrefix,prefix);
-		maxSuffix=MAX(maxSuffix,suffix);
 		maxWidth=MAX(maxWidth,width);
 
 		forwardEntries[i].prefix=prefix;
@@ -426,8 +587,6 @@ void mergeRoutes(RouteTableBuilder *builder, RoutePatch *forwardRoutePatches, Ro
 			forwardEntries->width=width;
 			}
 
-		maxPrefix=MAX(maxPrefix,prefix);
-		maxSuffix=MAX(maxSuffix,suffix);
 		maxWidth=MAX(maxWidth,width);
 		}
 
@@ -441,8 +600,6 @@ void mergeRoutes(RouteTableBuilder *builder, RoutePatch *forwardRoutePatches, Ro
 		suffix=oldReverseEntries[i].suffix;
 		width=oldReverseEntries[i].width;
 
-		maxPrefix=MAX(maxPrefix,prefix);
-		maxSuffix=MAX(maxSuffix,suffix);
 		maxWidth=MAX(maxWidth,width);
 
 		reverseEntries[i].prefix=prefix;
@@ -478,8 +635,6 @@ void mergeRoutes(RouteTableBuilder *builder, RoutePatch *forwardRoutePatches, Ro
 			reverseEntries->width=width;
 			}
 
-		maxPrefix=MAX(maxPrefix,prefix);
-		maxSuffix=MAX(maxSuffix,suffix);
 		maxWidth=MAX(maxWidth,width);
 		}
 
@@ -502,6 +657,14 @@ void mergeRoutes(RouteTableBuilder *builder, RoutePatch *forwardRoutePatches, Ro
 
 	builder->totalPackedSize=headerSize+tableSize;
 }
+
+void mergeRoutes(RouteTableBuilder *builder, RoutePatch *forwardRoutePatches, RoutePatch *reverseRoutePatches, s32 forwardRoutePatchCount, s32 reverseRoutePatchCount,
+		s32 maxNewPrefix, s32 maxNewSuffix, MemDispenser *disp)
+{
+	mergeRoutes_ordered(builder, forwardRoutePatches, reverseRoutePatches, forwardRoutePatchCount, reverseRoutePatchCount, maxNewPrefix, maxNewSuffix, disp);
+	mergeRoutes_appendMostly(builder, forwardRoutePatches, reverseRoutePatches, forwardRoutePatchCount, reverseRoutePatchCount, maxNewPrefix, maxNewSuffix, disp);
+}
+
 
 
 void unpackRouteTableForSmerLinked(SmerLinked *smerLinked, u8 *data, MemDispenser *disp)

@@ -631,9 +631,55 @@ Complementary->Complementary: Original sequence direction,
 
 
 
+Merge Rules:
+
+	Scanning patches for 'compatible patch groups':
+
+	Groups must share prefix
+
+	Routes can be considered as:
+		Narrow: 1 option, positions range (x:x+1)
+		Wide: >1 option, positions range (x:>x+1)
+
+	Narrow routes are limited to precisely one position within their upstream routes
+		These have a unique upstream sequences
+		They must 'touch' existing routes within the list (no gaps)
+		Each additional narrow route must be inserted into the existing position-ordered list
+
+	Wide routes can be placed either side of, or within, existing routes
+		These share their upstream sequences
+		They must 'fully cover' existing routes within the list (same start, end increased by 1)
+		Routes can be sorted by prefix
+
+	Individual narrow routes can become wide if appropriate patches occur
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+	Both exist:
+
+		OldPrefix<PatchPrefix: Transfer old
+
+
+
+	Patch Exists
+
+
+
+	Old exists:
+
+		Transfer old
 
 
 
