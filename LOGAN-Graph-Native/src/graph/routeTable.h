@@ -44,21 +44,20 @@ typedef struct routePatchMergeWideReadsetStr // Represents a set of reads with s
 	RoutePatch *firstRoutePatch;
 
 	s32 minEdgeOffset;
-	s32 maxEdgeOffset; // Semi-open interval, excludes max
+	s32 maxEdgeOffset; // Closed interval, includes both max and min
 
 } RoutePatchMergeWideReadset;
 
 
-typedef struct routePatchMergePositionOrderedReadsetStr // Represents sets of reads with same upstream and defined, consecutive, relative order.
+typedef struct routePatchMergePositionOrderedReadtreeStr // Represents sets of reads with same upstream and defined, consecutive, relative order.
 {
-	struct routePatchMergePositionOrderedReadsetStr *next;
+	struct routePatchMergePositionOrderedReadtreeStr *next;
 
 	RoutePatchMergeWideReadset *firstWideReadset;
 
 	s32 minEdgePosition;
-	s32 maxEdgePosition; // Semi-open interval, excludes max
-
-} RoutePatchMergePositionOrderedReadset;
+	s32 maxEdgePosition; // Closed interval, includes both max and min
+} RoutePatchMergePositionOrderedReadtree;
 
 
 

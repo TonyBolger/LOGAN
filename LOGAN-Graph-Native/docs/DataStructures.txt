@@ -638,8 +638,8 @@ Merge Rules:
 	Groups must share prefix
 
 	Routes can be considered as:
-		Narrow: 1 option, positions range (x:x+1)
-		Wide: >1 option, positions range (x:>x+1)
+		Narrow: 1 option, positions range (x:x)
+		Wide: >1 option, positions range (x:>x)
 
 	Narrow routes are limited to precisely one position within their upstream routes
 		These have a unique upstream sequences
@@ -655,6 +655,320 @@ Merge Rules:
 
 
 
+Merge Tree: 3 levels, in a tree-like structure
+
+	Root: Reference to RoutePatchMergePositionOrderedReadtree
+
+	1st Level Branch: RoutePatchMergePositionOrderedReadTree: 'Ordered' lists of readsets.
+		Required to represent the fixed relative ordering of reads which have distinct upstream
+		The members of this list have known relative order to each other, but not internally within each set.
+
+	2nd Level Branch: RoutePatchMergeWideReadset: A set of 'Compatible' reads with no defined relative order.
+		Required to represent the flexible ordering of reads which have identical upstream sequences (rare case)
+		Implemented using a linked-list of 'compatible' leaves, via 'firstRoutePatch'
+		Entire set shares a min/max Edge offset (for efficiency, relative to parent)
+
+	Leaves: RoutePatch, linked via 'next'
+
+
+
+Routes pre-state:			->							Or
+
+1	Unknown						1	Unknown					1	Unknown
+2	Unknown						2	Unknown					2	Unknown
+3		OldA (3,3)				3		OldA (3,3)			3		OldA (3,3)
+4		OldB (4,4)				4		OldB (4,4)			4		OldB (4,4)
+5		OldC/Unknown (5,6)		5		OldC (5,6)			5		Unknown (5,6)
+6		OldC/Unknown (5,6)		6		Unknown (5,6)		6		Unknown (5,6)
+7		OldD (7,7)				7		OldD (7,7)			7		OldD (7,7)
+8	Unknown						8	Unknown					8	Unknown
+9 		OldE (9,9)				9 		OldE (9,9)			9 		OldE (9,9)
+10	Unknown						10	Unknown					10	Unknown
+11	Unknown...					11	Unknown...				11	Unknown...
+
+
+
+
+ScenarioGroup 1: 'Isolated Before': New PositionOrderedReadTree, New MergeWideReadset (NewMax<OldMinA)
+
+Routes N.1: Narrow' case (2,2):(NewMin=NewMax)
+
+1	Unknown
+2   New (2,2)					<--
+3	Unknown
+4	OldA (3+1,3+1)
+5	OldB (4+1,4+1)
+6	OldC/Unknown (5+1,6+1)
+7	OldC/Unknown (5+1,6+1)
+8	OldD (7+1,7+1)
+9	Unknown
+10 		OldE (9+1,9+1)
+11	Unknown
+12	Unknown...
+
+Routes W.1: 'Wide' case (1,2): (NewMin<NewMax)
+
+1	New/Unknown (1,2)			<--
+2   New/Unknown (1,2)			<--
+3   Unknown
+4	OldA (3+1,3+1)
+5	OldB (4+1,4+1)
+6	OldC/Unknown (5+1,6+1)
+7	OldC/Unknown (5+1,6+1)
+8	OldD (7+1,7+1)
+9	Unknown
+10 		OldE (9+1,9+1)
+11	Unknown
+12	Unknown...
+
+
+ScenarioGroup 2: 'Linked Before/Other': (NewMax=OldMinX)
+
+Routes N.2A: 'Narrow' case (3,3): New MergeWideReadset, insert into existing PositionOrderedReadTree (NewMin=NewMax)
+
+1	Unknown
+2   Unknown
+3   New (3,3)					<--
+4	OldA (3+1,3+1)
+5	OldB (4+1,4+1)
+6	OldC/Unknown (5+1,6+1)
+7	OldC/Unknown (5+1,6+1)
+8	OldD (7+1,7+1)
+9	Unknown
+10 		OldE (9+1,9+1)
+11	Unknown
+12	Unknown...
+
+Routes N.2B: 'Narrow' case (4,4): New MergeWideReadset, insert into existing PositionOrderedReadTree (NewMin=NewMax, NewMin=OldMinX)
+
+1	Unknown
+2	Unknown
+3	OldA (3,3)
+4   New (4,4)					<--
+5	OldB (4+1,4+1)
+6	OldC/Unknown (5+1,6+1)
+7	OldC/Unknown (5+1,6+1)
+8	OldD (7+1,7+1)
+9	Unknown
+10 		OldE (9+1,9+1)
+11	Unknown
+12	Unknown...
+
+Routes N.2C: 'Narrow' case (6,6): Invalid narrow insert within existing wide (NewMin=NewMax, NewMin>OldMinX, NewMax<=OldMaxX)
+
+1	Unknown
+2	Unknown
+3		OldA (3,3)
+4		OldB (4,4)
+5		OldC/Unknown (5,6)
+6		OldC/Unknown (5,6) 		<-x
+7		OldD (7,7)
+8	Unknown
+9 		OldE (9,9)
+10	Unknown
+11	Unknown...
+
+
+Routes W.2A: 'Wide' case (2,3): Insert into exist MergeWideReadset (NewMin<NewMax)
+
+1	Unknown
+2   New/Unknown (2,3)			<--
+3   New/Unknown (2,3)			<--
+4   OldA (3+1,3+1)
+5	OldB (4+1,4+1)
+6	OldC/Unknown (5+1,6+1)
+7	OldC/Unknown (5+1,6+1)
+8	OldD (7+1,7+1)
+9	Unknown
+10 		OldE (9+1,9+1)
+11	Unknown
+12	Unknown...
+
+Routes W.2B: 'Wide' case (4,5): Insert into MergeWideReadset (NewMin<NewMax, NewMin=OldMinX, NewMax=OldMaxX+1)
+
+1	Unknown
+2	Unknown
+3	OldA (3,3)
+4   New/OldB (4,5)				<--
+5   New/OldB (4,5)				<--
+6	OldB (4+1,4+1)
+6	OldC/Unknown (5+1,6+1)
+7	OldC/Unknown (5+1,6+1)
+8	OldD (7+1,7+1)
+9	Unknown
+10 		OldE (9+1,9+1)
+11	Unknown
+12	Unknown...
+
+Routes W.2C: 'Wide' case (5,7): Insert into MergeWideReadset (NewMin<NewMax, NewMin=OldMinX, NewMax=OldMaxX+1)
+
+1	Unknown
+2	Unknown
+3	OldA (3,3)
+4	OldB (4,4)
+5	New/OldC/Unknown (5,6+1)	<--
+6	New/OldC/Unknown (5,6+1)	<--
+7	New/OldC/Unknown (5,6+1)	<--
+8	OldD (7+1,7+1)
+9	Unknown
+10 		OldE (9+1,9+1)
+11	Unknown
+12	Unknown...
+
+Routes W.2D: 'Wide' case (2,4): Invalid wide spanning unknown&known (NewMin<NewMax, NewMin<OldMinX, NewMax>OldMin)
+
+1	Unknown
+2	Unknown						<-x
+3		OldA (3,3)				<-x
+4		OldB (4,4)
+5		OldC/Unknown (5,6)
+6		OldC/Unknown (5,6)
+7		OldD (7,7)
+8	Unknown
+9 		OldE (9,9)
+10	Unknown
+11	Unknown...
+
+Routes W.2E: 'Wide' case (3,5): Invalid wide spanning multiple (NewMin<NewMax, NewMin=OldMinX, NewMax>OldMax+1)
+
+1	Unknown
+2	Unknown
+3		OldA (3,3)				<-x
+4		OldB (4,4)				<-x
+5		OldC/Unknown (5,6)
+6		OldC/Unknown (5,6)
+7		OldD (7,7)
+8	Unknown
+9 		OldE (9,9)
+10	Unknown
+11	Unknown...
+
+
+
+
+ScenarioGroup 3: 'Linked After': (NewMin=OldMaxX+1, OldX is last in PositionOrderedReadTree)
+
+Routes N.3: 'Narrow' case (8,8): New MergeWideReadset, append to existing PositionOrderedReadTree  (NewMin=NewMax)
+
+1	Unknown
+2	Unknown
+3		OldA (3,3)
+4		OldB (4,4)
+5		OldC/Unknown (5,6)
+6		OldC/Unknown (5,6)
+7		OldD (7,7)
+8		New (8,8)				<--
+9	Unknown
+10 		OldE (9+1,9+1)
+11	Unknown
+12	Unknown...
+
+
+Routes W.3A: 'Wide' case (10,11): New MergeWideReadset, append to existing PositionOrderedReadTree (NewMin<NewMax, Last PositionOrderedReadTree)
+
+1	Unknown
+2	Unknown
+3		OldA (3,3)
+4		OldB (4,4)
+5		OldC/Unknown (5,6)
+6		OldC/Unknown (5,6)
+7		OldD (7,7)
+8	Unknown
+9 		OldE (9,9)
+11		New/Unknown (10,11)		<--
+11		New/Unknown (10,11)		<--
+12	Unknown...
+
+
+Routes W.3B: 'Wide' case (7,8): Invalid due to (OldYMin=NewMax), prefer insert to next PositionOrderedReadTree (W.2) (NewMin<NewMax, not Last PositionOrderedReadTree)
+
+1	Unknown
+2	Unknown
+3		OldA (3,3)
+4		OldB (4,4)
+5		OldC/Unknown (5,6)
+6		OldC/Unknown (5,6)
+7		OldD (7,7)
+	--------
+8		New/Unknown (8,9)		<--
+9		New/Unknown (8,9)		<--
+10 		OldE (9+1,+1)
+11	Unknown
+11	Unknown...
+
+
+
+
+ScenarioGroup 4: 'Isolated After': New MergeWideReadset, append to existing PositionOrderedReadTree (NewMin>OldMaxX+1, OldX is last in PositionOrderedReadTree)
+
+Routes N.5: Narrow' case (11,11):(NewMin=NewMax)
+
+1	Unknown
+2	Unknown
+3		OldA (3,3)
+4		OldB (4,4)
+5		OldC/Unknown (5,6)
+6		OldC/Unknown (5,6)
+7		OldD (7,7)
+8	Unknown
+9 		OldE (9,9)
+10	Unknown
+11		New (11,11)				<--
+12	Unknown...
+
+
+Routes W.5: 'Wide' case (1,2): (NewMin<NewMax)
+
+1	Unknown
+2	Unknown
+3		OldA (3,3)
+4		OldB (4,4)
+5		OldC/Unknown (5,6)
+6		OldC/Unknown (5,6)
+7		OldD (7,7)
+8	Unknown
+9 		OldE (9,9)
+10	Unknown
+11		New/Unknown (11,12)		<--
+12		New/Unknown (11,12)		<--
+13	Unknown...
+
+
+
+
+Merge Tree Overlap concepts:
+
+	Read positions are relative to the edge at the time they were added to the previous smer
+
+	Read additions are conceptually 'insertions' into the merge tree, except when they occur after all previously added reads, in which case they are appends
+
+	As such each new read occurring 'earlier' in the merge tree 'pushes' later reads 'down' (increments position) to compensate
+
+	Each NewRead contains a position range where they must be inserted, represented using a minimum / maximum edge position (semi-open, so min<=pos<max)
+
+	Assuming an existing read with position range: OldMin,OldMax, with OldMax>OldMin, and a new read with equivalents, NewMin,NewMax, with NewMax>NewMin:
+
+	New before Old: If NewMax<=OldMin,
+
+
+
+
+Merge Tree Building Algorithm:
+
+	First read forms a branch at each level
+
+	For additional reads:
+
+	Check NewRead against each RoutePatchMergePositionOrderedReadTree:
+
+	If NewRead.maximumEdgePosition <
+
+
+
+
+
+
+Merge Flowchart:
 
 
 
@@ -662,24 +976,6 @@ Merge Rules:
 
 
 
-
-
-
-
-
-	Both exist:
-
-		OldPrefix<PatchPrefix: Transfer old
-
-
-
-	Patch Exists
-
-
-
-	Old exists:
-
-		Transfer old
 
 
 

@@ -350,6 +350,82 @@ u8 *writeRouteTableBuilderPackedData(RouteTableBuilder *builder, u8 *data)
 	return data+tableSize;
 }
 
+static RoutePatchMergeWideReadset *buildReadsetForRead(RoutePatch *routePatch, s32 minEdgeOffset, s32 maxEdgeOffset, MemDispenser *disp)
+{
+	RoutePatchMergeWideReadset *readSet=dAlloc(disp, sizeof(RoutePatchMergeWideReadset));
+	readSet->firstRoutePatch=routePatch;
+	readSet->minEdgeOffset=minEdgeOffset;
+	readSet->maxEdgeOffset=maxEdgeOffset;
+
+	return readSet;
+}
+
+
+static RoutePatchMergePositionOrderedReadtree *buildPositionOrderedReadtreeForReadset(RoutePatchMergeWideReadset *readset,
+		s32 minEdgePosition, s32 maxEdgePosition, MemDispenser *disp)
+{
+	RoutePatchMergePositionOrderedReadtree *firstOrderedReadtree=dAlloc(disp, sizeof(RoutePatchMergePositionOrderedReadtree));
+	firstOrderedReadtree->next=NULL;
+	firstOrderedReadtree->firstWideReadset=readset;
+
+	firstOrderedReadtree->minEdgePosition=minEdgePosition;
+	firstOrderedReadtree->maxEdgePosition=maxEdgePosition;
+
+	return firstOrderedReadtree;
+
+}
+
+
+static RoutePatchMergePositionOrderedReadtree *mergeRoute_buildForwardMergeTree_mergeRead(RoutePatchMergePositionOrderedReadtree *readTree,
+		RoutePatch *routePatch, MemDispenser *disp)
+{
+	// Scan through existing merge tree, find best location, insert/append as appropriate
+
+	RoutePatchMergePositionOrderedReadtree *treeScan=readTree;
+	RoutePatchMergeWideReadset *readsetScan=readTree->firstWideReadset;
+
+	s32 newMinEdgePosition=*(routePatch->rdiPtr)->minEdgePosition;
+	s32 newMaxEdgePosition=*(routePatch->rdiPtr)->minEdgePosition;
+
+	s32 oldMinEdgePosition=treeScan->minEdgePosition+readsetScan->minEdgeOffset;
+	s32 oldMaxEdgePosition=treeScan->minEdgePosition+readsetScan->maxEdgeOffset;
+
+	if(newMaxEdgePosition<oldMinEdgePosition) // ScenarioGroup 1: "Isolated before"
+		{
+		RoutePatchMergeWideReadset *newReadset=buildReadsetForRead(routePatch, 0, newMaxEdgePosition-newMinEdgePosition, disp);
+		RoutePatchMergePositionOrderedReadtree *newReadTree=buildPositionOrderedReadtreeForReadset(newReadset, newMinEdgePosition, newMaxEdgePosition, disp);
+
+		newReadTree->next=readTree;
+		return newReadTree;
+		}
+
+
+
+
+	return readTree;
+}
+
+static RoutePatchMergePositionOrderedReadtree *mergeRoutes_buildForwardMergeTree(RoutePatch **patchScanPtr, RoutePatch *patchEnd, MemDispenser *disp)
+{
+	RoutePatch *scanPtr=*patchScanPtr;
+	int targetUpstream=scanPtr->prefixIndex;
+
+	s32 minEdgePosition=*(scanPtr->rdiPtr)->minEdgePosition;
+	s32 maxEdgePosition=*(scanPtr->rdiPtr)->minEdgePosition;
+
+	RoutePatchMergeWideReadset *readset=buildReadsetForRead(scanPtr, 0, maxEdgePosition-minEdgePosition, disp);
+	RoutePatchMergePositionOrderedReadtree *readTree=buildPositionOrderedReadtreeForReadset(readset, minEdgePosition, maxEdgePosition, disp);
+
+	scanPtr++;
+
+	while(scanPtr<patchEnd && scanPtr->prefixIndex==targetUpstream)
+		readTree=mergeRoute_buildForwardMergeTree_mergeRead(readTree, scanPtr, disp);
+
+	*patchScanPtr=scanPtr;
+	return readTree;
+}
+
+
 /*
 static RoutePatchMergePositionOrderedReadset *mergeRoutes_buildForwardMergeTree(RoutePatch **patchScanPtr, RoutePatch *patchEnd, MemDispenser *disp)
 {
@@ -472,11 +548,8 @@ void mergeRoutes_ordered(RouteTableBuilder *builder, RoutePatch *forwardRoutePat
 
 		if(patchScanPtr<patchEnd && patchScanPtr->prefixIndex==patchScanUpstream)
 			{
-//			patchScanPtr=patchPtr;
-//			RoutePatchMergePositionOrderedReadset *orderedReadset=mergeRoutes_buildForwardMergeTree(&patchScanPtr, patchEnd, disp);
-			patchScanPtr=patchPtr+1;
+			RoutePatchMergePositionOrderedReadtree *readTree=mergeRoutes_buildForwardMergeTree(&patchScanPtr, patchEnd, disp);
 
-	//		printf("MERGE: Scenario 0 -  %i %i",orderedReadset->minEdgePosition, orderedReadset->maxEdgePosition);
 			printf("MERGE: Scenario 0\n");
 
 			// Evil case: Multiple patches in prefix (orderedReadset)
