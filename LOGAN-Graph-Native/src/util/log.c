@@ -73,5 +73,8 @@ void _log(int level, int decorate, char *file, int line, const char *fmt, ...)
 #ifdef LOCK_LOG
 	pthread_mutex_unlock(&logMutex);
 #endif
+
+	if(level==LOG_CRITICAL)
+		raise(SIGSEGV);
 }
 

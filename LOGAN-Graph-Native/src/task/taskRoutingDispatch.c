@@ -623,6 +623,8 @@ int processReadsForSmer(RoutingDispatchIntermediate *rdi, u32 sliceIndex, SmerAr
 
 		if(currFmer<=currRmer) // Canonical Read Orientation
 			{
+				LOG(LOG_INFO,"Adding forward route to %li",currFmer);
+
 				SmerId prefixSmer=rdd->rsmers[index+1]; // Previous smer in read, reversed
 				SmerId suffixSmer=rdd->fsmers[index-1]; // Next smer in read
 
@@ -658,8 +660,11 @@ int processReadsForSmer(RoutingDispatchIntermediate *rdi, u32 sliceIndex, SmerAr
 			}
 		else	// Reverse-complement Read Orientation
 			{
+				LOG(LOG_INFO,"Adding reverse route to %li",currRmer);
+
 				SmerId prefixSmer=rdd->fsmers[index-1]; // Next smer in read
 				SmerId suffixSmer=rdd->rsmers[index+1]; // Previous smer in read, reversed
+
 
 				int prefixLength=rdd->readIndexes[index-1]-rdd->readIndexes[index];
 				int suffixLength=rdd->readIndexes[index]-rdd->readIndexes[index+1];
@@ -728,15 +733,15 @@ int processReadsForSmer(RoutingDispatchIntermediate *rdi, u32 sliceIndex, SmerAr
 		LOG(LOG_INFO,"Adding %i %i",forwardCount,reverseCount);
 		}
 */
-	mergeRoutes(&routeTableBuilder, forwardPatches, reversePatches, forwardCount, reverseCount, maxNewPrefix, maxNewSuffix, disp);
+	mergeRoutes(&routeTableBuilder, forwardPatches, reversePatches, forwardCount, reverseCount, maxNewPrefix, maxNewSuffix, orderedDispatches, disp);
 
+	/*
 	for(int i=0;i<forwardCount;i++)
-		//*(orderedDispatches++)=rdi->entries[forwardPatches[i].rdiIndex];
 		*(orderedDispatches++)=*(forwardPatches[i].rdiPtr);
 
 	for(int i=0;i<reverseCount;i++)
-		//*(orderedDispatches++)=rdi->entries[reversePatches[i].rdiIndex];
 		*(orderedDispatches++)=*(reversePatches[i].rdiPtr);
+*/
 
 /*
 	if(debug)

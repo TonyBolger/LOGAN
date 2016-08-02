@@ -518,7 +518,7 @@ int scanForAndDispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb)
 		memcpy(readDispatch->sliceIndexes, sliceIndexes-offset, foundCount*sizeof(u32));
 
 		readDispatch->minEdgePosition=0;
-		readDispatch->maxEdgePosition=INT_MAX;
+		readDispatch->maxEdgePosition=(INT_MAX>>1);
 
 		readDispatch->completionCountPtr=&(dispatchReadBlock->completionCount);
 

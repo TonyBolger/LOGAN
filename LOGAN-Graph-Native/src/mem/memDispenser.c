@@ -8,10 +8,7 @@ static MemDispenserBlock *dispenserBlockAlloc()
 	MemDispenserBlock *block=memalign(CACHE_ALIGNMENT_SIZE, sizeof(MemDispenserBlock));
 
 	if(block==NULL)
-		{
-		LOG(LOG_INFO,"Failed to alloc dispenser block");
-		exit(1);
-		}
+		LOG(LOG_CRITICAL,"Failed to alloc dispenser block");
 
 	block->prev=NULL;
 	block->allocated=0;
@@ -28,10 +25,7 @@ MemDispenser *dispenserAlloc(const char *name)
 	MemDispenser *disp=malloc(sizeof(MemDispenser));
 
 	if(disp==NULL)
-		{
-		LOG(LOG_INFO,"Failed to alloc dispenser");
-		exit(1);
-		}
+		LOG(LOG_CRITICAL,"Failed to alloc dispenser");
 
 	disp->name=name;
 	disp->block=dispenserBlockAlloc();
@@ -146,12 +140,13 @@ void *dAlloc(MemDispenser *disp, size_t size)
 
 	if(disp->allocated>DISPENSER_MAX)
 		{
-		fprintf(stderr,"Dispenser Overallocation detected - wanted %i\n",(int)size);
+		LOG(LOG_INFO,"Dispenser Overallocation detected - wanted %i\n",(int)size);
 		int i;
 		for(i=0;i<MAX_ALLOCATORS;i++)
-			fprintf(stderr,"%i %i\n",i,disp->allocatorUsage[i]);
+			LOG(LOG_INFO,"%i %i\n",i,disp->allocatorUsage[i]);
 
-		raise(SIGSEGV);
+		LOG(LOG_CRITICAL,"Dispenser refusing to allocate");
+
 		return NULL;
 		}
 
@@ -172,9 +167,9 @@ void *dAlloc(MemDispenser *disp, size_t size)
 
 	if(block->allocated+size > block->blocksize)
 		{
-		fprintf(stderr,"Dispenser Local overallocation detected - wanted %i\n",(int)size);
+		LOG(LOG_INFO,"Dispenser Local overallocation detected - wanted %i\n",(int)size);
 
-		raise(SIGSEGV);
+		LOG(LOG_CRITICAL,"Dispenser refusing to allocate");
 		return NULL;
 		}
 
@@ -196,12 +191,13 @@ void *dAllocLogged(MemDispenser *disp, size_t size)
 
 	if(disp->allocated>DISPENSER_MAX)
 		{
-		fprintf(stderr,"Dispenser Overallocation detected - wanted %i\n",(int)size);
+		LOG(LOG_INFO,"Dispenser Overallocation detected - wanted %i\n",(int)size);
 		int i;
 		for(i=0;i<MAX_ALLOCATORS;i++)
-			fprintf(stderr,"%i %i\n",i,disp->allocatorUsage[i]);
+			LOG(LOG_INFO,"%i %i\n",i,disp->allocatorUsage[i]);
 
-		raise(SIGSEGV);
+		LOG(LOG_CRITICAL,"Dispenser refusing to allocate");
+
 		return NULL;
 		}
 
@@ -222,9 +218,9 @@ void *dAllocLogged(MemDispenser *disp, size_t size)
 
 	if(block->allocated+size > block->blocksize)
 		{
-		fprintf(stderr,"Dispenser Local overallocation detected - wanted %i\n",(int)size);
+		LOG(LOG_INFO,"Dispenser Local overallocation detected - wanted %i\n",(int)size);
 
-		raise(SIGSEGV);
+		LOG(LOG_CRITICAL,"Dispenser refusing to allocate");
 		return NULL;
 		}
 
@@ -248,10 +244,12 @@ void *dAllocQuadAligned(MemDispenser *disp, size_t size)
 
 	if(disp->allocated>DISPENSER_MAX)
 		{
-		fprintf(stderr,"Dispenser Overallocation detected - wanted %i\n",(int)size);
+		LOG(LOG_INFO,"Dispenser Overallocation detected - wanted %i\n",(int)size);
 		int i;
 		for(i=0;i<MAX_ALLOCATORS;i++)
-			fprintf(stderr,"%i %i\n",i,disp->allocatorUsage[i]);
+			LOG(LOG_INFO,"%i %i\n",i,disp->allocatorUsage[i]);
+
+		LOG(LOG_CRITICAL,"Dispenser refusing to allocate");
 
 		return NULL;
 		}
@@ -283,7 +281,9 @@ void *dAllocQuadAligned(MemDispenser *disp, size_t size)
 
 	if(block->allocated+size > block->blocksize)
 		{
-		fprintf(stderr,"Dispenser Local overallocation detected - wanted %i\n",(int)size);
+		LOG(LOG_INFO,"Dispenser Local overallocation detected - wanted %i\n",(int)size);
+
+		LOG(LOG_CRITICAL,"Dispenser refusing to allocate");
 		return NULL;
 		}
 
@@ -306,10 +306,12 @@ void *dAllocCacheAligned(MemDispenser *disp, size_t size)
 
 	if(disp->allocated>DISPENSER_MAX)
 		{
-		fprintf(stderr,"Dispenser Overallocation detected - wanted %i\n",(int)size);
+		LOG(LOG_INFO,"Dispenser Overallocation detected - wanted %i\n",(int)size);
 		int i;
 		for(i=0;i<MAX_ALLOCATORS;i++)
-			fprintf(stderr,"%i %i\n",i,disp->allocatorUsage[i]);
+			LOG(LOG_INFO,"%i %i\n",i,disp->allocatorUsage[i]);
+
+		LOG(LOG_CRITICAL,"Dispenser refusing to allocate");
 
 		return NULL;
 		}
@@ -341,7 +343,9 @@ void *dAllocCacheAligned(MemDispenser *disp, size_t size)
 
 	if(block->allocated+size > block->blocksize)
 		{
-		fprintf(stderr,"Dispenser Local overallocation detected - wanted %i\n",(int)size);
+		LOG(LOG_INFO,"Dispenser Local overallocation detected - wanted %i\n",(int)size);
+
+		LOG(LOG_CRITICAL,"Dispenser refusing to allocate");
 		return NULL;
 		}
 

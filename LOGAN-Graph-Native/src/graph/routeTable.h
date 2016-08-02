@@ -99,8 +99,9 @@ s32 getRouteTableBuilderDirty(RouteTableBuilder *builder);
 s32 getRouteTableBuilderPackedSize(RouteTableBuilder *builder);
 u8 *writeRouteTableBuilderPackedData(RouteTableBuilder *builder, u8 *data);
 
-void mergeRoutes(RouteTableBuilder *builder, RoutePatch *forwardRoutePatches, RoutePatch *reverseRoutePatches, s32 forwardRoutePatchCount, s32 reverseRoutePatchCount,
-		s32 maxNewPrefix, s32 maxNewSuffix, MemDispenser *disp);
+void mergeRoutes(RouteTableBuilder *builder,
+		RoutePatch *forwardRoutePatches, RoutePatch *reverseRoutePatches, s32 forwardRoutePatchCount, s32 reverseRoutePatchCount,
+		s32 maxNewPrefix, s32 maxNewSuffix, RoutingReadData **orderedDispatches, MemDispenser *disp);
 
 void unpackRouteTableForSmerLinked(SmerLinked *smerLinked, u8 *data, MemDispenser *disp);
 
