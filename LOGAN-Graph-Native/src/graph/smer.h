@@ -39,6 +39,11 @@ typedef struct smerArraySliceStr
 	s32 smerCount;
 	Bloom bloom;
 	MemDispenser *sliceDisp;
+	long totalAlloc;
+	long totalAllocPrefix;
+	long totalAllocSuffix;
+	long totalAllocRoutes;
+	long totalRealloc;
 } SmerArraySlice;
 
 

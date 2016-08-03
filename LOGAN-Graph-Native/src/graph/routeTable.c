@@ -264,7 +264,7 @@ static u8 *readRouteTableBuilderPackedData(RouteTableBuilder *builder, u8 *data)
 	int tableSize=PAD_1BITLENGTH_BYTE((prefixBits+suffixBits+widthBits)*(forwardEntryCount+reverseEntryCount));
 	builder->totalPackedSize=headerSize+tableSize;
 
-	return data;
+	return data+tableSize;
 }
 
 u8 *initRouteTableBuilder(RouteTableBuilder *builder, u8 *data, MemDispenser *disp)
@@ -344,7 +344,8 @@ u8 *writeRouteTableBuilderPackedData(RouteTableBuilder *builder, u8 *data)
 
 	for(int i=0;i<forwardEntryCount;i++)
 		{
-		LOG(LOG_INFO,"Forward Route - P: %i %i %i", forwardEntries[i].prefix, forwardEntries[i].suffix,  forwardEntries[i].width);
+		if(forwardEntryCount>1000)
+			LOG(LOG_INFO,"Forward Route - P: %i %i %i", forwardEntries[i].prefix, forwardEntries[i].suffix,  forwardEntries[i].width);
 
 		packBits(&packer, prefixBits, forwardEntries[i].prefix);
 		packBits(&packer, suffixBits, forwardEntries[i].suffix);
@@ -352,7 +353,8 @@ u8 *writeRouteTableBuilderPackedData(RouteTableBuilder *builder, u8 *data)
 		}
 	for(int i=0;i<reverseEntryCount;i++)
 		{
-		LOG(LOG_INFO,"Reverse Route - P: %i %i %i", reverseEntries[i].prefix, reverseEntries[i].suffix,  reverseEntries[i].width);
+		if(reverseEntryCount>1000)
+			LOG(LOG_INFO,"Reverse Route - P: %i %i %i", reverseEntries[i].prefix, reverseEntries[i].suffix,  reverseEntries[i].width);
 
 		packBits(&packer, prefixBits, reverseEntries[i].prefix);
 		packBits(&packer, suffixBits, reverseEntries[i].suffix);
@@ -360,6 +362,13 @@ u8 *writeRouteTableBuilderPackedData(RouteTableBuilder *builder, u8 *data)
 		}
 
 	int tableSize=PAD_1BITLENGTH_BYTE((prefixBits+suffixBits+widthBits)*(forwardEntryCount+reverseEntryCount));
+
+	int size=headerSize+tableSize;
+
+	if(size!=builder->totalPackedSize)
+	{
+		LOG(LOG_CRITICAL,"Size %i did not match expected size %i",size,builder->totalPackedSize);
+	}
 
 	return data+tableSize;
 }
@@ -540,9 +549,9 @@ RouteTableEntry *mergeRoutes_ordered_forwardSingle(RouteTableEntry *oldEntryPtr,
 	int upstreamEdgeOffset=0;
 	int downstreamEdgeOffset=0;
 
-	LOG(LOG_INFO,"Forward - Want P: %i S: %i (%i,%i)",targetPrefix,targetSuffix,minEdgePosition,maxEdgePosition);
+//	LOG(LOG_INFO,"Forward - Want P: %i S: %i (%i,%i)",targetPrefix,targetSuffix,minEdgePosition,maxEdgePosition);
 
-	LOG(LOG_INFO,"At start, have %i",oldEntryEnd-oldEntryPtr);
+//	LOG(LOG_INFO,"At start, have %i",oldEntryEnd-oldEntryPtr);
 
 	while(oldEntryPtr<oldEntryEnd && oldEntryPtr->prefix<targetPrefix) // Skip lower upstream
 		{
@@ -551,7 +560,7 @@ RouteTableEntry *mergeRoutes_ordered_forwardSingle(RouteTableEntry *oldEntryPtr,
 
 		*(newEntryPtr++)=*(oldEntryPtr++);
 		}
-
+/*
 	if(oldEntryPtr<oldEntryEnd)
 		{
 		LOG(LOG_INFO,"After other upstream - Have %i - P: %i S: %i W: %i at %i",oldEntryEnd-oldEntryPtr,
@@ -561,9 +570,10 @@ RouteTableEntry *mergeRoutes_ordered_forwardSingle(RouteTableEntry *oldEntryPtr,
 		{
 		LOG(LOG_INFO,"After other upstream - Have empty");
 		}
-
+*/
 	while(oldEntryPtr<oldEntryEnd && oldEntryPtr->prefix==targetPrefix &&
-	    ((upstreamEdgeOffset+oldEntryPtr->width)<minEdgePosition ||((upstreamEdgeOffset+oldEntryPtr->width)==minEdgePosition && oldEntryPtr->suffix<targetSuffix))) // Skip earlier upstream
+			((upstreamEdgeOffset+oldEntryPtr->width)<minEdgePosition ||
+			((upstreamEdgeOffset+oldEntryPtr->width)==minEdgePosition && oldEntryPtr->suffix!=targetSuffix))) // Skip earlier upstream
 		{
 		upstreamEdgeOffset+=oldEntryPtr->width;
 		if(oldEntryPtr->suffix==targetSuffix)
@@ -571,7 +581,7 @@ RouteTableEntry *mergeRoutes_ordered_forwardSingle(RouteTableEntry *oldEntryPtr,
 
 		*(newEntryPtr++)=*(oldEntryPtr++);
 		}
-
+/*
 	if(oldEntryPtr<oldEntryEnd)
 		{
 		LOG(LOG_INFO,"After early position - Have %i - P: %i S: %i W: %i at %i",oldEntryEnd-oldEntryPtr,
@@ -581,9 +591,9 @@ RouteTableEntry *mergeRoutes_ordered_forwardSingle(RouteTableEntry *oldEntryPtr,
 		{
 		LOG(LOG_INFO,"After early position - Have empty");
 		}
-
+*/
 	while(oldEntryPtr<oldEntryEnd && oldEntryPtr->prefix==targetPrefix &&
-			(upstreamEdgeOffset+oldEntryPtr->width)<=maxEdgePosition && oldEntryPtr->suffix<targetSuffix) // Skip tolerable edge positions with lower downstream
+			(upstreamEdgeOffset+oldEntryPtr->width)<=maxEdgePosition && oldEntryPtr->suffix<targetSuffix) // Skip matching upstream with earlier downstream
 		{
 		if(oldEntryPtr->suffix==targetSuffix)
 			downstreamEdgeOffset+=oldEntryPtr->width;
@@ -591,7 +601,7 @@ RouteTableEntry *mergeRoutes_ordered_forwardSingle(RouteTableEntry *oldEntryPtr,
 		upstreamEdgeOffset+=oldEntryPtr->width;
 		*(newEntryPtr++)=*(oldEntryPtr++);
 		}
-
+/*
 	if(oldEntryPtr<oldEntryEnd)
 		{
 		LOG(LOG_INFO,"After early downstream - Have %i - P: %i  S: %i W: %i at %i",oldEntryEnd-oldEntryPtr,
@@ -601,14 +611,15 @@ RouteTableEntry *mergeRoutes_ordered_forwardSingle(RouteTableEntry *oldEntryPtr,
 		{
 		LOG(LOG_INFO,"After early downstream - Have empty");
 		}
+*/
 
-	int upstreamEdgeOffsetEnd=upstreamEdgeOffset+oldEntryPtr->width;
+
 
 	if(oldEntryPtr==oldEntryEnd || oldEntryPtr->prefix>targetPrefix ||
-	  (oldEntryPtr->suffix>targetSuffix && upstreamEdgeOffset>=minEdgePosition && upstreamEdgeOffset<=maxEdgePosition))
-																													// No suitable existing entry, insert/append here
+			(oldEntryPtr->suffix!=targetSuffix && upstreamEdgeOffset>=minEdgePosition))
+																								// No suitable existing entry, but can insert/append here
 		{
-		LOG(LOG_INFO,"Insert/Append at P: %i S: %i - %i %i",targetPrefix,targetSuffix,upstreamEdgeOffset,downstreamEdgeOffset);
+		//LOG(LOG_INFO,"Insert/Append at P: %i S: %i - %i %i",targetPrefix,targetSuffix,upstreamEdgeOffset,downstreamEdgeOffset);
 
 		int minMargin=upstreamEdgeOffset-minEdgePosition; // Margin between current position and minimum position: Must be zero or positive
 		int maxMargin=maxEdgePosition-upstreamEdgeOffset; // Margin between current position and maximum position: Must be zero or positive
@@ -630,7 +641,12 @@ RouteTableEntry *mergeRoutes_ordered_forwardSingle(RouteTableEntry *oldEntryPtr,
 		}
 	else if(oldEntryPtr->prefix==targetPrefix && oldEntryPtr->suffix==targetSuffix) // Existing entry suitable, widen
 		{
-		LOG(LOG_INFO,"Widen");
+		//LOG(LOG_INFO,"Widen");
+
+		int upstreamEdgeOffsetEnd=upstreamEdgeOffset+oldEntryPtr->width;
+
+		int oldMinEdgePosition=minEdgePosition;
+		int oldMaxEdgePosition=maxEdgePosition;
 
 		// Adjust offsets
 		if(minEdgePosition<upstreamEdgeOffset) // Trim upstream range to entry
@@ -646,6 +662,8 @@ RouteTableEntry *mergeRoutes_ordered_forwardSingle(RouteTableEntry *oldEntryPtr,
 			{
 			LOG(LOG_CRITICAL,"Invalid offsets or gap detected in route insert - Min: %i Max: %i",minOffset,maxOffset);
 			}
+
+		LOG(LOG_INFO,"Widen: Upstream Range: %i %i Offset Range Now: %i %i",oldMinEdgePosition,oldMaxEdgePosition, minOffset, maxOffset);
 
 		// Map offsets to new entry
 		(*(patch->rdiPtr))->minEdgePosition=downstreamEdgeOffset+minOffset;
@@ -664,17 +682,16 @@ RouteTableEntry *mergeRoutes_ordered_forwardSingle(RouteTableEntry *oldEntryPtr,
 	else // Existing entry unsuitable, split and insert
 		{
 		LOG(LOG_INFO,"Split");
+/*
+		int upstreamEdgeOffsetEnd=upstreamEdgeOffset+oldEntryPtr->width;
 
 		if(minEdgePosition<=upstreamEdgeOffset || maxEdgePosition>upstreamEdgeOffsetEnd)
 			{
 			LOG(LOG_CRITICAL,"Unnecessary Split - Min: %i %i Max: %i %i",minEdgePosition, upstreamEdgeOffset, maxEdgePosition, upstreamEdgeOffsetEnd);
 			}
+*/
 
 		int targetEdgePosition=oldEntryPtr->suffix>targetSuffix?minEdgePosition:maxEdgePosition; // Early or late split
-
-		// Map offsets
-		(*(patch->rdiPtr))->minEdgePosition=downstreamEdgeOffset;
-		(*(patch->rdiPtr))->maxEdgePosition=downstreamEdgeOffset;
 
 		int splitWidth1=targetEdgePosition-upstreamEdgeOffset;
 		int splitWidth2=oldEntryPtr->width-splitWidth1;
@@ -683,6 +700,12 @@ RouteTableEntry *mergeRoutes_ordered_forwardSingle(RouteTableEntry *oldEntryPtr,
 			{
 			LOG(LOG_CRITICAL,"Non-positive split width detected in route insert - Width1: %i Width2: %i from %i",splitWidth1, splitWidth2);
 			}
+
+
+		// Map offsets
+		(*(patch->rdiPtr))->minEdgePosition=downstreamEdgeOffset;
+		(*(patch->rdiPtr))->maxEdgePosition=downstreamEdgeOffset;
+
 
 		newEntryPtr->prefix=oldEntryPtr->prefix;	// Insert first part of split
 		newEntryPtr->suffix=oldEntryPtr->suffix;
@@ -720,9 +743,9 @@ RouteTableEntry *mergeRoutes_ordered_reverseSingle(RouteTableEntry *oldEntryPtr,
 	int upstreamEdgeOffset=0;
 	int downstreamEdgeOffset=0;
 
-	LOG(LOG_INFO,"Reverse - Want P: %i S: %i (%i,%i)",targetPrefix,targetSuffix,minEdgePosition,maxEdgePosition);
+//	LOG(LOG_INFO,"Reverse - Want P: %i S: %i (%i,%i)",targetPrefix,targetSuffix,minEdgePosition,maxEdgePosition);
 
-	LOG(LOG_INFO,"At start, have %i",oldEntryEnd-oldEntryPtr);
+//	LOG(LOG_INFO,"At start, have %i",oldEntryEnd-oldEntryPtr);
 
 	while(oldEntryPtr<oldEntryEnd && oldEntryPtr->suffix<targetSuffix) // Skip lower upstream
 		{
@@ -731,7 +754,7 @@ RouteTableEntry *mergeRoutes_ordered_reverseSingle(RouteTableEntry *oldEntryPtr,
 
 		*(newEntryPtr++)=*(oldEntryPtr++);
 		}
-
+/*
 	if(oldEntryPtr<oldEntryEnd)
 		{
 		LOG(LOG_INFO,"After other upstream - Have %i - P: %i S: %i W: %i at %i",oldEntryEnd-oldEntryPtr,
@@ -741,9 +764,10 @@ RouteTableEntry *mergeRoutes_ordered_reverseSingle(RouteTableEntry *oldEntryPtr,
 		{
 		LOG(LOG_INFO,"After other upstream - Have empty");
 		}
-
+*/
 	while(oldEntryPtr<oldEntryEnd && oldEntryPtr->suffix==targetSuffix &&
-		((upstreamEdgeOffset+oldEntryPtr->width)<minEdgePosition || ((upstreamEdgeOffset+oldEntryPtr->width)==minEdgePosition && oldEntryPtr->prefix<targetPrefix)))	// Skip earlier upstream
+			((upstreamEdgeOffset+oldEntryPtr->width)<minEdgePosition ||
+			((upstreamEdgeOffset+oldEntryPtr->width)==minEdgePosition && oldEntryPtr->prefix!=targetPrefix))) // Skip earlier upstream
 		{
 		upstreamEdgeOffset+=oldEntryPtr->width;
 		if(oldEntryPtr->prefix==targetPrefix)
@@ -751,7 +775,7 @@ RouteTableEntry *mergeRoutes_ordered_reverseSingle(RouteTableEntry *oldEntryPtr,
 
 		*(newEntryPtr++)=*(oldEntryPtr++);
 		}
-
+/*
 	if(oldEntryPtr<oldEntryEnd)
 		{
 		LOG(LOG_INFO,"After early position - Have %i - P: %i S: %i W: %i at %i",oldEntryEnd-oldEntryPtr,
@@ -761,9 +785,9 @@ RouteTableEntry *mergeRoutes_ordered_reverseSingle(RouteTableEntry *oldEntryPtr,
 		{
 		LOG(LOG_INFO,"After early position - Have empty");
 		}
-
+*/
 	while(oldEntryPtr<oldEntryEnd && oldEntryPtr->suffix==targetSuffix &&
-			(upstreamEdgeOffset+oldEntryPtr->width)<=maxEdgePosition && oldEntryPtr->prefix<targetPrefix) // Skip tolerable edge positions with lower downstream
+			(upstreamEdgeOffset+oldEntryPtr->width)<=maxEdgePosition && oldEntryPtr->prefix<targetPrefix)  // Skip matching upstream with earlier downstream
 		{
 		if(oldEntryPtr->prefix==targetPrefix)
 			downstreamEdgeOffset+=oldEntryPtr->width;
@@ -771,7 +795,7 @@ RouteTableEntry *mergeRoutes_ordered_reverseSingle(RouteTableEntry *oldEntryPtr,
 		upstreamEdgeOffset+=oldEntryPtr->width;
 		*(newEntryPtr++)=*(oldEntryPtr++);
 		}
-
+/*
 	if(oldEntryPtr<oldEntryEnd)
 		{
 		LOG(LOG_INFO,"After early downstream - Have %i - P: %i  S: %i W: %i at %i",oldEntryEnd-oldEntryPtr,
@@ -781,14 +805,12 @@ RouteTableEntry *mergeRoutes_ordered_reverseSingle(RouteTableEntry *oldEntryPtr,
 		{
 		LOG(LOG_INFO,"After early downstream - Have empty");
 		}
-
-	int upstreamEdgeOffsetEnd=upstreamEdgeOffset+oldEntryPtr->width;
-
+*/
 	if(oldEntryPtr==oldEntryEnd || oldEntryPtr->suffix>targetSuffix ||
-			(oldEntryPtr->prefix>targetPrefix && upstreamEdgeOffset>=minEdgePosition && upstreamEdgeOffset<=maxEdgePosition))
-																													// No suitable existing entry, insert/append here
+		(oldEntryPtr->prefix!=targetPrefix && upstreamEdgeOffset>=minEdgePosition))
+																							// No suitable existing entry, but can insert/append here
 		{
-		LOG(LOG_INFO,"Insert/Append at P: %i S: %i - %i %i",targetPrefix,targetSuffix,upstreamEdgeOffset,downstreamEdgeOffset);
+//		LOG(LOG_INFO,"Insert/Append at P: %i S: %i - %i %i",targetPrefix,targetSuffix,upstreamEdgeOffset,downstreamEdgeOffset);
 
 		int minMargin=upstreamEdgeOffset-minEdgePosition; // Margin between current position and minimum position: Must be zero or positive
 		int maxMargin=maxEdgePosition-upstreamEdgeOffset; // Margin between current position and maximum position: Must be zero or positive
@@ -810,8 +832,9 @@ RouteTableEntry *mergeRoutes_ordered_reverseSingle(RouteTableEntry *oldEntryPtr,
 		}
 	else if(oldEntryPtr->prefix==targetPrefix) // Existing entry suitable, widen
 		{
-		LOG(LOG_INFO,"Widen");
+//		LOG(LOG_INFO,"Widen");
 
+		int upstreamEdgeOffsetEnd=upstreamEdgeOffset+oldEntryPtr->width;
 		// Adjust offsets
 
 		if(minEdgePosition<upstreamEdgeOffset) // Trim upstream range to entry
@@ -844,13 +867,16 @@ RouteTableEntry *mergeRoutes_ordered_reverseSingle(RouteTableEntry *oldEntryPtr,
 		}
 	else // Existing entry unsuitable, split and insert
 		{
-		LOG(LOG_INFO,"Split");
+//		LOG(LOG_INFO,"Split");
+
+		/*
+		int upstreamEdgeOffsetEnd=upstreamEdgeOffset+oldEntryPtr->width;
 
 		if(minEdgePosition<=upstreamEdgeOffset || maxEdgePosition>upstreamEdgeOffsetEnd)
 			{
 			LOG(LOG_CRITICAL,"Unnecessary Split - Min: %i %i Max: %i %i",minEdgePosition, upstreamEdgeOffset, maxEdgePosition, upstreamEdgeOffsetEnd);
 			}
-
+*/
 		int targetEdgePosition=oldEntryPtr->prefix>targetPrefix?minEdgePosition:maxEdgePosition; // Early or late split
 
 		// Map offsets
@@ -967,7 +993,7 @@ void mergeRoutes_ordered(RouteTableBuilder *builder, RoutePatch *forwardRoutePat
 
 			if(patchPeekPtr<patchEnd && patchPeekPtr->prefixIndex==targetUpstream)
 				{
-				LOG(LOG_INFO,"MERGE: Scenario 0");
+//				LOG(LOG_INFO,"MERGE: Scenario 0");
 				// Evil case: Multiple patches in prefix (orderedReadset)
 
 				while(patchPtr<patchEnd && patchPtr->prefixIndex==targetUpstream)
@@ -986,7 +1012,7 @@ void mergeRoutes_ordered(RouteTableBuilder *builder, RoutePatch *forwardRoutePat
 			else
 				{
 			// Medium case: Single patch in prefix (patchPtr)
-				LOG(LOG_INFO,"MERGE: Scenario 1");
+//				LOG(LOG_INFO,"MERGE: Scenario 1");
 
 				destBufferEnd=mergeRoutes_ordered_forwardSingle(srcBuffer, srcBufferEnd, destBuffer, patchPtr, &maxWidth);
 
@@ -1005,10 +1031,10 @@ void mergeRoutes_ordered(RouteTableBuilder *builder, RoutePatch *forwardRoutePat
 		builder->newForwardEntries=dAlloc(disp, forwardCount*sizeof(RouteTableEntry));
 		memcpy(builder->newForwardEntries, srcBuffer, forwardCount*sizeof(RouteTableEntry));
 
-		LOG(LOG_INFO,"Was %i Now %i",builder->oldForwardEntryCount,forwardCount);
+//		LOG(LOG_INFO,"Was %i Now %i",builder->oldForwardEntryCount,forwardCount);
 
-		if(forwardCount>0)
-			LOG(LOG_INFO,"FirstRev: P: %i S: %i W: %i",builder->newForwardEntries[0].prefix,builder->newForwardEntries[0].suffix,builder->newForwardEntries[0].width);
+//		if(forwardCount>0)
+//			LOG(LOG_INFO,"FirstRev: P: %i S: %i W: %i",builder->newForwardEntries[0].prefix,builder->newForwardEntries[0].suffix,builder->newForwardEntries[0].width);
 		}
 
 
@@ -1035,7 +1061,7 @@ void mergeRoutes_ordered(RouteTableBuilder *builder, RoutePatch *forwardRoutePat
 
 			if(patchPeekPtr<patchEnd && patchPeekPtr->suffixIndex==targetUpstream)
 				{
-				LOG(LOG_INFO,"MERGE: Scenario 0");
+	//			LOG(LOG_INFO,"MERGE: Scenario 0");
 				// Evil case: Multiple patches in prefix (orderedReadset)
 
 				while(patchPtr<patchEnd && patchPtr->suffixIndex==targetUpstream)
@@ -1054,7 +1080,7 @@ void mergeRoutes_ordered(RouteTableBuilder *builder, RoutePatch *forwardRoutePat
 			else
 				{
 				// Medium case: Single patch in prefix (patchPtr)
-				LOG(LOG_INFO,"MERGE: Scenario 1");
+//				LOG(LOG_INFO,"MERGE: Scenario 1");
 
 				destBufferEnd=mergeRoutes_ordered_reverseSingle(srcBuffer, srcBufferEnd, destBuffer, patchPtr, &maxWidth);
 
@@ -1073,10 +1099,10 @@ void mergeRoutes_ordered(RouteTableBuilder *builder, RoutePatch *forwardRoutePat
 		builder->newReverseEntries=dAlloc(disp, reverseCount*sizeof(RouteTableEntry));
 		memcpy(builder->newReverseEntries, srcBuffer, reverseCount*sizeof(RouteTableEntry));
 
-		LOG(LOG_INFO,"Was %i Now %i",builder->oldReverseEntryCount,reverseCount);
+		//LOG(LOG_INFO,"Was %i Now %i",builder->oldReverseEntryCount,reverseCount);
 
-		if(reverseCount>0)
-			LOG(LOG_INFO,"FirstRev: P: %i S: %i W: %i",builder->newReverseEntries[0].prefix,builder->newReverseEntries[0].suffix,builder->newReverseEntries[0].width);
+		//if(reverseCount>0)
+//			LOG(LOG_INFO,"FirstRev: P: %i S: %i W: %i",builder->newReverseEntries[0].prefix,builder->newReverseEntries[0].suffix,builder->newReverseEntries[0].width);
 		}
 
 	builder->maxWidth=maxWidth;

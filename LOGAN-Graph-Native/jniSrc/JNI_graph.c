@@ -632,8 +632,7 @@ JNIEXPORT jlong JNICALL Java_logan_graph_Graph_alloc_1Native(
 
 
 /* logan.graph.Graph: free: Destroys a Graph instance */
-
-JNIEXPORT void JNICALL Java_pagan_dbg_DeBruijnGraph_free_1Native(
+JNIEXPORT void JNICALL Java_logan_graph_Graph_free_1Native(
 		JNIEnv *env, jobject this, jlong handle)
 {
 	Graph *graph = (Graph *) handle;
@@ -646,7 +645,14 @@ JNIEXPORT void JNICALL Java_pagan_dbg_DeBruijnGraph_free_1Native(
 	freeGraph(graph);
 }
 
+/* logan.graph.Graph: dump: Shows informatino about a Graph instance */
+JNIEXPORT void JNICALL Java_logan_graph_Graph_dump_1Native(
+		JNIEnv *env, jobject this, jlong handle)
+{
+//	Graph *graph = (Graph *) handle;
 
+
+}
 
 
 

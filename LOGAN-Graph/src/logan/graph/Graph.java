@@ -84,6 +84,15 @@ public class Graph {
 		return getLinkedSmer_Native(graphHandle, smerId);
 	}
 
+	public void free() throws GraphException
+	{
+		checkHandle();
+		free_Native(graphHandle);
+		
+		graphHandle=0;
+	}
+	
+	
 	/* Sanity checks */
 	
 	private void checkHandle() throws GraphException

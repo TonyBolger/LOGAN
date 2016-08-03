@@ -857,7 +857,69 @@ chrA01  14966   .       A       T       316     .       DP=942;VDB=0.107999;SGB=
 	
 	
 	
-	
+LinkedSmer [ID: 0, Seq: AAAAAAAAAAAAAAAAAAAAAAA, 
+Prefixes(9): [
+Tail [seq=CTTTTTTTTTTTTTTTT, smerExists=0, smerId=8192]
+Tail [seq=C, smerExists=0, smerId=35184372088832]
+Tail [seq=CTTTT, smerExists=0, smerId=137438953472]
+Tail [seq=CTTTTTTTTTTTGAAAGGCCA, smerExists=0, smerId=64183185965088]
+Tail [seq=T, smerExists=1, smerId=0]
+Tail [seq=G, smerExists=1, smerId=17592186044416]
+Tail [seq=CGATGCGAA, smerExists=1, smerId=67703180099584]
+Tail [seq=CTTCTGTGGCTGTTGCCGCGT, smerExists=1, smerId=7048118159392]
+Tail [seq=AGAGGGAGACT, smerExists=1, smerId=12599135567872]], 
+Suffixes(5): [
+Tail [seq=A, smerExists=1, smerId=0]
+Tail [seq=TCAACTGACAGAGATGATGAAA, smerExists=1, smerId=14325939495808]
+Tail [seq=CAAAAAAAAAAAAAAAAAAAAAA, smerExists=1, smerId=17592186044416]
+Tail [seq=CAAAAACAATAAAA, smerExists=0, smerId=67126016]
+Tail [seq=CAAAAAAAAAAA, smerExists=0, smerId=4194304]], 
+ForwardRoutes(40): [
+Route [prefix=0, suffix=1, width=21]
+Route [prefix=1, suffix=1, width=1]
+Route [prefix=2, suffix=1, width=1]
+Route [prefix=3, suffix=1, width=1]
+Route [prefix=4, suffix=1, width=1]
+Route [prefix=5, suffix=1, width=1269]
+Route [prefix=5, suffix=0, width=1]
+Route [prefix=5, suffix=3, width=1]
+Route [prefix=5, suffix=1, width=68]
+Route [prefix=5, suffix=3, width=1]
+Route [prefix=5, suffix=1, width=69]
+Route [prefix=5, suffix=0, width=1]
+Route [prefix=5, suffix=1, width=81]
+Route [prefix=5, suffix=0, width=1]
+Route [prefix=5, suffix=1, width=241]
+Route [prefix=5, suffix=0, width=1]
+Route [prefix=5, suffix=1, width=75]
+Route [prefix=5, suffix=0, width=19]
+Route [prefix=5, suffix=5, width=1]
+Route [prefix=5, suffix=1, width=12]
+Route [prefix=5, suffix=0, width=1]
+Route [prefix=5, suffix=1, width=3]
+Route [prefix=5, suffix=0, width=1]
+Route [prefix=5, suffix=1, width=3]
+Route [prefix=5, suffix=0, width=1]
+Route [prefix=5, suffix=1, width=22]
+Route [prefix=5, suffix=0, width=1]
+Route [prefix=5, suffix=1, width=62]
+Route [prefix=5, suffix=0, width=1]
+Route [prefix=5, suffix=1, width=18]
+Route [prefix=5, suffix=4, width=1]
+Route [prefix=5, suffix=1, width=123]
+Route [prefix=5, suffix=0, width=1]
+Route [prefix=5, suffix=1, width=13]
+Route [prefix=5, suffix=3, width=1]
+Route [prefix=5, suffix=1, width=7]
+Route [prefix=6, suffix=1, width=6]
+Route [prefix=7, suffix=1, width=1]
+Route [prefix=8, suffix=1, width=1]
+Route [prefix=9, suffix=1, width=1]], 
+ReverseRoutes(3): [
+Route [prefix=0, suffix=1, width=1]
+Route [prefix=5, suffix=1, width=33]
+Route [prefix=5, suffix=2, width=1]] ]
+
 	
 	
 	

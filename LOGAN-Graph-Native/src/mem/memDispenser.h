@@ -36,6 +36,7 @@ typedef struct memDispenserStr
 
 MemDispenser *dispenserAlloc(const char *name);
 void dispenserFree(MemDispenser *dispenser);
+void dispenserFreeLogged(MemDispenser *dispenser);
 //void dispenserNukeFree(MemDispenser *disp, u8 val);
 
 void dispenserReset(MemDispenser *dispenser);

@@ -545,7 +545,7 @@ public class LinkedSmer {
 	*/
 
 
-	public static Collection<EdgeContext> makeSequenceEndTailContexts(LinkedSmer smer, boolean sequenceStart, boolean sequenceEnd, boolean forwardRoutes, boolean reverseRoutes)
+	public static List<EdgeContext> makeSequenceEndTailContexts(LinkedSmer smer, boolean sequenceStart, boolean sequenceEnd, boolean forwardRoutes, boolean reverseRoutes)
 	{
 		List<EdgeContext> contexts=new ArrayList<EdgeContext>();
 		if(forwardRoutes)
@@ -623,6 +623,49 @@ public class LinkedSmer {
 	}
 
 
+	
+	public static List<EdgeContext> makeSequenceContexts(LinkedSmer smer, boolean forwardRoutes, boolean reverseRoutes)
+	{
+		List<EdgeContext> contexts=new ArrayList<EdgeContext>();
+		if(forwardRoutes)
+			{
+			int prefixPositions[]=new int[smer.prefixes.length+1];
+			int suffixPositions[]=new int[smer.suffixes.length+1];
+
+			for(Route route: smer.forwardRoutes)
+				{
+				int tailPosition=prefixPositions[route.prefix];
+
+				for(int i=0;i<route.width;i++)
+					contexts.add(new EdgeContext(smer, route.prefix, WhichTail.PREFIX, WhichRouteTable.FORWARD, tailPosition+i));
+
+				prefixPositions[route.prefix]+=route.width;
+				suffixPositions[route.suffix]+=route.width;
+				}
+			}
+
+		if(reverseRoutes)
+			{
+			int prefixPositions[]=new int[smer.prefixes.length+1];
+			int suffixPositions[]=new int[smer.suffixes.length+1];
+
+			for(Route route: smer.reverseRoutes)
+				{
+				int tailPosition=suffixPositions[route.suffix];
+
+				for(int i=0;i<route.width;i++)
+					contexts.add(new EdgeContext(smer, route.suffix, WhichTail.SUFFIX, WhichRouteTable.REVERSE, tailPosition+i));
+
+				prefixPositions[route.prefix]+=route.width;
+				suffixPositions[route.suffix]+=route.width;
+				}
+			}
+
+
+		return contexts;
+	}
+
+	
 
 
 

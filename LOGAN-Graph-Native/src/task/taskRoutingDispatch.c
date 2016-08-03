@@ -155,6 +155,7 @@ void recycleRoutingDispatchGroupState(RoutingDispatchGroupState *dispatchGroupSt
 	if(dispatchGroupState->disp!=NULL)
 		{
 		dispenserFree(dispatchGroupState->disp);
+		//dispenserFreeLogged(dispatchGroupState->disp);
 		//dispatchGroupState->disp=NULL;
 		}
 
@@ -187,8 +188,7 @@ static void queueDispatchForGroup(RoutingBuilder *rb, RoutingDispatch *dispatchF
 		{
 		if(loopCount++>1000000)
 			{
-			LOG(LOG_INFO,"Loop Stuck");
-			exit(0);
+			LOG(LOG_CRITICAL,"Loop Stuck");
 			}
 
 		current= __atomic_load_n(rb->dispatchPtr+groupNum, __ATOMIC_SEQ_CST);
@@ -207,8 +207,7 @@ static RoutingDispatch *dequeueDispatchForGroupList(RoutingBuilder *rb, int grou
 		{
 		if(loopCount++>1000000)
 			{
-			LOG(LOG_INFO,"Loop Stuck");
-			exit(0);
+			LOG(LOG_CRITICAL,"Loop Stuck");
 			}
 
 		current= __atomic_load_n(rb->dispatchPtr+groupNum, __ATOMIC_SEQ_CST);
@@ -247,8 +246,7 @@ static int unlockRoutingDispatchGroupState(RoutingBuilder *rb, int groupNum)
 	u32 current=1;
 	if(!__atomic_compare_exchange_n(&(rb->dispatchGroupState[groupNum].status), &current, 0, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST))
 		{
-		LOG(LOG_INFO,"Tried to unlock DispatchState without lock, should never happen");
-		exit(1);
+		LOG(LOG_CRITICAL,"Tried to unlock DispatchState without lock, should never happen");
 		}
 
 	return 1;
@@ -302,8 +300,8 @@ RoutingReadDispatchBlock *allocateReadDispatchBlock(RoutingBuilder *rb)
 			}
 		}
 
-	LOG(LOG_INFO,"Failed to queue dispatch readblock, should never happen"); // Can actually happen, just stupidly unlikely
-	exit(1);
+	LOG(LOG_CRITICAL,"Failed to queue dispatch readblock, should never happen"); // Can actually happen, just stupidly unlikely
+	return NULL;
 }
 
 
@@ -313,8 +311,7 @@ void queueReadDispatchBlock(RoutingReadDispatchBlock *readBlock)
 
 	if(!__atomic_compare_exchange_n(&(readBlock->status),&current,2, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST))
 		{
-		LOG(LOG_INFO,"Tried to queue dispatch readblock in wrong state, should never happen");
-		exit(1);
+		LOG(LOG_CRITICAL,"Tried to queue dispatch readblock in wrong state, should never happen");
 		}
 }
 
@@ -356,8 +353,7 @@ void unallocateReadDispatchBlock(RoutingReadDispatchBlock *readBlock)
 
 	if(!__atomic_compare_exchange_n(&(readBlock->status),&current, 0, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST))
 		{
-		LOG(LOG_INFO,"Tried to unreserve dispatch readblock in wrong state, should never happen");
-		exit(1);
+		LOG(LOG_CRITICAL,"Tried to unreserve dispatch readblock in wrong state, should never happen");
 		}
 }
 
@@ -382,8 +378,7 @@ int scanForCompleteReadDispatchBlocks(RoutingBuilder *rb)
 
 		if(dispCompletion!=0)
 			{
-			LOG(LOG_INFO,"EECK - Dispatch array not completed");
-			exit(1);
+			LOG(LOG_CRITICAL,"EECK - Dispatch array not completed");
 			}
 
 		else
@@ -570,9 +565,21 @@ int processReadsForSmer(RoutingDispatchIntermediate *rdi, u32 sliceIndex, SmerAr
 	SeqTailBuilder prefixBuilder, suffixBuilder;
 	RouteTableBuilder routeTableBuilder;
 
+	u8 *tmp;
+
+	tmp=smerData;
 	smerData=initSeqTailBuilder(&prefixBuilder, smerData, disp);
+	int oldSizePrefix=smerData-tmp;
+
+	tmp=smerData;
 	smerData=initSeqTailBuilder(&suffixBuilder, smerData, disp);
+	int oldSizeSuffix=smerData-tmp;
+
+	tmp=smerData;
 	smerData=initRouteTableBuilder(&routeTableBuilder, smerData, disp);
+	int oldSizeRoutes=smerData-tmp;
+
+	int oldSize=smerData-slice->smerData[sliceIndex];
 
 	int entryCount=rdi->entryCount;
 
@@ -623,7 +630,7 @@ int processReadsForSmer(RoutingDispatchIntermediate *rdi, u32 sliceIndex, SmerAr
 
 		if(currFmer<=currRmer) // Canonical Read Orientation
 			{
-				LOG(LOG_INFO,"Adding forward route to %li",currFmer);
+				//LOG(LOG_INFO,"Adding forward route to %li",currFmer);
 
 				SmerId prefixSmer=rdd->rsmers[index+1]; // Previous smer in read, reversed
 				SmerId suffixSmer=rdd->fsmers[index-1]; // Next smer in read
@@ -660,7 +667,7 @@ int processReadsForSmer(RoutingDispatchIntermediate *rdi, u32 sliceIndex, SmerAr
 			}
 		else	// Reverse-complement Read Orientation
 			{
-				LOG(LOG_INFO,"Adding reverse route to %li",currRmer);
+				//LOG(LOG_INFO,"Adding reverse route to %li",currRmer);
 
 				SmerId prefixSmer=rdd->fsmers[index-1]; // Next smer in read
 				SmerId suffixSmer=rdd->rsmers[index+1]; // Previous smer in read, reversed
@@ -757,7 +764,29 @@ int processReadsForSmer(RoutingDispatchIntermediate *rdi, u32 sliceIndex, SmerAr
 		int suffixPackedSize=getSeqTailBuilderPackedSize(&suffixBuilder);
 		int routeTablePackedSize=getRouteTableBuilderPackedSize(&routeTableBuilder);
 
-		u8 *packedData=dAlloc(slice->sliceDisp, prefixPackedSize+suffixPackedSize+routeTablePackedSize);
+		int diffPrefix=prefixPackedSize-oldSizePrefix;
+		int diffSuffix=suffixPackedSize-oldSizeSuffix;
+		int diffRoutes=routeTablePackedSize-oldSizeRoutes;
+
+		int totalSize=prefixPackedSize+suffixPackedSize+routeTablePackedSize;
+		int sizeDiff=totalSize-oldSize;
+
+		LOG(LOG_INFO,"Slice Alloc: %i %i (%i %i) %i %i (%i %i) %i %i (%i %i %i %i)",
+				prefixPackedSize, diffPrefix, prefixBuilder.oldTailCount,prefixBuilder.newTailCount,
+				suffixPackedSize, diffSuffix, suffixBuilder.oldTailCount,suffixBuilder.newTailCount,
+				routeTablePackedSize, diffRoutes,
+				routeTableBuilder.oldForwardEntryCount,routeTableBuilder.oldReverseEntryCount,
+				routeTableBuilder.newForwardEntryCount,routeTableBuilder.newReverseEntryCount);
+
+		slice->totalAlloc+=sizeDiff;
+
+		slice->totalAllocPrefix+=diffPrefix;
+		slice->totalAllocSuffix+=diffSuffix;
+		slice->totalAllocRoutes+=diffRoutes;
+
+		slice->totalRealloc+=oldSize;
+
+		u8 *packedData=dAlloc(slice->sliceDisp, totalSize);
 
 		u8 *dataTmp=writeSeqTailBuilderPackedData(&prefixBuilder, packedData);
 		dataTmp=writeSeqTailBuilderPackedData(&suffixBuilder, dataTmp);
@@ -926,6 +955,8 @@ static int scanForDispatchesForGroups(RoutingBuilder *rb, int startGroup, int en
 							{
 							RoutingReadData **orderedDispatches=dAlloc(groupState->disp, sizeof(RoutingReadData *)*inboundEntryCount);
 
+							int sliceNumber=j+(i << SMER_DISPATCH_GROUP_SHIFT);
+							LOG(LOG_INFO,"Processing slice %i",sliceNumber)
 							processSlice(smerInboundDispatches, slice, orderedDispatches, groupState->disp);
 
 //							LOG(LOG_INFO,"IndexGroup:");

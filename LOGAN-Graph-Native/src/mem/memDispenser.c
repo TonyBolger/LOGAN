@@ -22,6 +22,7 @@ static MemDispenserBlock *dispenserBlockAlloc()
 
 MemDispenser *dispenserAlloc(const char *name)
 {
+	//LOG(LOG_INFO,"Allocating Dispenser: %s",name);
 	MemDispenser *disp=malloc(sizeof(MemDispenser));
 
 	if(disp==NULL)
@@ -59,19 +60,40 @@ void dispenserFree(MemDispenser *disp)
 		blockPtr=prevPtr;
 		}
 
-	/*
-	if(totalAllocated>100000000)
-		{
-		fprintf(stderr,"Total Allocated %i\n",totalAllocated);
-		int i;
-
-		for(i=0;i<MAX_ALLOCATORS;i++)
-			fprintf(stderr,"Allocated (%i) %i\n",i,disp->allocatorUsage[i]);
-		}
-*/
 
 	free(disp);
 }
+
+void dispenserFreeLogged(MemDispenser *disp)
+{
+	if(disp==NULL)
+		return;
+
+	int totalAllocated=0;
+
+	MemDispenserBlock *blockPtr=disp->block;
+
+	while(blockPtr!=NULL)
+		{
+		MemDispenserBlock *prevPtr=blockPtr->prev;
+
+		totalAllocated+=blockPtr->allocated;
+
+		free(blockPtr);
+		blockPtr=prevPtr;
+		}
+
+
+	if(totalAllocated>0)
+		{
+		LOG(LOG_INFO,"Freeing Dispenser %s: Total Allocated %i",disp->name,totalAllocated);
+		}
+
+	free(disp);
+}
+
+
+
 /*
 void dispenserNukeFree(MemDispenser *disp, u8 val)
 {
@@ -151,7 +173,7 @@ void *dAlloc(MemDispenser *disp, size_t size)
 		}
 
 	//if(size>10000)
-		//fprintf(stderr,"Large Alloc %i\n",(int)size);
+		//LOG(LOG_INFO,"Large Alloc %i\n",(int)size);
 
 	size_t allocSize=size;
 
@@ -202,7 +224,7 @@ void *dAllocLogged(MemDispenser *disp, size_t size)
 		}
 
 	//if(size>10000)
-		//fprintf(stderr,"Large Alloc %i\n",(int)size);
+		//LOG(LOG_INFO,"Large Alloc %i\n",(int)size);
 
 	size_t allocSize=size;
 
@@ -255,7 +277,7 @@ void *dAllocQuadAligned(MemDispenser *disp, size_t size)
 		}
 
 	//if(size>10000)
-		//fprintf(stderr,"Large Alloc %i\n",(int)size);
+		//LOG(LOG_INFO,"Large Alloc %i\n",(int)size);
 
 	size_t allocSize=size;
 
@@ -317,7 +339,7 @@ void *dAllocCacheAligned(MemDispenser *disp, size_t size)
 		}
 
 	//if(size>10000)
-		//fprintf(stderr,"Large Alloc %i\n",(int)size);
+		//LOG(LOG_INFO,"Large Alloc %i\n",(int)size);
 
 	size_t allocSize=size;
 

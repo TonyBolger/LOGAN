@@ -29,6 +29,8 @@ public class Cli {
 		GraphWalker walker=new GraphWalker(graph);
 		
 		walker.dump();
+		
+		graph.free();
 	}
 
 }

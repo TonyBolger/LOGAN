@@ -39,6 +39,13 @@ s32 saInitSmerArray(SmerArray *smerArray, SmerMap *smerMap) {
 		smSmerEntryArrayFree(smerTmp);
 
 		arraySlices[i].sliceDisp=dispenserAlloc("slice");
+
+		arraySlices[i].totalAlloc=0;
+		arraySlices[i].totalAllocPrefix=0;
+		arraySlices[i].totalAllocSuffix=0;
+		arraySlices[i].totalAllocRoutes=0;
+
+		arraySlices[i].totalRealloc=0;
 		}
 
 	return total;
@@ -56,6 +63,13 @@ void saCleanupSmerArray(SmerArray *smerArray) {
 			}
 
 		freeBloom(&(smerArray->slice[i].bloom));
+
+		LOG(LOG_INFO,"Slice %i has %i smers with %li alloc (%i %i %i) and %li realloc",i,smerArray->slice[i].smerCount,
+				smerArray->slice[i].totalAlloc,
+				smerArray->slice[i].totalAllocPrefix,
+				smerArray->slice[i].totalAllocSuffix,
+				smerArray->slice[i].totalAllocRoutes,
+				smerArray->slice[i].totalRealloc)
 		}
 
 	memset(smerArray, 0, sizeof(SmerArray));
