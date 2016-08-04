@@ -515,8 +515,38 @@ static int indexDispatchesForSlice(RoutingDispatchIntermediate *smerInboundDispa
 	}
 
 	return usedCount;
+}
+
+static void compactSliceData(SmerArraySlice *slice, MemDispenser *disp)
+{
+	int smerCount=slice->smerCount;
+	MemPackStackRetain *retains=dAlloc(disp, sizeof(MemPackStackRetain)*smerCount);
+
+	for(int i=0;i<smerCount;i++)
+		{
+		retains[i].index=i;
+		u8 *ptr=slice->smerData[i];
+		u8 *scanPtr;
+
+		scanPtr=scanTails(ptr);
+		scanPtr=scanTails(scanPtr);
+		scanPtr=scanRouteTable(scanPtr);
+
+		int size=scanPtr-ptr;
+
+		retains[i].oldPtr=ptr;
+		retains[i].size=size;
+		}
+
+	slice->slicePackStack=psCompact(slice->slicePackStack, retains, smerCount);
+
+	//LOG(LOG_INFO,"Compacted stack: Size %i: Peak: %i Realloc: %i",slice->slicePackStack->currentSize, slice->slicePackStack->peakAlloc, slice->slicePackStack->realloc);
+
+	for(int i=0;i<smerCount;i++)
+		slice->smerData[retains[i].index]=retains[i].newPtr;
 
 }
+
 
 static int forwardPrefixSorter(const void *a, const void *b)
 {
@@ -788,13 +818,34 @@ int processReadsForSmer(RoutingDispatchIntermediate *rdi, u32 sliceIndex, SmerAr
 
 		slice->totalRealloc+=oldSize;
 
-		u8 *packedData=dAlloc(slice->sliceDisp, totalSize);
+		u8 *oldData=slice->smerData[sliceIndex];
+		u8 *newData;
 
-		u8 *dataTmp=writeSeqTailBuilderPackedData(&prefixBuilder, packedData);
+//		LOG(LOG_INFO,"Was %i Now %i",oldSize,totalSize);
+
+		if(oldData!=NULL)
+			newData=psRealloc(slice->slicePackStack, oldData, oldSize, totalSize);
+		else
+			newData=psAlloc(slice->slicePackStack, totalSize);
+
+		if(newData==NULL)
+			{
+			compactSliceData(slice, disp);
+
+			if(oldData!=NULL)
+				newData=psRealloc(slice->slicePackStack, oldData, oldSize, totalSize);
+			else
+				newData=psAlloc(slice->slicePackStack, totalSize);
+			}
+
+		if(newData==NULL)
+				LOG(LOG_CRITICAL,"Failed at alloc after compact: Wanted %i",totalSize);
+
+		u8 *dataTmp=writeSeqTailBuilderPackedData(&prefixBuilder, newData);
 		dataTmp=writeSeqTailBuilderPackedData(&suffixBuilder, dataTmp);
 		dataTmp=writeRouteTableBuilderPackedData(&routeTableBuilder, dataTmp);
 
-		slice->smerData[sliceIndex]=packedData;
+		slice->smerData[sliceIndex]=newData;
 		}
 
 	return entryCount;

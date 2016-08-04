@@ -38,7 +38,7 @@ s32 saInitSmerArray(SmerArray *smerArray, SmerMap *smerMap) {
 
 		smSmerEntryArrayFree(smerTmp);
 
-		arraySlices[i].sliceDisp=dispenserAlloc("slice");
+		arraySlices[i].slicePackStack=packStackAlloc();
 
 		arraySlices[i].totalAlloc=0;
 		arraySlices[i].totalAllocPrefix=0;
@@ -70,6 +70,8 @@ void saCleanupSmerArray(SmerArray *smerArray) {
 				smerArray->slice[i].totalAllocSuffix,
 				smerArray->slice[i].totalAllocRoutes,
 				smerArray->slice[i].totalRealloc)
+
+		packStackFree(smerArray->slice[i].slicePackStack);
 		}
 
 	memset(smerArray, 0, sizeof(SmerArray));

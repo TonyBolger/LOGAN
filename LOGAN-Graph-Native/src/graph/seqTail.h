@@ -22,7 +22,7 @@ typedef struct seqTailBuilderStr
 } SeqTailBuilder;
 
 
-
+u8 *scanTails(u8 *data);
 u8 *initSeqTailBuilder(SeqTailBuilder *builder, u8 *data, MemDispenser *disp);
 
 s32 getSeqTailBuilderDirty(SeqTailBuilder *seqTailBuilder);

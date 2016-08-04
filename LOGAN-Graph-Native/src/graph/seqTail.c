@@ -24,6 +24,18 @@ static u32 unpackTails(u8 *data, s64 *tails, s32 tailCount)
 	return packedSize;
 }
 
+static u8 *skipTails(u8 *data,  s32 tailCount)
+{
+	for(int i=0;i<tailCount;i++)
+		{
+		s64 len=*data++;
+		int bytes=(len+3)>>2;
+		data+=bytes;
+		}
+
+	return data;
+}
+
 static u8 *readSeqTailBuilderPackedData(SeqTailBuilder *builder, u8 *data)
 {
 	s32 totalPackedSize=0;
@@ -52,6 +64,21 @@ static u8 *readSeqTailBuilderPackedData(SeqTailBuilder *builder, u8 *data)
 
 	return data+totalPackedSize;
 
+}
+
+u8 *scanTails(u8 *data)
+{
+	if(data!=NULL)
+		{
+		u16 *countPtr=(u16 *)data;
+		int count=*countPtr;
+		data+=2;
+
+		data=skipTails(data, count);
+		return data;
+		}
+
+	return NULL;
 }
 
 u8 *initSeqTailBuilder(SeqTailBuilder *builder, u8 *data, MemDispenser *disp)
