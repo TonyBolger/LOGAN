@@ -771,12 +771,14 @@ int processReadsForSmer(RoutingDispatchIntermediate *rdi, u32 sliceIndex, SmerAr
 		int totalSize=prefixPackedSize+suffixPackedSize+routeTablePackedSize;
 		int sizeDiff=totalSize-oldSize;
 
+		/*
 		LOG(LOG_INFO,"Slice Alloc: %i %i (%i %i) %i %i (%i %i) %i %i (%i %i %i %i)",
 				prefixPackedSize, diffPrefix, prefixBuilder.oldTailCount,prefixBuilder.newTailCount,
 				suffixPackedSize, diffSuffix, suffixBuilder.oldTailCount,suffixBuilder.newTailCount,
 				routeTablePackedSize, diffRoutes,
 				routeTableBuilder.oldForwardEntryCount,routeTableBuilder.oldReverseEntryCount,
 				routeTableBuilder.newForwardEntryCount,routeTableBuilder.newReverseEntryCount);
+*/
 
 		slice->totalAlloc+=sizeDiff;
 
@@ -955,8 +957,9 @@ static int scanForDispatchesForGroups(RoutingBuilder *rb, int startGroup, int en
 							{
 							RoutingReadData **orderedDispatches=dAlloc(groupState->disp, sizeof(RoutingReadData *)*inboundEntryCount);
 
-							int sliceNumber=j+(i << SMER_DISPATCH_GROUP_SHIFT);
-							LOG(LOG_INFO,"Processing slice %i",sliceNumber)
+//							int sliceNumber=j+(i << SMER_DISPATCH_GROUP_SHIFT);
+//							LOG(LOG_INFO,"Processing slice %i",sliceNumber);
+
 							processSlice(smerInboundDispatches, slice, orderedDispatches, groupState->disp);
 
 //							LOG(LOG_INFO,"IndexGroup:");

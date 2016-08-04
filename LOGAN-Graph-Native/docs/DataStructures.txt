@@ -971,20 +971,43 @@ Merge Tree Building Algorithm:
 Merge Flowchart:
 
 
+// If end of existing routes, insert
+// If past upstream tail, insert
+// If 
 
 
 
 
 
 
+Scratch space:
+
+Inbound read (3,3)
+
+Offset: 0
+Existing: 1
+Offset: 1
+Existing: 1
+Offset 2:
+Existing: 1
+Offset 3: <-- Insert here
+Existing: 1
+Offset 4:
 
 
+Inbound read (3,4)
 
-
-
-
-
-
+Offset: 0
+Existing: 1
+Offset: 1
+Existing: 1
+Offset 2:
+Existing: 1
+Offset 3:   <-- Insert here
+Existing: 1 <-- Widen here
+Offset 4:   <-- Insert here
+Existing: 1
+Offset 4:
 
 
 

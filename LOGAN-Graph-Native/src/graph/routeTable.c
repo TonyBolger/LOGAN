@@ -307,7 +307,7 @@ u8 *writeRouteTableBuilderPackedData(RouteTableBuilder *builder, u8 *data)
 		LOG(LOG_INFO,"Header near full: %i %i %i", builder->maxPrefix, builder->maxSuffix, builder->maxWidth);
 		}
 
-	LOG(LOG_INFO,"Route Header Max: %i %i %i", builder->maxPrefix, builder->maxSuffix, builder->maxWidth);
+//	LOG(LOG_INFO,"Route Header Max: %i %i %i", builder->maxPrefix, builder->maxSuffix, builder->maxWidth);
 
 	RouteTableEntry *forwardEntries,*reverseEntries;
 	u32 forwardEntryCount,reverseEntryCount;
@@ -334,7 +334,7 @@ u8 *writeRouteTableBuilderPackedData(RouteTableBuilder *builder, u8 *data)
 		reverseEntryCount=builder->oldReverseEntryCount;
 		}
 
-	LOG(LOG_INFO,"Route Header: %i %i %i %i %i", prefixBits,suffixBits,widthBits,forwardEntryCount,reverseEntryCount);
+//	LOG(LOG_INFO,"Route Header: %i %i %i %i %i", prefixBits,suffixBits,widthBits,forwardEntryCount,reverseEntryCount);
 
 	int headerSize=encodeRouteTableHeader(data,prefixBits,suffixBits,widthBits,forwardEntryCount,reverseEntryCount);
 	data+=headerSize;
@@ -344,8 +344,8 @@ u8 *writeRouteTableBuilderPackedData(RouteTableBuilder *builder, u8 *data)
 
 	for(int i=0;i<forwardEntryCount;i++)
 		{
-		if(forwardEntryCount>1000)
-			LOG(LOG_INFO,"Forward Route - P: %i %i %i", forwardEntries[i].prefix, forwardEntries[i].suffix,  forwardEntries[i].width);
+//		if(forwardEntryCount>1000)
+//			LOG(LOG_INFO,"Forward Route - P: %i %i %i", forwardEntries[i].prefix, forwardEntries[i].suffix,  forwardEntries[i].width);
 
 		packBits(&packer, prefixBits, forwardEntries[i].prefix);
 		packBits(&packer, suffixBits, forwardEntries[i].suffix);
@@ -353,8 +353,8 @@ u8 *writeRouteTableBuilderPackedData(RouteTableBuilder *builder, u8 *data)
 		}
 	for(int i=0;i<reverseEntryCount;i++)
 		{
-		if(reverseEntryCount>1000)
-			LOG(LOG_INFO,"Reverse Route - P: %i %i %i", reverseEntries[i].prefix, reverseEntries[i].suffix,  reverseEntries[i].width);
+//		if(reverseEntryCount>1000)
+//			LOG(LOG_INFO,"Reverse Route - P: %i %i %i", reverseEntries[i].prefix, reverseEntries[i].suffix,  reverseEntries[i].width);
 
 		packBits(&packer, prefixBits, reverseEntries[i].prefix);
 		packBits(&packer, suffixBits, reverseEntries[i].suffix);
@@ -645,8 +645,8 @@ RouteTableEntry *mergeRoutes_ordered_forwardSingle(RouteTableEntry *oldEntryPtr,
 
 		int upstreamEdgeOffsetEnd=upstreamEdgeOffset+oldEntryPtr->width;
 
-		int oldMinEdgePosition=minEdgePosition;
-		int oldMaxEdgePosition=maxEdgePosition;
+//		int oldMinEdgePosition=minEdgePosition;
+//		int oldMaxEdgePosition=maxEdgePosition;
 
 		// Adjust offsets
 		if(minEdgePosition<upstreamEdgeOffset) // Trim upstream range to entry
@@ -663,7 +663,7 @@ RouteTableEntry *mergeRoutes_ordered_forwardSingle(RouteTableEntry *oldEntryPtr,
 			LOG(LOG_CRITICAL,"Invalid offsets or gap detected in route insert - Min: %i Max: %i",minOffset,maxOffset);
 			}
 
-		LOG(LOG_INFO,"Widen: Upstream Range: %i %i Offset Range Now: %i %i",oldMinEdgePosition,oldMaxEdgePosition, minOffset, maxOffset);
+		//LOG(LOG_INFO,"Widen: Upstream Range: %i %i Offset Range Now: %i %i",oldMinEdgePosition,oldMaxEdgePosition, minOffset, maxOffset);
 
 		// Map offsets to new entry
 		(*(patch->rdiPtr))->minEdgePosition=downstreamEdgeOffset+minOffset;
@@ -681,7 +681,7 @@ RouteTableEntry *mergeRoutes_ordered_forwardSingle(RouteTableEntry *oldEntryPtr,
 		}
 	else // Existing entry unsuitable, split and insert
 		{
-		LOG(LOG_INFO,"Split");
+		//LOG(LOG_INFO,"Split");
 /*
 		int upstreamEdgeOffsetEnd=upstreamEdgeOffset+oldEntryPtr->width;
 

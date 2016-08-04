@@ -58,7 +58,7 @@ public class GraphWalker {
 		edge = edge.transitionAcrossNode(WhichSequenceDirection.ORIGINAL);
 		edge.extractSequence(sb, WhichSequenceDirection.ORIGINAL, false);
 	}
-	
+
 	public void followEdge(LinkedSmer.EdgeContext edge, StringBuilder sb, boolean loud) {
 		// System.out.println("Following: "+edge);
 
@@ -67,7 +67,7 @@ public class GraphWalker {
 
 		/*
 		 * long smerId=edge.getSmer().getSmerId();
-		 * 
+		 *
 		 * if(smerId==11473037899172L) { System.out.println("Smer is "
 		 * +edge.getSmer()); System.out.println(); }
 		 */
@@ -121,7 +121,7 @@ public class GraphWalker {
 
 			sb.append("-");
 			followEdgeOnce(forwardEdge, sb);
-			
+
 			System.out.println("Forward: " + sb.toString());
 		}
 
@@ -141,8 +141,8 @@ public class GraphWalker {
 					sb.insert(0, " ");
 
 				sb.append("-");
-				followEdgeOnce(reverseEdge, sb);			
-				
+				followEdgeOnce(reverseEdge, sb);
+
 				System.out.println("Reverse: " + sb.toString());
 			}
 		}
@@ -163,8 +163,8 @@ public class GraphWalker {
 			linkedSmer.verifyUniqueTails();
 			linkedSmer.verifyTailIndexes();
 
-			if(linkedSmer.getSmerId()==0)
-				verifyUpstream(linkedSmer);
+			//if(linkedSmer.getSmerId()==0)
+			//	verifyUpstream(linkedSmer);
 
 			// System.out.println(linkedSmer);
 
@@ -178,7 +178,7 @@ public class GraphWalker {
 					StringBuilder sb = new StringBuilder();
 					followEdge(edge, sb, false);
 
-					// System.out.println("SEQ: "+sb.toString());
+					System.out.println("SEQ: "+sb.toString());
 				} catch (RuntimeException e) {
 					throw e;
 					// followEdge(edge,true);
