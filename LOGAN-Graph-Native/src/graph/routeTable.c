@@ -2,8 +2,13 @@
 #include "common.h"
 
 
+// Huge format:   1 1 1 W W W W W  P P P P S S S S
+//                F F F F F F F F  F F F F F F F F
+//                F F F F F F F F  F F F F F F F F
+// 				  R R R R R R R R  R R R R R R R R
+// 				  R R R R R R R R  R R R R R R R R
 
-// Large format:  1 1 W W W W W W  P P P P S S S S
+// Large format:  1 1 0 W W W W W  P P P P S S S S
 //                F F F F F F F F  F F F F F F F F
 // 				  R R R R R R R R  R R R R R R R R
 
@@ -12,13 +17,16 @@
 
 // Small format:  0 W W W P P S S  F F F F R R R R
 
-// Max: W=2^63, P=2^15, S=2^15, F=2^16, R=2^16
+// Max: W=2^31, P=2^15, S=2^15, F=2^16, R=2^16
 
 static int getRouteTableHeaderSize(int prefixBits, u32 suffixBits, u32 widthBits, u32 forwardEntries, u32 reverseEntries)
 {
 	prefixBits--;
 	suffixBits--;
 	widthBits--;
+
+	if((forwardEntries>65535)||(reverseEntries>65535))
+		return 10;
 
 	if((prefixBits>7)||(suffixBits>7)||(widthBits>15)||(forwardEntries>63)||(reverseEntries>63))
 		return 6;
@@ -36,15 +44,26 @@ static int encodeRouteTableHeader(u8 *packedData, u32 prefixBits, u32 suffixBits
 	suffixBits--;
 	widthBits--;
 
-	if((prefixBits>15)||(suffixBits>15)||(widthBits>63)||(forwardEntries>65535)||(reverseEntries>65535))
+	if((prefixBits>15)||(suffixBits>15)||(widthBits>31))
 		{
-		LOG(LOG_ERROR,"Cannot encode header for %x %x %x %x %x",prefixBits,suffixBits,widthBits,forwardEntries,reverseEntries);
-		LOG(LOG_ERROR,"This will end badly :(");
+		LOG(LOG_CRITICAL,"Cannot encode header for %i %i %i %i %i",prefixBits,suffixBits,widthBits,forwardEntries,reverseEntries);
+		}
+
+	if((forwardEntries>65535)||(reverseEntries>65535))
+		{
+		LOG(LOG_INFO,"HUGE header for %i %i %i %i %i",prefixBits,suffixBits,widthBits,forwardEntries,reverseEntries);
+
+		packedData[0]=(widthBits&0x1F) | 0xE0;
+		packedData[1]=((prefixBits&0xF)<<4)|(suffixBits&0xF);
+		*((u32 *)(packedData+2))=forwardEntries;
+		*((u32 *)(packedData+6))=reverseEntries;
+
+		return 10;
 		}
 
 	if((prefixBits>7)||(suffixBits>7)||(widthBits>15)||(forwardEntries>63)||(reverseEntries>63))
 		{
-		packedData[0]=(widthBits&0x3F) | 0xC0;
+		packedData[0]=(widthBits&0x1F) | 0xC0;
 		packedData[1]=((prefixBits&0xF)<<4)|(suffixBits&0xF);
 		*((u16 *)(packedData+2))=forwardEntries;
 		*((u16 *)(packedData+4))=reverseEntries;
@@ -75,16 +94,29 @@ static int encodeRouteTableHeader(u8 *packedData, u32 prefixBits, u32 suffixBits
 
 static int decodeHeader(u8 *packedData, u32 *prefixBits, u32 *suffixBits, u32 *widthBits, u32 *forwardEntries, u32 *reverseEntries)
 {
-	u8 sizeFlag=packedData[0]&0xC0;
+	u8 sizeFlag=packedData[0]&0xE0;
 
 	int w,p,s,f,r,size;
 
-	if(sizeFlag == 0xC0)
+	if(sizeFlag == 0xE0)
 		{
 		u8 tmp1=packedData[0];
 		u8 tmp2=packedData[1];
 
-		w=(tmp1&0x3F)+1;
+		w=(tmp1&0x1F)+1;
+		p=((tmp2>>4)&0xF)+1;
+		s=(tmp2&0xF)+1;
+		f=*((u32 *)(packedData+2));
+		r=*((u32 *)(packedData+6));
+
+		size=10;
+		}
+	else if(sizeFlag == 0xC0)
+		{
+		u8 tmp1=packedData[0];
+		u8 tmp2=packedData[1];
+
+		w=(tmp1&0x1F)+1;
 		p=((tmp2>>4)&0xF)+1;
 		s=(tmp2&0xF)+1;
 		f=*((u16 *)(packedData+2));
@@ -92,7 +124,7 @@ static int decodeHeader(u8 *packedData, u32 *prefixBits, u32 *suffixBits, u32 *w
 
 		size=6;
 		}
-	else if(sizeFlag==0x80)
+	else if((sizeFlag&0xC0)==0x80)
 		{
 		u32 tmp=packedData[0]<<16 | packedData[1] << 8 | packedData[2];
 

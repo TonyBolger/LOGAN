@@ -373,10 +373,14 @@ Intel stuff:
 Download: ftp://software.rz.rwth-aachen.de/intel_2015_Gazsfe3hn2
 
 export INTEL_LICENSE_FILE="50017@license2.rz.rwth-aachen.de"
-
 /opt/intel/vtune_amplifier_xe/amplxe-vars.sh
-
+export TMPDIR=/home/tony/intel/tmp
 /opt/intel/vtune_amplifier_xe/bin64/amplxe-gui
+
+
+
+/opt/intel/vtune_amplifier_xe/bin64/amplxe-cl -collect general-exploration -knob dram-bandwidth-limits=true -app-working-dir=/home/tony/Projects/PAGAN/LOGAN -result-dir=/home/tony/intel/amplxe/projects/LOGAN-Ecoli-2/cli001 -target-duration-type=long -duration=4000 /home/tony/Projects/PAGAN/LOGAN/LOGAN-Graph-Native/bin/LOGAN data/Ecoli-2_Q20.fq 1 8 8 
+
 
 
 

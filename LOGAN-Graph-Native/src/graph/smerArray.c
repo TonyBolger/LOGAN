@@ -64,12 +64,14 @@ void saCleanupSmerArray(SmerArray *smerArray) {
 
 		freeBloom(&(smerArray->slice[i].bloom));
 
+		/*
 		LOG(LOG_INFO,"Slice %i has %i smers with %li alloc (%i %i %i) and %li realloc",i,smerArray->slice[i].smerCount,
 				smerArray->slice[i].totalAlloc,
 				smerArray->slice[i].totalAllocPrefix,
 				smerArray->slice[i].totalAllocSuffix,
 				smerArray->slice[i].totalAllocRoutes,
 				smerArray->slice[i].totalRealloc)
+*/
 
 		packStackFree(smerArray->slice[i].slicePackStack);
 		}
@@ -152,6 +154,13 @@ void saVerifyIndexing(s32 maxAllowedDistance, s32 *indexes, u32 indexCount, int 
 		if(maxDist>maxAllowedDistance)
 			LOG(LOG_WARNING, "Warning: Asked to add path of %i with %i indexes at max dist %i", dataLength,indexCount,maxDist);
 }
+
+
+
+
+
+
+
 
 
 /*
