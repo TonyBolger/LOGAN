@@ -629,6 +629,8 @@ int processReadsForSmer(RoutingDispatchIntermediate *rdi, u32 sliceIndex, SmerAr
 	s32 maxNewPrefix=0;
 	s32 maxNewSuffix=0;
 
+	SmerId smerId=SMER_DUMMY;
+
 	for(int i=0;i<entryCount;i++)
 	{
 		RoutingReadData *rdd=rdi->entries[i];
@@ -660,6 +662,7 @@ int processReadsForSmer(RoutingDispatchIntermediate *rdi, u32 sliceIndex, SmerAr
 
 		if(currFmer<=currRmer) // Canonical Read Orientation
 			{
+				smerId=currFmer;
 				//LOG(LOG_INFO,"Adding forward route to %li",currFmer);
 
 				SmerId prefixSmer=rdd->rsmers[index+1]; // Previous smer in read, reversed
@@ -697,6 +700,7 @@ int processReadsForSmer(RoutingDispatchIntermediate *rdi, u32 sliceIndex, SmerAr
 			}
 		else	// Reverse-complement Read Orientation
 			{
+				smerId=currRmer;
 				//LOG(LOG_INFO,"Adding reverse route to %li",currRmer);
 
 				SmerId prefixSmer=rdd->fsmers[index-1]; // Next smer in read
@@ -780,6 +784,21 @@ int processReadsForSmer(RoutingDispatchIntermediate *rdi, u32 sliceIndex, SmerAr
 		*(orderedDispatches++)=*(reversePatches[i].rdiPtr);
 */
 
+	int routeEntries=routeTableBuilder.oldForwardEntryCount+
+			routeTableBuilder.oldReverseEntryCount+
+			routeTableBuilder.newForwardEntryCount+
+			routeTableBuilder.newReverseEntryCount;
+
+	if(routeEntries>10000)
+		{
+		char bufferN[SMER_BASES+1]={0};
+		unpackSmer(smerId, bufferN);
+
+		LOG(LOG_INFO,"LARGE SMER: %s %012lx has %i %i %i %i",bufferN,smerId,
+				routeTableBuilder.oldForwardEntryCount,routeTableBuilder.oldReverseEntryCount,
+				routeTableBuilder.newForwardEntryCount,routeTableBuilder.newReverseEntryCount);
+		}
+
 /*
 	if(debug)
 		LOG(LOG_INFO,"Builder has Size: %i Max: %i %i %i Count: %i %i %i %i",
@@ -821,6 +840,8 @@ int processReadsForSmer(RoutingDispatchIntermediate *rdi, u32 sliceIndex, SmerAr
 		u8 *oldData=slice->smerData[sliceIndex];
 		u8 *newData;
 
+
+
 //		LOG(LOG_INFO,"Was %i Now %i",oldSize,totalSize);
 
 		if(oldData!=NULL)
@@ -844,6 +865,8 @@ int processReadsForSmer(RoutingDispatchIntermediate *rdi, u32 sliceIndex, SmerAr
 		u8 *dataTmp=writeSeqTailBuilderPackedData(&prefixBuilder, newData);
 		dataTmp=writeSeqTailBuilderPackedData(&suffixBuilder, dataTmp);
 		dataTmp=writeRouteTableBuilderPackedData(&routeTableBuilder, dataTmp);
+
+
 
 		slice->smerData[sliceIndex]=newData;
 		}

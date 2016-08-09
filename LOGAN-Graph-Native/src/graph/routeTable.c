@@ -51,8 +51,6 @@ static int encodeRouteTableHeader(u8 *packedData, u32 prefixBits, u32 suffixBits
 
 	if((forwardEntries>65535)||(reverseEntries>65535))
 		{
-		LOG(LOG_INFO,"HUGE header for %i %i %i %i %i",prefixBits,suffixBits,widthBits,forwardEntries,reverseEntries);
-
 		packedData[0]=(widthBits&0x1F) | 0xE0;
 		packedData[1]=((prefixBits&0xF)<<4)|(suffixBits&0xF);
 		*((u32 *)(packedData+2))=forwardEntries;
