@@ -37,6 +37,7 @@ typedef struct routePatchStr
 } RoutePatch;
 
 
+
 typedef struct routePatchMergeWideReadsetStr // Represents a set of reads with same upstream, flexible positions, but potentially varied downstream
 {
 	struct routePatchMergeWideReadsetStr *next;

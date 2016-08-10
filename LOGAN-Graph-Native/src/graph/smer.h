@@ -152,6 +152,8 @@ int saFindSmerEntry(SmerArraySlice *slice, SmerEntry smerEntry);
 
 void saVerifyIndexing(s32 maxAllowedDistance, s32 *indexes, u32 indexCount, int dataLength, int maxValidIndex);
 
+void saCompactSliceData(SmerArraySlice *slice, MemDispenser *disp);
+
 SmerLinked *saGetLinkedSmer(SmerArray *smerArray, SmerId rootSmerId, MemDispenser *disp);
 
 u32 saGetSmerCount(SmerArray *smerArray);

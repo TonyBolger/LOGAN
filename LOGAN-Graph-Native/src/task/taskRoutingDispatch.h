@@ -1,8 +1,8 @@
 #ifndef __TASKROUTINGDISPATCH_H
 #define __TASKROUTINGDISPATCH_H
 
-RoutingDispatchArray *allocDispatchArray();
-void assignToDispatchArrayEntry(RoutingDispatchArray *array, RoutingReadData *readData);
+RoutingReadReferenceBlockDispatchArray *allocDispatchArray();
+void assignToDispatchArrayEntry(RoutingReadReferenceBlockDispatchArray *array, RoutingReadData *readData);
 
 void initRoutingDispatchGroupState(RoutingDispatchGroupState *dispatchGroupState);
 void freeRoutingDispatchGroupState(RoutingDispatchGroupState *dispatchGroupState);
@@ -22,6 +22,6 @@ void showReadDispatchBlocks(RoutingBuilder *rb);
 int scanForCompleteReadDispatchBlocks(RoutingBuilder *rb);
 int scanForDispatches(RoutingBuilder *rb, int workerNo, int force);
 
-void queueDispatchArray(RoutingBuilder *rb, RoutingDispatchArray *dispArray);
+void queueDispatchArray(RoutingBuilder *rb, RoutingReadReferenceBlockDispatchArray *dispArray);
 
 #endif

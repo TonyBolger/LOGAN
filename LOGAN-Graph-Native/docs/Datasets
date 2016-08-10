@@ -182,21 +182,27 @@ Dataset 5: Pennellii (Paired-end only)
 
 
 for i in AA AB AC AD AE AF AG AH AI AJ AK AL AM AN AO AP AQ AR AS AT; do for q in 10 15 20; do
-  java -classpath ~/Projects/Silicana/Trimmomatic/dist/jar/trimmomatic-0.37.jar org.usadellab.trimmomatic.TrimmomaticPE -threads 6 -phred64 reads/${i}1.fq.gz reads/${i}2.fq.gz -baseout filteredReads/Pen-1/${i}_Q${q}.fq.gz ILLUMINACLIP:TruSeq3_Clipping.fa:2:30:12 LEADING:3 TRAILING:3 SLIDINGWINDOW:4:${q} MINLEN:40 BASECOUNT:N:0:0 TOPHRED33
+  java -classpath ~/Projects/Silicana/Trimmomatic/dist/jar/trimmomatic-0.37.jar org.usadellab.trimmomatic.TrimmomaticPE -threads 6 -phred64 reads/${i}1.fq.gz reads/${i}2.fq.gz -baseout filteredReads/Pen-1/${i}_Q${q}.fq ILLUMINACLIP:GAII_Clipping.fa:2:30:12 LEADING:3 TRAILING:3 SLIDINGWINDOW:4:${q} MINLEN:40 BASECOUNT:N:0:0 TOPHRED33
 done; done 
 
 for i in BA BB BC BD BE BF BG BH BI BJ BK BL BM BN BO BP BQ BR BS; do for q in 10 15 20; do
-  java -classpath ~/Projects/Silicana/Trimmomatic/dist/jar/trimmomatic-0.37.jar org.usadellab.trimmomatic.TrimmomaticPE -threads 6 -phred64 reads/${i}1.fq.gz reads/${i}2.fq.gz -baseout filteredReads/Pen-2/${i}_Q${q}.fq.gz ILLUMINACLIP:TruSeq3_Clipping.fa:2:30:12 LEADING:3 TRAILING:3 SLIDINGWINDOW:4:${q} MINLEN:40 BASECOUNT:N:0:0 TOPHRED33
+  java -classpath ~/Projects/Silicana/Trimmomatic/dist/jar/trimmomatic-0.37.jar org.usadellab.trimmomatic.TrimmomaticPE -threads 6 -phred64 reads/${i}1.fq.gz reads/${i}2.fq.gz -baseout filteredReads/Pen-2/${i}_Q${q}.fq ILLUMINACLIP:GAII_Clipping.fa:2:30:12 LEADING:3 TRAILING:3 SLIDINGWINDOW:4:${q} MINLEN:40 BASECOUNT:N:0:0 TOPHRED33
 done; done
 
-for i in DA DB DC DD DE DF; do for q in 10 15 20; do
-  java -classpath ~/Projects/Silicana/Trimmomatic/dist/jar/trimmomatic-0.37.jar org.usadellab.trimmomatic.TrimmomaticPE -threads 6 -phred64 reads/${i}1.fq.gz reads/${i}2.fq.gz -baseout filteredReads/Pen-3/${i}_Q${q}.fq.gz ILLUMINACLIP:TruSeq3_Clipping.fa:2:30:12 LEADING:3 TRAILING:3 SLIDINGWINDOW:4:${q} MINLEN:40 BASECOUNT:N:0:0 TOPHRED33
+for i in DA DB DD DE DF; do for q in 10 15 20; do
+  java -classpath ~/Projects/Silicana/Trimmomatic/dist/jar/trimmomatic-0.37.jar org.usadellab.trimmomatic.TrimmomaticPE -threads 6 -phred64 reads/${i}1.fq.gz reads/${i}2.fq.gz -baseout filteredReads/Pen-3/${i}_Q${q}.fq ILLUMINACLIP:GAII_Clipping.fa:2:30:12 LEADING:3 TRAILING:3 SLIDINGWINDOW:4:${q} MINLEN:40 BASECOUNT:N:0:0 TOPHRED33
 done; done
 
 for i in DC; do for q in 10 15 20; do
-  java -classpath ~/Projects/Silicana/Trimmomatic/dist/jar/trimmomatic-0.37.jar org.usadellab.trimmomatic.TrimmomaticPE -threads 6 -phred33 reads/${i}1.fq.gz reads/${i}2.fq.gz -baseout filteredReads/Pen-3/${i}_Q${q}.fq.gz ILLUMINACLIP:TruSeq3_Clipping.fa:2:30:12 LEADING:3 TRAILING:3 SLIDINGWINDOW:4:${q} MINLEN:40 BASECOUNT:N:0:0
+  java -classpath ~/Projects/Silicana/Trimmomatic/dist/jar/trimmomatic-0.37.jar org.usadellab.trimmomatic.TrimmomaticPE -threads 6 -phred33 reads/${i}1.fq.gz reads/${i}2.fq.gz -baseout filteredReads/Pen-3/${i}_Q${q}.fq ILLUMINACLIP:GAII_Clipping.fa:2:30:12 LEADING:3 TRAILING:3 SLIDINGWINDOW:4:${q} MINLEN:40 BASECOUNT:N:0:0
 done; done
 
+
+cat Pen-1_Q10*.gz | gunzip | grep -F "AGCGGTTCAGCAGGAATGCCGAGACCGATCTCGTATGC" | wc -l
+
+Pen-1: 283
+Pen-2: 4349
+Pen-3: 113212
 
 
 Dataset merge:
@@ -205,9 +211,10 @@ for q in 10 15 20; do for d in 1P 2P 1U 2U; do cat dataSource/Arabidopsis_Col0/f
 for q in 10 15 20; do for d in 1P 2P 1U 2U; do cat dataSource/Escherichia_coli_K12/filteredReads/Ecoli-1/*_Q${q}_${d}.fq.gz > data/Ecoli-1_Q${q}_${d}.fq.gz; done; done
 for q in 10 15 20; do for d in 1P 2P 1U 2U; do cat dataSource/Escherichia_coli_K12/filteredReads/Ecoli-2/*_Q${q}_${d}.fq.gz > data/Ecoli-2_Q${q}_${d}.fq.gz; done; done
 for q in 10 15 20; do for d in 1P 2P 1U 2U; do cat dataSource/Lyrata/filteredReads/Lyrata-1/*_Q${q}_${d}.fq.gz > data/Lyrata-1_Q${q}_${d}.fq.gz; done; done
-for q in 10 15 20; do for d in 1P 2P 1U 2U; do cat dataSource/Pennellii/filteredReads/Pen-1/*_Q${q}_${d}.fq.gz > data/Pen-1_Q${q}_${d}.fq.gz; done; done
-for q in 10 15 20; do for d in 1P 2P 1U 2U; do cat dataSource/Pennellii/filteredReads/Pen-2/*_Q${q}_${d}.fq.gz > data/Pen-2_Q${q}_${d}.fq.gz; done; done
-for q in 10 15 20; do for d in 1P 2P 1U 2U; do cat dataSource/Pennellii/filteredReads/Pen-3/*_Q${q}_${d}.fq.gz > data/Pen-3_Q${q}_${d}.fq.gz; done; done
+
+for q in 10 15 20; do for d in 1P 2P 1U 2U; do cat dataSource/Pennellii/filteredReads/Pen-1/*_Q${q}_${d}.fq | gzip > data/Pen-1_Q${q}_${d}.fq.gz; done; done
+for q in 10 15 20; do for d in 1P 2P 1U 2U; do cat dataSource/Pennellii/filteredReads/Pen-2/*_Q${q}_${d}.fq | gzip > data/Pen-2_Q${q}_${d}.fq.gz; done; done
+for q in 10 15 20; do for d in 1P 2P 1U 2U; do cat dataSource/Pennellii/filteredReads/Pen-3/*_Q${q}_${d}.fq | gzip > data/Pen-3_Q${q}_${d}.fq.gz; done; done
 
 for q in 10 15 20; do for d in 1P 2P 1U 2U; do cat data/Pen-1_Q${q}_${d}.fq.gz data/Pen-2_Q${q}_${d}.fq.gz data/Pen-3_Q${q}_${d}.fq.gz > data/Pen-4_Q${q}_${d}.fq.gz; done; done
 
@@ -280,19 +287,25 @@ wait
 
 for i in Arabi-1 Ecoli-1 Ecoli-2 Lyrata-1 Pen-1 Pen-2 Pen-3 Pen-4; do
 
-for i in Pen-3; do
+for i in Pen-1 Pen-2 Pen-3 Pen-4; do
   echo $i
-  for q in 20; do
+  for q in 10 15 20; do
+    ~/unarc/jellyfish-2.2.5/bin/jellyfish count -C -m 23 -s 100000000 -t 16 -o ${i}_Q${q}.jf23 ${i}_Q${q}.fq
+    ~/unarc/jellyfish-2.2.5/bin/jellyfish count -C -m 31 -s 100000000 -t 16 -o ${i}_Q${q}.jf31 ${i}_Q${q}.fq 
     ~/unarc/jellyfish-2.2.5/bin/jellyfish count -C -m 39 -s 100000000 -t 16 -o ${i}_Q${q}.jf39 ${i}_Q${q}.fq 
     ~/unarc/jellyfish-2.2.5/bin/jellyfish count -C -m 47 -s 100000000 -t 16 -o ${i}_Q${q}.jf47 ${i}_Q${q}.fq 
-    ~/unarc/jellyfish-2.2.5/bin/jellyfish count -C -m 55 -s 100000000 -t 16 -o ${i}_Q${q}.jf55 ${i}_Q${q}.fq 
+    ~/unarc/jellyfish-2.2.5/bin/jellyfish count -C -m 55 -s 100000000 -t 16 -o ${i}_Q${q}.jf55 ${i}_Q${q}.fq
+    ~/unarc/jellyfish-2.2.5/bin/jellyfish count -C -m 63 -s 100000000 -t 16 -o ${i}_Q${q}.jf63 ${i}_Q${q}.fq 
     ~/unarc/jellyfish-2.2.5/bin/jellyfish count -C -m 71 -s 100000000 -t 16 -o ${i}_Q${q}.jf71 ${i}_Q${q}.fq 
     ~/unarc/jellyfish-2.2.5/bin/jellyfish count -C -m 79 -s 100000000 -t 16 -o ${i}_Q${q}.jf79 ${i}_Q${q}.fq 
   done
   for q in 10 15 20; do
+    ~/unarc/jellyfish-2.2.5/bin/jellyfish histo -h 1000000000 ${i}_Q${q}.jf -o ${i}_Q${q}.jf.histo 
+    ~/unarc/jellyfish-2.2.5/bin/jellyfish histo -h 1000000000 ${i}_Q${q}.jf31 -o ${i}_Q${q}.jf31.histo 
     ~/unarc/jellyfish-2.2.5/bin/jellyfish histo -h 1000000000 ${i}_Q${q}.jf39 -o ${i}_Q${q}.jf39.histo 
     ~/unarc/jellyfish-2.2.5/bin/jellyfish histo -h 1000000000 ${i}_Q${q}.jf47 -o ${i}_Q${q}.jf47.histo 
-  	~/unarc/jellyfish-2.2.5/bin/jellyfish histo -h 1000000000 ${i}_Q${q}.jf55 -o ${i}_Q${q}.jf55.histo 
+  	~/unarc/jellyfish-2.2.5/bin/jellyfish histo -h 1000000000 ${i}_Q${q}.jf55 -o ${i}_Q${q}.jf55.histo
+  	~/unarc/jellyfish-2.2.5/bin/jellyfish histo -h 1000000000 ${i}_Q${q}.jf63 -o ${i}_Q${q}.jf63.histo 
   	~/unarc/jellyfish-2.2.5/bin/jellyfish histo -h 1000000000 ${i}_Q${q}.jf71 -o ${i}_Q${q}.jf71.histo 
   	~/unarc/jellyfish-2.2.5/bin/jellyfish histo -h 1000000000 ${i}_Q${q}.jf79 -o ${i}_Q${q}.jf79.histo   
   done

@@ -465,7 +465,7 @@ int scanForAndDispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb)
 
 	extractLookupPercolatesFromEntryLookups(lookupReadBlock->smerEntryLookups, lookupReadBlock->smerEntryLookupsPercolates);
 
-	RoutingDispatchArray *dispArray=allocDispatchArray();
+	RoutingReadReferenceBlockDispatchArray *dispArray=allocDispatchArray();
 	dispatchReadBlock->dispatchArray=dispArray;
 
 	RoutingReadLookupData *readLookup=lookupReadBlock->readData;

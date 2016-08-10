@@ -161,8 +161,6 @@ void saVerifyIndexing(s32 maxAllowedDistance, s32 *indexes, u32 indexCount, int 
 
 
 
-
-
 /*
 
 

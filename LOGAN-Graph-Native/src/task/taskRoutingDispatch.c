@@ -8,7 +8,7 @@
 #include "common.h"
 
 
-static void initDispatchIntermediateBlock(RoutingDispatchIntermediate *block, MemDispenser *disp)
+static void initDispatchIntermediateBlock(RoutingReadReferenceBlock *block, MemDispenser *disp)
 {
 	block->entryCount=0;
 	block->entries=dAllocCacheAligned(disp, TR_DISPATCH_READS_PER_INTERMEDIATE_BLOCK*sizeof(RoutingReadData *));
@@ -16,19 +16,19 @@ static void initDispatchIntermediateBlock(RoutingDispatchIntermediate *block, Me
 }
 
 
-RoutingDispatchIntermediate *allocDispatchIntermediateBlock(MemDispenser *disp)
+RoutingReadReferenceBlock *allocDispatchIntermediateBlock(MemDispenser *disp)
 {
-	RoutingDispatchIntermediate *block=dAlloc(disp, sizeof(RoutingDispatchIntermediate));
+	RoutingReadReferenceBlock *block=dAlloc(disp, sizeof(RoutingReadReferenceBlock));
 	initDispatchIntermediateBlock(block, disp);
 	return block;
 }
 
 
-RoutingDispatchArray *allocDispatchArray(RoutingDispatchArray *nextPtr)
+RoutingReadReferenceBlockDispatchArray *allocDispatchArray(RoutingReadReferenceBlockDispatchArray *nextPtr)
 {
 	MemDispenser *disp=dispenserAlloc("RoutingDispatchArray");
 
-	RoutingDispatchArray *array=dAlloc(disp, sizeof(RoutingDispatchArray));
+	RoutingReadReferenceBlockDispatchArray *array=dAlloc(disp, sizeof(RoutingReadReferenceBlockDispatchArray));
 
 	array->nextPtr=nextPtr;
 	array->disp=disp;
@@ -46,7 +46,7 @@ RoutingDispatchArray *allocDispatchArray(RoutingDispatchArray *nextPtr)
 	return array;
 }
 
-static void expandIntermediateDispatchBlock(RoutingDispatchIntermediate *block, MemDispenser *disp)
+static void expandIntermediateDispatchBlock(RoutingReadReferenceBlock *block, MemDispenser *disp)
 {
 	int oldSize=block->entryCount;
 	int size=oldSize*2;
@@ -61,7 +61,7 @@ static void expandIntermediateDispatchBlock(RoutingDispatchIntermediate *block, 
 
 
 
-static void assignReadDataToDispatchIntermediate(RoutingDispatchIntermediate *intermediate, RoutingReadData *readData, MemDispenser *disp)
+static void assignReadDataToDispatchIntermediate(RoutingReadReferenceBlock *intermediate, RoutingReadData *readData, MemDispenser *disp)
 {
 	u64 entryCount=intermediate->entryCount;
 	if(entryCount>=TR_DISPATCH_READS_PER_INTERMEDIATE_BLOCK && !((entryCount & (entryCount - 1))))
@@ -72,7 +72,7 @@ static void assignReadDataToDispatchIntermediate(RoutingDispatchIntermediate *in
 }
 
 
-void assignToDispatchArrayEntry(RoutingDispatchArray *array, RoutingReadData *readData)
+void assignToDispatchArrayEntry(RoutingReadReferenceBlockDispatchArray *array, RoutingReadData *readData)
 {
 	SmerId fsmer=readData->fsmers[readData->indexCount];
 	SmerId rsmer=readData->rsmers[readData->indexCount];
@@ -128,13 +128,13 @@ void initRoutingDispatchGroupState(RoutingDispatchGroupState *dispatchGroupState
 }
 */
 
-static RoutingDispatchArray *cleanupRoutingDispatchArrays(RoutingDispatchArray *in)
+static RoutingReadReferenceBlockDispatchArray *cleanupRoutingDispatchArrays(RoutingReadReferenceBlockDispatchArray *in)
 {
-	RoutingDispatchArray **scan=&in;
+	RoutingReadReferenceBlockDispatchArray **scan=&in;
 
 	while((*scan)!=NULL)
 		{
-		RoutingDispatchArray *current=(*scan);
+		RoutingReadReferenceBlockDispatchArray *current=(*scan);
 
 		int compCount=__atomic_load_n(&current->completionCount, __ATOMIC_SEQ_CST);
 		if(compCount==0)
@@ -179,9 +179,9 @@ void freeRoutingDispatchGroupState(RoutingDispatchGroupState *dispatchGroupState
 }
 
 
-static void queueDispatchForGroup(RoutingBuilder *rb, RoutingDispatch *dispatchForGroup, int groupNum)
+static void queueDispatchForGroup(RoutingBuilder *rb, RoutingReadReferenceBlockDispatch *dispatchForGroup, int groupNum)
 {
-	RoutingDispatch *current=NULL;
+	RoutingReadReferenceBlockDispatch *current=NULL;
 	int loopCount=0;
 
 	do
@@ -198,9 +198,9 @@ static void queueDispatchForGroup(RoutingBuilder *rb, RoutingDispatch *dispatchF
 
 }
 
-static RoutingDispatch *dequeueDispatchForGroupList(RoutingBuilder *rb, int groupNum)
+static RoutingReadReferenceBlockDispatch *dequeueDispatchForGroupList(RoutingBuilder *rb, int groupNum)
 {
-	RoutingDispatch *current=NULL;
+	RoutingReadReferenceBlockDispatch *current=NULL;
 	int loopCount=0;
 
 	do
@@ -396,7 +396,7 @@ int scanForCompleteReadDispatchBlocks(RoutingBuilder *rb)
 }
 
 
-void queueDispatchArray(RoutingBuilder *rb, RoutingDispatchArray *dispArray)
+void queueDispatchArray(RoutingBuilder *rb, RoutingReadReferenceBlockDispatchArray *dispArray)
 {
 	int count=0;
 
@@ -417,9 +417,9 @@ void queueDispatchArray(RoutingBuilder *rb, RoutingDispatchArray *dispArray)
 }
 
 
-static RoutingDispatch *buildPrevLinks(RoutingDispatch *dispatchEntry)
+static RoutingReadReferenceBlockDispatch *buildPrevLinks(RoutingReadReferenceBlockDispatch *dispatchEntry)
 {
-	RoutingDispatch *prev=NULL;
+	RoutingReadReferenceBlockDispatch *prev=NULL;
 	int count=0;
 
 	while(dispatchEntry!=NULL)
@@ -436,9 +436,9 @@ static RoutingDispatch *buildPrevLinks(RoutingDispatch *dispatchEntry)
 }
 
 
-static int assignReversedInboundDispatchesToSlices(RoutingDispatch *dispatches, RoutingDispatchGroupState *dispatchGroupState)
+static int assignReversedInboundDispatchesToSlices(RoutingReadReferenceBlockDispatch *dispatches, RoutingDispatchGroupState *dispatchGroupState)
 {
-	RoutingDispatchIntermediate *smerInboundDispatches=dispatchGroupState->smerInboundDispatches;
+	RoutingReadReferenceBlock *smerInboundDispatches=dispatchGroupState->smerInboundDispatches;
 
 	while(dispatches!=NULL)
 		{
@@ -454,7 +454,7 @@ static int assignReversedInboundDispatchesToSlices(RoutingDispatch *dispatches, 
 			assignReadDataToDispatchIntermediate(smerInboundDispatches+inboundIndex, readData, dispatchGroupState->disp);
 			}
 
-		RoutingDispatch *nextDispatches=dispatches->prevPtr;
+		RoutingReadReferenceBlockDispatch *nextDispatches=dispatches->prevPtr;
 
 		__atomic_fetch_sub(dispatches->completionCountPtr,1, __ATOMIC_SEQ_CST);
 
@@ -465,15 +465,15 @@ static int assignReversedInboundDispatchesToSlices(RoutingDispatch *dispatches, 
 }
 
 
-static int indexDispatchesForSlice(RoutingDispatchIntermediate *smerInboundDispatches, int sliceSmerCount, MemDispenser *disp,
-		RoutingDispatchIntermediate **indexedDispatches, u32 *sliceIndexes)
+static int indexDispatchesForSlice(RoutingReadReferenceBlock *smerInboundDispatches, int sliceSmerCount, MemDispenser *disp,
+		RoutingReadReferenceBlock **indexedDispatches, u32 *sliceIndexes)
 {
 //	int size=sizeof(RoutingDispatchIntermediate *) *sliceSmerCount;
 	//RoutingDispatchIntermediate **smerDispatches=dAlloc(disp, size);
 
 //	LOG(LOG_INFO,"%i %p %i %p %p",sliceSmerCount,smerDispatches, size, indexedDispatches, sliceIndexes);
 
-	RoutingDispatchIntermediate **smerDispatches=dAlloc(disp, sizeof(RoutingDispatchIntermediate *)*  sliceSmerCount);
+	RoutingReadReferenceBlock **smerDispatches=dAlloc(disp, sizeof(RoutingReadReferenceBlock *)*  sliceSmerCount);
 
 	for(int j=0;j<sliceSmerCount;j++)
 		{
@@ -493,7 +493,7 @@ static int indexDispatchesForSlice(RoutingDispatchIntermediate *smerInboundDispa
 
 		if(sliceIndex>=0 && sliceIndex<sliceSmerCount)
 			{
-			RoutingDispatchIntermediate *rdi=smerDispatches[sliceIndex];
+			RoutingReadReferenceBlock *rdi=smerDispatches[sliceIndex];
 
 			if(rdi==NULL)
 				{
@@ -517,63 +517,6 @@ static int indexDispatchesForSlice(RoutingDispatchIntermediate *smerInboundDispa
 	return usedCount;
 }
 
-static void compactSliceData(SmerArraySlice *slice, MemDispenser *disp)
-{
-	int smerCount=slice->smerCount;
-	MemPackStackRetain *retains=dAlloc(disp, sizeof(MemPackStackRetain)*smerCount);
-
-	for(int i=0;i<smerCount;i++)
-		{
-		retains[i].index=i;
-		u8 *ptr=slice->smerData[i];
-		u8 *scanPtr;
-
-		scanPtr=scanTails(ptr);
-		scanPtr=scanTails(scanPtr);
-		scanPtr=scanRouteTable(scanPtr);
-
-		int size=scanPtr-ptr;
-
-		retains[i].oldPtr=ptr;
-		retains[i].size=size;
-		}
-
-	slice->slicePackStack=psCompact(slice->slicePackStack, retains, smerCount);
-
-	//LOG(LOG_INFO,"Compacted stack: Size %i: Peak: %i Realloc: %i",slice->slicePackStack->currentSize, slice->slicePackStack->peakAlloc, slice->slicePackStack->realloc);
-
-	for(int i=0;i<smerCount;i++)
-		slice->smerData[retains[i].index]=retains[i].newPtr;
-
-}
-
-
-static int forwardPrefixSorter(const void *a, const void *b)
-{
-	RoutePatch *pa=(RoutePatch *)a;
-	RoutePatch *pb=(RoutePatch *)b;
-
-	int diff=pa->prefixIndex-pb->prefixIndex;
-	if(diff)
-		return diff;
-
-	return pa->rdiPtr-pb->rdiPtr;
-	//return pa->rdiIndex-pb->rdiIndex; // Follow original order
-}
-
-static int reverseSuffixSorter(const void *a, const void *b)
-{
-	RoutePatch *pa=(RoutePatch *)a;
-	RoutePatch *pb=(RoutePatch *)b;
-
-	int diff=pa->suffixIndex-pb->suffixIndex;
-	if(diff)
-		return diff;
-
-	return pa->rdiPtr-pb->rdiPtr;
-//	return pa->rdiIndex-pb->rdiIndex; // Follow original order
-//	return pb->rdiIndex-pa->rdiIndex; // Reverse original order
-}
 
 
 /*
@@ -585,297 +528,8 @@ void dumpPatches(RoutePatch *patches, int patchCount)
 */
 
 
-int processReadsForSmer(RoutingDispatchIntermediate *rdi, u32 sliceIndex, SmerArraySlice *slice, RoutingReadData **orderedDispatches, MemDispenser *disp)
-{
-	u8 *smerData=slice->smerData[sliceIndex];
 
-	//if(smerData!=NULL)
-//		LOG(LOG_INFO, "Index: %i of %i Entries %i Data: %p",sliceIndex,slice->smerCount, rdi->entryCount, smerData);
-
-	SeqTailBuilder prefixBuilder, suffixBuilder;
-	RouteTableBuilder routeTableBuilder;
-
-	u8 *tmp;
-
-	tmp=smerData;
-	smerData=initSeqTailBuilder(&prefixBuilder, smerData, disp);
-	int oldSizePrefix=smerData-tmp;
-
-	tmp=smerData;
-	smerData=initSeqTailBuilder(&suffixBuilder, smerData, disp);
-	int oldSizeSuffix=smerData-tmp;
-
-	tmp=smerData;
-	smerData=initRouteTableBuilder(&routeTableBuilder, smerData, disp);
-	int oldSizeRoutes=smerData-tmp;
-
-	int oldSize=smerData-slice->smerData[sliceIndex];
-
-	int entryCount=rdi->entryCount;
-
-	int forwardCount=0;
-	int reverseCount=0;
-
-	RoutePatch *forwardPatches=dAlloc(disp,sizeof(RoutePatch)*entryCount);
-	RoutePatch *reversePatches=dAlloc(disp,sizeof(RoutePatch)*entryCount);
-
-//	memset(forwardPatches,0,sizeof(RoutePatch)*entryCount);
-//	memset(reversePatches,0,sizeof(RoutePatch)*entryCount);
-
-	//int debug=0;
-
-	// First, lookup tail indexes, creating tails if necessary
-
-	s32 maxNewPrefix=0;
-	s32 maxNewSuffix=0;
-
-	SmerId smerId=SMER_DUMMY;
-
-	for(int i=0;i<entryCount;i++)
-	{
-		RoutingReadData *rdd=rdi->entries[i];
-
-		int index=rdd->indexCount;
-
-		if(0)
-		{
-			SmerId currSmer=rdd->fsmers[index];
-			SmerId prevSmer=rdd->fsmers[index+1];
-			SmerId nextSmer=rdd->fsmers[index-1];
-
-			int upstreamLength=rdd->readIndexes[index]-rdd->readIndexes[index+1];
-			int downstreamLength=rdd->readIndexes[index-1]-rdd->readIndexes[index];
-
-			char bufferP[SMER_BASES+1]={0};
-			char bufferC[SMER_BASES+1]={0};
-			char bufferN[SMER_BASES+1]={0};
-
-			unpackSmer(prevSmer, bufferP);
-			unpackSmer(currSmer, bufferC);
-			unpackSmer(nextSmer, bufferN);
-
-			LOG(LOG_INFO,"Read Orientation: %s (%i) %s %s (%i)",bufferP, upstreamLength, bufferC, bufferN, downstreamLength);
-		}
-
-		SmerId currFmer=rdd->fsmers[index];
-		SmerId currRmer=rdd->rsmers[index];
-
-		if(currFmer<=currRmer) // Canonical Read Orientation
-			{
-				smerId=currFmer;
-				//LOG(LOG_INFO,"Adding forward route to %li",currFmer);
-
-				SmerId prefixSmer=rdd->rsmers[index+1]; // Previous smer in read, reversed
-				SmerId suffixSmer=rdd->fsmers[index-1]; // Next smer in read
-
-				int prefixLength=rdd->readIndexes[index]-rdd->readIndexes[index+1];
-				int suffixLength=rdd->readIndexes[index-1]-rdd->readIndexes[index];
-
-				forwardPatches[forwardCount].next=NULL;
-				forwardPatches[forwardCount].rdiPtr=rdi->entries+i;
-//				forwardPatches[forwardCount].rdiIndex=i;
-
-				forwardPatches[forwardCount].prefixIndex=findOrCreateSeqTail(&prefixBuilder, prefixSmer, prefixLength);
-				forwardPatches[forwardCount].suffixIndex=findOrCreateSeqTail(&suffixBuilder, suffixSmer, suffixLength);
-
-				maxNewPrefix=MAX(maxNewPrefix,forwardPatches[forwardCount].prefixIndex);
-				maxNewSuffix=MAX(maxNewSuffix,forwardPatches[forwardCount].suffixIndex);
-
-
-				if(0)
-					{
-					char bufferP[SMER_BASES+1]={0};
-					char bufferN[SMER_BASES+1]={0};
-					char bufferS[SMER_BASES+1]={0};
-
-					unpackSmer(prefixSmer, bufferP);
-					unpackSmer(currFmer, bufferN);
-					unpackSmer(suffixSmer, bufferS);
-
-					LOG(LOG_INFO,"Node Orientation: %s (%i) @ %i %s %s (%i) @ %i",
-							bufferP, prefixLength, forwardPatches[forwardCount].prefixIndex,  bufferN, bufferS, suffixLength, forwardPatches[forwardCount].suffixIndex);
-					}
-
-				forwardCount++;
-			}
-		else	// Reverse-complement Read Orientation
-			{
-				smerId=currRmer;
-				//LOG(LOG_INFO,"Adding reverse route to %li",currRmer);
-
-				SmerId prefixSmer=rdd->fsmers[index-1]; // Next smer in read
-				SmerId suffixSmer=rdd->rsmers[index+1]; // Previous smer in read, reversed
-
-
-				int prefixLength=rdd->readIndexes[index-1]-rdd->readIndexes[index];
-				int suffixLength=rdd->readIndexes[index]-rdd->readIndexes[index+1];
-
-				reversePatches[reverseCount].next=NULL;
-				reversePatches[reverseCount].rdiPtr=rdi->entries+i;
-//				reversePatches[reverseCount].rdiIndex=i;
-
-				reversePatches[reverseCount].prefixIndex=findOrCreateSeqTail(&prefixBuilder, prefixSmer, prefixLength);
-				reversePatches[reverseCount].suffixIndex=findOrCreateSeqTail(&suffixBuilder, suffixSmer, suffixLength);
-
-				maxNewPrefix=MAX(maxNewPrefix,reversePatches[reverseCount].prefixIndex);
-				maxNewSuffix=MAX(maxNewSuffix,reversePatches[reverseCount].suffixIndex);
-
-				if(0)
-					{
-					char bufferP[SMER_BASES+1]={0};
-					char bufferN[SMER_BASES+1]={0};
-					char bufferS[SMER_BASES+1]={0};
-
-					unpackSmer(prefixSmer, bufferP);
-					unpackSmer(currRmer, bufferN);
-					unpackSmer(suffixSmer, bufferS);
-
-					LOG(LOG_INFO,"Node Orientation: %s (%i) @ %i %s %s (%i) @ %i",
-							bufferP, prefixLength, reversePatches[forwardCount].prefixIndex,  bufferN, bufferS, suffixLength, reversePatches[forwardCount].suffixIndex);
-					}
-
-				reverseCount++;
-			}
-	}
-
-	// Then sort new forward and reverse routes, if more than one
-
-	if(forwardCount>1)
-		{
-		qsort(forwardPatches, forwardCount, sizeof(RoutePatch), forwardPrefixSorter);
-/*
-		if(forwardCount>100)
-			{
-			LOG(LOG_INFO,"Forward Patches %i",forwardCount);
-			dumpPatches(forwardPatches, forwardCount);
-			}
-*/
-		}
-
-	if(reverseCount>1)
-		{
-		qsort(reversePatches, reverseCount, sizeof(RoutePatch), reverseSuffixSorter);
-/*
-		if(reverseCount>100)
-			{
-			LOG(LOG_INFO,"Reverse Patches %i",reverseCount);
-			dumpPatches(reversePatches, reverseCount);
-			}
-*/
-		}
-
-/*
-	if(debug)
-		{
-		LOG(LOG_INFO,"Builder has Size: %i Max: %i %i %i Count: %i %i",
-				routeTableBuilder.totalPackedSize,
-				routeTableBuilder.maxPrefix,routeTableBuilder.maxSuffix,routeTableBuilder.maxWidth,
-				routeTableBuilder.oldForwardEntryCount,routeTableBuilder.oldReverseEntryCount);
-		LOG(LOG_INFO,"Adding %i %i",forwardCount,reverseCount);
-		}
-*/
-	mergeRoutes(&routeTableBuilder, forwardPatches, reversePatches, forwardCount, reverseCount, maxNewPrefix, maxNewSuffix, orderedDispatches, disp);
-
-	/*
-	for(int i=0;i<forwardCount;i++)
-		*(orderedDispatches++)=*(forwardPatches[i].rdiPtr);
-
-	for(int i=0;i<reverseCount;i++)
-		*(orderedDispatches++)=*(reversePatches[i].rdiPtr);
-*/
-
-	int routeEntries=routeTableBuilder.oldForwardEntryCount+
-			routeTableBuilder.oldReverseEntryCount+
-			routeTableBuilder.newForwardEntryCount+
-			routeTableBuilder.newReverseEntryCount;
-
-	if(routeEntries>10000)
-		{
-		char bufferN[SMER_BASES+1]={0};
-		unpackSmer(smerId, bufferN);
-
-		LOG(LOG_INFO,"LARGE SMER: %s %012lx has %i %i %i %i",bufferN,smerId,
-				routeTableBuilder.oldForwardEntryCount,routeTableBuilder.oldReverseEntryCount,
-				routeTableBuilder.newForwardEntryCount,routeTableBuilder.newReverseEntryCount);
-		}
-
-/*
-	if(debug)
-		LOG(LOG_INFO,"Builder has Size: %i Max: %i %i %i Count: %i %i %i %i",
-				routeTableBuilder.totalPackedSize,
-				routeTableBuilder.maxPrefix,routeTableBuilder.maxSuffix,routeTableBuilder.maxWidth,
-				routeTableBuilder.oldForwardEntryCount,routeTableBuilder.oldReverseEntryCount,
-				routeTableBuilder.newForwardEntryCount,routeTableBuilder.newReverseEntryCount);
-*/
-	if(getSeqTailBuilderDirty(&prefixBuilder) || getSeqTailBuilderDirty(&suffixBuilder) || getRouteTableBuilderDirty(&routeTableBuilder))
-		{
-		int prefixPackedSize=getSeqTailBuilderPackedSize(&prefixBuilder);
-		int suffixPackedSize=getSeqTailBuilderPackedSize(&suffixBuilder);
-		int routeTablePackedSize=getRouteTableBuilderPackedSize(&routeTableBuilder);
-
-		int diffPrefix=prefixPackedSize-oldSizePrefix;
-		int diffSuffix=suffixPackedSize-oldSizeSuffix;
-		int diffRoutes=routeTablePackedSize-oldSizeRoutes;
-
-		int totalSize=prefixPackedSize+suffixPackedSize+routeTablePackedSize;
-		int sizeDiff=totalSize-oldSize;
-
-		/*
-		LOG(LOG_INFO,"Slice Alloc: %i %i (%i %i) %i %i (%i %i) %i %i (%i %i %i %i)",
-				prefixPackedSize, diffPrefix, prefixBuilder.oldTailCount,prefixBuilder.newTailCount,
-				suffixPackedSize, diffSuffix, suffixBuilder.oldTailCount,suffixBuilder.newTailCount,
-				routeTablePackedSize, diffRoutes,
-				routeTableBuilder.oldForwardEntryCount,routeTableBuilder.oldReverseEntryCount,
-				routeTableBuilder.newForwardEntryCount,routeTableBuilder.newReverseEntryCount);
-*/
-
-		slice->totalAlloc+=sizeDiff;
-
-		slice->totalAllocPrefix+=diffPrefix;
-		slice->totalAllocSuffix+=diffSuffix;
-		slice->totalAllocRoutes+=diffRoutes;
-
-		slice->totalRealloc+=oldSize;
-
-		u8 *oldData=slice->smerData[sliceIndex];
-		u8 *newData;
-
-
-
-//		LOG(LOG_INFO,"Was %i Now %i",oldSize,totalSize);
-
-		if(oldData!=NULL)
-			newData=psRealloc(slice->slicePackStack, oldData, oldSize, totalSize);
-		else
-			newData=psAlloc(slice->slicePackStack, totalSize);
-
-		if(newData==NULL)
-			{
-			compactSliceData(slice, disp);
-
-			if(oldData!=NULL)
-				newData=psRealloc(slice->slicePackStack, oldData, oldSize, totalSize);
-			else
-				newData=psAlloc(slice->slicePackStack, totalSize);
-			}
-
-		if(newData==NULL)
-				LOG(LOG_CRITICAL,"Failed at alloc after compact: Wanted %i",totalSize);
-
-		u8 *dataTmp=writeSeqTailBuilderPackedData(&prefixBuilder, newData);
-		dataTmp=writeSeqTailBuilderPackedData(&suffixBuilder, dataTmp);
-		dataTmp=writeRouteTableBuilderPackedData(&routeTableBuilder, dataTmp);
-
-
-
-		slice->smerData[sliceIndex]=newData;
-		}
-
-	return entryCount;
-}
-
-
-static void processSlice(RoutingDispatchIntermediate *smerInboundDispatches,  SmerArraySlice *slice, RoutingReadData **orderedDispatches, MemDispenser *disp)
+static void processSlice(RoutingReadReferenceBlock *smerInboundDispatches,  SmerArraySlice *slice, RoutingReadData **orderedDispatches, MemDispenser *disp)
 {
 	//for(int i=0;i<SMER_DISPATCH_GROUP_SLICES;i++)
 		//{
@@ -883,7 +537,7 @@ static void processSlice(RoutingDispatchIntermediate *smerInboundDispatches,  Sm
 		if(smerInboundDispatches->entryCount>0)
 			{
 			// Wasteful approach for groups with few reads - change to qsort based on sliceIndex
-			RoutingDispatchIntermediate **indexedDispatches=dAlloc(disp, sizeof(RoutingDispatchIntermediate *)*  slice->smerCount);
+			RoutingReadReferenceBlock **indexedDispatches=dAlloc(disp, sizeof(RoutingReadReferenceBlock *)*  slice->smerCount);
 			u32 *sliceIndexes=dAlloc(disp, sizeof(u32)*slice->smerCount);
 /*
 			for(int j=0;j<slice->smerCount;j++)
@@ -897,7 +551,7 @@ static void processSlice(RoutingDispatchIntermediate *smerInboundDispatches,  Sm
 			int dispatchOffset=0;
 			for(int j=0;j<indexLength;j++)
 				{
-				int entryCount=processReadsForSmer(indexedDispatches[j], sliceIndexes[j], slice, orderedDispatches+dispatchOffset, disp);
+				int entryCount=rtRouteReadsForSmer(indexedDispatches[j], sliceIndexes[j], slice, orderedDispatches+dispatchOffset, disp);
 				dispatchOffset+=entryCount;
 				}
 
@@ -938,18 +592,18 @@ for(int j=0;j<smerInboundDispatches->entryCount;j++)
 
 static void prepareGroupOutbound(RoutingDispatchGroupState *groupState)
 {
-	RoutingDispatchArray *outboundDispatches=allocDispatchArray(groupState->outboundDispatches);
+	RoutingReadReferenceBlockDispatchArray *outboundDispatches=allocDispatchArray(groupState->outboundDispatches);
 	groupState->outboundDispatches=outboundDispatches;
 }
 
 static int gatherSliceOutbound(RoutingDispatchGroupState *groupState, int sliceNum, RoutingReadData **orderedDispatches)
 {
 	int work=0;
-	RoutingDispatchArray *dispatchArray=groupState->outboundDispatches;
+	RoutingReadReferenceBlockDispatchArray *dispatchArray=groupState->outboundDispatches;
 
 //	for(int i=0;i<SMER_DISPATCH_GROUP_SLICES;i++)
 //		{
-		RoutingDispatchIntermediate *smerInboundDispatches=groupState->smerInboundDispatches+sliceNum;
+		RoutingReadReferenceBlock *smerInboundDispatches=groupState->smerInboundDispatches+sliceNum;
 
 		for(int j=0;j<smerInboundDispatches->entryCount;j++)
 			{
@@ -996,7 +650,7 @@ static int scanForDispatchesForGroups(RoutingBuilder *rb, int startGroup, int en
 
 	for(int i=startGroup;i<endGroup;i++)
 		{
-		RoutingDispatch *tmpPtr=__atomic_load_n(rb->dispatchPtr+i, __ATOMIC_SEQ_CST);
+		RoutingReadReferenceBlockDispatch *tmpPtr=__atomic_load_n(rb->dispatchPtr+i, __ATOMIC_SEQ_CST);
 
 		if(force || tmpPtr != NULL)
 			{
@@ -1004,13 +658,13 @@ static int scanForDispatchesForGroups(RoutingBuilder *rb, int startGroup, int en
 				{
 				RoutingDispatchGroupState *groupState=rb->dispatchGroupState+i;
 
-				RoutingDispatch *dispatchEntry=dequeueDispatchForGroupList(rb, i);
+				RoutingReadReferenceBlockDispatch *dispatchEntry=dequeueDispatchForGroupList(rb, i);
 
 				if(dispatchEntry!=NULL)
 					{
 					work=1;
 
-					RoutingDispatch *reversed=buildPrevLinks(dispatchEntry);
+					RoutingReadReferenceBlockDispatch *reversed=buildPrevLinks(dispatchEntry);
 					assignReversedInboundDispatchesToSlices(reversed, groupState);
 
 					// Currently only processing with new incoming or force mode
@@ -1023,7 +677,7 @@ static int scanForDispatchesForGroups(RoutingBuilder *rb, int startGroup, int en
 					SmerArraySlice *baseSlice=rb->graph->smerArray.slice+(i << SMER_DISPATCH_GROUP_SHIFT);
 					for(int j=0;j<SMER_DISPATCH_GROUP_SLICES;j++)
 						{
-						RoutingDispatchIntermediate *smerInboundDispatches=groupState->smerInboundDispatches+j;
+						RoutingReadReferenceBlock *smerInboundDispatches=groupState->smerInboundDispatches+j;
 						int inboundEntryCount=smerInboundDispatches->entryCount;
 						SmerArraySlice *slice=baseSlice+j;
 

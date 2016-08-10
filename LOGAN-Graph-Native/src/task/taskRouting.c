@@ -66,7 +66,7 @@ static void dumpUncleanDispatchReadBlocks(int blockNum, RoutingReadDispatchBlock
 
 }
 
-static void dumpUncleanDispatchGroup(int groupNum, RoutingDispatch *dispatchPtr, RoutingDispatchGroupState *dispatchGroupState)
+static void dumpUncleanDispatchGroup(int groupNum, RoutingReadReferenceBlockDispatch *dispatchPtr, RoutingDispatchGroupState *dispatchGroupState)
 {
 	if(dispatchPtr!=NULL)
 		{
