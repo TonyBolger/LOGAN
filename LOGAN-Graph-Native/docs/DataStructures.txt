@@ -97,7 +97,7 @@
 
 
 
-	Performance target: 100GB data / 1GB genome -> 1 hour (on cessna)
+	Performance target: 100GB data / 1GB genome -> 1 hour (on cessna - 16 cores)
 			1 billion reads per hr
 			~16M reads per minute
 			~3.6s per million reads
@@ -630,6 +630,23 @@ Complementary->Complementary: Original sequence direction,
 	Prefix->Suffix. Reverse Routes -> Reverse Routes
 
 
+
+
+High priority Tasks:
+	Merge-insert for multiple route updates (currently rescan per read)
+
+	Non-linear form for busy smers (some kind of tree, first division by upstream, later by offset range)
+
+	Non-packed form for busy smers (unpacked cache)
+		
+	Block-shared & generational garbage collection 
+
+
+Low Priority Tasks:
+
+	Better tail representation: Implicit short sequences, tree-form
+	
+	Better route representation: Move to Front encoding, variable bit width
 
 
 

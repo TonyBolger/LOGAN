@@ -1,7 +1,33 @@
 #include "common.h"
 
 
-
+//	Old Format:
+//		#PrefixTails(2B), PrefixTailData(packed), #SuffixTails(2B), SuffixTailData(packed), RouteHeader(2-10B), ForwardRoutes(packed), ReverseRoutes(packed)
+//
+//
+//	Future Formats:
+//
+//  Compact Format: Tail counts in first byte (<=7)
+//		0 0 P P P S S S,  PrefixTailData(packed), SuffixTailData(packed), RouteHeader(2-10B), ForwardRoutes(packed), ReverseRoutes(packed)
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
 
 
 static int forwardPrefixSorter(const void *a, const void *b)
@@ -266,19 +292,26 @@ int rtRouteReadsForSmer(RoutingReadReferenceBlock *rdi, u32 sliceIndex, SmerArra
 		*(orderedDispatches++)=*(reversePatches[i].rdiPtr);
 */
 
-	int routeEntries=routeTableBuilder.oldForwardEntryCount+
-			routeTableBuilder.oldReverseEntryCount+
-			routeTableBuilder.newForwardEntryCount+
-			routeTableBuilder.newReverseEntryCount;
+	int oldRouteEntries=routeTableBuilder.oldForwardEntryCount+routeTableBuilder.oldReverseEntryCount;
 
-	if(routeEntries>10000)
+	int newRouteEntries=
+			MAX(routeTableBuilder.oldForwardEntryCount,routeTableBuilder.newForwardEntryCount)+
+			MAX(routeTableBuilder.oldReverseEntryCount,routeTableBuilder.newReverseEntryCount);
+
+	if(newRouteEntries>16083)
 		{
-		char bufferN[SMER_BASES+1]={0};
-		unpackSmer(smerId, bufferN);
+		int oldShifted=oldRouteEntries>>14;
+		int newShifted=newRouteEntries>>14;
 
-		LOG(LOG_INFO,"LARGE SMER: %s %012lx has %i %i %i %i",bufferN,smerId,
+		if(oldShifted!=newShifted)
+			{
+			char bufferN[SMER_BASES+1]={0};
+			unpackSmer(smerId, bufferN);
+
+			LOG(LOG_INFO,"LARGE SMER: %s %012lx has %i %i %i %i",bufferN,smerId,
 				routeTableBuilder.oldForwardEntryCount,routeTableBuilder.oldReverseEntryCount,
 				routeTableBuilder.newForwardEntryCount,routeTableBuilder.newReverseEntryCount);
+			}
 		}
 
 /*
@@ -355,4 +388,86 @@ int rtRouteReadsForSmer(RoutingReadReferenceBlock *rdi, u32 sliceIndex, SmerArra
 
 	return entryCount;
 }
+
+
+
+
+
+
+
+
+/*
+
+
+typedef struct smerLinkedStr
+{
+	SmerId smerId;
+	u32 compFlag;
+
+	u64 *prefixData;
+	SmerId *prefixSmers;
+	u8 *prefixSmerExists;
+	u32 prefixCount;
+
+	u64 *suffixData;
+	SmerId *suffixSmers;
+	u8 *suffixSmerExists;
+	u32 suffixCount;
+
+	RouteTableEntry *forwardRouteEntries;
+	RouteTableEntry *reverseRouteEntries;
+	u32 forwardRouteCount;
+	u32 reverseRouteCount;
+
+} SmerLinked;
+
+
+
+ */
+
+SmerLinked *rtGetLinkedSmer(SmerArray *smerArray, SmerId rootSmerId, MemDispenser *disp)
+{
+	int sliceNum, index;
+	u8 *data=saFindSmerAndData(smerArray, rootSmerId, &sliceNum, &index);
+
+	if(index<0)
+		{
+		//LOG(LOG_INFO,"Linked Smer: Not Found");
+		return NULL;
+		}
+
+	SmerLinked *smerLinked=dAlloc(disp,sizeof(SmerLinked));
+	smerLinked->smerId=rootSmerId;
+
+	if(data==NULL)
+		{
+		//LOG(LOG_INFO,"Linked Smer: No data");
+		memset(smerLinked,0,sizeof(SmerLinked));
+		}
+	else
+		{
+		//LOG(LOG_INFO,"Linked Smer: Got data 1");
+
+		data=unpackPrefixesForSmerLinked(smerLinked, data, disp);
+
+		data=unpackSuffixesForSmerLinked(smerLinked, data, disp);
+
+		unpackRouteTableForSmerLinked(smerLinked, data, disp);
+
+		for(int i=0;i<smerLinked->prefixCount;i++)
+			if(saFindSmer(smerArray, smerLinked->prefixSmers[i])<0)
+				smerLinked->prefixSmerExists[i]=0;
+
+		for(int i=0;i<smerLinked->suffixCount;i++)
+			if(saFindSmer(smerArray, smerLinked->suffixSmers[i])<0)
+				smerLinked->suffixSmerExists[i]=0;
+
+		//LOG(LOG_INFO,"Linked Smer: Got data 4 - %i %i",smerLinked->forwardRouteCount, smerLinked->reverseRouteCount);
+		}
+
+	smerLinked->smerId=rootSmerId;
+
+	return smerLinked;
+}
+
 

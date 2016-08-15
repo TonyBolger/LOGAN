@@ -1,9 +1,24 @@
 #include "common.h"
 
 
-//
+// Short term: Allocation per slice (#16384)
 // Per-slice min size of 0x400      (1,024) means 16MBs total
 // Per-slice max size of 0x40000000 (1,073,741,824) means 16TBs total
+
+// Long term: Allocation per block (Min #64, 256 slices each, up to Max #256, 64 slices each)
+
+// Using 64 blocks of 256 slices
+// Per-block min size of 0x40000      (262,144) means 16MBs total
+// Per-block max size of 0x4000000000 (274,877,906,944) means 16TBs total
+
+// Using 128 blocks of 128 slices
+// Per-block min size of 0x20000      (131,072) means 16MBs total
+// Per-block max size of 0x2000000000 (137,438,953,472) means 16TBs total
+
+// Using 256 blocks of 64 slices
+// Per-block min size of 0x10000      (65,536) means 16MBs total
+// Per-block max size of 0x1000000000 (68,719,476,736) means 16TBs total
+
 
 #define PACKSTACK_SIZE_NUM 64
 #define PACKSTACK_SIZE_MIN 0

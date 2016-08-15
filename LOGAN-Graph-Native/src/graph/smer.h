@@ -148,13 +148,12 @@ s32 saInitSmerArray(SmerArray *smerArray, SmerMap *smerMap);
 void saCleanupSmerArray(SmerArray *smerArray);
 
 int saFindSmerEntry(SmerArraySlice *slice, SmerEntry smerEntry);
-//int saFindSmer(SmerArray *smerArray, SmerId smerId);
+s32 saFindSmer(SmerArray *smerArray, SmerId smerId);
+u8 *saFindSmerAndData(SmerArray *smerArray, SmerId smerId, s32 *sliceNumPtr, s32 *indexPtr);
+
 
 void saVerifyIndexing(s32 maxAllowedDistance, s32 *indexes, u32 indexCount, int dataLength, int maxValidIndex);
 
-void saCompactSliceData(SmerArraySlice *slice, MemDispenser *disp);
-
-SmerLinked *saGetLinkedSmer(SmerArray *smerArray, SmerId rootSmerId, MemDispenser *disp);
 
 u32 saGetSmerCount(SmerArray *smerArray);
 void saGetSmerIds(SmerArray *smerArray, SmerId *smerIds);

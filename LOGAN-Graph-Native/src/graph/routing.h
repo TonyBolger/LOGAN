@@ -3,6 +3,8 @@
 
 
 
+
+
 typedef struct routingReadReferenceBlockStr {
 	u64 entryCount; // 8
 	RoutingReadData **entries; // 8
@@ -12,6 +14,10 @@ typedef struct routingReadReferenceBlockStr {
 
 
 int rtRouteReadsForSmer(RoutingReadReferenceBlock *rdi, u32 sliceIndex, SmerArraySlice *slice, RoutingReadData **orderedDispatches, MemDispenser *disp);
+
+
+SmerLinked *rtGetLinkedSmer(SmerArray *smerArray, SmerId rootSmerId, MemDispenser *disp);
+
 
 #endif
 

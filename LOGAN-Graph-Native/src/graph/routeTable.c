@@ -2,6 +2,43 @@
 #include "common.h"
 
 
+// Unpacked format stores arrays of B-trees, each grouped by upstream sequences.
+// Unpack format: 1 1 1 ? ? ? ? ?  ? ? ? ? ? ? ? ?
+//                F F F F F F F F  R R R R R R R R
+//                Fptr*
+//                Rptr*
+
+// UP Block:	  U U U U U U U U  U U U U U U U U (upstream tail)
+//                U U U U U U U U  U U U U U U U U (upstream tail)
+//				  Z Z Z Z Z Z Z Z  Z Z Z Z Z Z Z Z (block size in nodes)
+//                Z Z Z Z Z Z Z Z  Z Z Z Z Z Z Z Z (block size in nodes)
+//				  A A A A A A A A  A A A A A A A A (allocated node count)
+//				  A A A A A A A A  A A A A A A A A (allocated node count)
+//                Nodes*
+
+// UP Node:       Format: (C,O,D,W)*, C
+//                C C C C C C C C  C C C C C C C C (node child index)
+//				  C C C C C C C C  C C C C C C C C
+//                O O O O O O O O  O O O O O O O O (offset)
+//				  O O O O O O O O  O O O O O O O O
+//                D D D D D D D D  D D D D D D D D (downstream tail)
+//				  D D D D D D D D  D D D D D D D D
+//				  W W W W W W W W  W W W W W W W W (width)
+//				  W W W W W W W W  W W W W W W W W
+//				  C C C C C C C C  C C C C C C C C (node child index)
+//				  C C C C C C C C  C C C C C C C C
+
+// PackedArray format stores arrays of pointers, referencing a block of route entries grouped by upstream sequence. The blocks consist of packed entries
+// PckArr format: 1 1 0 W W W W W  P P P P S S S S
+//                F F F F F F F F  R R R R R R R R
+//                Fptr*
+//                Rptr*
+
+// PA Block:      E E E E E E E E  E E E E E E E E (entry count)
+//                E E E E E E E E  E E E E E E E E (entry count)
+//			 	  U*, (D*, W*)*
+
+
 // Huge format:   1 1 1 W W W W W  P P P P S S S S
 //                F F F F F F F F  F F F F F F F F
 //                F F F F F F F F  F F F F F F F F
