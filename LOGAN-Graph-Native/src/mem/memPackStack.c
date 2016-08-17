@@ -7,21 +7,86 @@
 
 // Long term: Allocation per block (Min #64, 256 slices each, up to Max #256, 64 slices each)
 
-// Using 64 blocks of 256 slices
+// Using 64 allocator blocks of 256 slices
 // Per-block min size of 0x40000      (262,144) means 16MBs total
 // Per-block max size of 0x4000000000 (274,877,906,944) means 16TBs total
 
-// Using 128 blocks of 128 slices
-// Per-block min size of 0x20000      (131,072) means 16MBs total
-// Per-block max size of 0x2000000000 (137,438,953,472) means 16TBs total
+// Using 128 allocator blocks of 128 slices
+// Per-allocator min size of 0x20000      (131,072) means 16MBs total
+// Per-allocator max size of 0x2000000000 (137,438,953,472) means 16TBs total
 
-// Using 256 blocks of 64 slices
-// Per-block min size of 0x10000      (65,536) means 16MBs total
-// Per-block max size of 0x1000000000 (68,719,476,736) means 16TBs total
+// Using 256 allocator blocks of 64 slices
+// Per-allocator min size of 0x10000      (65,536) means 16MBs total
+// Per-allocator max size of 0x1000000000 (68,719,476,736) means 16TBs total
 
+
+#define PACKSTACK_CONFIG_NUM 21
+#define PACKSTACK_CONFIG_MIN 0
+
+MemPackStackConfig PACKSTACK_CONFIGS[]=
+{
+		{0x000020000L,{2,0,0,0}}, // 2*128K
+		{0x000020000L,{2,2,0,0}}, // 4*128K
+		{0x000040000L,{2,2,0,0}}, // 4*256K
+		{0x000080000L,{2,2,0,0}}, // 4*512K
+		{0x000080000L,{4,2,2,0}}, // 8*512K
+
+		{0x000100000L,{4,2,2,0}}, // 8*1M
+		{0x000100000L,{4,4,4,4}}, // 16*1M
+		{0x000200000L,{4,4,4,4}}, // 16*2M
+		{0x000400000L,{4,4,4,4}}, // 16*4M
+		{0x000800000L,{4,4,4,4}}, // 16*8M
+
+		{0x001000000L,{4,4,4,4}}, // 16*16M
+		{0x002000000L,{4,4,4,4}}, // 16*32M
+		{0x004000000L,{4,4,4,4}}, // 16*64M
+		{0x008000000L,{4,4,4,4}}, // 16*128M
+		{0x010000000L,{4,4,4,4}}, // 16*256M
+
+		{0x020000000L,{4,4,4,4}}, // 16*512M
+		{0x040000000L,{4,4,4,4}}, // 16*1G
+		{0x080000000L,{4,4,4,4}}, // 16*2G
+		{0x100000000L,{4,4,4,4}}, // 16*4G
+		{0x200000000L,{4,4,4,4}}, // 16*8G
+
+		{0x400000000L,{4,4,4,4}}  // 16*16G
+};
+
+
+static int packStackSizeInit=0;
+
+//static void checkSizeInit()
+void checkSizeInit()
+{
+	if(packStackSizeInit)
+		return;
+
+	for(int i=0;i<PACKSTACK_CONFIG_NUM;i++)
+		{
+		int currentBlock=0;
+
+		for(int j=0;i<PACKSTACK_MAX_GENERATIONS; j++)
+			{
+			if(PACKSTACK_CONFIGS[i].blocksPerGeneration[j])
+				{
+				PACKSTACK_CONFIGS[i].startBlock=currentBlock;
+				PACKSTACK_CONFIGS[i].startOffset=PACKSTACK_CONFIGS[i].blockSize*currentBlock;
+
+				PACKSTACK_CONFIGS[i].generationCount=j;
+				}
+			}
+
+		PACKSTACK_CONFIGS[i].totalBlocks=currentBlock;
+		PACKSTACK_CONFIGS[i].totalSize=PACKSTACK_CONFIGS[i].blockSize*currentBlock;
+		}
+
+
+}
 
 #define PACKSTACK_SIZE_NUM 64
 #define PACKSTACK_SIZE_MIN 0
+
+// 0x400000000
 
 // 16: 0x400 -> 0x4000
 // 16: 0x4000 -> 0x40000

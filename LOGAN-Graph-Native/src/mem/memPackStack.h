@@ -3,6 +3,20 @@
 
 #include "../common.h"
 
+#define PACKSTACK_MAX_GENERATIONS 4
+
+typedef struct memPackStackConfigStr
+{
+	long blockSize;
+	int blocksPerGeneration[PACKSTACK_MAX_GENERATIONS];
+
+	int startBlock[PACKSTACK_MAX_GENERATIONS];
+	long startOffset[PACKSTACK_MAX_GENERATIONS];
+	int generationCount;
+	int totalBlocks;
+	long totalSize;
+} MemPackStackConfig;
+
 
 /* Structures for tracking Memory PackStacks */
 

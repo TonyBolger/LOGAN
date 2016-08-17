@@ -356,6 +356,18 @@ Updated Profiles:
 
 
 
+
+Pen-3 dataset (8 threads)
+
+LOGAN INFO src/io/fastqParser.c(503) 71550.418970: Used 450338551 450338551
+LOGAN INFO cliSrc/main.c(184) 71550.419041: Routing: Parsed 450338551 reads from data/Pen-3_Q20.fq
+LOGAN INFO src/task/task.c(76) 71623.132304: Master: Done Shutdown
+LOGAN INFO src/graph/graph.c(54) 71623.138983: Freeing Graph
+
+
+
+
+
 Memory Usage:
 
 valgrind --tool=massif --pages-as-heap=yes --massif-out-file=massif.out ./LOGAN-Graph-Native/bin/LOGAN data/Ecoli-1_Q20.fq 1 1
