@@ -24,6 +24,7 @@ CLI_OBJS += \
 ./bin/cli/common/mem/mem.o \
 ./bin/cli/common/mem/memDispenser.o \
 ./bin/cli/common/mem/memPackStack.o \
+./bin/cli/common/mem/memColHeap.o \
 ./bin/cli/common/task/task.o \
 ./bin/cli/common/task/taskIndexing.o \
 ./bin/cli/common/task/taskRouting.o \
@@ -52,6 +53,7 @@ JNI_OBJS += \
 ./bin/jni/common/mem/mem.o \
 ./bin/jni/common/mem/memDispenser.o \
 ./bin/jni/common/mem/memPackStack.o \
+./bin/jni/common/mem/memColHeap.o \
 ./bin/jni/common/task/task.o \
 ./bin/jni/common/task/taskIndexing.o \
 ./bin/jni/common/task/taskRouting.o \

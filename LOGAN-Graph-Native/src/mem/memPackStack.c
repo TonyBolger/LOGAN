@@ -53,35 +53,7 @@ MemPackStackConfig PACKSTACK_CONFIGS[]=
 };
 
 
-static int packStackSizeInit=0;
 
-//static void checkSizeInit()
-void checkSizeInit()
-{
-	if(packStackSizeInit)
-		return;
-
-	for(int i=0;i<PACKSTACK_CONFIG_NUM;i++)
-		{
-		int currentBlock=0;
-
-		for(int j=0;i<PACKSTACK_MAX_GENERATIONS; j++)
-			{
-			if(PACKSTACK_CONFIGS[i].blocksPerGeneration[j])
-				{
-				PACKSTACK_CONFIGS[i].startBlock=currentBlock;
-				PACKSTACK_CONFIGS[i].startOffset=PACKSTACK_CONFIGS[i].blockSize*currentBlock;
-
-				PACKSTACK_CONFIGS[i].generationCount=j;
-				}
-			}
-
-		PACKSTACK_CONFIGS[i].totalBlocks=currentBlock;
-		PACKSTACK_CONFIGS[i].totalSize=PACKSTACK_CONFIGS[i].blockSize*currentBlock;
-		}
-
-
-}
 
 #define PACKSTACK_SIZE_NUM 64
 #define PACKSTACK_SIZE_MIN 0
@@ -142,9 +114,8 @@ static MemPackStack *packStackAllocWithSize(int suggestedSizeIndex, int minSize)
 	int totalSize=PACKSTACK_SIZES[suggestedSizeIndex];
 
 	MemPackStack *packStack=memalign(CACHE_ALIGNMENT_SIZE, totalSize);
-
-	if(packStack==NULL)
-		LOG(LOG_CRITICAL,"Failed to alloc packstack");
+	if((posix_memalign(&packStack,CACHE_ALIGNMENT_SIZE, totalSize)!=0) || (packStack==NULL))
+		LOG(LOG_CRITICAL,"Failed to alloc MemPackStack");
 
 	packStack->currentSizeIndex=suggestedSizeIndex;
 	packStack->currentSize=totalSize-sizeof(MemPackStack);
