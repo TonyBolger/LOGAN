@@ -73,12 +73,9 @@ void checkSizeInit()
 					LOG(LOG_CRITICAL,"Invalid ColHeap configuration %i",i);
 					}
 
-				COLHEAP_CONFIGS[i].generationStartBlock[j]=currentBlock;
+				COLHEAP_CONFIGS[i].startOffsetPerGeneration[j]=COLHEAP_CONFIGS[i].blockSize*currentBlock;
+				currentBlock+=COLHEAP_CONFIGS[i].blocksPerGeneration[j];
 				COLHEAP_CONFIGS[i].generationCount=j;
-				}
-			else
-				{
-				COLHEAP_CONFIGS[i].generationStartBlock[j]=-1;
 				}
 			}
 
@@ -103,104 +100,124 @@ static int getConfigIndex(int suggestedConfigIndex, int minSize)
 	if(suggestedConfigIndex>COLHEAP_CONFIG_NUM)
 		{
 		LOG(LOG_CRITICAL, "Attempt to allocate MemColHeap beyond maximum size %i (%i vs %i)",
-				PACKSTACK_SIZES[COLHEAP_CONFIG_NUM-1],COLHEAP_CONFIG_NUM-1,suggestedConfigIndex);
+				COLHEAP_CONFIGS[COLHEAP_CONFIG_NUM-1],COLHEAP_CONFIG_NUM-1,suggestedConfigIndex);
 		}
 
 	return suggestedConfigIndex;
 }
 
 
-static void colHeapInit(MemColHeap *colHeap)
+static void colHeapInit(MemColHeap *colHeap, long (*itemSizeResolver)(u8 *item))
 {
-	for(int i=0;i<COLHEAP_MAX_BLOCKS;i++)
-		{
-		colHeap->blocks[i].size=0;
-		colHeap->blocks[i].alloc=0;
-		colHeap->blocks[i].data=NULL;
-		}
-
 	for(int i=0;i<COLHEAP_MAX_GENERATIONS;i++)
 		{
-		colHeap->genBlockIndex[i]=-1;
+		for(int j=0;j<COLHEAP_MAX_BLOCKS_PER_GENERATION;j++)
+			{
+			colHeap->blocks[i][j].size=0;
+			colHeap->blocks[i][j].alloc=0;
+			colHeap->blocks[i][j].data=NULL;
+			}
+
+		colHeap->genBlockIndex[i]=0;
 		}
 
 	colHeap->peakAlloc=0;
 	colHeap->realloc=0;
+
+	for(int i=0;i<SMER_DISPATCH_GROUP_SLICES;i++)
+		{
+		colHeap->roots[i].rootPtrs=NULL;
+		colHeap->roots[i].numRoots=0;
+		}
+
+	colHeap->itemSizeResolver=itemSizeResolver;
 }
 
 static void colHeapConfigure(MemColHeap *colHeap, int configIndex)
 {
 	if(configIndex>=COLHEAP_CONFIG_NUM)
 		{
-		LOG(LOG_CRITICAL,"Attempted to reconfigure MemConnfigHeap beyond maximum");
+		LOG(LOG_CRITICAL,"Attempted to reconfigure MemConfigHeap beyond maximum (%i)",configIndex);
 		}
 
 	colHeap->configIndex=configIndex;
 
-	for(int i=0;i<COLHEAP_CONFIGS[configIndex].totalBlocks;i++)
+	for(int i=0;i<COLHEAP_CONFIGS[configIndex].generationCount;i++)
 		{
-		int newSize=COLHEAP_CONFIGS[configIndex].blockSize;
-
-		int oldSize=colHeap->blocks[i].size;
-		u8 *oldData=colHeap->blocks[i].data;
-
-		if(newSize!=oldSize)
+		for(int j=0;j<COLHEAP_CONFIGS[configIndex].blocksPerGeneration[i];j++)
 			{
-			u8 *newData=NULL;
+			int newSize=COLHEAP_CONFIGS[configIndex].blockSize;
 
-			if((posix_memalign(&(newData), CACHE_ALIGNMENT_SIZE, newSize)!=0) || (newData==NULL))
-				LOG(LOG_CRITICAL,"Failed to alloc MemColHeap datablock");
+			int oldSize=colHeap->blocks[i][j].size;
+			u8 *oldData=colHeap->blocks[i][j].data;
 
-			if(oldData!=NULL)
+			if(newSize!=oldSize)
 				{
-				memcpy(newData,oldData,colHeap->blocks[i].alloc);
-				free(oldData);
+				u8 *newData=NULL;
+
+				if((posix_memalign((void **)(&newData), CACHE_ALIGNMENT_SIZE, newSize)!=0) || (newData==NULL))
+					LOG(LOG_CRITICAL,"Failed to alloc MemColHeap datablock");
+
+				if(oldData!=NULL)
+					{
+					memcpy(newData,oldData,colHeap->blocks[i][j].alloc);
+					free(oldData);
+					}
+
+				colHeap->blocks[i][j].data=newData;
+				colHeap->blocks[i][j].size=newSize;
+				// colHeap->blocks[i].alloc remains unchanged
 				}
-			colHeap->blocks[i].data=newData;
-			colHeap->blocks[i].size=newSize;
-			// colHeap->blocks[i].alloc remains unchanged
+
 			}
 
 		}
 
-	for(int i=0;i<COLHEAP_CONFIGS[configIndex].generationCount;i++)
-		{
-		colHeap->genBlockIndex[i]=0;
-		}
 }
 
-static void colHeapReconfigure(MemColHeap *colHeap)
+//static
+void colHeapReconfigure(MemColHeap *colHeap, size_t minimumSize)
 {
-	colHeapConfigure(colHeap->configIndex+1);
+	int configIndex=colHeap->configIndex+1;
+
+	while(configIndex<COLHEAP_CONFIG_NUM && COLHEAP_CONFIGS[configIndex].blockSize<minimumSize)
+		configIndex++;
+
+	colHeapConfigure(colHeap, configIndex);
 }
 
 
-static int getNextBlockIndexForGeneration(MemColHeap *colHeap, int generation)
+//static
+int getNextBlockIndexForGeneration(MemColHeap *colHeap, int generation)
 {
-	int genBlockIndex=colHeap->genBlockIndex[generation];
+	s32 configIndex=colHeap->configIndex;
 
-	if(genBlockIndex==-1)
+	if(generation>=COLHEAP_CONFIGS[configIndex].generationCount)
 		{
 		LOG(LOG_CRITICAL,"Attempt to move block for invalid generation");
 		}
 
+	int genBlockIndex=COLHEAP_MAX_BLOCKS_PER_GENERATION*generation;
+
 	genBlockIndex=(genBlockIndex+1);
-	if(genBlockIndex>=COLHEAP_CONFIGS[colHeap->configIndex].generationCount)
+	if(genBlockIndex>=COLHEAP_CONFIGS[colHeap->configIndex].blocksPerGeneration[generation])
 		genBlockIndex=0;
 
 	return genBlockIndex;
 }
 
-
 static void colHeapSetCurrentYoungBlock(MemColHeap *colHeap, int youngBlockIndex)
 {
 	s32 configIndex=colHeap->configIndex;
 
-	int youngestGen=COLHEAP_CONFIGS[configIndex].generationCount-1;
-	int blockIndex=COLHEAP_CONFIGS[configIndex].generationStartBlock[youngestGen]+youngBlockIndex;
+	if(youngBlockIndex>=COLHEAP_CONFIGS[configIndex].blocksPerGeneration[0])
+		{
+		LOG(LOG_CRITICAL,"Attempt to move to block beyond young generation (%i)",youngBlockIndex);
+		}
 
-	MemColHeapBlock *youngBlock=colHeap->blocks+blockIndex;
+	colHeap->genBlockIndex[0]=youngBlockIndex;
 
+	MemColHeapBlock *youngBlock=&(colHeap->blocks[0][youngBlockIndex]);
 	colHeap->currentYoungBlock=youngBlock;
 
 	if(youngBlock->alloc!=0)
@@ -209,17 +226,29 @@ static void colHeapSetCurrentYoungBlock(MemColHeap *colHeap, int youngBlockIndex
 		}
 }
 
+static void colHeapRotateCurrentYoungBlock(MemColHeap *colHeap)
+{
+	int youngBlockIndex=getNextBlockIndexForGeneration(colHeap, 0);
 
-static MemColHeap *colHeapAllocWithSize(int suggestedConfigIndex, int minSize)
+	colHeap->genBlockIndex[0]=youngBlockIndex;
+
+	MemColHeapBlock *youngBlock=&(colHeap->blocks[0][youngBlockIndex]);
+	colHeap->currentYoungBlock=youngBlock;
+
+}
+
+
+
+static MemColHeap *colHeapAllocWithSize(int suggestedConfigIndex, int minSize, long (*itemSizeResolver)(u8 *item))
 {
 	MemColHeap *colHeap=NULL;
 
-	if((posix_memalign(&colHeap, CACHE_ALIGNMENT_SIZE, sizeof(MemColHeap))!=0) || (colHeap==NULL))
+	if((posix_memalign((void **)&colHeap, CACHE_ALIGNMENT_SIZE, sizeof(MemColHeap))!=0) || (colHeap==NULL))
 		LOG(LOG_CRITICAL,"Failed to alloc MemColHeap");
 
 	int configIndex=getConfigIndex(suggestedConfigIndex, minSize);
 
-	colHeapInit(colHeap);
+	colHeapInit(colHeap, itemSizeResolver);
 	colHeapConfigure(colHeap,configIndex);
 	colHeapSetCurrentYoungBlock(colHeap,0);
 
@@ -227,19 +256,131 @@ static MemColHeap *colHeapAllocWithSize(int suggestedConfigIndex, int minSize)
 }
 
 
-MemColHeap *colHeapAlloc()
+MemColHeap *colHeapAlloc(long (*itemSizeResolver)(u8 *item))
 {
 	checkSizeInit();
-	return colHeapAllocWithSize(COLHEAP_CONFIG_MIN, 0);
+	return colHeapAllocWithSize(COLHEAP_CONFIG_MIN, 0, itemSizeResolver);
 }
 
 
 void colHeapFree(MemColHeap *colHeap)
 {
-	for(int i=0;i<COLHEAP_MAX_BLOCKS;i++)
-		free(colHeap->blocks[i].data);
+	for(int i=0;i<COLHEAP_MAX_GENERATIONS;i++)
+		{
+		for(int j=0;j<COLHEAP_MAX_BLOCKS_PER_GENERATION;j++)
+			free(colHeap->blocks[i][j].data);
+		}
 
 	free(colHeap);
 }
+
+
+void chRegisterRoots(MemColHeap *colHeap, int rootSetIndex, u8 **rootPtrs, s32 numRoots)
+{
+	if(colHeap->roots[rootSetIndex].numRoots!=0)
+		{
+		LOG(LOG_CRITICAL,"Roots already registered for this ColHeap");
+		}
+
+	colHeap->roots[rootSetIndex].rootPtrs=rootPtrs;
+	colHeap->roots[rootSetIndex].numRoots=numRoots;
+}
+
+
+static int checkForSpace(MemColHeapBlock *block, size_t newAllocSize)
+{
+	long totalAlloc=block->alloc+newAllocSize;
+
+	return totalAlloc<=block->size;
+}
+
+static void *allocFromBlock(MemColHeapBlock *block, size_t newAllocSize)
+{
+	long totalAlloc=block->alloc+newAllocSize;
+
+	if(totalAlloc<=block->size)
+		{
+		void *data=block->data+block->alloc;
+		block->alloc=totalAlloc;
+		return data;
+		}
+
+	return NULL;
+}
+
+
+static void colHeapGarbageCollect(MemColHeap *colHeap, int generation, int genBlockIndex, MemDispenser *disp)
+{
+
+}
+
+static void colHeapEnsureSpace(MemColHeap *colHeap, size_t newAllocSize)
+{
+	s32 configIndex=colHeap->configIndex;
+
+	// If even an empty block is insufficient, expand ColHeap, then re-test before GC
+	if(COLHEAP_CONFIGS[configIndex].blockSize<newAllocSize)
+		{
+		colHeapReconfigure(colHeap,newAllocSize);
+
+		MemColHeapBlock *block=colHeap->currentYoungBlock;
+		long totalAlloc=block->alloc+newAllocSize;
+		if(totalAlloc<block->size)
+			return;
+		}
+
+	// Rotate young block
+	colHeapRotateCurrentYoungBlock(colHeap);
+	MemColHeapBlock *youngBlock=colHeap->currentYoungBlock;
+
+	// If not empty, GC
+	if(youngBlock->alloc!=0)
+		{
+		MemDispenser *disp=dispenserAlloc("ColHeapGC");
+		colHeapGarbageCollect(colHeap, 0, colHeap->genBlockIndex[0], disp);
+		dispenserFree(disp);
+
+		// If still not empty, expand to prevent GC thrashing
+		if(youngBlock->alloc!=0)
+			colHeapReconfigure(colHeap,newAllocSize);
+
+		// If enough space, happy
+		if(checkForSpace(youngBlock, newAllocSize))
+			return;
+
+		// GC again
+		MemDispenser *disp=dispenserAlloc("ColHeapGC");
+		colHeapGarbageCollect(colHeap, 0, colHeap->genBlockIndex[0], disp);
+		dispenserFree(disp);
+
+		// If enough space, happy
+		if(checkForSpace(youngBlock, newAllocSize))
+			return;
+
+		}
+
+}
+
+void *chAlloc(MemColHeap *colHeap, size_t size)
+{
+	if(size>COLHEAP_MAX_ALLOC)
+		LOG(LOG_CRITICAL, "Request to allocate %i bytes of ColHeap memory refused since it is above the max allocation size %i",size,COLHEAP_MAX_ALLOC);
+
+	// Simple case - alloc from the current young block
+	void *usrPtr=allocFromBlock(colHeap->currentYoungBlock, size);
+	if(usrPtr!=NULL)
+		return usrPtr;
+
+	colHeapEnsureSpace(colHeap, size);
+
+	usrPtr=allocFromBlock(colHeap->currentYoungBlock, size);
+	if(usrPtr!=NULL)
+		return usrPtr;
+
+	LOG(LOG_CRITICAL, "Failed to allocate %i bytes of ColHeap memory after compaction",size);
+	return NULL;
+}
+
+
 
 

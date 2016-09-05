@@ -7,7 +7,7 @@ static MemDispenserBlock *dispenserBlockAlloc()
 {
 	MemDispenserBlock *block=NULL;
 
-	if(posix_memalign(&block,CACHE_ALIGNMENT_SIZE, sizeof(MemDispenserBlock)!=0) || (block==NULL))
+	if(posix_memalign((void **)&block,CACHE_ALIGNMENT_SIZE, sizeof(MemDispenserBlock)!=0) || (block==NULL))
 		LOG(LOG_CRITICAL,"Failed to alloc dispenser block");
 
 	block->prev=NULL;

@@ -11,8 +11,11 @@ s32 saInitSmerArray(SmerArray *smerArray, SmerMap *smerMap) {
 	SmerMapSlice *mapSlices=smerMap->slice;
 
 	int i;
-	int total=0;
 
+	for(i=0;i<SMER_DISPATCH_GROUPS;i++)
+		smerArray->heaps[i]=colHeapAlloc();
+
+	int total=0;
 	for(i=0;i<SMER_SLICES; i++)
 		{
 		int count=smGetSmerSliceCount(mapSlices+i);
@@ -30,13 +33,15 @@ s32 saInitSmerArray(SmerArray *smerArray, SmerMap *smerMap) {
 		arraySlices[i].smerCount=count;
 
 		Bloom *bloom=&(arraySlices[i].bloom);
-
 		initBloom(bloom, count, 4, 8);
 
 		for(int j=0;j<count;j++)
 			setBloom(bloom,smerTmp[j]);
 
 		smSmerEntryArrayFree(smerTmp);
+
+		MemColHeap *colHeap=smerArray->heaps[i>>SMER_DISPATCH_GROUP_SHIFT];
+		chRegisterRoots(colHeap,i&SMER_DISPATCH_GROUP_SLICEMASK,arraySlices[i].smerData, arraySlices[i].smerCount);
 
 		arraySlices[i].slicePackStack=packStackAlloc();
 
@@ -54,6 +59,10 @@ s32 saInitSmerArray(SmerArray *smerArray, SmerMap *smerMap) {
 void saCleanupSmerArray(SmerArray *smerArray) {
 
 	int i = 0;
+
+	for(i=0;i<SMER_DISPATCH_GROUPS;i++)
+		colHeapFree(smerArray->heaps[i]);
+
 	for (i = 0; i < SMER_SLICES; i++)
 		{
 		if (smerArray->slice[i].smerIT != NULL)

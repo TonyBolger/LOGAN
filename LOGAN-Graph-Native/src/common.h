@@ -56,10 +56,10 @@ typedef signed long long s64;
 
 #ifndef SMER_BASES
   #define SMER_BASES 23
-  //#define SMERSIZE21
-  //#define SMERSIZE19
-  //#define SMERSIZE17
-  //#define SMERSIZE15
+//  #define SMER_BASES 21
+//  #define SMER_BASES 19
+//  #define SMER_BASES 17
+//  #define SMER_BASES 15
 #endif
 
 
@@ -93,7 +93,6 @@ typedef u32 SmerEntry;
 #define SMER_LOOKUP_PERCOLATE_MASK (SMER_LOOKUP_PERCOLATES-1)
 #define SMER_LOOKUP_PERCOLATE_SLICES 256
 #define SMER_LOOKUP_PERCOLATE_SLICEMASK (SMER_LOOKUP_PERCOLATES_SLICES-1)
-
 
 #define SMER_DISPATCH_GROUPS 64
 #define SMER_DISPATCH_GROUP_SHIFT 8

@@ -93,7 +93,7 @@ static void compactSliceData(SmerArraySlice *slice, MemDispenser *disp)
 
 
 
-int rtRouteReadsForSmer(RoutingReadReferenceBlock *rdi, u32 sliceIndex, SmerArraySlice *slice, RoutingReadData **orderedDispatches, MemDispenser *disp)
+int rtRouteReadsForSmer(RoutingReadReferenceBlock *rdi, u32 sliceIndex, SmerArraySlice *slice, RoutingReadData **orderedDispatches, MemDispenser *disp, MemColHeap *colHeap)
 {
 	u8 *smerData=slice->smerData[sliceIndex];
 
@@ -359,6 +359,8 @@ int rtRouteReadsForSmer(RoutingReadReferenceBlock *rdi, u32 sliceIndex, SmerArra
 
 //		LOG(LOG_INFO,"Was %i Now %i",oldSize,totalSize);
 
+		// PackStack Version
+
 		if(oldData!=NULL)
 			newData=psRealloc(slice->slicePackStack, oldData, oldSize, totalSize);
 		else
@@ -373,6 +375,9 @@ int rtRouteReadsForSmer(RoutingReadReferenceBlock *rdi, u32 sliceIndex, SmerArra
 			else
 				newData=psAlloc(slice->slicePackStack, totalSize);
 			}
+
+		// ColHeap Version
+		//newData=chAlloc(colHeap, totalSize);
 
 		if(newData==NULL)
 				LOG(LOG_CRITICAL,"Failed at alloc after compact: Wanted %i",totalSize);
