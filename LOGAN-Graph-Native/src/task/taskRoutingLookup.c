@@ -384,6 +384,7 @@ void queueReadsForSmerLookup(SwqBuffer *rec, int ingressPosition, int ingressSiz
 		readData->quality=dAlloc(disp,length+1);
 		readData->smers=dAllocQuadAligned(disp,length*sizeof(SmerId)*2);
 
+		//LOG(LOG_INFO,"Packing %p into %p with length %i",currentRec->seq, readData->packedSeq, length);
 		packSequence(currentRec->seq, readData->packedSeq, length);
 
 		s32 maxValidIndex=(length-nodeSize);

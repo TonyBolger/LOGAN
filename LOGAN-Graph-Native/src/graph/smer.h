@@ -145,7 +145,7 @@ void smGetSmerIds(SmerMap *smerMap, SmerId *smerIds);
 /********************** SmerArray functionality **********************/
 
 
-s32 saInitSmerArray(SmerArray *smerArray, SmerMap *smerMap);
+s32 saInitSmerArray(SmerArray *smerArray, SmerMap *smerMap, s32 (*itemSizeResolver)(u8 *item));
 void saCleanupSmerArray(SmerArray *smerArray);
 
 int saFindSmerEntry(SmerArraySlice *slice, SmerEntry smerEntry);

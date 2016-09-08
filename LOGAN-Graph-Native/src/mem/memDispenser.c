@@ -7,7 +7,17 @@ static MemDispenserBlock *dispenserBlockAlloc()
 {
 	MemDispenserBlock *block=NULL;
 
-	if(posix_memalign((void **)&block,CACHE_ALIGNMENT_SIZE, sizeof(MemDispenserBlock)!=0) || (block==NULL))
+	if(sizeof(MemDispenserBlock)&CACHE_ALIGNMENT_MASK)
+		{
+		LOG(LOG_CRITICAL,"Dispenser block not a multiple of cache alignment size %i vs %i",sizeof(MemDispenserBlock),CACHE_ALIGNMENT_SIZE);
+		}
+
+	if(posix_memalign((void **)&block,CACHE_ALIGNMENT_SIZE, sizeof(MemDispenserBlock))!=0)
+			LOG(LOG_CRITICAL,"Failed to alloc dispenser block");
+
+//	block=memalign(CACHE_ALIGNMENT_SIZE, sizeof(MemDispenserBlock));
+
+	if(block==NULL)
 		LOG(LOG_CRITICAL,"Failed to alloc dispenser block");
 
 	block->prev=NULL;
@@ -314,7 +324,7 @@ void *dAllocQuadAligned(MemDispenser *disp, size_t size)
 	block->allocated+=allocSize;
 	disp->allocated+=allocSize;
 
-	//LOG(LOG_INFO,"Alloced quad aligned %i at %p",allocSize,usrPtr);
+//	LOG(LOG_INFO,"Alloced quad aligned %i at %p in block %p at offset %i of %i",allocSize,usrPtr,block->data,block->allocated, block->blocksize);
 
 	return usrPtr;
 }

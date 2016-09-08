@@ -91,6 +91,16 @@ static void compactSliceData(SmerArraySlice *slice, MemDispenser *disp)
 }
 
 
+s32 rtItemSizeResolver(u8 *item)
+{
+	u8 *scanPtr;
+
+	scanPtr=scanTails(item);
+	scanPtr=scanTails(scanPtr);
+	scanPtr=scanRouteTable(scanPtr);
+
+	return scanPtr-item;
+}
 
 
 int rtRouteReadsForSmer(RoutingReadReferenceBlock *rdi, u32 sliceIndex, SmerArraySlice *slice, RoutingReadData **orderedDispatches, MemDispenser *disp, MemColHeap *colHeap)
@@ -359,25 +369,25 @@ int rtRouteReadsForSmer(RoutingReadReferenceBlock *rdi, u32 sliceIndex, SmerArra
 
 //		LOG(LOG_INFO,"Was %i Now %i",oldSize,totalSize);
 
-		// PackStack Version
-
-		if(oldData!=NULL)
-			newData=psRealloc(slice->slicePackStack, oldData, oldSize, totalSize);
-		else
-			newData=psAlloc(slice->slicePackStack, totalSize);
-
-		if(newData==NULL)
+		if(0) // PackStack Version
 			{
-			compactSliceData(slice, disp);
-
 			if(oldData!=NULL)
 				newData=psRealloc(slice->slicePackStack, oldData, oldSize, totalSize);
 			else
 				newData=psAlloc(slice->slicePackStack, totalSize);
-			}
 
-		// ColHeap Version
-		//newData=chAlloc(colHeap, totalSize);
+			if(newData==NULL)
+				{
+				compactSliceData(slice, disp);
+
+				if(oldData!=NULL)
+					newData=psRealloc(slice->slicePackStack, oldData, oldSize, totalSize);
+				else
+					newData=psAlloc(slice->slicePackStack, totalSize);
+				}
+			}
+		else	// ColHeap Version
+			newData=chAlloc(colHeap, totalSize);
 
 		if(newData==NULL)
 				LOG(LOG_CRITICAL,"Failed at alloc after compact: Wanted %i",totalSize);

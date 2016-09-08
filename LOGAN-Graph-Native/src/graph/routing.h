@@ -11,10 +11,9 @@ typedef struct routingReadReferenceBlockStr {
 } __attribute__((aligned (16))) RoutingReadReferenceBlock;
 
 
-
+s32 rtItemSizeResolver(u8 *item);
 
 int rtRouteReadsForSmer(RoutingReadReferenceBlock *rdi, u32 sliceIndex, SmerArraySlice *slice, RoutingReadData **orderedDispatches, MemDispenser *disp, MemColHeap *colHeap);
-
 
 SmerLinked *rtGetLinkedSmer(SmerArray *smerArray, SmerId rootSmerId, MemDispenser *disp);
 

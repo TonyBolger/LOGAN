@@ -8,12 +8,18 @@
 #define COLHEAP_MAX_GENERATIONS 4
 #define COLHEAP_MAX_BLOCKS_PER_GENERATION 8
 
+#define COLHEAP_MAX_BLOCKS (COLHEAP_MAX_GENERATIONS*COLHEAP_MAX_BLOCKS_PER_GENERATION)
+
+#define COLHEAP_NUM_HEAPS SMER_DISPATCH_GROUPS
+#define COLHEAP_ROOTSETS_PER_HEAP SMER_DISPATCH_GROUP_SLICES
+
 typedef struct memColHeapConfigStr
 {
 	s64 blockSize;
 	s32 blocksPerGeneration[COLHEAP_MAX_GENERATIONS];
 
-	s32 startOffsetPerGeneration[COLHEAP_MAX_GENERATIONS];
+	s32 startBlockPerGeneration[COLHEAP_MAX_GENERATIONS];
+	s64 startOffsetPerGeneration[COLHEAP_MAX_GENERATIONS];
 	s32 generationCount;
 	s32 totalBlocks;
 	s64 totalSize;
@@ -28,11 +34,11 @@ typedef struct memColHeapBlockStr {
 	u8 *data;
 } MemColHeapBlock;
 
-typedef struct memColHeapRootStr
+typedef struct memColHeapRootSetStr
 {
 	u8 **rootPtrs;
 	s32 numRoots;
-} MemColHeapRoot;
+} MemColHeapRootSet;
 
 typedef struct memColHeapStr
 {
@@ -41,21 +47,49 @@ typedef struct memColHeapStr
 	s64 peakAlloc;
 	s64 realloc;
 
-	MemColHeapBlock blocks[COLHEAP_MAX_GENERATIONS][COLHEAP_MAX_BLOCKS_PER_GENERATION];
+	MemColHeapBlock blocks[COLHEAP_MAX_BLOCKS];
 	MemColHeapBlock *currentYoungBlock;
 
-	s32 genBlockIndex[COLHEAP_MAX_GENERATIONS];
+	s32 genCurrentActiveBlockIndex[COLHEAP_MAX_GENERATIONS]; // Zero-based per generation
 
-	MemColHeapRoot roots[SMER_DISPATCH_GROUP_SLICES];
+	MemColHeapRootSet roots[COLHEAP_ROOTSETS_PER_HEAP];
 
-	long (*itemSizeResolver)(u8 *item);
+	s32 (*itemSizeResolver)(u8 *item);
 } MemColHeap;
 
 
+typedef struct memColHeapRootSetQueueEntryStr
+{
+	u8 *dataPtr;
+	s32 size;
+	s32 index;
+} MemColHeapRootSetQueueEntry;
+
+typedef struct memColHeapRootSetQueueStr
+{
+	MemColHeapRootSet *rootSet;
+	s32 rootNum;
+	s32 rootPos; // Needed?
+	s32 entryCountPerBlock[COLHEAP_MAX_GENERATIONS][COLHEAP_MAX_BLOCKS_PER_GENERATION];
+	s64	entrySizePerBlock[COLHEAP_MAX_GENERATIONS][COLHEAP_MAX_BLOCKS_PER_GENERATION];
+
+	MemColHeapRootSetQueueEntry entries[];
+} MemColHeapRootSetQueue;
+
+typedef struct memColHeapGarbageCollectionStr
+{
+	MemColHeapRootSetQueue *rootSetQueues[COLHEAP_ROOTSETS_PER_HEAP];
+	s32 rootSetTotalCount;
+	s64 rootSetTotalSize;
+
+	s64 rootSetTotalSizePerBlock[COLHEAP_MAX_BLOCKS];
+
+	MemColHeapBlock newBlocks[COLHEAP_MAX_BLOCKS];
+
+} MemColHeapGarbageCollection;
 
 
-
-MemColHeap *colHeapAlloc(long (*itemSizeResolver)(u8 *item));
+MemColHeap *colHeapAlloc(s32 (*itemSizeResolver)(u8 *item));
 void colHeapFree(MemColHeap *colHeap);
 
 void chRegisterRoots(MemColHeap *colHeap, int rootSetIndex, u8 **rootPtrs, s32 numRoots);

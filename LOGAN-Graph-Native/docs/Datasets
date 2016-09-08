@@ -284,7 +284,7 @@ for i in Ecoli-1 Ecoli-2 Arabi-1 Lyrata-1; do for q in 20; do cat ${i}_Q${q}_[12
 
 for i in Pen-1 Pen-2 Pen-3; do for q in 20; do cat ${i}_Q${q}_[12][PU].fq.gz | gunzip > ${i}_Q${q}.fq & done; done
 
-
+for i in Pen-4; do for q in 20; do cat ${i}_Q${q}_[12][PU].fq.gz | gunzip > unpack/${i}_Q${q}.fq & done; done
 
 wait
 for i in Pen-1_*.fq; do
@@ -314,9 +314,9 @@ for i in Arabi-1 Ecoli-1 Ecoli-2 Lyrata-1 Pen-1 Pen-2 Pen-3 Pen-4; do
 
 for i in Pen-1 Pen-2 Pen-3 Pen-4; do
 
-for i in Pen-3; do
+for i in Pen-4; do
   echo $i
-  for q in 10 15 20; do
+  for q in 20 15 10; do
     ~/unarc/jellyfish-2.2.5/bin/jellyfish count -C -m 23 -s 100000000 -t 16 -o ${i}_Q${q}.jf23 ${i}_Q${q}.fq
     ~/unarc/jellyfish-2.2.5/bin/jellyfish count -C -m 31 -s 100000000 -t 16 -o ${i}_Q${q}.jf31 ${i}_Q${q}.fq 
     ~/unarc/jellyfish-2.2.5/bin/jellyfish count -C -m 39 -s 100000000 -t 16 -o ${i}_Q${q}.jf39 ${i}_Q${q}.fq 
@@ -326,7 +326,7 @@ for i in Pen-3; do
     ~/unarc/jellyfish-2.2.5/bin/jellyfish count -C -m 71 -s 100000000 -t 16 -o ${i}_Q${q}.jf71 ${i}_Q${q}.fq 
     ~/unarc/jellyfish-2.2.5/bin/jellyfish count -C -m 79 -s 100000000 -t 16 -o ${i}_Q${q}.jf79 ${i}_Q${q}.fq 
   done
-  for q in 10 15 20; do
+  for q in 20 15 10; do
     ~/unarc/jellyfish-2.2.5/bin/jellyfish histo -h 1000000000 ${i}_Q${q}.jf23 -o ${i}_Q${q}.jf.histo 
     ~/unarc/jellyfish-2.2.5/bin/jellyfish histo -h 1000000000 ${i}_Q${q}.jf31 -o ${i}_Q${q}.jf31.histo 
     ~/unarc/jellyfish-2.2.5/bin/jellyfish histo -h 1000000000 ${i}_Q${q}.jf39 -o ${i}_Q${q}.jf39.histo 

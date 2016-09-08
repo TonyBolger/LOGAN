@@ -3,7 +3,7 @@
 #include "common.h"
 
 
-s32 saInitSmerArray(SmerArray *smerArray, SmerMap *smerMap) {
+s32 saInitSmerArray(SmerArray *smerArray, SmerMap *smerMap, s32 (*itemSizeResolver)(u8 *item)) {
 
 	memset(smerArray, 0, sizeof(SmerArray));
 
@@ -13,7 +13,7 @@ s32 saInitSmerArray(SmerArray *smerArray, SmerMap *smerMap) {
 	int i;
 
 	for(i=0;i<SMER_DISPATCH_GROUPS;i++)
-		smerArray->heaps[i]=colHeapAlloc();
+		smerArray->heaps[i]=colHeapAlloc(itemSizeResolver);
 
 	int total=0;
 	for(i=0;i<SMER_SLICES; i++)
