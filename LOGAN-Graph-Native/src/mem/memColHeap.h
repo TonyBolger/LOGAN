@@ -44,15 +44,15 @@ typedef struct memColHeapStr
 {
 	u32 configIndex;
 
-	s64 peakAlloc;
-	s64 realloc;
-
 	MemColHeapBlock blocks[COLHEAP_MAX_BLOCKS];
 	MemColHeapBlock *currentYoungBlock;
 
 	s32 genCurrentActiveBlockIndex[COLHEAP_MAX_GENERATIONS]; // Zero-based per generation
 
 	MemColHeapRootSet roots[COLHEAP_ROOTSETS_PER_HEAP];
+
+	s64 peakAlloc;
+	s64 realloc;
 
 	s32 (*itemSizeResolver)(u8 *item);
 } MemColHeap;

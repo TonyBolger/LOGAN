@@ -8,13 +8,18 @@
  *
  * Simple case: Allocate in current young block.
  *
- * Young generation:
- * 		Young blocks must be empty before reuse, by spilling live data to next older generation
+ * Young generation: Initial allocation point
+ * 		Rotate to next block when full
+ * 		Young blocks must be empty before reuse, empty by GC and spill live data to next older generation
  * 		Young generation serializes entries by last update
  *
- * Middle generation(s):
+ * Middle generation(s): Catches survivors from younger GC
+ * 		Rotate to next block when full
  * 		Blocks at least partially empty before reuse, by spilling live data to next older generation. Remaining data if any is compacted
+ * 		Move to new block when full
+ *
  * 		Each block serializes entries internally by age, no strict ordering between blocks
+ *
  *
  * Old generation:
  * 		Compaction within blocks only.
@@ -61,7 +66,8 @@ static s64 _globalColHeapPerHeapSize;
 //static void checkSizeInit()
 static long colHeapCheckConfigAndGetMaximumSize()
 {
-	long maxSize=0;
+	long maxTotalSize=0;
+	long maxBlockSize=0;
 
 	for(int i=0;i<COLHEAP_CONFIG_NUM;i++)
 		{
@@ -90,21 +96,28 @@ static long colHeapCheckConfigAndGetMaximumSize()
 			}
 
 		COLHEAP_CONFIGS[i].totalBlocks=currentBlock;
-		long totalSize=COLHEAP_CONFIGS[i].blockSize*currentBlock;
+
+		long blockSize=COLHEAP_CONFIGS[i].blockSize;
+		long totalSize=blockSize*currentBlock;
 		COLHEAP_CONFIGS[i].totalSize=totalSize;
 
-		if(maxSize>totalSize)
+		if(maxTotalSize>totalSize)
 			{
 			LOG(LOG_CRITICAL, "ColHeap configurations not ordered by total size at position %i",i);
 			}
 
-		maxSize=totalSize;
+		if(maxBlockSize>blockSize)
+			{
+			LOG(LOG_CRITICAL, "ColHeap configurations not ordered by block size at position %i",i);
+			}
+
+		maxTotalSize=totalSize;
 		}
 
-	if(__builtin_popcountl(maxSize)!=1)
-		LOG(LOG_CRITICAL, "Largest colHeap configurations not power of 2: %li (%lx)",maxSize,maxSize);
+	if(__builtin_popcountl(maxTotalSize)!=1)
+		LOG(LOG_CRITICAL, "Largest colHeap configurations not power of 2: %li (%lx)",maxTotalSize,maxTotalSize);
 
-	return maxSize;
+	return maxTotalSize;
 }
 
 
@@ -172,17 +185,14 @@ static void colHeapCheckGlobalInit()
 }
 
 
-//static
-int getConfigIndex(int suggestedConfigIndex, int minSize)
+static int getConfigIndex(int suggestedConfigIndex, int minSize)
 {
-	int targetSize=minSize+sizeof(MemPackStack);
-
 	if(suggestedConfigIndex<COLHEAP_CONFIG_NUM)
 		{
-		int size=COLHEAP_CONFIGS[suggestedConfigIndex].totalSize;
+		int blockSize=COLHEAP_CONFIGS[suggestedConfigIndex].blockSize;
 
-		while(suggestedConfigIndex<COLHEAP_CONFIG_NUM && size<targetSize)
-			size=COLHEAP_CONFIGS[suggestedConfigIndex].totalSize;
+		while(suggestedConfigIndex<COLHEAP_CONFIG_NUM && blockSize<minSize)
+			blockSize=COLHEAP_CONFIGS[suggestedConfigIndex].blockSize;
 		}
 
 	if(suggestedConfigIndex>COLHEAP_CONFIG_NUM)
@@ -220,6 +230,21 @@ static void colHeapInit(MemColHeap *colHeap, s32 (*itemSizeResolver)(u8 *item))
 
 	colHeap->itemSizeResolver=itemSizeResolver;
 }
+
+
+static void colHeapConfigure(MemColHeap *colHeap, int configIndex)
+{
+	if(configIndex>=COLHEAP_CONFIG_NUM)
+		{
+		LOG(LOG_CRITICAL,"Attempted to reconfigure MemConfigHeap beyond maximum (%i)",configIndex);
+		}
+
+	colHeap->configIndex=configIndex;
+
+
+
+}
+
 /*
 static void colHeapConfigure(MemColHeap *colHeap, int configIndex)
 {
@@ -325,10 +350,10 @@ static MemColHeap *colHeapAllocWithSize(int suggestedConfigIndex, int minSize, s
 	if(colHeap==NULL)
 		LOG(LOG_CRITICAL,"Failed to alloc MemColHeap");
 
-//	int configIndex=getConfigIndex(suggestedConfigIndex, minSize);
+	int configIndex=getConfigIndex(suggestedConfigIndex, minSize);
 
 	colHeapInit(colHeap, itemSizeResolver);
-	//colHeapConfigure(colHeap,configIndex);
+	colHeapConfigure(colHeap,configIndex);
 	//colHeapSetCurrentYoungBlock(colHeap,0);
 
 	return colHeap;
@@ -339,7 +364,6 @@ MemColHeap *colHeapAlloc(s32 (*itemSizeResolver)(u8 *item))
 {
 	colHeapCheckGlobalInit();
 	return colHeapAllocWithSize(COLHEAP_CONFIG_MIN, 0, itemSizeResolver);
-	return NULL;
 }
 
 
