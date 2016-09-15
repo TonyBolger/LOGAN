@@ -43,6 +43,7 @@ typedef struct memColHeapRootSetStr
 typedef struct memColHeapStr
 {
 	u32 configIndex;
+	s32 youngGeneration;
 
 	MemColHeapBlock blocks[COLHEAP_MAX_BLOCKS];
 	MemColHeapBlock *currentYoungBlock;
@@ -51,8 +52,9 @@ typedef struct memColHeapStr
 
 	MemColHeapRootSet roots[COLHEAP_ROOTSETS_PER_HEAP];
 
-	s64 peakAlloc;
-	s64 realloc;
+	u8 *heapData;
+	//s64 peakAlloc;
+	//s64 realloc;
 
 	s32 (*itemSizeResolver)(u8 *item);
 } MemColHeap;
