@@ -16,6 +16,7 @@
 typedef struct memColHeapConfigStr
 {
 	s64 blockSize;
+	s32 blockShift;
 	s32 blocksPerGeneration[COLHEAP_MAX_GENERATIONS];
 
 	s32 startBlockPerGeneration[COLHEAP_MAX_GENERATIONS];
@@ -81,6 +82,7 @@ typedef struct memColHeapRootSetQueueStr
 typedef struct memColHeapGarbageCollectionStr
 {
 	MemColHeapRootSetQueue *rootSetQueues[COLHEAP_ROOTSETS_PER_HEAP];
+	s32 totalBlocks;
 	s32 rootSetTotalCount;
 	s64 rootSetTotalSize;
 

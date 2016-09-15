@@ -20,40 +20,41 @@
  *
  * 		Each block serializes entries internally by age, no strict ordering between blocks
  *
- *
  * Old generation:
  * 		Compaction within blocks only.
+ * 		Expand heap when totalUsed * efficiencyFactor > blockSize*(blocks-1)
+ *
  */
 // Currently each is a factor of 2 total - perhaps too aggressive?
 // blockSize, blocksPerGeneration[COLHEAP_MAX_GENERATIONS]
 
 MemColHeapConfig COLHEAP_CONFIGS[]=
 {
-		{0x000010000L,{2,2,0,0}}, // 4*64K
-		{0x000020000L,{2,2,0,0}}, // 4*128K
-		{0x000040000L,{2,2,0,0}}, // 4*256K
-		{0x000080000L,{2,2,0,0}}, // 4*512K
-		{0x000080000L,{4,2,2,0}}, // 8*512K
+		{0x000010000L,16,{2,2,0,0}}, // 4*64K
+		{0x000020000L,17,{2,2,0,0}}, // 4*128K
+		{0x000040000L,18,{2,2,0,0}}, // 4*256K
+		{0x000080000L,19,{2,2,0,0}}, // 4*512K
+		{0x000080000L,19,{4,2,2,0}}, // 8*512K
 
-		{0x000100000L,{4,2,2,0}}, // 8*1M
-		{0x000100000L,{4,4,4,4}}, // 16*1M
-		{0x000200000L,{4,4,4,4}}, // 16*2M
-		{0x000400000L,{4,4,4,4}}, // 16*4M
-		{0x000800000L,{4,4,4,4}}, // 16*8M
+		{0x000100000L,20,{4,2,2,0}}, // 8*1M
+		{0x000100000L,20,{4,4,4,4}}, // 16*1M
+		{0x000200000L,21,{4,4,4,4}}, // 16*2M
+		{0x000400000L,22,{4,4,4,4}}, // 16*4M
+		{0x000800000L,23,{4,4,4,4}}, // 16*8M
 
-		{0x001000000L,{4,4,4,4}}, // 16*16M
-		{0x002000000L,{4,4,4,4}}, // 16*32M
-		{0x004000000L,{4,4,4,4}}, // 16*64M
-		{0x008000000L,{4,4,4,4}}, // 16*128M
-		{0x010000000L,{4,4,4,4}}, // 16*256M
+		{0x001000000L,24,{4,4,4,4}}, // 16*16M
+		{0x002000000L,25,{4,4,4,4}}, // 16*32M
+		{0x004000000L,26,{4,4,4,4}}, // 16*64M
+		{0x008000000L,27,{4,4,4,4}}, // 16*128M
+		{0x010000000L,28,{4,4,4,4}}, // 16*256M
 
-		{0x020000000L,{4,4,4,4}}, // 16*512M
-		{0x040000000L,{4,4,4,4}}, // 16*1G
-		{0x080000000L,{4,4,4,4}}, // 16*2G
-		{0x100000000L,{4,4,4,4}}, // 16*4G
-		{0x200000000L,{4,4,4,4}}, // 16*8G
+		{0x020000000L,29,{4,4,4,4}}, // 16*512M
+		{0x040000000L,30,{4,4,4,4}}, // 16*1G
+		{0x080000000L,31,{4,4,4,4}}, // 16*2G
+		{0x100000000L,32,{4,4,4,4}}, // 16*4G
+		{0x200000000L,33,{4,4,4,4}}, // 16*8G
 
-		{0x400000000L,{4,4,4,4}}  // 16*16G
+		{0x400000000L,34,{4,4,4,4}}  // 16*16G
 };
 
 
@@ -99,6 +100,13 @@ static long colHeapCheckConfigAndGetMaximumSize()
 		COLHEAP_CONFIGS[i].totalBlocks=currentBlock;
 
 		long blockSize=COLHEAP_CONFIGS[i].blockSize;
+		long shiftBlockSize=1L<<COLHEAP_CONFIGS[i].blockShift;
+
+		if(blockSize!=shiftBlockSize)
+			{
+			LOG(LOG_CRITICAL, "ColHeap configuration blocksize %li does not match size implied from block shift %li",blockSize,shiftBlockSize);
+			}
+
 		long totalSize=blockSize*currentBlock;
 		COLHEAP_CONFIGS[i].totalSize=totalSize;
 
@@ -169,10 +177,8 @@ static void colHeapGlobalHeapAlloc(long perHeapSize, int numHeaps)
 	_globalColHeapTotalSize=totalHeapSize;
 	_globalColHeapPerHeapSize=perHeapSize;
 
-	sleep(10);
-
-	LOG(LOG_CRITICAL,"Leaving now");
-
+//	sleep(10);
+//	LOG(LOG_CRITICAL,"Leaving now");
 
 }
 
@@ -183,7 +189,7 @@ static void colHeapCheckGlobalInit()
 
 	long maxSize=colHeapCheckConfigAndGetMaximumSize();
 	colHeapGlobalHeapAlloc(maxSize, COLHEAP_NUM_HEAPS);
-
+	colHeapSizeInit=1;
 }
 
 
@@ -264,6 +270,7 @@ static int getNextBlockIndexForGeneration(MemColHeap *colHeap, int generation)
 
 static void colHeapSetCurrentYoungBlock(MemColHeap *colHeap, int youngBlockIndex)
 {
+	LOG(LOG_INFO,"Configuring young generation (%i) to use block %i",colHeap->youngGeneration,youngBlockIndex);
 	s32 configIndex=colHeap->configIndex;
 
 	if(youngBlockIndex>=COLHEAP_CONFIGS[configIndex].blocksPerGeneration[0] || youngBlockIndex<0)
@@ -273,26 +280,28 @@ static void colHeapSetCurrentYoungBlock(MemColHeap *colHeap, int youngBlockIndex
 
 	colHeap->genCurrentActiveBlockIndex[colHeap->youngGeneration]=youngBlockIndex;
 
-	MemColHeapBlock *youngBlock=colHeap->blocks+COLHEAP_CONFIGS[configIndex].startBlockPerGeneration[colHeap->youngGeneration];
+	MemColHeapBlock *youngBlock=colHeap->blocks+COLHEAP_CONFIGS[configIndex].startBlockPerGeneration[colHeap->youngGeneration]+youngBlockIndex;
 	colHeap->currentYoungBlock=youngBlock;
 
+	/*
 	if(youngBlock->alloc!=0)
 		{
-		LOG(LOG_CRITICAL, "Attempted to switch to a non-empty young block");
+		LOG(LOG_CRITICAL, "Attempted to switch to a non-empty young block %i",youngBlockIndex);
 		}
+	*/
 }
 
-//static
-
-void colHeapRotateCurrentYoungBlock(MemColHeap *colHeap)
+static void colHeapRotateCurrentYoungBlock(MemColHeap *colHeap)
 {
-	int youngBlockIndex=getNextBlockIndexForGeneration(colHeap, 0);
+	int youngBlockIndex=getNextBlockIndexForGeneration(colHeap, colHeap->youngGeneration);
 	colHeapSetCurrentYoungBlock(colHeap,youngBlockIndex);
 }
 
 
-static void colHeapConfigure(MemColHeap *colHeap, int configIndex)
+static void colHeapConfigure(MemColHeap *colHeap, int configIndex, int reconfigure)
 {
+	int oldConfigIndex=colHeap->configIndex;
+
 	if(configIndex>=COLHEAP_CONFIG_NUM)
 		{
 		LOG(LOG_CRITICAL,"Attempted to reconfigure MemConfigHeap beyond maximum (%i)",configIndex);
@@ -300,11 +309,46 @@ static void colHeapConfigure(MemColHeap *colHeap, int configIndex)
 
 	colHeap->configIndex=configIndex;
 	long blockSize=COLHEAP_CONFIGS[configIndex].blockSize;
+	long totalSize=COLHEAP_CONFIGS[configIndex].totalSize;
+
+	long oldBlockSize=blockSize;
+	long oldTotalSize=totalSize;
+	if(reconfigure)
+		{
+		oldBlockSize=COLHEAP_CONFIGS[oldConfigIndex].blockSize;
+		oldTotalSize=COLHEAP_CONFIGS[oldConfigIndex].blockSize;
+
+		u8 *oldEnd=colHeap->heapData+oldTotalSize;
+		long extraLength=totalSize-oldTotalSize;
+
+		if(extraLength>0)
+			{
+			u8 *newMap=mmap(oldEnd, extraLength, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, 0, 0);
+			if(newMap==NULL)
+				LOG(LOG_CRITICAL,"Failed to map extended ColHeap");
+			}
+		}
+	else
+		{
+		u8 *newMap=mmap(colHeap->heapData, totalSize, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, 0, 0);
+		if(newMap==NULL)
+			LOG(LOG_CRITICAL,"Failed to map ColHeap");
+		}
 
 	for(int i=0;i<COLHEAP_CONFIGS[configIndex].totalBlocks;i++)
 		{
 		colHeap->blocks[i].data=colHeap->heapData+blockSize*i;
 		colHeap->blocks[i].size=blockSize;
+
+		if(blockSize!=oldBlockSize)
+			colHeap->blocks[i].alloc=-1; // Fixed after GC
+		}
+
+	for(int i=COLHEAP_CONFIGS[configIndex].totalBlocks;i<COLHEAP_MAX_BLOCKS;i++)
+		{
+		colHeap->blocks[i].size=0;
+		colHeap->blocks[i].alloc=0;
+		colHeap->blocks[i].data=NULL;
 		}
 
 	for(int i=0;i<COLHEAP_MAX_GENERATIONS;i++)
@@ -332,8 +376,7 @@ static MemColHeap *colHeapAllocWithSize(int suggestedConfigIndex, int minSize, s
 	int configIndex=getConfigIndex(suggestedConfigIndex, minSize);
 
 	colHeapInit(colHeap, itemSizeResolver);
-	colHeapConfigure(colHeap,configIndex);
-	//colHeapSetCurrentYoungBlock(colHeap,0);
+	colHeapConfigure(colHeap,configIndex, 0);
 
 	return colHeap;
 }
@@ -348,8 +391,7 @@ MemColHeap *colHeapAlloc(s32 (*itemSizeResolver)(u8 *item))
 
 void colHeapFree(MemColHeap *colHeap)
 {
-	// Should free block
-
+	// Should free heap block
 
 	free(colHeap);
 }
@@ -369,7 +411,7 @@ void chRegisterRoots(MemColHeap *colHeap, int rootSetIndex, u8 **rootPtrs, s32 n
 	colHeap->roots[rootSetIndex].numRoots=numRoots;
 }
 
-/*
+
 static int checkForSpace(MemColHeapBlock *block, size_t newAllocSize)
 {
 	long totalAlloc=block->alloc+newAllocSize;
@@ -400,6 +442,11 @@ static MemColHeapGarbageCollection *colHeapGC_BuildCollectionStructure(MemColHea
 	s32 totalCount=0;
 	s64 totalSize=0;
 
+	gc->totalBlocks=COLHEAP_CONFIGS[colHeap->configIndex].totalBlocks;
+
+	for(int i=0;i<COLHEAP_MAX_BLOCKS;i++)
+		gc->rootSetTotalSizePerBlock[i]=0;
+
 	for(int i=0;i<COLHEAP_ROOTSETS_PER_HEAP;i++)
 		{
 		u8 **rootPtr=colHeap->roots[i].rootPtrs;
@@ -408,15 +455,25 @@ static MemColHeapGarbageCollection *colHeapGC_BuildCollectionStructure(MemColHea
 		MemColHeapRootSetQueue *queue=dAlloc(disp, sizeof(MemColHeapRootSetQueue)+sizeof(MemColHeapRootSetQueueEntry)*maxRoots);
 
 		int entryCount=0;
+		int blockShift=COLHEAP_CONFIGS[colHeap->configIndex].blockShift;
 
 		for(int j=0;j<maxRoots;j++)
 			{
 			queue->entries[entryCount].dataPtr=rootPtr[j];
-			s32 size=(colHeap->itemSizeResolver)(rootPtr[j]);
-			queue->entries[entryCount].size=size;
 			queue->entries[entryCount].index=j;
 			entryCount++;
-			totalSize+=size;
+
+			if(rootPtr[j]!=NULL)
+				{
+				s32 size=(colHeap->itemSizeResolver)(rootPtr[j]);
+				queue->entries[entryCount].size=size;
+				totalSize+=size;
+
+				int blockIndex=(rootPtr[j]-colHeap->heapData)>>blockShift;
+				gc->rootSetTotalSizePerBlock[blockIndex]+=size;
+				}
+			else
+				queue->entries[entryCount].size=0;
 			}
 
 		queue->rootSet=&(colHeap->roots[i]);
@@ -462,7 +519,9 @@ static void colHeapGC(MemColHeap *colHeap, int forceExpand, MemDispenser *disp)
 
 	MemColHeapGarbageCollection *gc=colHeapGC_BuildCollectionStructure(colHeap, disp);
 
-	LOG(LOG_INFO,"Built GC structure with %i roots totalling %li",gc->rootSetTotalCount,gc->rootSetTotalSize);
+	LOG(LOG_INFO,"Built GC structure with %i roots totalling %li across %i blocks",gc->rootSetTotalCount,gc->rootSetTotalSize,gc->totalBlocks);
+	for(int i=0;i<gc->totalBlocks;i++)
+		LOG(LOG_INFO,"Block %i contains %li",i,gc->rootSetTotalSizePerBlock[i]);
 
 	int configIndex=colHeap->configIndex;
 
@@ -481,7 +540,7 @@ static void colHeapGC(MemColHeap *colHeap, int forceExpand, MemDispenser *disp)
 
 static void colHeapEnsureSpace(MemColHeap *colHeap, size_t newAllocSize)
 {
-	LOG(LOG_INFO,"Failed to allocate %i from block %i",newAllocSize, colHeap->genCurrentActiveBlockIndex[0]);
+	LOG(LOG_INFO,"Failed to allocate %i from block %i",newAllocSize, colHeap->genCurrentActiveBlockIndex[colHeap->youngGeneration]);
 	s32 configIndex=colHeap->configIndex;
 
 	// If even an empty block is insufficient, GC with force expand
@@ -491,6 +550,7 @@ static void colHeapEnsureSpace(MemColHeap *colHeap, size_t newAllocSize)
 
 		MemDispenser *disp0=dispenserAlloc("ColHeapGC0");
 		colHeapGC(colHeap, 1, disp0);
+		dispenserFree(disp0);
 
 		MemColHeapBlock *block=colHeap->currentYoungBlock;
 		long totalAlloc=block->alloc+newAllocSize;
@@ -502,7 +562,7 @@ static void colHeapEnsureSpace(MemColHeap *colHeap, size_t newAllocSize)
 	colHeapRotateCurrentYoungBlock(colHeap);
 	MemColHeapBlock *youngBlock=colHeap->currentYoungBlock;
 
-	LOG(LOG_INFO,"Rotating young block to %i", colHeap->genCurrentActiveBlockIndex[0]);
+	LOG(LOG_INFO,"Rotating young block to %i", colHeap->genCurrentActiveBlockIndex[colHeap->youngGeneration]);
 
 	// If not empty, GC
 	if(youngBlock->alloc!=0)
@@ -530,13 +590,14 @@ static void colHeapEnsureSpace(MemColHeap *colHeap, size_t newAllocSize)
 		}
 
 }
-*/
+
 
 void *chAlloc(MemColHeap *colHeap, size_t size)
 {
-/*
 	if(size>COLHEAP_MAX_ALLOC)
 		LOG(LOG_CRITICAL, "Request to allocate %i bytes of ColHeap memory refused since it is above the max allocation size %i",size,COLHEAP_MAX_ALLOC);
+
+//	LOG(LOG_INFO,"Allocating %i",size);
 
 	// Simple case - alloc from the current young block
 	void *usrPtr=allocFromBlock(colHeap->currentYoungBlock, size);
@@ -548,8 +609,8 @@ void *chAlloc(MemColHeap *colHeap, size_t size)
 	usrPtr=allocFromBlock(colHeap->currentYoungBlock, size);
 	if(usrPtr!=NULL)
 		return usrPtr;
-*/
-	LOG(LOG_CRITICAL, "Failed to allocate %i bytes of ColHeap memory after compaction",size);
+
+	LOG(LOG_CRITICAL, "Failed to allocate %i bytes of ColHeap memory after trying really hard, honest",size);
 	return NULL;
 }
 
