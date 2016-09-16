@@ -551,12 +551,28 @@ static MemColHeapGarbageCollection *colHeapGC_BuildCollectionStructure(MemColHea
 	return gc;
 }
 
-/*
-static void colHeapGC_SortEntriesAndIndex(MemColHeap *colHeap, MemColHeapGarbageCollection *gc)
+
+static int rootSetEntrySorter(void *a, void *b)
 {
+	MemColHeapRootSetQueueEntry *entryA=(MemColHeapRootSetQueueEntry *)a;
+	MemColHeapRootSetQueueEntry *entryB=(MemColHeapRootSetQueueEntry *)b;
+
+	return entryA->dataPtr-entryB->dataPtr;
+}
+
+static void colHeapGC_SortEntries(MemColHeap *colHeap, MemColHeapGarbageCollection *gc)
+{
+	for(int i=0;i<COLHEAP_ROOTSETS_PER_HEAP;i++)
+		{
+		if(gc->rootSetQueues[i]->rootNum>0)
+			{
+			qsort(gc->rootSetQueues[i]->entries, gc->rootSetQueues[i]->rootNum, sizeof(MemColHeapRootSetQueueEntry), rootSetEntrySorter);
+			}
+		}
+
 
 }
-*/
+
 
 /*
 //static
@@ -583,6 +599,8 @@ static void colHeapGC_doResize(MemColHeap *colHeap, MemColHeapGarbageCollection 
 
 static void colHeapGC_doGarbageCollect(MemColHeap *colHeap, MemColHeapGarbageCollection *gc, int youngBlockIndex, int gcGeneration, MemDispenser *disp)
 {
+
+
 	for(int i=0;i<colHeap->youngGeneration;i++)
 		{
 		LOG(LOG_INFO,"GC of generation %i",gcGeneration);
@@ -615,6 +633,8 @@ static void colHeapGC(MemColHeap *colHeap, int forceConfigIndex, MemDispenser *d
 				i,gc->generations[i].liveSize,gc->generations[i].liveCount,gc->generations[i].deadSize,
 				gc->generations[i].currentSpace,gc->generations[i].compactSpace);
 
+
+	colHeapGC_SortEntries(colHeap, gc);
 
 	int youngBlockIndex=colHeapGetCurrentYoungBlockIndex(colHeap);
 	s64 requiredSpace=gc->blocks[youngBlockIndex].liveSize;

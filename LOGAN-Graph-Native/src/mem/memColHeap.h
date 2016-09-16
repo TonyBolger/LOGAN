@@ -75,8 +75,6 @@ typedef struct memColHeapRootSetQueueStr
 	MemColHeapRootSet *rootSet;
 	s32 rootNum;
 	s32 rootPos; // Needed?
-	s32 entryCountPerBlock[COLHEAP_MAX_GENERATIONS][COLHEAP_MAX_BLOCKS_PER_GENERATION];
-	s64	entrySizePerBlock[COLHEAP_MAX_GENERATIONS][COLHEAP_MAX_BLOCKS_PER_GENERATION];
 
 	MemColHeapRootSetQueueEntry entries[];
 } MemColHeapRootSetQueue;
