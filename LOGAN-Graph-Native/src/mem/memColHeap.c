@@ -291,6 +291,14 @@ static void colHeapSetCurrentYoungBlock(MemColHeap *colHeap, int youngBlockIndex
 	*/
 }
 
+
+
+static int colHeapGetCurrentYoungBlockIndex(MemColHeap *colHeap)
+{
+	return colHeap->genCurrentActiveBlockIndex[colHeap->youngGeneration]+COLHEAP_CONFIGS[colHeap->configIndex].startBlockPerGeneration[colHeap->youngGeneration];
+}
+
+
 static void colHeapRotateCurrentYoungBlock(MemColHeap *colHeap)
 {
 	int youngBlockIndex=getNextBlockIndexForGeneration(colHeap, colHeap->youngGeneration);
@@ -445,7 +453,22 @@ static MemColHeapGarbageCollection *colHeapGC_BuildCollectionStructure(MemColHea
 	gc->totalBlocks=COLHEAP_CONFIGS[colHeap->configIndex].totalBlocks;
 
 	for(int i=0;i<COLHEAP_MAX_BLOCKS;i++)
-		gc->rootSetTotalSizePerBlock[i]=0;
+		{
+		gc->blocks[i].liveSize=0;
+		gc->blocks[i].deadSize=0;
+		gc->blocks[i].currentSpace=0;
+		gc->blocks[i].compactSpace=0;
+		gc->blocks[i].liveCount=0;
+		}
+
+	for(int i=0;i<COLHEAP_MAX_GENERATIONS;i++)
+		{
+		gc->generations[i].liveSize=0;
+		gc->generations[i].deadSize=0;
+		gc->generations[i].currentSpace=0;
+		gc->generations[i].compactSpace=0;
+		gc->generations[i].liveCount=0;
+		}
 
 	for(int i=0;i<COLHEAP_ROOTSETS_PER_HEAP;i++)
 		{
@@ -470,7 +493,8 @@ static MemColHeapGarbageCollection *colHeapGC_BuildCollectionStructure(MemColHea
 				totalSize+=size;
 
 				int blockIndex=(rootPtr[j]-colHeap->heapData)>>blockShift;
-				gc->rootSetTotalSizePerBlock[blockIndex]+=size;
+				gc->blocks[blockIndex].liveSize+=size;
+				gc->blocks[blockIndex].liveCount++;
 				}
 			else
 				queue->entries[entryCount].size=0;
@@ -487,16 +511,54 @@ static MemColHeapGarbageCollection *colHeapGC_BuildCollectionStructure(MemColHea
 	gc->rootSetTotalCount=totalCount;
 	gc->rootSetTotalSize=totalSize;
 
+	int generation=0;
+	int blocksInGeneration=0;
+	for(int i=0;i<COLHEAP_MAX_BLOCKS;i++)
+		{
+		if(blocksInGeneration>=COLHEAP_CONFIGS[colHeap->configIndex].blocksPerGeneration[generation])
+			{
+			generation++;
+			blocksInGeneration=0;
+
+			if(generation>=COLHEAP_CONFIGS[colHeap->configIndex].generationCount)
+				break;
+			}
+
+		gc->generations[generation].liveCount+=gc->blocks[i].liveCount;
+
+		s64 allocSize=colHeap->blocks[i].alloc;
+		s64 liveSize=gc->blocks[i].liveSize;
+		gc->generations[generation].liveSize+=liveSize;
+
+		s64 deadSize=allocSize-liveSize;
+		gc->blocks[i].deadSize=deadSize;
+		gc->generations[generation].deadSize+=deadSize;
+
+		long marginalSize=colHeap->blocks[i].size-COLHEAP_SPACE_MARGIN;
+
+		long currentSpace=MAX(0,marginalSize-allocSize);
+		long compactSpace=MAX(0,marginalSize-liveSize);
+
+		gc->blocks[i].currentSpace=currentSpace;
+		gc->blocks[i].compactSpace=compactSpace;
+
+		gc->generations[generation].currentSpace+=currentSpace;
+		gc->generations[generation].compactSpace+=compactSpace;
+
+		blocksInGeneration++;
+		}
+
 	return gc;
 }
 
-
+/*
 static void colHeapGC_SortEntriesAndIndex(MemColHeap *colHeap, MemColHeapGarbageCollection *gc)
 {
 
 }
+*/
 
-
+/*
 //static
 void colHeapGC_Reconfigure(MemColHeap *colHeap, size_t minimumSize)
 {
@@ -509,9 +571,30 @@ void colHeapGC_Reconfigure(MemColHeap *colHeap, size_t minimumSize)
 
 	LOG(LOG_CRITICAL,"Not implemented");
 }
+*/
+
+static void colHeapGC_doResize(MemColHeap *colHeap, MemColHeapGarbageCollection *gc, int resizeConfigIndex, MemDispenser *disp)
+{
+	LOG(LOG_INFO,"Need heap expand to config %i",resizeConfigIndex);
+
+	LOG(LOG_CRITICAL,"Not implemented");
+}
 
 
-static void colHeapGC(MemColHeap *colHeap, int forceExpand, MemDispenser *disp)
+static void colHeapGC_doGarbageCollect(MemColHeap *colHeap, MemColHeapGarbageCollection *gc, int youngBlockIndex, int gcGeneration, MemDispenser *disp)
+{
+	for(int i=0;i<colHeap->youngGeneration;i++)
+		{
+		LOG(LOG_INFO,"GC of generation %i",gcGeneration);
+		}
+
+	LOG(LOG_INFO,"GC of young block %i",youngBlockIndex);
+
+	LOG(LOG_CRITICAL,"Not implemented");
+
+}
+
+static void colHeapGC(MemColHeap *colHeap, int forceConfigIndex, MemDispenser *disp)
 {
 	// Aims to free up the current young block
 
@@ -521,8 +604,57 @@ static void colHeapGC(MemColHeap *colHeap, int forceExpand, MemDispenser *disp)
 
 	LOG(LOG_INFO,"Built GC structure with %i roots totalling %li across %i blocks",gc->rootSetTotalCount,gc->rootSetTotalSize,gc->totalBlocks);
 	for(int i=0;i<gc->totalBlocks;i++)
-		LOG(LOG_INFO,"Block %i contains %li",i,gc->rootSetTotalSizePerBlock[i]);
+		LOG(LOG_INFO,"Block %i contains %li total in %i items with %li dead, %li currently available and %li if compacted",
+				i,gc->blocks[i].liveSize,gc->blocks[i].liveCount,gc->blocks[i].deadSize,
+				gc->blocks[i].currentSpace,gc->blocks[i].compactSpace);
 
+	int generations=COLHEAP_CONFIGS[colHeap->configIndex].generationCount;
+
+	for(int i=0;i<generations;i++)
+		LOG(LOG_INFO,"Generation %i contains %li total in %i items with %li dead, %li currently available and %li if compacted",
+				i,gc->generations[i].liveSize,gc->generations[i].liveCount,gc->generations[i].deadSize,
+				gc->generations[i].currentSpace,gc->generations[i].compactSpace);
+
+
+	int youngBlockIndex=colHeapGetCurrentYoungBlockIndex(colHeap);
+	s64 requiredSpace=gc->blocks[youngBlockIndex].liveSize;
+
+	LOG(LOG_INFO,"Need %li space", requiredSpace);
+	s64 multiGenerationFree=0;
+
+	// Heuristic - see if existing
+
+	int gcGeneration=0;
+	int resizeConfigIndex=forceConfigIndex;
+
+	for(int i=colHeap->youngGeneration;i>0;i--)
+		{
+		long mgfWithNext=multiGenerationFree+gc->generations[i-1].currentSpace; // Try using gen-1 space without compacting
+
+		if(mgfWithNext>=requiredSpace)
+			{
+			multiGenerationFree=mgfWithNext;
+			gcGeneration=i;
+
+			break;
+			}
+
+		multiGenerationFree+=gc->generations[i-1].compactSpace; // Gen-1 will also be compacted
+		}
+
+	if(multiGenerationFree < requiredSpace)
+		resizeConfigIndex=colHeap->configIndex+1;
+
+	if(!resizeConfigIndex)
+		{
+		colHeapGC_doGarbageCollect(colHeap, gc, youngBlockIndex, gcGeneration, disp);
+		}
+	else
+		{
+		colHeapGC_doResize(colHeap, gc, resizeConfigIndex, disp);
+		}
+
+	/*
 	int configIndex=colHeap->configIndex;
 
 	// Heuristic - there must be at least one block worth of space free
@@ -533,8 +665,8 @@ static void colHeapGC(MemColHeap *colHeap, int forceExpand, MemDispenser *disp)
 		}
 
 	colHeapGC_SortEntriesAndIndex(colHeap, gc);
+*/
 
-	LOG(LOG_CRITICAL,"Not implemented");
 }
 
 
@@ -548,8 +680,10 @@ static void colHeapEnsureSpace(MemColHeap *colHeap, size_t newAllocSize)
 		{
 		LOG(LOG_INFO,"Large alloc requested - expand forced");
 
+		int newConfigIndex=getConfigIndex(colHeap->configIndex, newAllocSize);
+
 		MemDispenser *disp0=dispenserAlloc("ColHeapGC0");
-		colHeapGC(colHeap, 1, disp0);
+		colHeapGC(colHeap, newConfigIndex, disp0);
 		dispenserFree(disp0);
 
 		MemColHeapBlock *block=colHeap->currentYoungBlock;
@@ -577,16 +711,7 @@ static void colHeapEnsureSpace(MemColHeap *colHeap, size_t newAllocSize)
 		if(checkForSpace(youngBlock, newAllocSize))
 			return;
 
-		// GC again (should be very rare)
-		MemDispenser *disp2=dispenserAlloc("ColHeapGC2");
-		colHeapGC(colHeap, 1, disp2);
-		dispenserFree(disp2);
-
-		// If enough space, happy
-		if(checkForSpace(youngBlock, newAllocSize))
-			return;
-
-
+		LOG(LOG_CRITICAL, "GC fail");
 		}
 
 }

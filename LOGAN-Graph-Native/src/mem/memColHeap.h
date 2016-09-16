@@ -13,6 +13,8 @@
 #define COLHEAP_NUM_HEAPS SMER_DISPATCH_GROUPS
 #define COLHEAP_ROOTSETS_PER_HEAP SMER_DISPATCH_GROUP_SLICES
 
+#define COLHEAP_SPACE_MARGIN 0x4000L
+
 typedef struct memColHeapConfigStr
 {
 	s64 blockSize;
@@ -79,6 +81,31 @@ typedef struct memColHeapRootSetQueueStr
 	MemColHeapRootSetQueueEntry entries[];
 } MemColHeapRootSetQueue;
 
+
+typedef struct memColHeapGarbageCollectionBlockStr
+{
+	s64 liveSize;
+	s64 deadSize;
+
+	s64 currentSpace;
+	s64 compactSpace;
+
+	s32 liveCount;
+
+} MemColHeapGarbageCollectionBlock;
+
+typedef struct memColHeapGarbageCollectionGenerationStr
+{
+	s64 liveSize;
+	s64 deadSize;
+
+	s64 currentSpace;
+	s64 compactSpace;
+
+	s32 liveCount;
+
+} MemColHeapGarbageCollectionGeneration;
+
 typedef struct memColHeapGarbageCollectionStr
 {
 	MemColHeapRootSetQueue *rootSetQueues[COLHEAP_ROOTSETS_PER_HEAP];
@@ -86,7 +113,8 @@ typedef struct memColHeapGarbageCollectionStr
 	s32 rootSetTotalCount;
 	s64 rootSetTotalSize;
 
-	s64 rootSetTotalSizePerBlock[COLHEAP_MAX_BLOCKS];
+	MemColHeapGarbageCollectionBlock blocks[COLHEAP_MAX_BLOCKS];
+	MemColHeapGarbageCollectionGeneration generations[COLHEAP_MAX_GENERATIONS];
 
 	MemColHeapBlock newBlocks[COLHEAP_MAX_BLOCKS];
 
