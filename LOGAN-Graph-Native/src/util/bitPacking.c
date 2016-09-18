@@ -162,6 +162,12 @@ void packBits(BitPacker *packer, int count, u32 data)
 
 void initUnpacker(BitUnpacker *unpacker, u8 *ptr, int position)
 {
+	uintptr_t alignChecker=(uintptr_t)ptr;
+
+	int cor=alignChecker & 0x3;
+	ptr-=cor;
+	position+=8*cor;
+
 	unpacker->data=(u32 *)ptr;
 	unpacker->position=position;
 }

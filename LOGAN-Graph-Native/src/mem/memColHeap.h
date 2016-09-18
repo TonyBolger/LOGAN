@@ -65,7 +65,7 @@ typedef struct memColHeapStr
 
 typedef struct memColHeapRootSetQueueEntryStr
 {
-	u8 *dataPtr;
+	u8 **dataPtr;
 	s32 size;
 	s32 index;
 } MemColHeapRootSetQueueEntry;
@@ -75,9 +75,17 @@ typedef struct memColHeapRootSetQueueStr
 	MemColHeapRootSet *rootSet;
 	s32 rootNum;
 	s32 rootPos; // Needed?
+	s32 rootBlockOffsets[COLHEAP_MAX_BLOCKS];
 
 	MemColHeapRootSetQueueEntry entries[];
 } MemColHeapRootSetQueue;
+
+typedef struct memColHeapRootSetExtractStr
+{
+	s32 currentPositions[COLHEAP_ROOTSETS_PER_HEAP];
+	s32 endPositions[COLHEAP_ROOTSETS_PER_HEAP];
+
+} MemColHeapRootSetExtract;
 
 
 typedef struct memColHeapGarbageCollectionBlockStr
