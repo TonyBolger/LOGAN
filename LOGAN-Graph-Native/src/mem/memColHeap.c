@@ -502,23 +502,22 @@ static MemColHeapGarbageCollection *colHeapGC_BuildCollectionStructure(MemColHea
 
 		for(int j=0;j<maxRoots;j++)
 			{
-			queue->entries[entryCount].dataPtr=rootPtr+j;
-			queue->entries[entryCount].index=j;
-
 			if(rootPtr[j]!=NULL)
 				{
+				queue->entries[entryCount].dataPtr=rootPtr+j;
+				queue->entries[entryCount].index=j;
+
 				s32 size=(colHeap->itemSizeResolver)(rootPtr[j]);
 				queue->entries[entryCount].size=size;
+
+				entryCount++;
+
 				totalSize+=size;
 
 				int blockIndex=(rootPtr[j]-colHeap->heapData)>>blockShift;
 				gc->blocks[blockIndex].liveSize+=size;
 				gc->blocks[blockIndex].liveCount++;
 				}
-			else
-				queue->entries[entryCount].size=-1;
-
-			entryCount++;
 			}
 
 		queue->rootSet=&(colHeap->roots[i]);
@@ -595,7 +594,8 @@ static void colHeapGC_SortEntriesAndIndex(MemColHeap *colHeap, MemColHeapGarbage
 			qsort(rsq->entries, rsq->rootNum, sizeof(MemColHeapRootSetQueueEntry), rootSetEntrySorter);
 
 			int block=0;
-			u8 *blockPtr=colHeap->blocks[block].data;
+			//u8 *blockPtr=colHeap->blocks[block].data+blockSize;
+			u8 *blockPtr=colHeap->heapData+block*blockSize;
 
 			for(int j=0;j<rsq->rootNum;j++)
 				{
@@ -603,8 +603,10 @@ static void colHeapGC_SortEntriesAndIndex(MemColHeap *colHeap, MemColHeapGarbage
 				while(blockPtr!=NULL && dataPtr>=blockPtr && block<COLHEAP_MAX_BLOCKS)
 					{
 					rsq->rootBlockOffsets[block]=j;
-					blockPtr=colHeap->blocks[block].data+blockSize;
+
+			//		blockPtr=colHeap->blocks[block].data+blockSize;
 					block++;
+					blockPtr=colHeap->heapData+block*blockSize;
 					}
 				}
 
@@ -704,6 +706,34 @@ void colHeapGC_doGarbageCollect_compactBlock(MemColHeap *colHeap, MemColHeapGarb
 {
 	LOG(LOG_INFO,"Compact block %i",compactBlockIndex);
 
+	MemColHeapRootSetExtract extract;
+	colHeapGC_initExtract(gc, &extract, compactBlockIndex, compactBlockIndex+1);
+
+	MemColHeapBlock *block=&(colHeap->blocks[compactBlockIndex]);
+	block->alloc=0;
+
+	MemColHeapRootSetQueueEntry *entry=colHeapGC_extractNext(gc, &extract);
+	while(entry!=NULL)
+		{
+		u8 *newData=allocFromBlock(block, entry->size);
+		if(newData!=NULL)
+			{
+			if(newData!=*(entry->dataPtr))
+				{
+				if(entry->size<0)
+					LOG(LOG_INFO,"Compacting live entry %p with size %i to %p",*(entry->dataPtr),entry->size,newData);
+
+				memmove(newData, *(entry->dataPtr), entry->size);
+				*(entry->dataPtr)=newData;
+				}
+
+			entry=colHeapGC_extractNext(gc, &extract);
+			}
+		else
+			{
+			LOG(LOG_CRITICAL,"Failed to alloc block during compact");
+			}
+		}
 
 }
 
@@ -722,8 +752,6 @@ static void colHeapGC_doGarbageCollect_compactGeneration(MemColHeap *colHeap, Me
 		colHeapGC_doGarbageCollect_compactBlock(colHeap,gc,i,disp);
 		}
 
-
-	LOG(LOG_CRITICAL,"Not implemented");
 }
 
 
@@ -742,7 +770,8 @@ static void colHeapGC_doGarbageCollect_collectBlock(MemColHeap *colHeap, MemColH
 	MemColHeapRootSetQueueEntry *entry=colHeapGC_extractNext(gc, &extract);
 	while(entry!=NULL)
 		{
-		//LOG(LOG_INFO,"Live entry %p %i",*(entry->dataPtr),entry->size);
+		if(entry->size<0)
+			LOG(LOG_INFO,"Collecting live entry %p %i",*(entry->dataPtr),entry->size);
 
 		u8 *newData=allocFromBlock(allocBlock, entry->size);
 		if(newData!=NULL)
