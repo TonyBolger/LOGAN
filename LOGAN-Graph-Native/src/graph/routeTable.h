@@ -96,6 +96,8 @@ typedef struct routeTableBuilderStr
 u8 *scanRouteTable(u8 *data);
 u8 *initRouteTableBuilder(RouteTableBuilder *builder, u8 *data, MemDispenser *disp);
 
+void dumpRoutingTable(RouteTableBuilder *builder);
+
 s32 getRouteTableBuilderDirty(RouteTableBuilder *builder);
 s32 getRouteTableBuilderPackedSize(RouteTableBuilder *builder);
 u8 *writeRouteTableBuilderPackedData(RouteTableBuilder *builder, u8 *data);

@@ -105,6 +105,22 @@ s32 getSeqTailBuilderPackedSize(SeqTailBuilder *seqTailBuilder)
 	return seqTailBuilder->totalPackedSize;
 }
 
+void dumpSeqTailBuilder(SeqTailBuilder *builder)
+{
+	LOG(LOG_INFO,"Tail Count: %i %i", builder->oldTailCount,builder->newTailCount);
+
+	for(int i=0;i<builder->oldTailCount;i++)
+		{
+		LOG(LOG_INFO,"Old: %16lx",builder->oldTails[i]);
+		}
+
+	for(int i=0;i<builder->newTailCount;i++)
+		{
+		LOG(LOG_INFO,"New: %16lx",builder->newTails[i]);
+		}
+
+}
+
 static s32 writeSeqTailBuilderPackedDataSingle(u8 *data, SmerId smer, s32 smerLength)
 {
 	//LOG(LOG_INFO,"Writing tail of %i to %p",smerLength,data);

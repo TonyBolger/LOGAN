@@ -113,19 +113,26 @@ int rtRouteReadsForSmer(RoutingReadReferenceBlock *rdi, u32 sliceIndex, SmerArra
 	SeqTailBuilder prefixBuilder, suffixBuilder;
 	RouteTableBuilder routeTableBuilder;
 
-	u8 *tmp;
+	u8 *tmp1,*tmp2,*tmp3;
 
-	tmp=smerData;
+	tmp1=smerData;
 	smerData=initSeqTailBuilder(&prefixBuilder, smerData, disp);
-	int oldSizePrefix=smerData-tmp;
+	int oldSizePrefix=smerData-tmp1;
 
-	tmp=smerData;
+	tmp2=smerData;
 	smerData=initSeqTailBuilder(&suffixBuilder, smerData, disp);
-	int oldSizeSuffix=smerData-tmp;
+	int oldSizeSuffix=smerData-tmp2;
 
-	tmp=smerData;
+	tmp3=smerData;
 	smerData=initRouteTableBuilder(&routeTableBuilder, smerData, disp);
-	int oldSizeRoutes=smerData-tmp;
+	int oldSizeRoutes=smerData-tmp3;
+
+	uintptr_t uintptr=(uintptr_t)tmp1;
+	if((uintptr & 0x00FFFFFF) == 0x0017ff67)
+		{
+		LOG(LOG_INFO,"Routing init from %p %p %p %p",tmp1,tmp2,tmp3,smerData);
+
+		}
 
 	int oldSize=smerData-slice->smerData[sliceIndex];
 
@@ -148,6 +155,8 @@ int rtRouteReadsForSmer(RoutingReadReferenceBlock *rdi, u32 sliceIndex, SmerArra
 	s32 maxNewSuffix=0;
 
 	SmerId smerId=SMER_DUMMY;
+
+	int dump=0;
 
 	for(int i=0;i<entryCount;i++)
 	{
@@ -181,7 +190,14 @@ int rtRouteReadsForSmer(RoutingReadReferenceBlock *rdi, u32 sliceIndex, SmerArra
 		if(currFmer<=currRmer) // Canonical Read Orientation
 			{
 				smerId=currFmer;
-				//LOG(LOG_INFO,"Adding forward route to %li",currFmer);
+
+				if(smerId==49511689627288L)
+					{
+					LOG(LOG_INFO,"Adding forward route to %li",currFmer);
+					LOG(LOG_INFO,"Existing Prefixes: %i Suffixes: %i", prefixBuilder.oldTailCount, suffixBuilder.oldTailCount);
+
+					dump=1;
+					}
 
 				SmerId prefixSmer=rdd->rsmers[index+1]; // Previous smer in read, reversed
 				SmerId suffixSmer=rdd->fsmers[index-1]; // Next smer in read
@@ -219,7 +235,14 @@ int rtRouteReadsForSmer(RoutingReadReferenceBlock *rdi, u32 sliceIndex, SmerArra
 		else	// Reverse-complement Read Orientation
 			{
 				smerId=currRmer;
-				//LOG(LOG_INFO,"Adding reverse route to %li",currRmer);
+
+				if(smerId==49511689627288L)
+					{
+					LOG(LOG_INFO,"Adding reverse route to %li",currRmer);
+					LOG(LOG_INFO,"Existing Prefixes: %i Suffixes: %i", prefixBuilder.oldTailCount, suffixBuilder.oldTailCount);
+
+					dump=1;
+					}
 
 				SmerId prefixSmer=rdd->fsmers[index-1]; // Next smer in read
 				SmerId suffixSmer=rdd->rsmers[index+1]; // Previous smer in read, reversed
@@ -282,6 +305,23 @@ int rtRouteReadsForSmer(RoutingReadReferenceBlock *rdi, u32 sliceIndex, SmerArra
 */
 		}
 
+
+	if(dump)
+		{
+		LOG(LOG_INFO,"Data init from %p %p %p %p",tmp1,tmp2,tmp3,smerData);
+		LOG(LOG_INFO,"Data init sizes %i %i %i",tmp2-tmp1,tmp3-tmp2,smerData-tmp3);
+
+		LOG(LOG_INFO,"Prefixes");
+		dumpSeqTailBuilder(&prefixBuilder);
+
+		LOG(LOG_INFO,"Suffixes");
+		dumpSeqTailBuilder(&suffixBuilder);
+
+		LOG(LOG_INFO,"Routes");
+		dumpRoutingTable(&routeTableBuilder);
+		}
+
+
 /*
 	if(debug)
 		{
@@ -307,6 +347,20 @@ int rtRouteReadsForSmer(RoutingReadReferenceBlock *rdi, u32 sliceIndex, SmerArra
 	int newRouteEntries=
 			MAX(routeTableBuilder.oldForwardEntryCount,routeTableBuilder.newForwardEntryCount)+
 			MAX(routeTableBuilder.oldReverseEntryCount,routeTableBuilder.newReverseEntryCount);
+
+	if(dump)
+		{
+		LOG(LOG_INFO,"After merge");
+
+		LOG(LOG_INFO,"Prefixes");
+		dumpSeqTailBuilder(&prefixBuilder);
+
+		LOG(LOG_INFO,"Suffixes");
+		dumpSeqTailBuilder(&suffixBuilder);
+
+		LOG(LOG_INFO,"Routes");
+		dumpRoutingTable(&routeTableBuilder);
+		}
 
 	if(newRouteEntries>16083)
 		{
@@ -344,6 +398,11 @@ int rtRouteReadsForSmer(RoutingReadReferenceBlock *rdi, u32 sliceIndex, SmerArra
 
 		int totalSize=prefixPackedSize+suffixPackedSize+routeTablePackedSize;
 		int sizeDiff=totalSize-oldSize;
+
+		if(dump)
+		{
+			LOG(LOG_INFO,"Writing sizes: %i %i %i",prefixPackedSize,suffixPackedSize,routeTablePackedSize);
+		}
 
 		/*
 		LOG(LOG_INFO,"Slice Alloc: %i %i (%i %i) %i %i (%i %i) %i %i (%i %i %i %i)",
@@ -392,11 +451,18 @@ int rtRouteReadsForSmer(RoutingReadReferenceBlock *rdi, u32 sliceIndex, SmerArra
 		if(newData==NULL)
 				LOG(LOG_CRITICAL,"Failed at alloc after compact: Wanted %i",totalSize);
 
-		u8 *dataTmp=writeSeqTailBuilderPackedData(&prefixBuilder, newData);
-		dataTmp=writeSeqTailBuilderPackedData(&suffixBuilder, dataTmp);
-		dataTmp=writeRouteTableBuilderPackedData(&routeTableBuilder, dataTmp);
+		u8 *tmpout1=writeSeqTailBuilderPackedData(&prefixBuilder, newData);
+		u8 *tmpout2=writeSeqTailBuilderPackedData(&suffixBuilder, tmpout1);
+		u8 *tmpout3=writeRouteTableBuilderPackedData(&routeTableBuilder, tmpout2);
 
+		if(dump)
+			{
+			LOG(LOG_INFO,"Data write to %p %p %p %p",newData,tmpout1,tmpout2,tmpout3);
+			LOG(LOG_INFO,"Data write sizes %i %i %i",tmpout1-newData,tmpout2-tmpout1,tmpout3-tmpout2);
 
+			for(int i=0;i<totalSize;i++)
+				LOG(LOG_INFO,"Wrote Data: %2x",newData[i]);
+			}
 
 		slice->smerData[sliceIndex]=newData;
 		}

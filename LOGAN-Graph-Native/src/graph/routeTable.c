@@ -274,6 +274,11 @@ static void unpackRoutes(u8 *data, int prefixBits, int suffixBits, int widthBits
 		s32 suffix=unpackBits(&unpacker, suffixBits);
 		s32 width=unpackBits(&unpacker, widthBits)+1;
 
+		if(prefix<0 || suffix<0 || width<0)
+			{
+			LOG(LOG_CRITICAL,"Negative entry in forward route: %i %i %i ",prefix,suffix,width);
+			}
+
 		maxPrefix=MAX(maxPrefix,prefix);
 		maxSuffix=MAX(maxSuffix,suffix);
 		maxWidth=MAX(maxWidth,width);
@@ -288,6 +293,11 @@ static void unpackRoutes(u8 *data, int prefixBits, int suffixBits, int widthBits
 		s32 prefix=unpackBits(&unpacker, prefixBits);
 		s32 suffix=unpackBits(&unpacker, suffixBits);
 		s32 width=unpackBits(&unpacker, widthBits)+1;
+
+		if(prefix<0 || suffix<0 || width<0)
+			{
+			LOG(LOG_CRITICAL,"Negative entry in reverse route: %i %i %i ",prefix,suffix,width);
+			}
 
 		maxPrefix=MAX(maxPrefix,prefix);
 		maxSuffix=MAX(maxSuffix,suffix);
@@ -371,7 +381,7 @@ u8 *initRouteTableBuilder(RouteTableBuilder *builder, u8 *data, MemDispenser *di
 {
 	builder->disp=disp;
 
-//	LOG(LOG_INFO,"RouteTable init from %p",data);
+	//LOG(LOG_INFO,"RouteTable init from %p",data);
 	data=readRouteTableBuilderPackedData(builder,data);
 
 	builder->newForwardEntries=NULL;
@@ -396,6 +406,30 @@ s32 getRouteTableBuilderPackedSize(RouteTableBuilder *builder)
 	return builder->totalPackedSize;
 }
 
+void dumpRoutingTable(RouteTableBuilder *builder)
+{
+	LOG(LOG_INFO,"Header: %i %i %i", builder->maxPrefix, builder->maxSuffix, builder->maxWidth);
+
+	LOG(LOG_INFO,"Old Forward Routes %i",builder->oldForwardEntryCount);
+	for(int i=0;i<builder->oldForwardEntryCount;i++)
+		LOG(LOG_INFO,"OldForward Route - P: %i S: %i W: %i", builder->oldForwardEntries[i].prefix, builder->oldForwardEntries[i].suffix,  builder->oldForwardEntries[i].width);
+
+	LOG(LOG_INFO,"New Forward Routes %i",builder->newForwardEntryCount);
+	for(int i=0;i<builder->newForwardEntryCount;i++)
+		LOG(LOG_INFO,"NewForward Route - P: %i S: %i W: %i", builder->newForwardEntries[i].prefix, builder->newForwardEntries[i].suffix,  builder->newForwardEntries[i].width);
+
+
+	LOG(LOG_INFO,"Old Reverse Routes %i",builder->oldReverseEntryCount);
+	for(int i=0;i<builder->oldReverseEntryCount;i++)
+		LOG(LOG_INFO,"OldReverse Route - P: %i S: %i W: %i", builder->oldReverseEntries[i].prefix, builder->oldReverseEntries[i].suffix,  builder->oldReverseEntries[i].width);
+
+	LOG(LOG_INFO,"New Reverse Routes %i",builder->newReverseEntryCount);
+	for(int i=0;i<builder->newReverseEntryCount;i++)
+		LOG(LOG_INFO,"NewReverse Route - P: %i S: %i W: %i", builder->newReverseEntries[i].prefix, builder->newReverseEntries[i].suffix,  builder->newReverseEntries[i].width);
+
+
+}
+
 u8 *writeRouteTableBuilderPackedData(RouteTableBuilder *builder, u8 *data)
 {
 	u32 prefixBits=bitsRequired(builder->maxPrefix);
@@ -406,6 +440,8 @@ u8 *writeRouteTableBuilderPackedData(RouteTableBuilder *builder, u8 *data)
 		{
 		LOG(LOG_INFO,"Header near full: %i %i %i", builder->maxPrefix, builder->maxSuffix, builder->maxWidth);
 		}
+
+
 
 //	LOG(LOG_INFO,"Route Header Max: %i %i %i", builder->maxPrefix, builder->maxSuffix, builder->maxWidth);
 
@@ -639,7 +675,8 @@ static RoutePatchMergePositionOrderedReadset *mergeRoutes_buildForwardMergeTree(
 */
 
 
-RouteTableEntry *mergeRoutes_ordered_forwardSingle(RouteTableEntry *oldEntryPtr, RouteTableEntry *oldEntryEnd, RouteTableEntry *newEntryPtr, RoutePatch *patch, int *maxWidth)
+RouteTableEntry *mergeRoutes_ordered_forwardSingle(RouteTableBuilder *builder,
+		RouteTableEntry *oldEntryPtr, RouteTableEntry *oldEntryEnd, RouteTableEntry *newEntryPtr, RoutePatch *patch, int *maxWidth)
 {
 	int targetPrefix=patch->prefixIndex;
 	int targetSuffix=patch->suffixIndex;
@@ -686,7 +723,10 @@ RouteTableEntry *mergeRoutes_ordered_forwardSingle(RouteTableEntry *oldEntryPtr,
 
 		if(minMargin<0 || maxMargin<0)
 			{
-			LOG(LOG_INFO,"Current edge offset %i",upstreamEdgeOffset);
+			dumpRoutingTable(builder);
+
+			LOG(LOG_INFO,"Failed to add forward route for prefix %i suffix %i",targetPrefix,targetSuffix);
+			LOG(LOG_INFO,"Current edge offset %i minEdgePosition %i maxEdgePosition %i",upstreamEdgeOffset,minEdgePosition,maxEdgePosition);
 			LOG(LOG_CRITICAL,"Negative gap detected in route insert - Min: %i Max: %i",minMargin,maxMargin);
 			}
 
@@ -990,7 +1030,7 @@ void mergeRoutes_ordered(RouteTableBuilder *builder, RoutePatch *forwardRoutePat
 
 				while(patchPtr<patchEnd && patchPtr->prefixIndex==targetUpstream)
 					{
-					destBufferEnd=mergeRoutes_ordered_forwardSingle(srcBuffer, srcBufferEnd, destBuffer, patchPtr, &maxWidth);
+					destBufferEnd=mergeRoutes_ordered_forwardSingle(builder, srcBuffer, srcBufferEnd, destBuffer, patchPtr, &maxWidth);
 
 					srcBuffer=destBuffer;
 					srcBufferEnd=destBufferEnd;
@@ -1006,7 +1046,7 @@ void mergeRoutes_ordered(RouteTableBuilder *builder, RoutePatch *forwardRoutePat
 			// Medium case: Single patch in prefix (patchPtr)
 //				LOG(LOG_INFO,"MERGE: Scenario 1");
 
-				destBufferEnd=mergeRoutes_ordered_forwardSingle(srcBuffer, srcBufferEnd, destBuffer, patchPtr, &maxWidth);
+				destBufferEnd=mergeRoutes_ordered_forwardSingle(builder, srcBuffer, srcBufferEnd, destBuffer, patchPtr, &maxWidth);
 
 				srcBuffer=destBuffer;
 				srcBufferEnd=destBufferEnd;

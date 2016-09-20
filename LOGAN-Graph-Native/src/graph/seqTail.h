@@ -25,6 +25,8 @@ typedef struct seqTailBuilderStr
 u8 *scanTails(u8 *data);
 u8 *initSeqTailBuilder(SeqTailBuilder *builder, u8 *data, MemDispenser *disp);
 
+void dumpSeqTailBuilder(SeqTailBuilder *builder);
+
 s32 getSeqTailBuilderDirty(SeqTailBuilder *seqTailBuilder);
 s32 getSeqTailBuilderPackedSize(SeqTailBuilder *seqTailBuilder);
 u8 *writeSeqTailBuilderPackedData(SeqTailBuilder *seqTailBuilder, u8 *data);
