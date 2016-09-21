@@ -127,13 +127,6 @@ int rtRouteReadsForSmer(RoutingReadReferenceBlock *rdi, u32 sliceIndex, SmerArra
 	smerData=initRouteTableBuilder(&routeTableBuilder, smerData, disp);
 	int oldSizeRoutes=smerData-tmp3;
 
-	uintptr_t uintptr=(uintptr_t)tmp1;
-	if((uintptr & 0x00FFFFFF) == 0x0017ff67)
-		{
-		LOG(LOG_INFO,"Routing init from %p %p %p %p",tmp1,tmp2,tmp3,smerData);
-
-		}
-
 	int oldSize=smerData-slice->smerData[sliceIndex];
 
 	int entryCount=rdi->entryCount;
@@ -191,6 +184,7 @@ int rtRouteReadsForSmer(RoutingReadReferenceBlock *rdi, u32 sliceIndex, SmerArra
 			{
 				smerId=currFmer;
 
+				/*
 				if(smerId==49511689627288L)
 					{
 					LOG(LOG_INFO,"Adding forward route to %li",currFmer);
@@ -198,6 +192,7 @@ int rtRouteReadsForSmer(RoutingReadReferenceBlock *rdi, u32 sliceIndex, SmerArra
 
 					dump=1;
 					}
+*/
 
 				SmerId prefixSmer=rdd->rsmers[index+1]; // Previous smer in read, reversed
 				SmerId suffixSmer=rdd->fsmers[index-1]; // Next smer in read
@@ -236,6 +231,7 @@ int rtRouteReadsForSmer(RoutingReadReferenceBlock *rdi, u32 sliceIndex, SmerArra
 			{
 				smerId=currRmer;
 
+				/*
 				if(smerId==49511689627288L)
 					{
 					LOG(LOG_INFO,"Adding reverse route to %li",currRmer);
@@ -243,6 +239,7 @@ int rtRouteReadsForSmer(RoutingReadReferenceBlock *rdi, u32 sliceIndex, SmerArra
 
 					dump=1;
 					}
+*/
 
 				SmerId prefixSmer=rdd->fsmers[index-1]; // Next smer in read
 				SmerId suffixSmer=rdd->rsmers[index+1]; // Previous smer in read, reversed
