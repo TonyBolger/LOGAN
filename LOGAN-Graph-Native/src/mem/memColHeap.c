@@ -832,7 +832,7 @@ static void colHeapGC_doGarbageCollect_compactGeneration(MemColHeap *colHeap, Me
 }
 
 
-static void colHeapGC_doGarbageCollect_collectBlock(MemColHeap *colHeap, MemColHeapGarbageCollection *gc, int gcBlockIndex, int allocGeneration, MemDispenser *disp)
+static int colHeapGC_doGarbageCollect_collectBlock(MemColHeap *colHeap, MemColHeapGarbageCollection *gc, int gcBlockIndex, int allocGeneration, MemDispenser *disp)
 {
 	//LOG(LOG_INFO,"GC of block %i from %p with size %li",gcBlockIndex,colHeap->blocks[gcBlockIndex].data,colHeap->blocks[gcBlockIndex].size);
 
@@ -877,10 +877,12 @@ static void colHeapGC_doGarbageCollect_collectBlock(MemColHeap *colHeap, MemColH
 		//LOG(LOG_INFO,"Followup with compact for block %i of %p",gcBlockIndex,colHeap->heapData);
 
 		colHeapGC_doGarbageCollect_compactBlockEntries(gc, &extract, entry, &(colHeap->blocks[gcBlockIndex]));
+		return 1;
 		}
 	else
 		{
 		colHeap->blocks[gcBlockIndex].alloc=0;
+		return 0;
 		}
 
 }
@@ -896,7 +898,8 @@ static void colHeapGC_doGarbageCollect_collectGeneration(MemColHeap *colHeap, Me
 
 	for(int i=startBlock;i<endBlock;i++)
 		{
-		colHeapGC_doGarbageCollect_collectBlock(colHeap,gc,i,allocGeneration,disp);
+		if(colHeapGC_doGarbageCollect_collectBlock(colHeap,gc,i,allocGeneration,disp))
+			break;
 		}
 
 }
@@ -966,17 +969,13 @@ static void colHeapGC(MemColHeap *colHeap, int forceConfigIndex, MemDispenser *d
 
 	for(int i=colHeap->youngGeneration;i>0;i--)
 		{
-		long mgfWithNext=multiGenerationFree+gc->generations[i-1].currentSpace; // Try using gen-1 space without compacting
+		multiGenerationFree+=gc->generations[i-1].currentSpace; // Try using gen-1 space
 
-		if(mgfWithNext>=requiredSpace)
+		if(multiGenerationFree>=requiredSpace)
 			{
-			multiGenerationFree=mgfWithNext;
 			gcGeneration=i;
-
 			break;
 			}
-
-		multiGenerationFree+=gc->generations[i-1].compactSpace; // Gen-1 will also be compacted
 		requiredSpace+=incrementalRequiredSpace;
 		}
 
