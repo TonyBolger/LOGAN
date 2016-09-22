@@ -118,6 +118,7 @@ typedef struct memColHeapGarbageCollectionStr
 	s32 totalBlocks;
 	s32 rootSetTotalCount;
 	s64 rootSetTotalSize;
+	s64 totalAlloc;
 
 	MemColHeapGarbageCollectionBlock blocks[COLHEAP_MAX_BLOCKS];
 	MemColHeapGarbageCollectionGeneration generations[COLHEAP_MAX_GENERATIONS];

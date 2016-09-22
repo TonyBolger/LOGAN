@@ -499,6 +499,7 @@ static MemColHeapGarbageCollection *colHeapGC_BuildCollectionStructure(MemColHea
 	//s32 maxCount=0;
 	s32 totalCount=0;
 	s64 totalSize=0;
+	s64 totalAlloc=0;
 
 	gc->totalBlocks=COLHEAP_CONFIGS[colHeap->configIndex].totalBlocks;
 
@@ -577,6 +578,8 @@ static MemColHeapGarbageCollection *colHeapGC_BuildCollectionStructure(MemColHea
 		gc->generations[generation].liveCount+=gc->blocks[i].liveCount;
 
 		s64 allocSize=colHeap->blocks[i].alloc;
+		totalAlloc+=allocSize;
+
 		s64 liveSize=gc->blocks[i].liveSize;
 		gc->generations[generation].liveSize+=liveSize;
 
@@ -597,6 +600,8 @@ static MemColHeapGarbageCollection *colHeapGC_BuildCollectionStructure(MemColHea
 
 		blocksInGeneration++;
 		}
+
+	gc->totalAlloc=totalAlloc;
 
 	return gc;
 }
@@ -917,8 +922,8 @@ static void colHeapGC_doGarbageCollect(MemColHeap *colHeap, MemColHeapGarbageCol
 
 static void colHeapGC(MemColHeap *colHeap, int forceConfigIndex, MemDispenser *disp)
 {
-	struct timeval startTime,endTime;
-	gettimeofday(&startTime,NULL);
+	//struct timeval startTime,endTime;
+	//gettimeofday(&startTime,NULL);
 
 
 	// Aims to free up the current young block
@@ -947,7 +952,9 @@ static void colHeapGC(MemColHeap *colHeap, int forceConfigIndex, MemDispenser *d
 	colHeapGC_SortEntriesAndIndex(colHeap, gc);
 
 	int youngBlockIndex=colHeapGetCurrentYoungBlockIndex(colHeap);
-	s64 requiredSpace=gc->blocks[youngBlockIndex].liveSize;
+	s64 baseRequiredSpace=MIN(COLHEAP_CONFIGS[colHeap->configIndex].blockSize, gc->blocks[youngBlockIndex].liveSize*2);
+	s64 requiredSpace=baseRequiredSpace;
+	s64 incrementalRequiredSpace=baseRequiredSpace>>2;
 
 //	LOG(LOG_INFO,"Need %li space", requiredSpace);
 	s64 multiGenerationFree=0;
@@ -970,6 +977,7 @@ static void colHeapGC(MemColHeap *colHeap, int forceConfigIndex, MemDispenser *d
 			}
 
 		multiGenerationFree+=gc->generations[i-1].compactSpace; // Gen-1 will also be compacted
+		requiredSpace+=incrementalRequiredSpace;
 		}
 
 	if(multiGenerationFree < requiredSpace)
@@ -984,15 +992,25 @@ static void colHeapGC(MemColHeap *colHeap, int forceConfigIndex, MemDispenser *d
 		colHeapGC_doResize(colHeap, gc, resizeConfigIndex, disp);
 		}
 
-
+/*
 	gettimeofday(&endTime,NULL);
+
+
+	s64 newTotalAlloc=0;
+	for(int i=0;i<COLHEAP_MAX_BLOCKS;i++)
+		newTotalAlloc+=colHeap->blocks[i].alloc;
+
+	s64 freed=gc->totalAlloc-newTotalAlloc;
 
 	double elapsedTime;
 
     elapsedTime = (endTime.tv_sec - startTime.tv_sec) * 1000.0;      // sec to ms
     elapsedTime += (endTime.tv_usec - startTime.tv_usec) / 1000.0;   // us to ms
 
-    LOG(LOG_INFO,"GC (Gen %i : %i, Resize %i Config %i) took %lf ms",gcGeneration, colHeap->youngGeneration, resizeConfigIndex, colHeap->configIndex, elapsedTime);
+    LOG(LOG_INFO,"GC freed %li (%li %li) using (Gen %i : %i, Resize %i Config %i) took %lf ms",
+    		freed,gc->totalAlloc,newTotalAlloc,
+    		gcGeneration, colHeap->youngGeneration, resizeConfigIndex, colHeap->configIndex, elapsedTime);
+    		*/
 }
 
 

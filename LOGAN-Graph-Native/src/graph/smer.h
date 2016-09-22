@@ -39,7 +39,7 @@ typedef struct smerArraySliceStr
 	s32 smerCount;
 	Bloom bloom;
 
-	MemPackStack *slicePackStack;
+	//MemPackStack *slicePackStack;
 
 	long totalAlloc;
 	long totalAllocPrefix;

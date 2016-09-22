@@ -59,7 +59,7 @@ static int reverseSuffixSorter(const void *a, const void *b)
 
 
 
-
+/*
 static void compactSliceData(SmerArraySlice *slice, MemDispenser *disp)
 {
 	int smerCount=slice->smerCount;
@@ -89,7 +89,7 @@ static void compactSliceData(SmerArraySlice *slice, MemDispenser *disp)
 		slice->smerData[retains[i].index]=retains[i].newPtr;
 
 }
-
+*/
 
 s32 rtItemSizeResolver(u8 *item)
 {
@@ -418,32 +418,34 @@ int rtRouteReadsForSmer(RoutingReadReferenceBlock *rdi, u32 sliceIndex, SmerArra
 
 		slice->totalRealloc+=oldSize;
 
-		u8 *oldData=slice->smerData[sliceIndex];
 		u8 *newData;
 
-
+		/*
+		u8 *oldData=slice->smerData[sliceIndex];
 
 //		LOG(LOG_INFO,"Was %i Now %i",oldSize,totalSize);
 
-		if(0) // PackStack Version
+		// PackStack Version
+
+		if(oldData!=NULL)
+			newData=psRealloc(slice->slicePackStack, oldData, oldSize, totalSize);
+		else
+			newData=psAlloc(slice->slicePackStack, totalSize);
+
+		if(newData==NULL)
 			{
+			compactSliceData(slice, disp);
+
 			if(oldData!=NULL)
 				newData=psRealloc(slice->slicePackStack, oldData, oldSize, totalSize);
 			else
 				newData=psAlloc(slice->slicePackStack, totalSize);
-
-			if(newData==NULL)
-				{
-				compactSliceData(slice, disp);
-
-				if(oldData!=NULL)
-					newData=psRealloc(slice->slicePackStack, oldData, oldSize, totalSize);
-				else
-					newData=psAlloc(slice->slicePackStack, totalSize);
-				}
 			}
-		else	// ColHeap Version
-			newData=chAlloc(colHeap, totalSize);
+		*/
+
+		// ColHeap Version
+
+		newData=chAlloc(colHeap, totalSize);
 
 		if(newData==NULL)
 				LOG(LOG_CRITICAL,"Failed at alloc after compact: Wanted %i",totalSize);

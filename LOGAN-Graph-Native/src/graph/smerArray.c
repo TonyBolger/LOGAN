@@ -43,7 +43,7 @@ s32 saInitSmerArray(SmerArray *smerArray, SmerMap *smerMap, s32 (*itemSizeResolv
 		MemColHeap *colHeap=smerArray->heaps[i>>SMER_DISPATCH_GROUP_SHIFT];
 		chRegisterRoots(colHeap,i&SMER_DISPATCH_GROUP_SLICEMASK,arraySlices[i].smerData, arraySlices[i].smerCount);
 
-		arraySlices[i].slicePackStack=packStackAlloc();
+		//arraySlices[i].slicePackStack=packStackAlloc();
 
 		arraySlices[i].totalAlloc=0;
 		arraySlices[i].totalAllocPrefix=0;
@@ -82,7 +82,7 @@ void saCleanupSmerArray(SmerArray *smerArray) {
 				smerArray->slice[i].totalRealloc)
 */
 
-		packStackFree(smerArray->slice[i].slicePackStack);
+		//packStackFree(smerArray->slice[i].slicePackStack);
 		}
 
 	memset(smerArray, 0, sizeof(SmerArray));
