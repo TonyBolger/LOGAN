@@ -52,7 +52,7 @@ typedef struct smerArraySliceStr
 typedef struct smerArrayStr
 {
 	SmerArraySlice slice[SMER_SLICES];
-	MemColHeap *heaps[SMER_DISPATCH_GROUPS];
+	MemCircHeap *heaps[SMER_DISPATCH_GROUPS];
 } SmerArray;
 
 
@@ -145,7 +145,7 @@ void smGetSmerIds(SmerMap *smerMap, SmerId *smerIds);
 /********************** SmerArray functionality **********************/
 
 
-s32 saInitSmerArray(SmerArray *smerArray, SmerMap *smerMap, s32 (*itemSizeResolver)(u8 *item));
+s32 saInitSmerArray(SmerArray *smerArray, SmerMap *smerMap);
 void saCleanupSmerArray(SmerArray *smerArray);
 
 int saFindSmerEntry(SmerArraySlice *slice, SmerEntry smerEntry);

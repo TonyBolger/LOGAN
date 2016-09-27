@@ -40,6 +40,9 @@
 #define CACHE_ALIGNMENT_MASK 63
 #define CACHE_ALIGNMENT_SIZE 64
 
+#define PAGE_ALIGNMENT_MASK 4095
+#define PAGE_ALIGNMENT_SIZE 4096
+
 
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
 #define MAX(X,Y) ((X) > (Y) ? (X) : (Y))
@@ -173,8 +176,8 @@ typedef struct swqBufferStr {
 
 #include "mem/memDispenser.h"
 #include "mem/memPackStack.h"
-#include "mem/memColHeap.h"
-
+//#include "mem/memColHeap.h"
+#include "mem/memCircHeap.h"
 
 #include "util/bitMap.h"
 #include "util/bitPacking.h"

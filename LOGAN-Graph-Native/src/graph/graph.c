@@ -22,7 +22,7 @@ void switchMode(Graph *graph)
 	LOG(LOG_INFO,"Switching Graph to Routing Mode");
 	graph->mode=GRAPH_MODE_ROUTE;
 
-	int entries=saInitSmerArray(&(graph->smerArray), &(graph->smerMap), rtItemSizeResolver);
+	int entries=saInitSmerArray(&(graph->smerArray), &(graph->smerMap));
 
 	smCleanupSmerMap(&(graph->smerMap));
 

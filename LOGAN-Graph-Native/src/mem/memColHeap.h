@@ -3,7 +3,7 @@
 
 #include "../common.h"
 
-#define COLHEAP_MAX_ALLOC (1024*1024)
+#define COLHEAP_MAX_ALLOC (1024*1024*4)
 
 #define COLHEAP_MAX_GENERATIONS 4
 #define COLHEAP_MAX_BLOCKS_PER_GENERATION 8

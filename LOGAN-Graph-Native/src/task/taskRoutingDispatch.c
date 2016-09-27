@@ -529,7 +529,8 @@ void dumpPatches(RoutePatch *patches, int patchCount)
 
 
 
-static void processSlice(RoutingReadReferenceBlock *smerInboundDispatches,  SmerArraySlice *slice, RoutingReadData **orderedDispatches, MemDispenser *disp, MemColHeap *colHeap)
+static void processSlice(RoutingReadReferenceBlock *smerInboundDispatches,  SmerArraySlice *slice, u32 sliceIndex,
+		RoutingReadData **orderedDispatches, MemDispenser *disp, MemCircHeap *circHeap)
 {
 	//for(int i=0;i<SMER_DISPATCH_GROUP_SLICES;i++)
 		//{
@@ -548,10 +549,12 @@ static void processSlice(RoutingReadReferenceBlock *smerInboundDispatches,  Smer
 */
 			int indexLength=indexDispatchesForSlice(smerInboundDispatches, slice->smerCount, disp, indexedDispatches, sliceIndexes);//, smerTmpDispatches);
 
+			u8 sliceTag=(u8)sliceIndex; // In practice, cannot be bigger than SMER_DISPATCH_GROUP_SLICES (256)
+
 			int dispatchOffset=0;
 			for(int j=0;j<indexLength;j++)
 				{
-				int entryCount=rtRouteReadsForSmer(indexedDispatches[j], sliceIndexes[j], slice, orderedDispatches+dispatchOffset, disp, colHeap);
+				int entryCount=rtRouteReadsForSmer(indexedDispatches[j], sliceIndexes[j], slice, orderedDispatches+dispatchOffset, disp, circHeap, sliceTag);
 				dispatchOffset+=entryCount;
 				}
 
@@ -674,7 +677,7 @@ static int scanForDispatchesForGroups(RoutingBuilder *rb, int startGroup, int en
 
 					prepareGroupOutbound(groupState);
 
-					MemColHeap *colHeap=rb->graph->smerArray.heaps[i];
+					MemCircHeap *circHeap=rb->graph->smerArray.heaps[i];
 					SmerArraySlice *baseSlice=rb->graph->smerArray.slice+(i << SMER_DISPATCH_GROUP_SHIFT);
 					for(int j=0;j<SMER_DISPATCH_GROUP_SLICES;j++)
 						{
@@ -689,7 +692,7 @@ static int scanForDispatchesForGroups(RoutingBuilder *rb, int startGroup, int en
 //							int sliceNumber=j+(i << SMER_DISPATCH_GROUP_SHIFT);
 //							LOG(LOG_INFO,"Processing slice %i",sliceNumber);
 
-							processSlice(smerInboundDispatches, slice, orderedDispatches, groupState->disp, colHeap);
+							processSlice(smerInboundDispatches, slice, j, orderedDispatches, groupState->disp, circHeap);
 
 //							LOG(LOG_INFO,"IndexGroup:");
 

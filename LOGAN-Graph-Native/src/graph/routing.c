@@ -1,6 +1,36 @@
 #include "common.h"
 
 
+/*
+
+Alloc Header:
+
+	0 0 0 0 0 0 0 0 : Unused region
+
+	1 0 0 0 0 0 1 1 : Huge chunk header
+    1 0 0 0 0 0 1 0 : Large chunk header
+    1 0 0 0 0 0 0 1 : Medium chunk header
+    1 0 0 0 0 0 0 0 : Small chunk header
+
+	1 x x x x x x x : Live block
+	0 x x x x x x x : Dead block
+
+	x 1 x x x x x x : Indirect block formats
+	x 0 x x x x x x : Direct block formats
+
+	x 0 1 1 1 1 x x : Standard block format (prefix, suffix, routes)
+
+	x x x x x x 1 x : Large # prefixes (>255)
+	x x x x x x 0 x : Small # prefixes
+
+	x x x x x x x 1 : Large # suffixes (>255)
+	x x x x x x x 0 : Small # suffixes
+
+
+	Current default: 10111111 0xBF
+ */
+
+
 //	Old Format:
 //		#PrefixTails(2B), PrefixTailData(packed), #SuffixTails(2B), SuffixTailData(packed), RouteHeader(2-10B), ForwardRoutes(packed), ReverseRoutes(packed)
 //
@@ -28,6 +58,11 @@
 //
 //
 //
+
+
+#define ALLOC_HEADER_DEFAULT 0xBF
+
+#define ALLOC_HEADER_LIVE_MASK 0x80
 
 
 static int forwardPrefixSorter(const void *a, const void *b)
@@ -95,17 +130,165 @@ s32 rtItemSizeResolver(u8 *item)
 {
 	u8 *scanPtr;
 
-	scanPtr=scanTails(item);
-	scanPtr=scanTails(scanPtr);
-	scanPtr=scanRouteTable(scanPtr);
+	if(item!=NULL)
+		{
+		scanPtr=item+1;
 
-	return scanPtr-item;
+		scanPtr=scanTails(scanPtr);
+		scanPtr=scanTails(scanPtr);
+		scanPtr=scanRouteTable(scanPtr);
+
+		return scanPtr-item;
+		}
+
+	return 0;
 }
 
 
-int rtRouteReadsForSmer(RoutingReadReferenceBlock *rdi, u32 sliceIndex, SmerArraySlice *slice, RoutingReadData **orderedDispatches, MemDispenser *disp, MemColHeap *colHeap)
+static s32 scanTagData(u8 **tagData, s32 tagDataLength, s32 startIndex, u8 *wanted)
 {
-	u8 *smerData=slice->smerData[sliceIndex];
+	for(int i=startIndex;i<tagDataLength;i++)
+		{
+		if(tagData[i]==wanted)
+			return i;
+		}
+
+	for(int i=0;i<startIndex;i++)
+		{
+		if(tagData[i]==wanted)
+			return i;
+		}
+
+	return -1;
+}
+
+
+static MemCircHeapChunkIndex *allocOrExpandIndexer(MemCircHeapChunkIndex *oldIndex, MemDispenser *disp)
+{
+	if(oldIndex==NULL)
+		{
+		MemCircHeapChunkIndex *index=dAlloc(disp, sizeof(MemCircHeapChunkIndex)+sizeof(MemCircHeapChunkIndexEntry)*CIRCHEAP_INDEXER_ENTRYALLOC);
+
+		index->entryAlloc=CIRCHEAP_INDEXER_ENTRYALLOC;
+		index->entryCount=0;
+
+		return index;
+		}
+	else
+		{
+		s32 oldSize=sizeof(MemCircHeapChunkIndex)+sizeof(MemCircHeapChunkIndexEntry)*oldIndex->entryAlloc;
+		s32 newSize=oldSize+sizeof(MemCircHeapChunkIndexEntry)*CIRCHEAP_INDEXER_ENTRYALLOC;
+
+		MemCircHeapChunkIndex *index=dAlloc(disp, newSize);
+		memcpy(index,oldIndex,oldSize);
+
+		index->entryAlloc+=CIRCHEAP_INDEXER_ENTRYALLOC;
+		return index;
+		}
+}
+
+
+MemCircHeapChunkIndex *rtReclaimIndexer(u8 *heapDataPtr, s64 targetAmount, u8 tag, u8 **tagData, s32 tagDataLength, MemDispenser *disp)
+{
+	//LOG(LOG_INFO,"Reclaim Index: %p %li %x %p",data,targetAmount,tag,disp);
+
+	MemCircHeapChunkIndex *index=allocOrExpandIndexer(NULL, disp);
+
+	u8 *startOfData=heapDataPtr;
+	u8 *endOfData=heapDataPtr+targetAmount;
+
+	s64 liveSize=0;
+	s64 deadSize=0;
+
+	s32 currentIndex=-1;
+
+	int entry=0;
+
+	while(heapDataPtr<endOfData)
+		{
+		u8 header=*heapDataPtr;
+
+		if(header==CH_HEADER_CHUNK || header==CH_HEADER_INVALID)
+			{
+		//	LOG(LOG_INFO,"Header: %p %2x %i",data,header);
+			break;
+			}
+
+		u8 *scanPtr=heapDataPtr+1;
+
+		scanPtr=scanTails(scanPtr);
+		scanPtr=scanTails(scanPtr);
+		scanPtr=scanRouteTable(scanPtr);
+
+		s32 size=scanPtr-heapDataPtr;
+
+		if(header & ALLOC_HEADER_LIVE_MASK)
+			{
+			currentIndex=scanTagData(tagData, tagDataLength, currentIndex+1, heapDataPtr);
+
+			if(currentIndex==-1)
+				{
+				LOG(LOG_CRITICAL,"Failed to find expected heap pointer in tag data");
+				}
+
+			if(entry==index->entryAlloc)
+				index=allocOrExpandIndexer(index, disp);
+
+			index->entries[entry].index=currentIndex;
+			index->entries[entry].size=size;
+			entry++;
+
+			//LOG(LOG_INFO,"Live Item: %p %2x %i",heapDataPtr,header,size, currentIndex);
+			liveSize+=size;
+			}
+		else
+			{
+			deadSize+=size;
+			//LOG(LOG_INFO,"Dead Item: %p %2x %i",heapDataPtr,header,size);
+			}
+
+		heapDataPtr=scanPtr;
+		}
+
+	index->entryCount=entry;
+
+	index->heapStartPtr=startOfData;
+	index->heapEndPtr=heapDataPtr;
+	index->reclaimed=heapDataPtr-startOfData;
+	index->sizeDead=deadSize;
+	index->sizeLive=liveSize;
+
+	return index;
+}
+
+void rtRelocater(MemCircHeapChunkIndex *index, u8 tag, u8 **tagData, s32 tagDataLength)
+{
+	u8 *newChunk=index->newChunk;
+
+	for(int i=0;i<index->entryCount;i++)
+		{
+		u8 **ptr=&tagData[index->entries[i].index];
+		s32 size=index->entries[i].size;
+
+//		LOG(LOG_INFO,"Relocated for %i from %p to %p, referenced by %p", size, *ptr, newChunk, ptr);
+
+		memmove(newChunk,*ptr,size);
+
+		*ptr=newChunk;
+		newChunk+=size;
+		}
+
+
+//	LOG(LOG_INFO,"Relocated for %p with data %p",index,index->newChunk);
+}
+
+
+
+int rtRouteReadsForSmer(RoutingReadReferenceBlock *rdi, u32 sliceIndex, SmerArraySlice *slice,
+		RoutingReadData **orderedDispatches, MemDispenser *disp, MemCircHeap *circHeap, u8 sliceTag)
+{
+	u8 *smerDataOrig=slice->smerData[sliceIndex];
+	u8 *smerData=smerDataOrig;
 
 	//if(smerData!=NULL)
 //		LOG(LOG_INFO, "Index: %i of %i Entries %i Data: %p",sliceIndex,slice->smerCount, rdi->entryCount, smerData);
@@ -113,18 +296,38 @@ int rtRouteReadsForSmer(RoutingReadReferenceBlock *rdi, u32 sliceIndex, SmerArra
 	SeqTailBuilder prefixBuilder, suffixBuilder;
 	RouteTableBuilder routeTableBuilder;
 
-	u8 *tmp1,*tmp2,*tmp3;
+	u8 *tmp1=NULL,*tmp2=NULL,*tmp3=NULL;
 
-	tmp1=smerData;
-	smerData=initSeqTailBuilder(&prefixBuilder, smerData, disp);
+	if(smerData!=NULL)
+		{
+		u8 header=*smerData;
+
+		if(header!=ALLOC_HEADER_DEFAULT)
+			{
+			LOG(LOG_CRITICAL,"Alloc header invalid %2x at %p",header,smerData);
+			}
+
+		smerData++;
+
+		tmp1=smerData;
+		smerData=initSeqTailBuilder(&prefixBuilder, smerData, disp);
+
+		tmp2=smerData;
+		smerData=initSeqTailBuilder(&suffixBuilder, smerData, disp);
+
+		tmp3=smerData;
+		smerData=initRouteTableBuilder(&routeTableBuilder, smerData, disp);
+
+		}
+	else
+		{
+		initSeqTailBuilder(&prefixBuilder, NULL, disp);
+		initSeqTailBuilder(&suffixBuilder, NULL, disp);
+		initRouteTableBuilder(&routeTableBuilder, NULL, disp);
+		}
+
 	int oldSizePrefix=smerData-tmp1;
-
-	tmp2=smerData;
-	smerData=initSeqTailBuilder(&suffixBuilder, smerData, disp);
 	int oldSizeSuffix=smerData-tmp2;
-
-	tmp3=smerData;
-	smerData=initRouteTableBuilder(&routeTableBuilder, smerData, disp);
 	int oldSizeRoutes=smerData-tmp3;
 
 	int oldSize=smerData-slice->smerData[sliceIndex];
@@ -393,7 +596,7 @@ int rtRouteReadsForSmer(RoutingReadReferenceBlock *rdi, u32 sliceIndex, SmerArra
 		int diffSuffix=suffixPackedSize-oldSizeSuffix;
 		int diffRoutes=routeTablePackedSize-oldSizeRoutes;
 
-		int totalSize=prefixPackedSize+suffixPackedSize+routeTablePackedSize;
+		int totalSize=1+prefixPackedSize+suffixPackedSize+routeTablePackedSize;
 		int sizeDiff=totalSize-oldSize;
 
 		if(dump)
@@ -417,6 +620,30 @@ int rtRouteReadsForSmer(RoutingReadReferenceBlock *rdi, u32 sliceIndex, SmerArra
 		slice->totalAllocRoutes+=diffRoutes;
 
 		slice->totalRealloc+=oldSize;
+
+		//if(totalSize>16083)
+		if(totalSize>4096)
+			{
+			int oldShifted=oldSize>>12;
+			int newShifted=totalSize>>12;
+
+			if(oldShifted!=newShifted)
+				{
+				LOG(LOG_INFO,"LARGE ALLOC: %i",totalSize);
+
+				/*
+				char bufferN[SMER_BASES+1]={0};
+				unpackSmer(smerId, bufferN);
+
+				LOG(LOG_INFO,"LARGE SMER: %s %012lx has %i %i %i %i",bufferN,smerId,
+					routeTableBuilder.oldForwardEntryCount,routeTableBuilder.oldReverseEntryCount,
+					routeTableBuilder.newForwardEntryCount,routeTableBuilder.newReverseEntryCount);
+					*/
+				}
+
+			}
+
+
 
 		u8 *newData;
 
@@ -445,19 +672,36 @@ int rtRouteReadsForSmer(RoutingReadReferenceBlock *rdi, u32 sliceIndex, SmerArra
 
 		// ColHeap Version
 
-		newData=chAlloc(colHeap, totalSize);
+		//newData=chAlloc(colHeap, totalSize);
+
+		// Mark old block as dead
+		if(smerDataOrig!=NULL)
+			*smerDataOrig&=~ALLOC_HEADER_LIVE_MASK;
+
+		newData=circAlloc(circHeap, totalSize, sliceTag);
 
 		if(newData==NULL)
-				LOG(LOG_CRITICAL,"Failed at alloc after compact: Wanted %i",totalSize);
+			{
+			LOG(LOG_CRITICAL,"Failed at alloc after compact: Wanted %i",totalSize);
+			}
+		/*
+		else
+			{
+			LOG(LOG_INFO,"Writing %i bytes smer data to %p with tag %i",totalSize, newData, sliceTag);
+			}
+*/
 
-		u8 *tmpout1=writeSeqTailBuilderPackedData(&prefixBuilder, newData);
+		*newData=ALLOC_HEADER_DEFAULT;
+
+		u8 *tmpout0=newData+1;
+		u8 *tmpout1=writeSeqTailBuilderPackedData(&prefixBuilder, tmpout0);
 		u8 *tmpout2=writeSeqTailBuilderPackedData(&suffixBuilder, tmpout1);
 		u8 *tmpout3=writeRouteTableBuilderPackedData(&routeTableBuilder, tmpout2);
 
 		if(dump)
 			{
-			LOG(LOG_INFO,"Data write to %p %p %p %p",newData,tmpout1,tmpout2,tmpout3);
-			LOG(LOG_INFO,"Data write sizes %i %i %i",tmpout1-newData,tmpout2-tmpout1,tmpout3-tmpout2);
+			LOG(LOG_INFO,"Data write to %p %p %p %p %p",newData, tmpout0,tmpout1,tmpout2,tmpout3);
+			LOG(LOG_INFO,"Data write sizes %i %i %i",tmpout1-tmpout0,tmpout2-tmpout1,tmpout3-tmpout2);
 
 			for(int i=0;i<totalSize;i++)
 				LOG(LOG_INFO,"Wrote Data: %2x",newData[i]);

@@ -3,7 +3,7 @@
 #include "common.h"
 
 
-s32 saInitSmerArray(SmerArray *smerArray, SmerMap *smerMap, s32 (*itemSizeResolver)(u8 *item)) {
+s32 saInitSmerArray(SmerArray *smerArray, SmerMap *smerMap) {
 
 	memset(smerArray, 0, sizeof(SmerArray));
 
@@ -13,7 +13,8 @@ s32 saInitSmerArray(SmerArray *smerArray, SmerMap *smerMap, s32 (*itemSizeResolv
 	int i;
 
 	for(i=0;i<SMER_DISPATCH_GROUPS;i++)
-		smerArray->heaps[i]=colHeapAlloc(itemSizeResolver);
+		//smerArray->heaps[i]=colHeapAlloc(itemSizeResolver);
+		smerArray->heaps[i]=circHeapAlloc(rtReclaimIndexer, rtRelocater);
 
 	int total=0;
 	for(i=0;i<SMER_SLICES; i++)
@@ -40,8 +41,12 @@ s32 saInitSmerArray(SmerArray *smerArray, SmerMap *smerMap, s32 (*itemSizeResolv
 
 		smSmerEntryArrayFree(smerTmp);
 
-		MemColHeap *colHeap=smerArray->heaps[i>>SMER_DISPATCH_GROUP_SHIFT];
-		chRegisterRoots(colHeap,i&SMER_DISPATCH_GROUP_SLICEMASK,arraySlices[i].smerData, arraySlices[i].smerCount);
+		MemCircHeap *circHeap=smerArray->heaps[i>>SMER_DISPATCH_GROUP_SHIFT];
+		circHeapRegisterTagData(circHeap,i&SMER_DISPATCH_GROUP_SLICEMASK,arraySlices[i].smerData, arraySlices[i].smerCount);
+
+
+//		MemColHeap *colHeap=smerArray->heaps[i>>SMER_DISPATCH_GROUP_SHIFT];
+//		chRegisterRoots(colHeap,i&SMER_DISPATCH_GROUP_SLICEMASK,arraySlices[i].smerData, arraySlices[i].smerCount);
 
 		//arraySlices[i].slicePackStack=packStackAlloc();
 
@@ -61,7 +66,8 @@ void saCleanupSmerArray(SmerArray *smerArray) {
 	int i = 0;
 
 	for(i=0;i<SMER_DISPATCH_GROUPS;i++)
-		colHeapFree(smerArray->heaps[i]);
+		//colHeapFree(smerArray->heaps[i]);
+		circHeapFree(smerArray->heaps[i]);
 
 	for (i = 0; i < SMER_SLICES; i++)
 		{
