@@ -19,6 +19,8 @@
 		(Future) Padded allocation:
 			Blocks in young generation can be padded sufficiently to allow for future additional data
 
+		(Future) Double-mapping for proper ring buffer positions
+			Avoids the end->start fragmentation problem
 
 	Remaining issues:
 		Updating inbound pointers for a given block when copying
@@ -173,13 +175,18 @@ static s64 estimateSpaceInGeneration(MemCircGeneration *generation)
 {
 	MemCircHeapBlock *block=generation->allocBlock;
 
-	if(block->reclaimPosition>block->allocPosition)
+	s64 space;
+
+	if(block->reclaimPosition<=block->allocPosition) // Start - reclaim - alloc - end (bigger of the two)
 		{
-		return block->reclaimPosition-block->allocPosition;
+		space=MAX(block->size-block->allocPosition, block->reclaimPosition)-CIRCHEAP_BLOCK_TAG_OVERHEAD;
+		}
+	else											// Start - alloc - reclaim  - end
+		{
+		space=block->reclaimPosition-block->allocPosition-CIRCHEAP_BLOCK_TAG_OVERHEAD-1;
 		}
 
-	return block->reclaimPosition+block->size-block->allocPosition;
-
+	return MAX(0,space);
 }
 
 // Allocates from a generation, creating a tag if needed
@@ -268,7 +275,21 @@ static MemCircHeapChunkIndex *createReclaimIndex_single(MemCircHeap *circHeap, M
 	if(data==CH_HEADER_INVALID) // Wrap reclaim
 		{
 		// Should verify if live/dead ratio acceptable
+		long totalReclaim=generation->curReclaimSizeLive+generation->curReclaimSizeDead;
 
+		if(totalReclaim>0)
+			{
+			double survivorRatio=(double)generation->curReclaimSizeLive/(double)totalReclaim;
+
+			LOG(LOG_INFO,"Generation %i Survivor Ratio %lf",
+					generation-circHeap->generations, survivorRatio);
+			}
+
+		generation->prevReclaimSizeLive=generation->curReclaimSizeLive;
+		generation->prevReclaimSizeDead=generation->curReclaimSizeDead;
+
+		generation->curReclaimSizeLive=0;
+		generation->curReclaimSizeDead=0;
 		reclaimBlock->reclaimPosition=0;
 
 		if(reclaimBlock->reclaimPosition==reclaimBlock->allocPosition)
@@ -332,7 +353,68 @@ static MemCircHeapChunkIndex *createReclaimIndex(MemCircHeap *circHeap, MemCircG
 	return firstIndex;
 }
 
+static void dumpCircHeap(MemCircHeap *circHeap)
+{
+	LOG(LOG_INFO,"Heap dump");
+	for(int i=0;i<CIRCHEAP_MAX_GENERATIONS;i++)
+		LOG(LOG_INFO, "Generation %i has %li with alloc %li and reclaim %li",i,
+			estimateSpaceInGeneration(circHeap->generations+i),
+			circHeap->generations[i].allocBlock->allocPosition,
+			circHeap->generations[i].allocBlock->reclaimPosition);
+}
 
+static MemCircHeapChunkIndex *moveIndexedHeap(MemCircHeap *circHeap, MemCircHeapChunkIndex *index, s32 allocGeneration)
+{
+	MemCircHeapChunkIndex *scan=index;
+
+	while(scan!=NULL)
+		{
+		u8 *newChunk=allocFromGeneration(circHeap->generations+allocGeneration, scan->sizeLive, scan->chunkTag);
+
+		if(newChunk==NULL) // Shouldn't happen, but just in case, demand more
+			{
+//			circHeapEnsureSpace_generation(circHeap,totalLive+CIRCHEAP_BLOCK_OVERHEAD,allocGeneration,disp);
+//			newChunk=allocFromGeneration(circHeap->generations+allocGeneration, scan->sizeLive, scan->chunkTag);
+//			if(newChunk==NULL)
+//				LOG(LOG_CRITICAL,"GC generation promotion failed");
+
+			return scan;
+			}
+
+		scan->newChunk=newChunk;
+		u8 tag=scan->chunkTag;
+
+		(circHeap->relocater)(scan, tag, circHeap->tagData[tag], circHeap->tagDataLength[tag]);
+
+		scan=scan->next;
+		}
+
+	return NULL;
+}
+
+static s64 calcHeapReclaimStats(MemCircHeapChunkIndex *index, MemCircGeneration *generation, int generationNum)
+{
+	s64 totalReclaimed=0;
+	s64 totalLive=0;
+	s64 totalDead=0;
+
+	MemCircHeapChunkIndex *scan=index;
+	while(scan!=NULL)
+		{
+		totalReclaimed+=scan->reclaimed;
+		totalLive+=scan->sizeLive+2;
+		totalDead+=scan->sizeDead;
+
+		scan=scan->next;
+		}
+
+	generation->curReclaimSizeLive+=totalLive;
+	generation->curReclaimSizeDead+=totalDead;
+
+	//LOG(LOG_INFO,"Generation %i can reclaim %li with %li live, %li dead",generationNum, totalReclaimed, totalLive, totalDead);
+
+	return totalLive;
+}
 
 
 static void circHeapEnsureSpace_generation(MemCircHeap *circHeap, size_t newAllocSize, int generation, MemDispenser *disp)
@@ -340,65 +422,96 @@ static void circHeapEnsureSpace_generation(MemCircHeap *circHeap, size_t newAllo
 	s64 spaceEstimate=estimateSpaceInGeneration(circHeap->generations+generation);
 	spaceEstimate=MAX(0,spaceEstimate-CIRCHEAP_BLOCK_OVERHEAD);
 
+	s64 targetFree=newAllocSize; // Can be doubled - Hacky - allows for start/end split reclaims not creating enough space
+
 	if(spaceEstimate>newAllocSize)
 		{
-//		LOG(LOG_INFO,"Generation %i estimates %li space, sufficient for %li",generation, spaceEstimate, newAllocSize);
+		//LOG(LOG_INFO,"Generation %i estimates %li space, sufficient for %li (adjusted to %li)",generation, spaceEstimate, newAllocSize, targetFree);
 		return;
 		}
 
+	//LOG(LOG_INFO,"Generation %i estimates %li space, insufficient for %li (adjusted to %li)",generation, spaceEstimate, newAllocSize, targetFree);
+
+
 	if(generation<CIRCHEAP_LAST_GENERATION)
 		{
-		s64 reclaimTarget=newAllocSize-spaceEstimate;
-
-		MemCircHeapChunkIndex *index=createReclaimIndex(circHeap,circHeap->generations+generation, reclaimTarget, CIRCHEAP_RECLAIM_SPLIT_SHIFT, disp);
-
-		s64 totalReclaimed=0;
-		s64 totalLive=0;
-		s64 totalDead=0;
-
-		MemCircHeapChunkIndex *scan=index;
-		while(scan!=NULL)
-			{
-			totalReclaimed+=scan->reclaimed;
-			totalLive+=scan->sizeLive+2;
-			totalDead+=scan->sizeDead;
-
-			scan=scan->next;
-			}
-
-//		LOG(LOG_INFO,"Generation %i can reclaim %li with %li live, %li dead",generation, totalReclaimed, totalLive, totalDead);
-
-		circHeapEnsureSpace_generation(circHeap,totalLive,generation+1,disp);
-
 		int nextGeneration=generation+1;
+		s64 reclaimTarget=targetFree-spaceEstimate; // Allows for start/end split reclaims not creating enough space
 
-		scan=index;
-		while(scan!=NULL)
+		int maxReclaims=2;
+
+		while(spaceEstimate<targetFree && maxReclaims>0)
 			{
-			u8 *newChunk=allocFromGeneration(circHeap->generations+nextGeneration, scan->sizeLive, scan->chunkTag);
+			MemCircHeapChunkIndex *index=createReclaimIndex(circHeap,circHeap->generations+generation, reclaimTarget, CIRCHEAP_RECLAIM_SPLIT_SHIFT, disp);
 
-			if(newChunk==NULL) // Shouldn't happen, but just in case, demand more
+			s64 totalLive=calcHeapReclaimStats(index,circHeap->generations+generation, generation);
+
+			circHeapEnsureSpace_generation(circHeap,totalLive,nextGeneration,disp);
+			MemCircHeapChunkIndex *remainingIndex=moveIndexedHeap(circHeap, index, nextGeneration);
+
+			if(remainingIndex!=NULL)
 				{
-				circHeapEnsureSpace_generation(circHeap,totalLive+CIRCHEAP_BLOCK_OVERHEAD,generation+1,disp);
-				newChunk=allocFromGeneration(circHeap->generations+nextGeneration, scan->sizeLive, scan->chunkTag);
-
-				if(newChunk==NULL)
-					LOG(LOG_CRITICAL,"GC generation promotion failed");
+				LOG(LOG_CRITICAL,"GC generation promotion failed");
 				}
+			/*
+				circHeapEnsureSpace_generation(circHeap,totalLive,nextGeneration,disp);
+				MemCircHeapChunkIndex *remainingIndex2=moveIndexedHeap(circHeap, index, nextGeneration);
 
-			scan->newChunk=newChunk;
-			u8 tag=scan->chunkTag;
+				if(remainingIndex2!=NULL)
+					{
+					LOG(LOG_CRITICAL,"GC generation promotion failed");
+					}
+				}
+*/
 
-			(circHeap->relocater)(scan, tag, circHeap->tagData[tag], circHeap->tagDataLength[tag]);
+			spaceEstimate=estimateSpaceInGeneration(circHeap->generations+generation);
+			spaceEstimate=MAX(0,spaceEstimate-CIRCHEAP_BLOCK_OVERHEAD);
 
-			scan=scan->next;
+			maxReclaims--;
 			}
 
 //		LOG(LOG_INFO,"Reclaim completed for generation %i",generation);
 		}
 	else
 		{
-		LOG(LOG_CRITICAL,"Not implemented for generation %i",generation);
+		LOG(LOG_INFO,"Reclaim via compaction for generation %i, to free %li",generation, targetFree);
+
+		dumpCircHeap(circHeap);
+
+		int maxReclaims=CIRCHEAP_RECLAIM_SPLIT_OLDEST;
+
+		MemCircHeapChunkIndex *index=createReclaimIndex(circHeap,circHeap->generations+generation, 0, CIRCHEAP_RECLAIM_SPLIT_OLDEST_SHIFT, disp);
+		calcHeapReclaimStats(index,circHeap->generations+generation, generation);
+
+		moveIndexedHeap(circHeap, index, generation);
+
+		LOG(LOG_INFO,"First");
+		dumpCircHeap(circHeap);
+
+		spaceEstimate=estimateSpaceInGeneration(circHeap->generations+generation);
+		spaceEstimate=MAX(0,spaceEstimate-CIRCHEAP_BLOCK_OVERHEAD);
+
+		while(spaceEstimate < targetFree && maxReclaims>0)
+			{
+			MemCircHeapChunkIndex *index=createReclaimIndex(circHeap,circHeap->generations+generation, 0, CIRCHEAP_RECLAIM_SPLIT_OLDEST_SHIFT, disp);
+			calcHeapReclaimStats(index,circHeap->generations+generation, generation);
+
+			moveIndexedHeap(circHeap, index, generation);
+
+			LOG(LOG_INFO,"Iter");
+			dumpCircHeap(circHeap);
+
+			spaceEstimate=estimateSpaceInGeneration(circHeap->generations+generation);
+			spaceEstimate=MAX(0,spaceEstimate-CIRCHEAP_BLOCK_OVERHEAD);
+
+			maxReclaims--;
+			}
+
+		if(spaceEstimate<targetFree)
+			{
+			LOG(LOG_CRITICAL,"Need to grow heap for generation %i - could create only %li of %li needed",generation,spaceEstimate,targetFree);
+			}
+
 		}
 
 
@@ -429,13 +542,22 @@ void *circAlloc(MemCircHeap *circHeap, size_t size, u8 tag)
 	if(usrPtr!=NULL)
 		return usrPtr;
 
+	//LOG(LOG_INFO, "Initial fail to allocate %i bytes of CircHeap memory, GC begins",size);
+
 	circHeapEnsureSpace(circHeap, size);
 
 	usrPtr=allocFromGeneration(circHeap->generations, size, tag);
 	if(usrPtr!=NULL)
 		return usrPtr;
 
-	LOG(LOG_CRITICAL, "Failed to allocate %i bytes of ColHeap memory after trying really hard, honest",size);
+	LOG(LOG_INFO, "Failed to allocate %i bytes of CircHeap memory after trying really hard, honest",size);
+
+	for(int i=0;i<CIRCHEAP_MAX_GENERATIONS;i++)
+		LOG(LOG_INFO, "Generation %i has %li with alloc %li and reclaim %li",i, estimateSpaceInGeneration(circHeap->generations+i),
+				circHeap->generations[i].allocBlock->allocPosition, circHeap->generations[i].allocBlock->reclaimPosition);
+
+	LOG(LOG_CRITICAL,"Bailing out");
+
 	return NULL;
 }
 
