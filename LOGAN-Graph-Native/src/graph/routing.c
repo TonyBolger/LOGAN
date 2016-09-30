@@ -145,6 +145,27 @@ s32 rtItemSizeResolver(u8 *item)
 }
 
 
+static void dumpTagData(u8 **tagData, s32 tagDataLength)
+{
+	for(int i=0;i<tagDataLength;i++)
+		{
+		LOG(LOG_INFO,"Tag %i %p",i,tagData[i]);
+		}
+}
+
+static s32 scanTagDataNoStart(u8 **tagData, s32 tagDataLength,u8 *wanted)
+{
+	for(int i=0;i<tagDataLength;i++)
+		{
+		if(tagData[i]==wanted)
+			return i;
+		}
+
+	return -1;
+}
+
+
+
 static s32 scanTagData(u8 **tagData, s32 tagDataLength, s32 startIndex, u8 *wanted)
 {
 	for(int i=startIndex;i<tagDataLength;i++)
@@ -224,11 +245,17 @@ MemCircHeapChunkIndex *rtReclaimIndexer(u8 *heapDataPtr, s64 targetAmount, u8 ta
 
 		if(header & ALLOC_HEADER_LIVE_MASK)
 			{
-			currentIndex=scanTagData(tagData, tagDataLength, currentIndex+1, heapDataPtr);
+			if(currentIndex==-1)
+				currentIndex=scanTagDataNoStart(tagData, tagDataLength, heapDataPtr);
+			else
+				currentIndex=scanTagData(tagData, tagDataLength, currentIndex+1, heapDataPtr);
 
 			if(currentIndex==-1)
 				{
-				LOG(LOG_CRITICAL,"Failed to find expected heap pointer in tag data");
+				LOG(LOG_INFO,"Failed to find expected heap pointer %p in tag data",heapDataPtr);
+				dumpTagData(tagData,tagDataLength);
+
+				return NULL;
 				}
 
 			if(entry==index->entryAlloc)
@@ -572,7 +599,7 @@ int rtRouteReadsForSmer(RoutingReadReferenceBlock *rdi, u32 sliceIndex, SmerArra
 			char bufferN[SMER_BASES+1]={0};
 			unpackSmer(smerId, bufferN);
 
-			LOG(LOG_INFO,"LARGE SMER: %s %012lx has %i %i %i %i",bufferN,smerId,
+			LOG(LOG_INFO,"LARGE SMER: %s %012lx has entries %i %i %i %i",bufferN,smerId,
 				routeTableBuilder.oldForwardEntryCount,routeTableBuilder.oldReverseEntryCount,
 				routeTableBuilder.newForwardEntryCount,routeTableBuilder.newReverseEntryCount);
 			}
@@ -621,11 +648,11 @@ int rtRouteReadsForSmer(RoutingReadReferenceBlock *rdi, u32 sliceIndex, SmerArra
 
 		slice->totalRealloc+=oldSize;
 
-		//if(totalSize>16083)
-		if(totalSize>4096)
+		if(totalSize>16083)
+		//if(totalSize>4096)
 			{
-			int oldShifted=oldSize>>12;
-			int newShifted=totalSize>>12;
+			int oldShifted=oldSize>>14;
+			int newShifted=totalSize>>14;
 
 			if(oldShifted!=newShifted)
 				{

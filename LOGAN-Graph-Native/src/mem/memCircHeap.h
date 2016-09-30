@@ -10,9 +10,14 @@
 
 #define CIRCHEAP_MAX_TAGS 256
 
+
+#define CIRCHEAP_DEFAULT_BLOCKSIZE_INCREMENT 0x2000L // blocksize is * 8
+
 //#define CIRCHEAP_DEFAULT_BLOCKSIZE 0x10000L // 64K per gen
 
-#define CIRCHEAP_DEFAULT_BLOCKSIZE 0x4A000L // 256+80?K * 6 * 64
+//#define CIRCHEAP_DEFAULT_BLOCKSIZE 0x4A000L // 256+80?K * 6 * 64
+
+#define CIRCHEAP_DEFAULT_BLOCKSIZE 0x100000L
 
 #define CIRCHEAP_MAX_BLOCKSIZE 0x100000000L // 4GB per gen
 
@@ -22,8 +27,8 @@
 #define CIRCHEAP_RECLAIM_SPLIT 64
 #define CIRCHEAP_RECLAIM_SPLIT_SHIFT 6
 
-#define CIRCHEAP_RECLAIM_SPLIT_OLDEST 4
-#define CIRCHEAP_RECLAIM_SPLIT_OLDEST_SHIFT 2
+#define CIRCHEAP_RECLAIM_SPLIT_FULL 4
+#define CIRCHEAP_RECLAIM_SPLIT_FULL_SHIFT 2
 
 
 #define CIRCHEAP_INDEXER_ENTRYALLOC 16
@@ -38,6 +43,8 @@ typedef struct memCircHeapBlockStr
 
 	u8 *ptr;      		 // Pointer to block
 	s64 size;			 // Total size of block
+	s32 sizeIndex;		 // Index of total size
+	s32 needsExpanding;  // Flag
 	s64 allocPosition; 	 // Current position for alloc
 	s64 reclaimPosition; // Current position for reclaim
 } MemCircHeapBlock;
