@@ -207,7 +207,7 @@ void dumpCircHeap(MemCircHeap *circHeap)
 
 
 
-MemCircHeap *circHeapAlloc(MemCircHeapChunkIndex *(*reclaimIndexer)(u8 *data, s64 targetAmount, u8 tag, u8 **tagData, s32 tagDataLength, MemDispenser *disp),
+MemCircHeap *circHeapAlloc(MemCircHeapChunkIndex *(*reclaimIndexer)(u8 *data, s64 targetAmount, u8 tag, u8 **tagData, s32 tagDataLength, s32 tagSearchOffset, MemDispenser *disp),
 		void (*relocater)(MemCircHeapChunkIndex *reclaimIndex, u8 tag, u8 **tagData, s32 tagDataLength))
 {
 	MemCircHeap *circHeap=NULL;
@@ -223,9 +223,11 @@ MemCircHeap *circHeapAlloc(MemCircHeapChunkIndex *(*reclaimIndexer)(u8 *data, s6
 		circHeap->generations[i].reclaimBlock=block;
 
 		circHeap->generations[i].allocCurrentChunkTag=0;
+		circHeap->generations[i].allocCurrentChunkTagOffset=0;
 		circHeap->generations[i].allocCurrentChunkPtr=0;
 
 		circHeap->generations[i].reclaimCurrentChunkTag=0;
+		circHeap->generations[i].reclaimCurrentChunkTagOffset=0;
 
 		circHeap->generations[i].curReclaimSizeLive=0;
 		circHeap->generations[i].curReclaimSizeDead=0;
@@ -242,7 +244,7 @@ MemCircHeap *circHeapAlloc(MemCircHeapChunkIndex *(*reclaimIndexer)(u8 *data, s6
 
 void circHeapFree(MemCircHeap *circHeap)
 {
-	dumpCircHeap(circHeap);
+	//dumpCircHeap(circHeap);
 
 	for(int i=0;i<CIRCHEAP_MAX_GENERATIONS;i++)
 		{
@@ -267,14 +269,14 @@ void circHeapRegisterTagData(MemCircHeap *circHeap, u8 tag, u8 **data, s32 dataL
 
 
 // Allocates from a generation, creating a tag if needed
-static void *allocFromGeneration(MemCircGeneration *generation, size_t newAllocSize, u8 tag)
+static void *allocFromGeneration(MemCircGeneration *generation, size_t newAllocSize, u8 tag, s32 firstTagOffset, s32 lastTagOffset, s32 *oldTagOffset)
 {
 	if(newAllocSize<0)
 		{
 		LOG(LOG_CRITICAL,"Cannot allocate negative space %i",newAllocSize);
 		}
 
-	int needTag=(generation->allocCurrentChunkTag!=tag || generation->allocCurrentChunkPtr==NULL);
+	int needTag=(generation->allocCurrentChunkTag!=tag || generation->allocCurrentChunkTagOffset > firstTagOffset || generation->allocCurrentChunkPtr==NULL);
 
 	if(needTag)
 		newAllocSize+=2; // Allow for chunk marker and tag
@@ -301,6 +303,7 @@ static void *allocFromGeneration(MemCircGeneration *generation, size_t newAllocS
 		if(needTag)
 			{
 			generation->allocCurrentChunkTag=tag;
+			generation->allocCurrentChunkTagOffset=0;
 			generation->allocCurrentChunkPtr=data;
 
 			*data++=CH_HEADER_CHUNK;
@@ -308,6 +311,11 @@ static void *allocFromGeneration(MemCircGeneration *generation, size_t newAllocS
 			}
 
 		block->allocPosition=positionAfterAlloc;
+
+		if(oldTagOffset!=NULL)
+			*oldTagOffset=generation->allocCurrentChunkTagOffset;
+		generation->allocCurrentChunkTagOffset=lastTagOffset;
+
 		return data;
 		}
 
@@ -325,12 +333,17 @@ static void *allocFromGeneration(MemCircGeneration *generation, size_t newAllocS
 		data=block->ptr;
 
 		generation->allocCurrentChunkTag=tag;
+		generation->allocCurrentChunkTagOffset=0;
 		generation->allocCurrentChunkPtr=data;
 
 		*data++=CH_HEADER_CHUNK;
 		*data++=tag;
 
 		block->allocPosition=newAllocSize;
+
+		if(oldTagOffset!=NULL)
+			*oldTagOffset=generation->allocCurrentChunkTagOffset;
+		generation->allocCurrentChunkTagOffset=lastTagOffset;
 
 		return data;
 		}
@@ -383,6 +396,7 @@ static MemCircHeapChunkIndex *createReclaimIndex_single(MemCircHeap *circHeap, M
 	if(data==CH_HEADER_CHUNK)
 		{
 		generation->reclaimCurrentChunkTag=reclaimBlock->ptr[reclaimBlock->reclaimPosition+1];
+		generation->reclaimCurrentChunkTagOffset=0;
 		reclaimBlock->reclaimPosition+=2;
 		reclaimTargetAmount-=2;
 		}
@@ -392,19 +406,18 @@ static MemCircHeapChunkIndex *createReclaimIndex_single(MemCircHeap *circHeap, M
 	if((reclaimBlock->reclaimPosition < reclaimBlock->allocPosition) && (reclaimBlock->allocPosition-reclaimBlock->reclaimPosition < reclaimTargetAmount))
 		reclaimTargetAmount=reclaimBlock->allocPosition-reclaimBlock->reclaimPosition;
 
+	//LOG(LOG_INFO,"Reclaim in gen %i",generationNum);
+
 	u8 tag=generation->reclaimCurrentChunkTag;
-	MemCircHeapChunkIndex *indexedChunk=(circHeap->reclaimIndexer)(reclaimPtr, reclaimTargetAmount, tag, circHeap->tagData[tag], circHeap->tagDataLength[tag], disp);
+	MemCircHeapChunkIndex *indexedChunk=(circHeap->reclaimIndexer)(reclaimPtr, reclaimTargetAmount, tag,
+			circHeap->tagData[tag], circHeap->tagDataLength[tag], generation->reclaimCurrentChunkTagOffset, disp);
 
 	if(indexedChunk==NULL)
 		{
 		LOG(LOG_CRITICAL,"Trouble in tag %i",tag);
-
-
-
-
-
 		}
 
+	generation->reclaimCurrentChunkTagOffset=indexedChunk->lastScannedTagOffset;
 	indexedChunk->chunkTag=generation->reclaimCurrentChunkTag;
 
 	indexedChunk->reclaimed=indexedChunk->heapEndPtr-reclaimPtr;
@@ -457,17 +470,19 @@ static MemCircHeapChunkIndex *moveIndexedHeap(MemCircHeap *circHeap, MemCircHeap
 		{
 		if(scan->sizeLive>0)
 			{
-			u8 *newChunk=allocFromGeneration(circHeap->generations+allocGeneration, scan->sizeLive, scan->chunkTag);
+			u8 *newChunk=allocFromGeneration(circHeap->generations+allocGeneration, scan->sizeLive,
+					scan->chunkTag, scan->firstLiveTagOffset, scan->lastLiveTagOffset, &(scan->newChunkOldTagOffset));
 
 //			LOG(LOG_INFO,"MovedAlloc: %p %li %i",newChunk,scan->sizeLive,scan->chunkTag);
 
 			if(newChunk==NULL) // Shouldn't happen, but just in case
 				{
+/*
 				LOG(LOG_INFO,"GC generation promotion failed");
 
 				LOG(LOG_INFO,"Unable to allocate %li in generation %i",scan->sizeLive,allocGeneration);
 				dumpCircHeap(circHeap);
-
+*/
 //			circHeapEnsureSpace_generation(circHeap,totalLive+CIRCHEAP_BLOCK_OVERHEAD,allocGeneration,disp);
 //			newChunk=allocFromGeneration(circHeap->generations+allocGeneration, scan->sizeLive, scan->chunkTag);
 //			if(newChunk==NULL)
@@ -516,6 +531,9 @@ static s64 calcHeapReclaimStats(MemCircHeapChunkIndex *index, MemCircGeneration 
 
 static void circHeapCompact(MemCircHeap *circHeap, int generation, s64 targetFree, MemDispenser *disp)
 {
+	// This implementation can fail due to the 'compaction' slightly growing the memory block due to the need for chunk headers
+
+
 	//dumpCircHeap(circHeap);
 
 	s64 spaceEstimate=0;
@@ -525,7 +543,15 @@ static void circHeapCompact(MemCircHeap *circHeap, int generation, s64 targetFre
 	while(index!=NULL)
 		{
 		calcHeapReclaimStats(index,circHeap->generations+generation, generation);
-		moveIndexedHeap(circHeap, index, generation);
+
+		MemCircHeapChunkIndex *remainingIndex=moveIndexedHeap(circHeap, index, generation);
+		if(remainingIndex!=NULL)
+			{
+			LOG(LOG_INFO,"GC heap compact failed");
+
+			LOG(LOG_INFO,"Unable to allocate %li in generation %i",remainingIndex->sizeLive,generation);
+			dumpCircHeap(circHeap);
+			}
 
 //		LOG(LOG_INFO,"Iter");
 //		dumpCircHeap(circHeap);
@@ -674,7 +700,7 @@ static void circHeapEnsureSpace(MemCircHeap *circHeap, size_t newAllocSize)
 }
 
 
-void *circAlloc(MemCircHeap *circHeap, size_t size, u8 tag)
+void *circAlloc(MemCircHeap *circHeap, size_t size, u8 tag, s32 newTagOffset, s32 *oldTagOffset)
 {
 	if(size>CIRCHEAP_MAX_ALLOC)
 		{
@@ -684,7 +710,7 @@ void *circAlloc(MemCircHeap *circHeap, size_t size, u8 tag)
 //	LOG(LOG_INFO,"Allocating %i",size);
 
 	// Simple case - alloc from the current young block
-	void *usrPtr=allocFromGeneration(circHeap->generations, size, tag);
+	void *usrPtr=allocFromGeneration(circHeap->generations, size, tag, newTagOffset, newTagOffset, oldTagOffset);
 	if(usrPtr!=NULL)
 		return usrPtr;
 
@@ -692,7 +718,7 @@ void *circAlloc(MemCircHeap *circHeap, size_t size, u8 tag)
 
 	circHeapEnsureSpace(circHeap, size);
 
-	usrPtr=allocFromGeneration(circHeap->generations, size, tag);
+	usrPtr=allocFromGeneration(circHeap->generations, size, tag, newTagOffset, newTagOffset, oldTagOffset);
 	if(usrPtr!=NULL)
 		return usrPtr;
 

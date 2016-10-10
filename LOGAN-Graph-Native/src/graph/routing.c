@@ -5,18 +5,32 @@
 
 Alloc Header:
 
-	0 0 0 0 0 0 0 0 : Unused region
+	0 0 0 0 0 0 0 0 : INVALID: Unused region
 
-	1 0 0 0 0 0 1 1 : Huge chunk header
-    1 0 0 0 0 0 1 0 : Large chunk header
-    1 0 0 0 0 0 0 1 : Medium chunk header
-    1 0 0 0 0 0 0 0 : Small chunk header
+    1 0 0 0 0 0 0 0 : CHUNK: Start of chunk header (with tag)
 
 	1 x x x x x x x : Live block
 	0 x x x x x x x : Dead block
 
 	x 1 x x x x x x : Indirect block formats
 	x 0 x x x x x x : Direct block formats
+
+	x 0 0 0 1 x x x : 0x88 Direct with 0-255 gap (with value+1): Exact
+	x 0 0 1 0 x x x : 0x90 Direct with 256-511 gap (with value+256): Exact
+    x 0 0 1 1 x x x : 0x98 Direct with 512-1023 gap (with value*2+512): 0-1
+	x 0 1 0 0 x x x : 0xA0 Direct with 1024-2047 gap (with value*4+1024): 0-3
+	x 0 1 0 1 x x x : 0xA8 Direct with 2048-4095 gap (with value*8+2048): 0-7
+	x 0 1 1 0 x x x : 0xB0 Direct with 4096-8191 gap (with value*16+4096): 0-15
+    x 0 1 1 1 x x x : 0xB8 Direct with 8192-16383 gap (with value*32+8192): 0-31
+
+	x 0 0 0 1 x x x : 0x88 Direct with 0-255 gap (with value+1): Exact
+	x 0 0 1 0 x x x : 0x90 Direct with 256-511 gap (with value+256): Exact
+    x 0 0 1 1 x x x : 0x98 Direct with 512-1023 gap (with value*2+512): 0-1
+	x 0 1 0 0 x x x : 0xA0 Direct with 1024-2047 gap (with value*4+1024): 0-3
+	x 0 1 0 1 x x x : 0xA8 Direct with 2048-4095 gap (with value*8+2048): 0-7
+	x 0 1 1 0 x x x : 0xB0 Direct with 4096-8191 gap (with value*16+4096): 0-15
+    x 0 1 1 1 x x x : 0xB8 Direct with 8192-16383 gap (with value*32+8192): 0-31
+
 
 	x 0 1 1 1 1 x x : Standard block format (prefix, suffix, routes)
 
@@ -60,10 +74,19 @@ Alloc Header:
 //
 
 
-#define ALLOC_HEADER_DEFAULT 0xBF
+//#define ALLOC_HEADER_DEFAULT 0xBF
 
 #define ALLOC_HEADER_LIVE_MASK 0x80
 
+#define ALLOC_HEADER_LIVE_DIRECT_MASK 0xC0
+#define ALLOC_HEADER_LIVE_DIRECT_VALUE 0x80
+
+#define ALLOC_HEADER_LIVE_DIRECT_SIZE_MASK 0x38
+
+#define ALLOC_HEADER_LIVE_DIRECT_SMALL 0x88
+
+#define ALLOC_HEADER_LIVE_INDIRECT_MASK 0xC0
+#define ALLOC_HEADER_LIVE_INDIRECT_VALUE 0xC0
 
 static int forwardPrefixSorter(const void *a, const void *b)
 {
@@ -132,7 +155,7 @@ s32 rtItemSizeResolver(u8 *item)
 
 	if(item!=NULL)
 		{
-		scanPtr=item+1;
+		scanPtr=item+2;
 
 		scanPtr=scanTails(scanPtr);
 		scanPtr=scanTails(scanPtr);
@@ -153,6 +176,64 @@ static void dumpTagData(u8 **tagData, s32 tagDataLength)
 		}
 }
 
+static void encodeBlockHeader(s32 tagOffsetDiff, u8 *data)
+{
+	if(tagOffsetDiff<0)
+		{
+		LOG(LOG_CRITICAL,"Expected positive tagOffsetDiff %i",tagOffsetDiff);
+		}
+
+	if(tagOffsetDiff<256)
+		{
+		*data++=ALLOC_HEADER_LIVE_DIRECT_SMALL;
+		*data=(u8)(tagOffsetDiff);
+
+//		LOG(LOG_INFO,"Wrote small Header: %02x %02x for %i",ALLOC_HEADER_LIVE_DIRECT_SMALL, tagOffsetDiff&0xFF, tagOffsetDiff);
+
+		}
+	else
+		{
+		tagOffsetDiff=MIN(tagOffsetDiff,16383);
+
+		s32Float helper;
+		helper.floatVal=tagOffsetDiff;
+
+		u8 exp=((helper.s32Val>>23)&0xF)-6;
+		u8 man=(helper.s32Val>>15)&0xFF;
+
+		u8 data1=ALLOC_HEADER_LIVE_DIRECT_SMALL + (exp << 3);
+
+		*data++=data1;
+		*data=man;
+
+		//LOG(LOG_INFO,"Wrote other Header: %02x %02x for %i (exp %i)",data1,man,tagOffsetDiff,exp);
+		}
+}
+
+static s32 decodeBlockHeader(u8 *data)
+{
+	u8 data1=*data++;
+
+	int exp=((data1&ALLOC_HEADER_LIVE_DIRECT_SIZE_MASK)>>3);
+
+	u32 res=*data;
+
+	if(exp>1)
+		{
+		res=(256+res)<<(exp-2);
+
+		//LOG(LOG_INFO,"Read other Header: %i",res);
+		return res;
+		}
+	else
+		{
+		//LOG(LOG_INFO,"Read small Header: %i",res);
+		return res;
+		}
+
+
+}
+/*
 static s32 scanTagDataNoStart(u8 **tagData, s32 tagDataLength,u8 *wanted)
 {
 	for(int i=0;i<tagDataLength;i++)
@@ -163,23 +244,30 @@ static s32 scanTagDataNoStart(u8 **tagData, s32 tagDataLength,u8 *wanted)
 
 	return -1;
 }
-
+*/
 
 
 static s32 scanTagData(u8 **tagData, s32 tagDataLength, s32 startIndex, u8 *wanted)
 {
+//	int scanCount=0;
 	for(int i=startIndex;i<tagDataLength;i++)
 		{
 		if(tagData[i]==wanted)
-			return i;
-		}
+			{
+//			if(scanCount>10)
+//				LOG(LOG_INFO,"Scan count of %i from %i",scanCount,startIndex);
 
+			return i;
+			}
+//		scanCount++;
+		}
+/*
 	for(int i=0;i<startIndex;i++)
 		{
 		if(tagData[i]==wanted)
 			return i;
 		}
-
+*/
 	return -1;
 }
 
@@ -209,7 +297,7 @@ static MemCircHeapChunkIndex *allocOrExpandIndexer(MemCircHeapChunkIndex *oldInd
 }
 
 
-MemCircHeapChunkIndex *rtReclaimIndexer(u8 *heapDataPtr, s64 targetAmount, u8 tag, u8 **tagData, s32 tagDataLength, MemDispenser *disp)
+MemCircHeapChunkIndex *rtReclaimIndexer(u8 *heapDataPtr, s64 targetAmount, u8 tag, u8 **tagData, s32 tagDataLength, s32 tagSearchOffset, MemDispenser *disp)
 {
 	//LOG(LOG_INFO,"Reclaim Index: %p %li %x %p",data,targetAmount,tag,disp);
 
@@ -221,9 +309,12 @@ MemCircHeapChunkIndex *rtReclaimIndexer(u8 *heapDataPtr, s64 targetAmount, u8 ta
 	s64 liveSize=0;
 	s64 deadSize=0;
 
-	s32 currentIndex=-1;
+	s32 currentIndex=tagSearchOffset;
+	s32 firstTagOffset=-1;
 
 	int entry=0;
+
+	//LOG(LOG_INFO,"Begin reclaimIndexing from %i",tagSearchOffset);
 
 	while(heapDataPtr<endOfData)
 		{
@@ -235,7 +326,12 @@ MemCircHeapChunkIndex *rtReclaimIndexer(u8 *heapDataPtr, s64 targetAmount, u8 ta
 			break;
 			}
 
-		u8 *scanPtr=heapDataPtr+1;
+		s32 chunkTagOffsetDiff=decodeBlockHeader(heapDataPtr);
+
+		//LOG(LOG_INFO,"Got offset diff %i",chunkTagOffsetDiff);
+
+		currentIndex+=chunkTagOffsetDiff;
+		u8 *scanPtr=heapDataPtr+2;
 
 		scanPtr=scanTails(scanPtr);
 		scanPtr=scanTails(scanPtr);
@@ -245,10 +341,12 @@ MemCircHeapChunkIndex *rtReclaimIndexer(u8 *heapDataPtr, s64 targetAmount, u8 ta
 
 		if(header & ALLOC_HEADER_LIVE_MASK)
 			{
+			/*
 			if(currentIndex==-1)
 				currentIndex=scanTagDataNoStart(tagData, tagDataLength, heapDataPtr);
 			else
-				currentIndex=scanTagData(tagData, tagDataLength, currentIndex+1, heapDataPtr);
+			*/
+			currentIndex=scanTagData(tagData, tagDataLength, currentIndex, heapDataPtr);
 
 			if(currentIndex==-1)
 				{
@@ -258,12 +356,17 @@ MemCircHeapChunkIndex *rtReclaimIndexer(u8 *heapDataPtr, s64 targetAmount, u8 ta
 				return NULL;
 				}
 
+			if(firstTagOffset==-1)
+				firstTagOffset=currentIndex;
+
 			if(entry==index->entryAlloc)
 				index=allocOrExpandIndexer(index, disp);
 
 			index->entries[entry].index=currentIndex;
 			index->entries[entry].size=size;
 			entry++;
+
+			index->lastLiveTagOffset=currentIndex;
 
 			//LOG(LOG_INFO,"Live Item: %p %2x %i",heapDataPtr,header,size, currentIndex);
 			liveSize+=size;
@@ -278,6 +381,8 @@ MemCircHeapChunkIndex *rtReclaimIndexer(u8 *heapDataPtr, s64 targetAmount, u8 ta
 		}
 
 	index->entryCount=entry;
+	index->firstLiveTagOffset=firstTagOffset;
+	index->lastScannedTagOffset=currentIndex;
 
 	index->heapStartPtr=startOfData;
 	index->heapEndPtr=heapDataPtr;
@@ -292,14 +397,35 @@ void rtRelocater(MemCircHeapChunkIndex *index, u8 tag, u8 **tagData, s32 tagData
 {
 	u8 *newChunk=index->newChunk;
 
+	s32 prevOffset=index->newChunkOldTagOffset;
+
 	for(int i=0;i<index->entryCount;i++)
 		{
-		u8 **ptr=&tagData[index->entries[i].index];
+		s32 offset=index->entries[i].index;
+
+		u8 **ptr=&tagData[offset];
 		s32 size=index->entries[i].size;
+
+		if(size<2)
+			{
+			LOG(LOG_CRITICAL,"Undersize block %i, referenced by %p", size, *ptr);
+			}
+
+		s32 diff=offset-prevOffset;
+		encodeBlockHeader(diff, newChunk);
+/*
+		s32 decodeDiff=decodeBlockHeader(newChunk);
+		if(decodeDiff+10<diff)
+			{
+			LOG(LOG_INFO,"Failed to encode %i - got %i",diff,decodeDiff);
+			}
+*/
+		//encodeBlockHeader(offset-prevOffset, newChunk);
+		prevOffset=offset;
 
 //		LOG(LOG_INFO,"Relocated for %i from %p to %p, referenced by %p", size, *ptr, newChunk, ptr);
 
-		memmove(newChunk,*ptr,size);
+		memmove(newChunk+2,(*ptr)+2,size-2);
 
 		*ptr=newChunk;
 		newChunk+=size;
@@ -311,9 +437,11 @@ void rtRelocater(MemCircHeapChunkIndex *index, u8 tag, u8 **tagData, s32 tagData
 
 
 
-int rtRouteReadsForSmer(RoutingReadReferenceBlock *rdi, u32 sliceIndex, SmerArraySlice *slice,
+int rtRouteReadsForSmer(RoutingIndexedReadReferenceBlock *rdi, SmerArraySlice *slice,
 		RoutingReadData **orderedDispatches, MemDispenser *disp, MemCircHeap *circHeap, u8 sliceTag)
 {
+	u32 sliceIndex=rdi->sliceIndex;
+
 	u8 *smerDataOrig=slice->smerData[sliceIndex];
 	u8 *smerData=smerDataOrig;
 
@@ -329,12 +457,12 @@ int rtRouteReadsForSmer(RoutingReadReferenceBlock *rdi, u32 sliceIndex, SmerArra
 		{
 		u8 header=*smerData;
 
-		if(header!=ALLOC_HEADER_DEFAULT)
+		if((header&ALLOC_HEADER_LIVE_DIRECT_MASK)!=ALLOC_HEADER_LIVE_DIRECT_VALUE)
 			{
 			LOG(LOG_CRITICAL,"Alloc header invalid %2x at %p",header,smerData);
 			}
 
-		smerData++;
+		smerData+=2;
 
 		tmp1=smerData;
 		smerData=initSeqTailBuilder(&prefixBuilder, smerData, disp);
@@ -623,7 +751,7 @@ int rtRouteReadsForSmer(RoutingReadReferenceBlock *rdi, u32 sliceIndex, SmerArra
 		int diffSuffix=suffixPackedSize-oldSizeSuffix;
 		int diffRoutes=routeTablePackedSize-oldSizeRoutes;
 
-		int totalSize=1+prefixPackedSize+suffixPackedSize+routeTablePackedSize;
+		int totalSize=2+prefixPackedSize+suffixPackedSize+routeTablePackedSize;
 		int sizeDiff=totalSize-oldSize;
 
 		if(dump)
@@ -705,7 +833,10 @@ int rtRouteReadsForSmer(RoutingReadReferenceBlock *rdi, u32 sliceIndex, SmerArra
 		if(smerDataOrig!=NULL)
 			*smerDataOrig&=~ALLOC_HEADER_LIVE_MASK;
 
-		newData=circAlloc(circHeap, totalSize, sliceTag);
+		s32 oldTagOffset=0;
+		newData=circAlloc(circHeap, totalSize, sliceTag, sliceIndex, &oldTagOffset);
+
+		//LOG(LOG_INFO,"Offset Diff: %i for %i",offsetDiff,sliceIndex);
 
 		if(newData==NULL)
 			{
@@ -718,9 +849,20 @@ int rtRouteReadsForSmer(RoutingReadReferenceBlock *rdi, u32 sliceIndex, SmerArra
 			}
 */
 
-		*newData=ALLOC_HEADER_DEFAULT;
+		s32 diff=sliceIndex-oldTagOffset;
 
-		u8 *tmpout0=newData+1;
+		encodeBlockHeader(diff, newData);
+
+		/*
+		s32 decodeDiff=decodeBlockHeader(newData);
+
+		if(decodeDiff+10<diff)
+			{
+			LOG(LOG_INFO,"Failed to encode %i - got %i",diff,decodeDiff);
+			}
+			*/
+
+		u8 *tmpout0=newData+2;
 		u8 *tmpout1=writeSeqTailBuilderPackedData(&prefixBuilder, tmpout0);
 		u8 *tmpout2=writeSeqTailBuilderPackedData(&suffixBuilder, tmpout1);
 		u8 *tmpout3=writeRouteTableBuilderPackedData(&routeTableBuilder, tmpout2);

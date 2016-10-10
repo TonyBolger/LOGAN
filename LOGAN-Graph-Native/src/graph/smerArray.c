@@ -44,6 +44,8 @@ s32 saInitSmerArray(SmerArray *smerArray, SmerMap *smerMap) {
 		MemCircHeap *circHeap=smerArray->heaps[i>>SMER_DISPATCH_GROUP_SHIFT];
 		circHeapRegisterTagData(circHeap,i&SMER_DISPATCH_GROUP_SLICEMASK,arraySlices[i].smerData, arraySlices[i].smerCount);
 
+//		LOG(LOG_INFO,"Slice %i contains %i",i,arraySlices[i].smerCount);
+
 
 //		MemColHeap *colHeap=smerArray->heaps[i>>SMER_DISPATCH_GROUP_SHIFT];
 //		chRegisterRoots(colHeap,i&SMER_DISPATCH_GROUP_SLICEMASK,arraySlices[i].smerData, arraySlices[i].smerCount);

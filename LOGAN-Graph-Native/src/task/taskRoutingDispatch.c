@@ -8,7 +8,6 @@
 #include "common.h"
 
 
-
 static void initDispatchIntermediateBlock(RoutingReadReferenceBlock *block, MemDispenser *disp)
 {
 	block->entryCount=0;
@@ -16,11 +15,24 @@ static void initDispatchIntermediateBlock(RoutingReadReferenceBlock *block, MemD
 
 }
 
-
 RoutingReadReferenceBlock *allocDispatchIntermediateBlock(MemDispenser *disp)
 {
 	RoutingReadReferenceBlock *block=dAlloc(disp, sizeof(RoutingReadReferenceBlock));
 	initDispatchIntermediateBlock(block, disp);
+	return block;
+}
+
+static void initDispatchIndexedIntermediateBlock(RoutingIndexedReadReferenceBlock *block, MemDispenser *disp)
+{
+	block->entryCount=0;
+	block->entries=dAllocCacheAligned(disp, TR_DISPATCH_READS_PER_INTERMEDIATE_BLOCK*sizeof(RoutingReadData *));
+
+}
+
+RoutingIndexedReadReferenceBlock *allocDispatchIndexedIntermediateBlock(MemDispenser *disp)
+{
+	RoutingIndexedReadReferenceBlock *block=dAlloc(disp, sizeof(RoutingIndexedReadReferenceBlock));
+	initDispatchIndexedIntermediateBlock(block, disp);
 	return block;
 }
 
@@ -60,8 +72,6 @@ static void expandIntermediateDispatchBlock(RoutingReadReferenceBlock *block, Me
 
 }
 
-
-
 static void assignReadDataToDispatchIntermediate(RoutingReadReferenceBlock *intermediate, RoutingReadData *readData, MemDispenser *disp)
 {
 	u64 entryCount=intermediate->entryCount;
@@ -71,6 +81,31 @@ static void assignReadDataToDispatchIntermediate(RoutingReadReferenceBlock *inte
 	intermediate->entries[entryCount]=readData;
 	intermediate->entryCount++;
 }
+
+
+static void expandIndexedIntermediateDispatchBlock(RoutingIndexedReadReferenceBlock *block, MemDispenser *disp)
+{
+	int oldSize=block->entryCount;
+	int size=oldSize*2;
+
+	int oldEntrySize=oldSize*sizeof(RoutingReadData *);
+
+	RoutingReadData **entries=dAllocCacheAligned(disp, size*sizeof(RoutingReadData  *));
+	memcpy(entries,block->entries,oldEntrySize);
+	block->entries=entries;
+
+}
+
+static void assignReadDataToDispatchIndexedIntermediate(RoutingIndexedReadReferenceBlock *intermediate, RoutingReadData *readData, MemDispenser *disp)
+{
+	u64 entryCount=intermediate->entryCount;
+	if(entryCount>=TR_DISPATCH_READS_PER_INTERMEDIATE_BLOCK && !((entryCount & (entryCount - 1))))
+		expandIndexedIntermediateDispatchBlock(intermediate, disp);
+
+	intermediate->entries[entryCount]=readData;
+	intermediate->entryCount++;
+}
+
 
 
 void assignToDispatchArrayEntry(RoutingReadReferenceBlockDispatchArray *array, RoutingReadData *readData)
@@ -466,15 +501,23 @@ static int assignReversedInboundDispatchesToSlices(RoutingReadReferenceBlockDisp
 }
 
 
+static int indexedReadReferenceBlockSorter(const void *a, const void *b)
+{
+	RoutingIndexedReadReferenceBlock **pa=(RoutingIndexedReadReferenceBlock **)a;
+	RoutingIndexedReadReferenceBlock **pb=(RoutingIndexedReadReferenceBlock **)b;
+
+	return (*pa)->sliceIndex-(*pb)->sliceIndex;
+}
+
 static int indexDispatchesForSlice(RoutingReadReferenceBlock *smerInboundDispatches, int sliceSmerCount, MemDispenser *disp,
-		RoutingReadReferenceBlock **indexedDispatches, u32 *sliceIndexes)
+		RoutingIndexedReadReferenceBlock **indexedDispatches)
 {
 //	int size=sizeof(RoutingDispatchIntermediate *) *sliceSmerCount;
 	//RoutingDispatchIntermediate **smerDispatches=dAlloc(disp, size);
 
 //	LOG(LOG_INFO,"%i %p %i %p %p",sliceSmerCount,smerDispatches, size, indexedDispatches, sliceIndexes);
 
-	RoutingReadReferenceBlock **smerDispatches=dAlloc(disp, sizeof(RoutingReadReferenceBlock *)*  sliceSmerCount);
+	RoutingIndexedReadReferenceBlock **smerDispatches=dAlloc(disp, sizeof(RoutingIndexedReadReferenceBlock *)*  sliceSmerCount);
 
 	for(int j=0;j<sliceSmerCount;j++)
 		{
@@ -494,17 +537,18 @@ static int indexDispatchesForSlice(RoutingReadReferenceBlock *smerInboundDispatc
 
 		if(sliceIndex>=0 && sliceIndex<sliceSmerCount)
 			{
-			RoutingReadReferenceBlock *rdi=smerDispatches[sliceIndex];
+			RoutingIndexedReadReferenceBlock *rdi=smerDispatches[sliceIndex];
 
 			if(rdi==NULL)
 				{
-				rdi=allocDispatchIntermediateBlock(disp);
+				rdi=allocDispatchIndexedIntermediateBlock(disp);
+				rdi->sliceIndex=sliceIndex;
+
 				smerDispatches[sliceIndex]=rdi;
-				indexedDispatches[usedCount]=rdi;
-				sliceIndexes[usedCount++]=sliceIndex;
+				indexedDispatches[usedCount++]=rdi;
 				}
 
-			assignReadDataToDispatchIntermediate(rdi,readData,disp);
+			assignReadDataToDispatchIndexedIntermediate(rdi,readData,disp);
 
 //			if(rdi->entryCount>maxCount)
 //				maxCount=rdi->entryCount;
@@ -514,6 +558,16 @@ static int indexDispatchesForSlice(RoutingReadReferenceBlock *smerInboundDispatc
 			LOG(LOG_CRITICAL,"Got invalid slice index %i",sliceIndex);
 			}
 	}
+
+
+	qsort(indexedDispatches, usedCount, sizeof(RoutingIndexedReadReferenceBlock *), indexedReadReferenceBlockSorter);
+
+	/*
+	for(int i=0;i<usedCount;i++)
+		{
+		LOG(LOG_INFO,"Dispatch to slice %li",indexedDispatches[i]->sliceIndex);
+		}
+*/
 
 	return usedCount;
 }
@@ -538,9 +592,9 @@ static void processSlice(RoutingReadReferenceBlock *smerInboundDispatches,  Smer
 
 		if(smerInboundDispatches->entryCount>0)
 			{
-			// Wasteful approach for groups with few reads - change to qsort based on sliceIndex
-			RoutingReadReferenceBlock **indexedDispatches=dAlloc(disp, sizeof(RoutingReadReferenceBlock *)*  slice->smerCount);
-			u32 *sliceIndexes=dAlloc(disp, sizeof(u32)*slice->smerCount);
+			// Wasteful approach for groups with few reads - consider stable sort based on sliceIndex first
+			RoutingIndexedReadReferenceBlock **indexedDispatches=dAlloc(disp, sizeof(RoutingIndexedReadReferenceBlock *)*  slice->smerCount);
+			//u32 *sliceIndexes=dAlloc(disp, sizeof(u32)*slice->smerCount);
 /*
 			for(int j=0;j<slice->smerCount;j++)
 				{
@@ -548,14 +602,16 @@ static void processSlice(RoutingReadReferenceBlock *smerInboundDispatches,  Smer
 				sliceIndexes[j]=-1;
 				}
 */
-			int indexLength=indexDispatchesForSlice(smerInboundDispatches, slice->smerCount, disp, indexedDispatches, sliceIndexes);//, smerTmpDispatches);
+			int indexLength=indexDispatchesForSlice(smerInboundDispatches, slice->smerCount, disp, indexedDispatches);//, smerTmpDispatches);
+
 
 			u8 sliceTag=(u8)sliceIndex; // In practice, cannot be bigger than SMER_DISPATCH_GROUP_SLICES (256)
 
 			int dispatchOffset=0;
+
 			for(int j=0;j<indexLength;j++)
 				{
-				int entryCount=rtRouteReadsForSmer(indexedDispatches[j], sliceIndexes[j], slice, orderedDispatches+dispatchOffset, disp, circHeap, sliceTag);
+				int entryCount=rtRouteReadsForSmer(indexedDispatches[j], slice, orderedDispatches+dispatchOffset, disp, circHeap, sliceTag);
 				dispatchOffset+=entryCount;
 				}
 
