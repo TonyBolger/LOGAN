@@ -52,12 +52,14 @@ s32 saInitSmerArray(SmerArray *smerArray, SmerMap *smerMap) {
 
 		//arraySlices[i].slicePackStack=packStackAlloc();
 
+		/*
 		arraySlices[i].totalAlloc=0;
 		arraySlices[i].totalAllocPrefix=0;
 		arraySlices[i].totalAllocSuffix=0;
 		arraySlices[i].totalAllocRoutes=0;
 
 		arraySlices[i].totalRealloc=0;
+		*/
 		}
 
 	return total;

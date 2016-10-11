@@ -41,11 +41,11 @@ typedef struct smerArraySliceStr
 
 	//MemPackStack *slicePackStack;
 
-	long totalAlloc;
-	long totalAllocPrefix;
-	long totalAllocSuffix;
-	long totalAllocRoutes;
-	long totalRealloc;
+	//long totalAlloc;
+	//long totalAllocPrefix;
+	//long totalAllocSuffix;
+	//long totalAllocRoutes;
+	//long totalRealloc;
 } SmerArraySlice;
 
 

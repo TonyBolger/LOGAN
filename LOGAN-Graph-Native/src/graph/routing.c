@@ -15,13 +15,31 @@ Alloc Header:
 	x 1 x x x x x x : Indirect block formats
 	x 0 x x x x x x : Direct block formats
 
-	x 0 0 0 1 x x x : 0x88 Direct with 0-255 gap (with value+1): Exact
-	x 0 0 1 0 x x x : 0x90 Direct with 256-511 gap (with value+256): Exact
-    x 0 0 1 1 x x x : 0x98 Direct with 512-1023 gap (with value*2+512): 0-1
-	x 0 1 0 0 x x x : 0xA0 Direct with 1024-2047 gap (with value*4+1024): 0-3
-	x 0 1 0 1 x x x : 0xA8 Direct with 2048-4095 gap (with value*8+2048): 0-7
-	x 0 1 1 0 x x x : 0xB0 Direct with 4096-8191 gap (with value*16+4096): 0-15
-    x 0 1 1 1 x x x : 0xB8 Direct with 8192-16383 gap (with value*32+8192): 0-31
+    x 1 x x x x x 0 : 0xC0 Indirect root
+    x 1 0 x x x x 1 : 0xC1 Indirect branch (route only)
+    x 1 1 x x x x 1 : 0xE1 Indirect leaf (tail or route)
+
+    x 1 x X X x x 1 : 0x81 Indirect 1-4 byte index
+    x 1 0 x x X X 1 : 0x81 Indirect branch/leaflevel (1-4 byte sub-index)
+
+	Branches/Leaves marker followed by 1-4 byte index, 1-4 bytes sub-index
+	Branches then followed with 256 pointers (optionally NULL)
+	Leaf is followed by size (u16)
+
+    x 1 0 0 0 0 1 0 / x 1 0 0 0 1 0 0 / x 1 0 0 0 1 1 0: Unused
+
+	x 1 0 0 1 x x 0 : 0xC8 Indirect root with 0-255 gap (with value+1): Exact
+	x 1 0 1 0 x x 0 : 0xD0 Indirect root with 256-511 gap (with value+256): Exact
+    x 1 0 1 1 x x 0 : 0xD8 Indirect root with 512-1023 gap (with value*2+512): 0-1
+	x 1 1 0 0 x x 0 : 0xE0 Indirect root with 1024-2047 gap (with value*4+1024): 0-3
+	x 1 1 0 1 x x 0 : 0xE8 Indirect root with 2048-4095 gap (with value*8+2048): 0-7
+	x 1 1 1 0 x x 0 : 0xF0 Indirect root with 4096-8191 gap (with value*16+4096): 0-15
+    x 1 1 1 1 x x 0 : 0xF8 Indirect root with 8192-16383 gap (with value*32+8192): 0-31
+
+	x x x x x 0 0 0 : Indirect root 4 pointers (2 tail, 1 forward route, 1 reverse route)
+	x x x x x 0 1 0 : Indirect root 16 pointers (2 tail, 7 forward route, 7 reverse route)
+	x x x x x 1 0 0 : Indirect root 64 pointers (2 tail, 31 forward route, 31 reverse route)
+	x x x x x 1 0 0 : Indirect root 256 pointers (2 tail, 127 forward route, 127 reverse route)
 
 	x 0 0 0 1 x x x : 0x88 Direct with 0-255 gap (with value+1): Exact
 	x 0 0 1 0 x x x : 0x90 Direct with 256-511 gap (with value+256): Exact
@@ -32,16 +50,17 @@ Alloc Header:
     x 0 1 1 1 x x x : 0xB8 Direct with 8192-16383 gap (with value*32+8192): 0-31
 
 
-	x 0 1 1 1 1 x x : Standard block format (prefix, suffix, routes)
+	x 0 x x x x 1 x : Large # prefixes (>255)
+	x 0 x x x x 0 x : Small # prefixes
 
-	x x x x x x 1 x : Large # prefixes (>255)
-	x x x x x x 0 x : Small # prefixes
-
-	x x x x x x x 1 : Large # suffixes (>255)
-	x x x x x x x 0 : Small # suffixes
+	x 0 x x x x x 1 : Large # suffixes (>255)
+	x 0 x x x x x 0 : Small # suffixes
 
 
-	Current default: 10111111 0xBF
+    Indirect root -> 256 * Branch high level
+    Branch HL -> 256 * Branch mid level
+    Branch ML ->
+
  */
 
 
@@ -78,12 +97,24 @@ Alloc Header:
 
 #define ALLOC_HEADER_LIVE_MASK 0x80
 
+#define ALLOC_HEADER_LIVE_INDIRECT_ROOT_MASK 0xC1
+#define ALLOC_HEADER_LIVE_INDIRECT_ROOT_VALUE 0xC0
+
+#define ALLOC_HEADER_LIVE_INDIRECT_NONROOT_MASK 0xC1
+
+
+
 #define ALLOC_HEADER_LIVE_DIRECT_MASK 0xC0
 #define ALLOC_HEADER_LIVE_DIRECT_VALUE 0x80
 
 #define ALLOC_HEADER_LIVE_DIRECT_SIZE_MASK 0x38
-
 #define ALLOC_HEADER_LIVE_DIRECT_SMALL 0x88
+
+
+
+
+
+
 
 #define ALLOC_HEADER_LIVE_INDIRECT_MASK 0xC0
 #define ALLOC_HEADER_LIVE_INDIRECT_VALUE 0xC0
@@ -437,7 +468,9 @@ void rtRelocater(MemCircHeapChunkIndex *index, u8 tag, u8 **tagData, s32 tagData
 
 
 
-int rtRouteReadsForSmer(RoutingIndexedReadReferenceBlock *rdi, SmerArraySlice *slice,
+
+
+int rtRouteReadsForSmer_Direct(RoutingIndexedReadReferenceBlock *rdi, SmerArraySlice *slice,
 		RoutingReadData **orderedDispatches, MemDispenser *disp, MemCircHeap *circHeap, u8 sliceTag)
 {
 	u32 sliceIndex=rdi->sliceIndex;
@@ -481,9 +514,9 @@ int rtRouteReadsForSmer(RoutingIndexedReadReferenceBlock *rdi, SmerArraySlice *s
 		initRouteTableBuilder(&routeTableBuilder, NULL, disp);
 		}
 
-	int oldSizePrefix=smerData-tmp1;
-	int oldSizeSuffix=smerData-tmp2;
-	int oldSizeRoutes=smerData-tmp3;
+	//int oldSizePrefix=smerData-tmp1;
+	//int oldSizeSuffix=smerData-tmp2;
+	//int oldSizeRoutes=smerData-tmp3;
 
 	int oldSize=smerData-slice->smerData[sliceIndex];
 
@@ -747,12 +780,12 @@ int rtRouteReadsForSmer(RoutingIndexedReadReferenceBlock *rdi, SmerArraySlice *s
 		int suffixPackedSize=getSeqTailBuilderPackedSize(&suffixBuilder);
 		int routeTablePackedSize=getRouteTableBuilderPackedSize(&routeTableBuilder);
 
-		int diffPrefix=prefixPackedSize-oldSizePrefix;
-		int diffSuffix=suffixPackedSize-oldSizeSuffix;
-		int diffRoutes=routeTablePackedSize-oldSizeRoutes;
+//		int diffPrefix=prefixPackedSize-oldSizePrefix;
+//		int diffSuffix=suffixPackedSize-oldSizeSuffix;
+//		int diffRoutes=routeTablePackedSize-oldSizeRoutes;
 
 		int totalSize=2+prefixPackedSize+suffixPackedSize+routeTablePackedSize;
-		int sizeDiff=totalSize-oldSize;
+//		int sizeDiff=totalSize-oldSize;
 
 		if(dump)
 		{
@@ -767,7 +800,7 @@ int rtRouteReadsForSmer(RoutingIndexedReadReferenceBlock *rdi, SmerArraySlice *s
 				routeTableBuilder.oldForwardEntryCount,routeTableBuilder.oldReverseEntryCount,
 				routeTableBuilder.newForwardEntryCount,routeTableBuilder.newReverseEntryCount);
 */
-
+/*
 		slice->totalAlloc+=sizeDiff;
 
 		slice->totalAllocPrefix+=diffPrefix;
@@ -775,7 +808,7 @@ int rtRouteReadsForSmer(RoutingIndexedReadReferenceBlock *rdi, SmerArraySlice *s
 		slice->totalAllocRoutes+=diffRoutes;
 
 		slice->totalRealloc+=oldSize;
-
+*/
 		if(totalSize>16083)
 		//if(totalSize>4096)
 			{
@@ -881,6 +914,333 @@ int rtRouteReadsForSmer(RoutingIndexedReadReferenceBlock *rdi, SmerArraySlice *s
 
 	return entryCount;
 }
+
+
+
+
+static void createBuildersFromNullData(s32 *headerSize,
+		SeqTailBuilder *prefixBuilder, s32 *prefixDataSize,
+		SeqTailBuilder *suffixBuilder, s32 *suffixDataSize,
+		RouteTableBuilder *routeTableBuilder, s32 *routeTableDataSize,
+		MemDispenser *disp)
+{
+	initSeqTailBuilder(prefixBuilder, NULL, disp);
+	initSeqTailBuilder(suffixBuilder, NULL, disp);
+	initRouteTableBuilder(routeTableBuilder, NULL, disp);
+
+	*headerSize=0;
+	*prefixDataSize=0;
+	*suffixDataSize=0;
+	*routeTableDataSize=0;
+}
+
+static void createBuildersFromDirectData(u8 *data, s32 *headerSize,
+			SeqTailBuilder *prefixBuilder, s32 *prefixDataSize,
+			SeqTailBuilder *suffixBuilder, s32 *suffixDataSize,
+			RouteTableBuilder *routeTableBuilder, s32 *routeTableDataSize,
+			MemDispenser *disp)
+{
+	data+=2;
+	*headerSize=2;
+
+	u8 *tmp;
+
+	tmp=data;
+	data=initSeqTailBuilder(prefixBuilder, data, disp);
+	*prefixDataSize=data-tmp;
+
+	tmp=data;
+	data=initSeqTailBuilder(suffixBuilder, data, disp);
+	*suffixDataSize=data-tmp;
+
+	tmp=data;
+	data=initRouteTableBuilder(routeTableBuilder, data, disp);
+	*routeTableDataSize=data-tmp;
+}
+
+static void writeBuildersAsDirectData(u8 **smerDataPtr, s8 sliceTag, s32 sliceIndex,
+		SeqTailBuilder *prefixBuilder, s32 oldPrefixDataSize,
+		SeqTailBuilder *suffixBuilder, s32 oldSuffixDataSize,
+		RouteTableBuilder *routeTableBuilder, s32 oldRouteTableDataSize,
+		MemCircHeap *circHeap)
+{
+	int oldTotalSize=2+oldPrefixDataSize+oldSuffixDataSize+oldRouteTableDataSize;
+
+	int prefixPackedSize=getSeqTailBuilderPackedSize(prefixBuilder);
+	int suffixPackedSize=getSeqTailBuilderPackedSize(suffixBuilder);
+	int routeTablePackedSize=getRouteTableBuilderPackedSize(routeTableBuilder);
+
+	int totalSize=2+prefixPackedSize+suffixPackedSize+routeTablePackedSize;
+
+	if(totalSize>16083)
+		{
+		int oldShifted=oldTotalSize>>14;
+		int newShifted=totalSize>>14;
+
+		if(oldShifted!=newShifted)
+			{
+			LOG(LOG_INFO,"LARGE ALLOC: %i",totalSize);
+			}
+
+		}
+
+	u8 *oldData=*smerDataPtr;
+	u8 *newData;
+
+	// Mark old block as dead
+	if(oldData!=NULL)
+		*oldData&=~ALLOC_HEADER_LIVE_MASK;
+
+	s32 oldTagOffset=0;
+	newData=circAlloc(circHeap, totalSize, sliceTag, sliceIndex, &oldTagOffset);
+
+	//LOG(LOG_INFO,"Offset Diff: %i for %i",offsetDiff,sliceIndex);
+
+	if(newData==NULL)
+		{
+		LOG(LOG_CRITICAL,"Failed at alloc after compact: Wanted %i",totalSize);
+		}
+
+	s32 diff=sliceIndex-oldTagOffset;
+
+	*smerDataPtr=newData;
+	encodeBlockHeader(diff, newData);
+
+	newData+=2;
+	newData=writeSeqTailBuilderPackedData(prefixBuilder, newData);
+	newData=writeSeqTailBuilderPackedData(suffixBuilder, newData);
+	newData=writeRouteTableBuilderPackedData(routeTableBuilder, newData);
+
+}
+
+
+
+static void createRoutePatches(RoutingIndexedReadReferenceBlock *rdi, int entryCount,
+		SeqTailBuilder *prefixBuilder, SeqTailBuilder *suffixBuilder,
+		RoutePatch *forwardPatches, RoutePatch *reversePatches,
+		int *forwardCountPtr, int *reverseCountPtr, int *maxNewPrefixPtr, int *maxNewSuffixPtr)
+{
+	int forwardCount=0, reverseCount=0;
+	int maxNewPrefix=0, maxNewSuffix=0;
+
+
+	for(int i=0;i<entryCount;i++)
+	{
+		RoutingReadData *rdd=rdi->entries[i];
+
+		int index=rdd->indexCount;
+
+		if(0)
+		{
+			SmerId currSmer=rdd->fsmers[index];
+			SmerId prevSmer=rdd->fsmers[index+1];
+			SmerId nextSmer=rdd->fsmers[index-1];
+
+			int upstreamLength=rdd->readIndexes[index]-rdd->readIndexes[index+1];
+			int downstreamLength=rdd->readIndexes[index-1]-rdd->readIndexes[index];
+
+			char bufferP[SMER_BASES+1]={0};
+			char bufferC[SMER_BASES+1]={0};
+			char bufferN[SMER_BASES+1]={0};
+
+			unpackSmer(prevSmer, bufferP);
+			unpackSmer(currSmer, bufferC);
+			unpackSmer(nextSmer, bufferN);
+
+			LOG(LOG_INFO,"Read Orientation: %s (%i) %s %s (%i)",bufferP, upstreamLength, bufferC, bufferN, downstreamLength);
+		}
+
+		SmerId currFmer=rdd->fsmers[index];
+		SmerId currRmer=rdd->rsmers[index];
+
+		if(currFmer<=currRmer) // Canonical Read Orientation
+			{
+//				smerId=currFmer;
+
+				/*
+				if(smerId==49511689627288L)
+					{
+					LOG(LOG_INFO,"Adding forward route to %li",currFmer);
+					LOG(LOG_INFO,"Existing Prefixes: %i Suffixes: %i", prefixBuilder.oldTailCount, suffixBuilder.oldTailCount);
+
+					dump=1;
+					}
+*/
+
+				SmerId prefixSmer=rdd->rsmers[index+1]; // Previous smer in read, reversed
+				SmerId suffixSmer=rdd->fsmers[index-1]; // Next smer in read
+
+				int prefixLength=rdd->readIndexes[index]-rdd->readIndexes[index+1];
+				int suffixLength=rdd->readIndexes[index-1]-rdd->readIndexes[index];
+
+				forwardPatches[forwardCount].next=NULL;
+				forwardPatches[forwardCount].rdiPtr=rdi->entries+i;
+//				forwardPatches[forwardCount].rdiIndex=i;
+
+				forwardPatches[forwardCount].prefixIndex=findOrCreateSeqTail(prefixBuilder, prefixSmer, prefixLength);
+				forwardPatches[forwardCount].suffixIndex=findOrCreateSeqTail(suffixBuilder, suffixSmer, suffixLength);
+
+				maxNewPrefix=MAX(maxNewPrefix,forwardPatches[forwardCount].prefixIndex);
+				maxNewSuffix=MAX(maxNewSuffix,forwardPatches[forwardCount].suffixIndex);
+
+
+				if(0)
+					{
+					char bufferP[SMER_BASES+1]={0};
+					char bufferN[SMER_BASES+1]={0};
+					char bufferS[SMER_BASES+1]={0};
+
+					unpackSmer(prefixSmer, bufferP);
+					unpackSmer(currFmer, bufferN);
+					unpackSmer(suffixSmer, bufferS);
+
+					LOG(LOG_INFO,"Node Orientation: %s (%i) @ %i %s %s (%i) @ %i",
+							bufferP, prefixLength, forwardPatches[forwardCount].prefixIndex,  bufferN, bufferS, suffixLength, forwardPatches[forwardCount].suffixIndex);
+					}
+
+				forwardCount++;
+			}
+		else	// Reverse-complement Read Orientation
+			{
+//				smerId=currRmer;
+
+				/*
+				if(smerId==49511689627288L)
+					{
+					LOG(LOG_INFO,"Adding reverse route to %li",currRmer);
+					LOG(LOG_INFO,"Existing Prefixes: %i Suffixes: %i", prefixBuilder.oldTailCount, suffixBuilder.oldTailCount);
+
+					dump=1;
+					}
+*/
+
+				SmerId prefixSmer=rdd->fsmers[index-1]; // Next smer in read
+				SmerId suffixSmer=rdd->rsmers[index+1]; // Previous smer in read, reversed
+
+
+				int prefixLength=rdd->readIndexes[index-1]-rdd->readIndexes[index];
+				int suffixLength=rdd->readIndexes[index]-rdd->readIndexes[index+1];
+
+				reversePatches[reverseCount].next=NULL;
+				reversePatches[reverseCount].rdiPtr=rdi->entries+i;
+//				reversePatches[reverseCount].rdiIndex=i;
+
+				reversePatches[reverseCount].prefixIndex=findOrCreateSeqTail(prefixBuilder, prefixSmer, prefixLength);
+				reversePatches[reverseCount].suffixIndex=findOrCreateSeqTail(suffixBuilder, suffixSmer, suffixLength);
+
+				maxNewPrefix=MAX(maxNewPrefix,reversePatches[reverseCount].prefixIndex);
+				maxNewSuffix=MAX(maxNewSuffix,reversePatches[reverseCount].suffixIndex);
+
+				if(0)
+					{
+					char bufferP[SMER_BASES+1]={0};
+					char bufferN[SMER_BASES+1]={0};
+					char bufferS[SMER_BASES+1]={0};
+
+					unpackSmer(prefixSmer, bufferP);
+					unpackSmer(currRmer, bufferN);
+					unpackSmer(suffixSmer, bufferS);
+
+					LOG(LOG_INFO,"Node Orientation: %s (%i) @ %i %s %s (%i) @ %i",
+							bufferP, prefixLength, reversePatches[forwardCount].prefixIndex,  bufferN, bufferS, suffixLength, reversePatches[forwardCount].suffixIndex);
+					}
+
+				reverseCount++;
+			}
+	}
+
+	// Then sort new forward and reverse routes, if more than one
+
+	if(forwardCount>1)
+		qsort(forwardPatches, forwardCount, sizeof(RoutePatch), forwardPrefixSorter);
+
+	if(reverseCount>1)
+		qsort(reversePatches, reverseCount, sizeof(RoutePatch), reverseSuffixSorter);
+
+	*forwardCountPtr=forwardCount;
+	*reverseCountPtr=reverseCount;
+	*maxNewPrefixPtr=maxNewPrefix;
+	*maxNewSuffixPtr=maxNewSuffix;
+
+}
+
+
+
+
+
+int rtRouteReadsForSmer(RoutingIndexedReadReferenceBlock *rdi, SmerArraySlice *slice,
+		RoutingReadData **orderedDispatches, MemDispenser *disp, MemCircHeap *circHeap, u8 sliceTag)
+{
+	u32 sliceIndex=rdi->sliceIndex;
+
+	u8 *smerDataOrig=slice->smerData[sliceIndex];
+	u8 *smerData=smerDataOrig;
+
+	//if(smerData!=NULL)
+//		LOG(LOG_INFO, "Index: %i of %i Entries %i Data: %p",sliceIndex,slice->smerCount, rdi->entryCount, smerData);
+
+	SeqTailBuilder prefixBuilder, suffixBuilder;
+	RouteTableBuilder routeTableBuilder;
+
+	s32 oldHeaderSize=0, oldPrefixDataSize=0, oldSuffixDataSize=0, oldRouteTableDataSize=0;
+
+	if(smerData!=NULL)
+		{
+		u8 header=*smerData;
+
+		if((header&ALLOC_HEADER_LIVE_DIRECT_MASK)==ALLOC_HEADER_LIVE_DIRECT_VALUE)
+			{
+			createBuildersFromDirectData(smerData, &oldHeaderSize,
+					&prefixBuilder, &oldPrefixDataSize, &suffixBuilder, &oldSuffixDataSize,
+					&routeTableBuilder, &oldRouteTableDataSize, disp);
+
+			}
+		else if((header&ALLOC_HEADER_LIVE_INDIRECT_ROOT_MASK)==ALLOC_HEADER_LIVE_INDIRECT_ROOT_VALUE)
+			{
+
+			}
+		else
+			{
+			LOG(LOG_CRITICAL,"Alloc header invalid %2x at %p",header,smerData);
+			}
+		}
+	else
+		{
+		createBuildersFromNullData(&oldHeaderSize,
+				&prefixBuilder, &oldPrefixDataSize, &suffixBuilder, &oldSuffixDataSize,
+				&routeTableBuilder, &oldRouteTableDataSize, disp);
+		}
+
+	int entryCount=rdi->entryCount;
+
+	int forwardCount=0;
+	int reverseCount=0;
+
+	RoutePatch *forwardPatches=dAlloc(disp,sizeof(RoutePatch)*entryCount);
+	RoutePatch *reversePatches=dAlloc(disp,sizeof(RoutePatch)*entryCount);
+
+	s32 maxNewPrefix=0;
+	s32 maxNewSuffix=0;
+
+	createRoutePatches(rdi, entryCount, &prefixBuilder, &suffixBuilder, forwardPatches, reversePatches,
+			&forwardCount, &reverseCount, &maxNewPrefix, &maxNewSuffix);
+
+	mergeRoutes(&routeTableBuilder, forwardPatches, reversePatches, forwardCount, reverseCount, maxNewPrefix, maxNewSuffix, orderedDispatches, disp);
+
+
+	if(getSeqTailBuilderDirty(&prefixBuilder) || getSeqTailBuilderDirty(&suffixBuilder) || getRouteTableBuilderDirty(&routeTableBuilder))
+		{
+		writeBuildersAsDirectData(slice->smerData+sliceIndex, sliceTag, sliceIndex,
+				&prefixBuilder, oldPrefixDataSize,
+				&suffixBuilder, oldSuffixDataSize,
+				&routeTableBuilder, oldRouteTableDataSize,
+				circHeap);
+		}
+
+	return entryCount;
+}
+
+
 
 
 
