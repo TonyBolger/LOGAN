@@ -352,7 +352,7 @@ static void unreserveReadLookupBlock(RoutingBuilder *rb)
 void queueReadsForSmerLookup(SwqBuffer *rec, int ingressPosition, int ingressSize, int nodeSize, RoutingBuilder *rb)
 {
 
-	MemDispenser *disp=dispenserAlloc("RoutingLookup");
+	MemDispenser *disp=dispenserAlloc("RoutingLookup", DISPENSER_BLOCKSIZE_MEDIUM);
 
 	RoutingReadLookupBlock *readBlock=allocateReadLookupBlock(rb);
 	readBlock->disp=disp;
@@ -454,7 +454,7 @@ int scanForAndDispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb)
 
 	RoutingReadDispatchBlock *dispatchReadBlock=allocateReadDispatchBlock(rb);
 
-	MemDispenser *disp=dispenserAlloc("RoutingDispatch");
+	MemDispenser *disp=dispenserAlloc("RoutingDispatch", DISPENSER_BLOCKSIZE_MEDIUM);
 	dispatchReadBlock->disp=disp;
 
 	s32 lastHit=lookupReadBlock->maxReadLength-nodeSize+2; // Allow for F & L
