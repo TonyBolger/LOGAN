@@ -7,7 +7,7 @@ Alloc Header:
 
 	0 0 0 0 0 0 0 0 : INVALID: Unused region
 
-    1 0 0 0 0 0 0 0 : CHUNK: Start of chunk header (with tag)
+    1 0 0 0 0 0 0 0 : CHUNK: Start of chunk header (with 1 byte tag)
 
 	1 x x x x x x x : Live block
 	0 x x x x x x x : Dead block
@@ -23,7 +23,7 @@ Alloc Header:
     x 1 0 x x X X 1 : 0x81 Indirect branch/leaflevel (1-4 byte sub-index)
 
 	Branches/Leaves marker followed by 1-4 byte index, 1-4 bytes sub-index
-	Branches then followed with 256 pointers (optionally NULL)
+	Branches then followed with up to 256 pointers (optionally NULL)
 	Leaf is followed by size (u16)
 
     x 1 0 0 0 0 1 0 / x 1 0 0 0 1 0 0 / x 1 0 0 0 1 1 0: Unused
@@ -72,22 +72,6 @@ Alloc Header:
 //
 //  Compact Format: Tail counts in first byte (<=7)
 //		0 0 P P P S S S,  PrefixTailData(packed), SuffixTailData(packed), RouteHeader(2-10B), ForwardRoutes(packed), ReverseRoutes(packed)
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
 //
 //
 //
@@ -538,7 +522,7 @@ int rtRouteReadsForSmer_Direct(RoutingIndexedReadReferenceBlock *rdi, SmerArrayS
 	s32 maxNewPrefix=0;
 	s32 maxNewSuffix=0;
 
-	SmerId smerId=SMER_DUMMY;
+//	SmerId smerId=SMER_DUMMY;
 
 	int dump=0;
 
@@ -573,7 +557,7 @@ int rtRouteReadsForSmer_Direct(RoutingIndexedReadReferenceBlock *rdi, SmerArrayS
 
 		if(currFmer<=currRmer) // Canonical Read Orientation
 			{
-				smerId=currFmer;
+//				smerId=currFmer;
 
 				/*
 				if(smerId==49511689627288L)
@@ -620,7 +604,7 @@ int rtRouteReadsForSmer_Direct(RoutingIndexedReadReferenceBlock *rdi, SmerArrayS
 			}
 		else	// Reverse-complement Read Orientation
 			{
-				smerId=currRmer;
+//				smerId=currRmer;
 
 				/*
 				if(smerId==49511689627288L)
@@ -730,11 +714,11 @@ int rtRouteReadsForSmer_Direct(RoutingIndexedReadReferenceBlock *rdi, SmerArrayS
 		*(orderedDispatches++)=*(reversePatches[i].rdiPtr);
 */
 
-	int oldRouteEntries=routeTableBuilder.oldForwardEntryCount+routeTableBuilder.oldReverseEntryCount;
+//	int oldRouteEntries=routeTableBuilder.oldForwardEntryCount+routeTableBuilder.oldReverseEntryCount;
 
-	int newRouteEntries=
-			MAX(routeTableBuilder.oldForwardEntryCount,routeTableBuilder.newForwardEntryCount)+
-			MAX(routeTableBuilder.oldReverseEntryCount,routeTableBuilder.newReverseEntryCount);
+//	int newRouteEntries=
+//			MAX(routeTableBuilder.oldForwardEntryCount,routeTableBuilder.newForwardEntryCount)+
+//			MAX(routeTableBuilder.oldReverseEntryCount,routeTableBuilder.newReverseEntryCount);
 
 	if(dump)
 		{
@@ -750,21 +734,6 @@ int rtRouteReadsForSmer_Direct(RoutingIndexedReadReferenceBlock *rdi, SmerArrayS
 		dumpRoutingTable(&routeTableBuilder);
 		}
 
-	if(newRouteEntries>16083)
-		{
-		int oldShifted=oldRouteEntries>>14;
-		int newShifted=newRouteEntries>>14;
-
-		if(oldShifted!=newShifted)
-			{
-			char bufferN[SMER_BASES+1]={0};
-			unpackSmer(smerId, bufferN);
-
-			LOG(LOG_INFO,"LARGE SMER: %s %012lx has entries %i %i %i %i",bufferN,smerId,
-				routeTableBuilder.oldForwardEntryCount,routeTableBuilder.oldReverseEntryCount,
-				routeTableBuilder.newForwardEntryCount,routeTableBuilder.newReverseEntryCount);
-			}
-		}
 
 /*
 	if(debug)
@@ -1322,5 +1291,182 @@ SmerLinked *rtGetLinkedSmer(SmerArray *smerArray, SmerId rootSmerId, MemDispense
 
 	return smerLinked;
 }
+
+
+
+
+
+
+/*
+static RoutePatchMergeWideReadset *buildReadsetForRead(RoutePatch *routePatch, s32 minEdgeOffset, s32 maxEdgeOffset, MemDispenser *disp)
+{
+	RoutePatchMergeWideReadset *readSet=dAlloc(disp, sizeof(RoutePatchMergeWideReadset));
+	readSet->firstRoutePatch=routePatch;
+	readSet->minEdgeOffset=minEdgeOffset;
+	readSet->maxEdgeOffset=maxEdgeOffset;
+
+	return readSet;
+}
+
+
+static RoutePatchMergePositionOrderedReadtree *buildPositionOrderedReadtreeForReadset(RoutePatchMergeWideReadset *readset,
+		s32 minEdgePosition, s32 maxEdgePosition, MemDispenser *disp)
+{
+	RoutePatchMergePositionOrderedReadtree *firstOrderedReadtree=dAlloc(disp, sizeof(RoutePatchMergePositionOrderedReadtree));
+	firstOrderedReadtree->next=NULL;
+	firstOrderedReadtree->firstWideReadset=readset;
+
+	firstOrderedReadtree->minEdgePosition=minEdgePosition;
+	firstOrderedReadtree->maxEdgePosition=maxEdgePosition;
+
+	return firstOrderedReadtree;
+
+}
+
+
+static RoutePatchMergePositionOrderedReadtree *mergeRoute_buildForwardMergeTree_mergeRead(RoutePatchMergePositionOrderedReadtree *readTree,
+		RoutePatch *routePatch, MemDispenser *disp)
+{
+	// Scan through existing merge tree, find best location, insert/append as appropriate
+
+	RoutePatchMergePositionOrderedReadtree *treeScan=readTree;
+	RoutePatchMergeWideReadset *readsetScan=readTree->firstWideReadset;
+
+	s32 newMinEdgePosition=*(routePatch->rdiPtr)->minEdgePosition;
+	s32 newMaxEdgePosition=*(routePatch->rdiPtr)->minEdgePosition;
+
+	s32 oldMinEdgePosition=treeScan->minEdgePosition+readsetScan->minEdgeOffset;
+	s32 oldMaxEdgePosition=treeScan->minEdgePosition+readsetScan->maxEdgeOffset;
+
+	if(newMaxEdgePosition<oldMinEdgePosition) // ScenarioGroup 1: "Isolated before"
+		{
+		RoutePatchMergeWideReadset *newReadset=buildReadsetForRead(routePatch, 0, newMaxEdgePosition-newMinEdgePosition, disp);
+		RoutePatchMergePositionOrderedReadtree *newReadTree=buildPositionOrderedReadtreeForReadset(newReadset, newMinEdgePosition, newMaxEdgePosition, disp);
+
+		newReadTree->next=readTree;
+		return newReadTree;
+		}
+
+	RoutePatchMergePositionOrderedReadtree *treePrevious=treeScan;
+	RoutePatchMergeWideReadset *readsetPrevious=readsetScan;
+
+	while(newMinEdgePosition>(oldMaxEdgePosition+1)) // Old too early, scan through
+		{
+
+		}
+
+	if(readsetScan==NULL) // ScenarioGroup 4: "Isolated after"
+		{
+
+		return readTree;
+		}
+
+	if(newMinEdgePosition==(oldMaxEdgePosition+1)) // ScenarioGroup 3: "Linked After"
+		{
+
+		return readTree;
+		}
+													// ScenarioGroup 2: "Linked Before/Other"
+
+
+	return readTree;
+}
+
+static RoutePatchMergePositionOrderedReadtree *mergeRoutes_buildForwardMergeTree(RoutePatch **patchScanPtr, RoutePatch *patchEnd, MemDispenser *disp)
+{
+	RoutePatch *scanPtr=*patchScanPtr;
+	int targetUpstream=scanPtr->prefixIndex;
+
+	s32 minEdgePosition=*(scanPtr->rdiPtr)->minEdgePosition;
+	s32 maxEdgePosition=*(scanPtr->rdiPtr)->minEdgePosition;
+
+	RoutePatchMergeWideReadset *readset=buildReadsetForRead(scanPtr, 0, maxEdgePosition-minEdgePosition, disp);
+	RoutePatchMergePositionOrderedReadtree *readTree=buildPositionOrderedReadtreeForReadset(readset, minEdgePosition, maxEdgePosition, disp);
+
+	scanPtr++;
+
+	while(scanPtr<patchEnd && scanPtr->prefixIndex==targetUpstream)
+		readTree=mergeRoute_buildForwardMergeTree_mergeRead(readTree, scanPtr, disp);
+
+	*patchScanPtr=scanPtr;
+	return readTree;
+}
+
+*/
+/*
+static RoutePatchMergePositionOrderedReadset *mergeRoutes_buildForwardMergeTree(RoutePatch **patchScanPtr, RoutePatch *patchEnd, MemDispenser *disp)
+{
+	RoutePatch *scanPtr=*patchScanPtr;
+	int targetUpstream=scanPtr->prefixIndex;
+
+	int minEdgePosition=(*(scanPtr->rdiPtr))->minEdgePosition;
+	int maxEdgePosition=(*(scanPtr->rdiPtr))->maxEdgePosition;
+
+	RoutePatchMergeWideReadset *readSet=dAlloc(disp, sizeof(RoutePatchMergeWideReadset));
+	readSet->firstRoutePatch=scanPtr;
+	readSet->minEdgeOffset=minEdgePosition;
+	readSet->maxEdgeOffset=maxEdgePosition-minEdgePosition;
+
+	RoutePatchMergePositionOrderedReadset *firstOrderedReadset=dAlloc(disp, sizeof(RoutePatchMergePositionOrderedReadset));
+	firstOrderedReadset->next=NULL;
+	firstOrderedReadset->firstWideReadset=readSet;
+
+	firstOrderedReadset->minEdgePosition=minEdgePosition;
+	firstOrderedReadset->maxEdgePosition=maxEdgePosition;
+
+	//RoutePatchMergePositionOrderedReadset **appendOrderedReadset=&(firstOrderedReadset->next);
+
+	scanPtr++;
+
+
+	while(scanPtr<patchEnd && scanPtr->prefixIndex==targetUpstream)
+		{
+		minEdgePosition=(*(scanPtr->rdiPtr))->minEdgePosition;
+		maxEdgePosition=(*(scanPtr->rdiPtr))->maxEdgePosition;
+
+		RoutePatchMergePositionOrderedReadset **scanOrderedReadset=&firstOrderedReadset;
+
+		while(*scanOrderedReadset!=NULL && (*scanOrderedReadset)->maxEdgePosition < minEdgePosition) // Skip all non-overlapping lists before target
+			scanOrderedReadset=&((*scanOrderedReadset)->next);
+
+		if((*scanOrderedReadset)->minEdgePosition >= maxEdgePosition) // New Ordered list needed, with top-level renumber
+			{
+			RoutePatchMergePositionOrderedReadset *newOrderedReadset=dAlloc(disp, sizeof(RoutePatchMergePositionOrderedReadset));
+			newOrderedReadset->next=(*scanOrderedReadset)->next;
+			*scanOrderedReadset=newOrderedReadset;
+
+			newOrderedReadset->minEdgePosition=minEdgePosition;
+			newOrderedReadset->maxEdgePosition=maxEdgePosition;
+
+			readSet=dAlloc(disp, sizeof(RoutePatchMergeWideReadset));
+			readSet->firstRoutePatch=scanPtr;
+			readSet->minEdgeOffset=minEdgePosition;
+			readSet->maxEdgeOffset=maxEdgePosition-minEdgePosition;
+
+			newOrderedReadset->firstWideReadset=readSet;
+			}
+		else // Existing ordered list found, need parent widen and two level renumber
+			{
+
+			}
+
+
+
+
+		scanPtr++;
+		}
+
+
+	*patchScanPtr=scanPtr;
+	return firstOrderedReadset;
+}
+
+*/
+
+
+
+
+
+
 
 

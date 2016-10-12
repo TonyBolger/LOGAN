@@ -4,38 +4,6 @@
 #include "../common.h"
 
 
-typedef struct routingReadDataStr {
-	u8 *packedSeq; // 8
-	u8 *quality; // 8
-	u32 seqLength; // 4
-
-	s32 indexCount; // 4
-	s32 *completionCountPtr; // 8
-
-	// Tracking of edge positions
-
-	s32 minEdgePosition;
-	s32 maxEdgePosition;
-
-	// Split into aux structure with []. Add first/last.
-	u32 *readIndexes; // 8
-	SmerId *fsmers; // 8
-	SmerId *rsmers; // 8
-	u32 *slices; // 8
-	u32 *sliceIndexes; // 8
-
-} __attribute__((aligned (32))) RoutingReadData;
-
-
-typedef struct routePatchStr
-{
-	struct routePatchStr *next;
-	RoutingReadData **rdiPtr; // Needs double ptr to enable sorting by inbound position
-
-	s32 prefixIndex;
-	s32 suffixIndex;
-} RoutePatch;
-
 
 
 typedef struct routePatchMergeWideReadsetStr // Represents a set of reads with same upstream, flexible positions, but potentially varied downstream
@@ -70,27 +38,11 @@ typedef struct routeTableBuilderStr
 {
 	MemDispenser *disp;
 
-	RouteTableEntry *oldForwardEntries;
-	RouteTableEntry *oldReverseEntries;
-
-	RouteTableEntry *newForwardEntries;
-	RouteTableEntry *newReverseEntries;
-
-	u32 oldForwardEntryCount;
-	u32 oldReverseEntryCount;
-	u32 newForwardEntryCount;
-	u32 newReverseEntryCount;
-
-	u32 newForwardEntryAlloc;
-	u32 newReverseEntryAlloc;
-
-	s32 maxPrefix;
-	s32 maxSuffix;
-	s32 maxWidth;
-
-	s32 totalPackedSize;
+	RouteTableArrayBuilder *arrayBuilder;
 
 } RouteTableBuilder;
+
+
 
 
 u8 *scanRouteTable(u8 *data);
@@ -99,6 +51,7 @@ u8 *initRouteTableBuilder(RouteTableBuilder *builder, u8 *data, MemDispenser *di
 void dumpRoutingTable(RouteTableBuilder *builder);
 
 s32 getRouteTableBuilderDirty(RouteTableBuilder *builder);
+
 s32 getRouteTableBuilderPackedSize(RouteTableBuilder *builder);
 u8 *writeRouteTableBuilderPackedData(RouteTableBuilder *builder, u8 *data);
 
