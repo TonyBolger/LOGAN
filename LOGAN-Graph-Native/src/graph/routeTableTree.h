@@ -39,12 +39,36 @@ typedef struct routeTableHugeRootStr
 } RouteTableHugeRoot;
 
 
-typedef struct routeTableTreeBuilderStr
+struct routeTableTreeBuilderStr
 {
 	MemDispenser *disp;
 
+	SeqTailBuilder prefixBuilder;
+	SeqTailBuilder suffixBuilder;
+	RouteTableArrayBuilder nestedBuilder;
 
-} RouteTableTreeBuilder;
+	RouteTableSmallRoot *rootPtr;
+
+};
+
+
+
+u8 *rttScanRouteTableTree(u8 *data);
+u8 *rttInitRouteTableTreeBuilder(RouteTableTreeBuilder *builder, u8 *data, MemDispenser *disp);
+
+void rttDumpRoutingTable(RouteTableTreeBuilder *builder);
+
+s32 rttGetRouteTableTreeBuilderDirty(RouteTableTreeBuilder *builder);
+
+s32 rttGetRouteTableTreeBuilderPackedSize(RouteTableTreeBuilder *builder);
+u8 *rttWriteRouteTableTreeBuilderPackedData(RouteTableTreeBuilder *builder, u8 *data);
+
+void rttMergeRoutes(RouteTableTreeBuilder *builder,
+		RoutePatch *forwardRoutePatches, RoutePatch *reverseRoutePatches, s32 forwardRoutePatchCount, s32 reverseRoutePatchCount,
+		s32 maxNewPrefix, s32 maxNewSuffix, RoutingReadData **orderedDispatches, MemDispenser *disp);
+
+void rttUnpackRouteTableForSmerLinked(SmerLinked *smerLinked, u8 *data, MemDispenser *disp);
+
 
 
 

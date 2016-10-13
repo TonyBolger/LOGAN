@@ -52,6 +52,49 @@ typedef union s32floatUnion {
 } s32Float;
 
 
+
+
+
+typedef struct routePatchMergeWideReadsetStr // Represents a set of reads with same upstream, flexible positions, but potentially varied downstream
+{
+	struct routePatchMergeWideReadsetStr *next;
+
+	RoutePatch *firstRoutePatch;
+
+	s32 minEdgeOffset;
+	s32 maxEdgeOffset; // Closed interval, includes both max and min
+
+} RoutePatchMergeWideReadset;
+
+
+typedef struct routePatchMergePositionOrderedReadtreeStr // Represents sets of reads with same upstream and defined, consecutive, relative order.
+{
+	struct routePatchMergePositionOrderedReadtreeStr *next;
+
+	RoutePatchMergeWideReadset *firstWideReadset;
+
+	s32 minEdgePosition;
+	s32 maxEdgePosition; // Closed interval, includes both max and min
+} RoutePatchMergePositionOrderedReadtree;
+
+
+
+typedef struct routeTableArrayBuilderStr RouteTableArrayBuilder;
+typedef struct routeTableTreeBuilderStr RouteTableTreeBuilder;
+
+typedef struct routeTableBuilderStr
+{
+	MemDispenser *disp;
+
+	RouteTableArrayBuilder *arrayBuilder;
+	RouteTableTreeBuilder *treeBuilder;
+
+} RouteTableBuilder;
+
+
+
+
+
 s32 rtItemSizeResolver(u8 *item);
 MemCircHeapChunkIndex *rtReclaimIndexer(u8 *data, s64 targetAmount, u8 tag, u8 **tagData, s32 tagDataLength, s32 tagSearchOffset, MemDispenser *disp);
 void rtRelocater(MemCircHeapChunkIndex *index, u8 tag, u8 **tagData, s32 tagDataLength);

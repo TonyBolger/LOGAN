@@ -4,7 +4,7 @@
 #include "../common.h"
 
 
-typedef struct routeTableArrayBuilderStr
+struct routeTableArrayBuilderStr
 {
 	MemDispenser *disp;
 
@@ -28,24 +28,24 @@ typedef struct routeTableArrayBuilderStr
 
 	s32 totalPackedSize;
 
-} RouteTableArrayBuilder;
+};
 
 
 u8 *rtaScanRouteTableArray(u8 *data);
 u8 *rtaInitRouteTableArrayBuilder(RouteTableArrayBuilder *builder, u8 *data, MemDispenser *disp);
 
-void rtaDumpRoutingTable(RouteTableArrayBuilder *builder);
+void rtaDumpRoutingTableArray(RouteTableArrayBuilder *builder);
 
-s32 rtaGetRouteTableBuilderDirty(RouteTableArrayBuilder *builder);
+s32 rtaGetRouteTableArrayBuilderDirty(RouteTableArrayBuilder *builder);
 
-s32 rtaGetRouteTableBuilderPackedSize(RouteTableArrayBuilder *builder);
-u8 *rtaWriteRouteTableBuilderPackedData(RouteTableArrayBuilder *builder, u8 *data);
+s32 rtaGetRouteTableArrayBuilderPackedSize(RouteTableArrayBuilder *builder);
+u8 *rtaWriteRouteTableArrayBuilderPackedData(RouteTableArrayBuilder *builder, u8 *data);
 
 void rtaMergeRoutes(RouteTableArrayBuilder *builder,
 		RoutePatch *forwardRoutePatches, RoutePatch *reverseRoutePatches, s32 forwardRoutePatchCount, s32 reverseRoutePatchCount,
 		s32 maxNewPrefix, s32 maxNewSuffix, RoutingReadData **orderedDispatches, MemDispenser *disp);
 
-void rtaUnpackRouteTableForSmerLinked(SmerLinked *smerLinked, u8 *data, MemDispenser *disp);
+void rtaUnpackRouteTableArrayForSmerLinked(SmerLinked *smerLinked, u8 *data, MemDispenser *disp);
 
 
 

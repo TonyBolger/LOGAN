@@ -646,12 +646,16 @@ Complementary->Complementary: Original sequence direction,
 
 High priority Tasks:
 	Merge-insert for multiple route updates (currently rescan per read)
+		TODO
 
 	Non-linear form for busy smers (some kind of tree, first division by upstream, later by offset range)
+		TODO
 
-	Non-packed form for busy smers (unpacked cache)
+	Non-packed form for busy smers (unpacked cache)		
+		TODO
 		
 	Block-shared & generational garbage collection 
+		Half-done (circHeap)
 
 
 Low Priority Tasks:

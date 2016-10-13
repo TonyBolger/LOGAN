@@ -15,7 +15,6 @@ CLI_LIBS = -lrt -lpthread
 CLI_OBJS += \
 ./bin/cli/common/graph/graph.o \
 ./bin/cli/common/graph/routing.o \
-./bin/cli/common/graph/routeTable.o \
 ./bin/cli/common/graph/routeTableArray.o \
 ./bin/cli/common/graph/routeTableTree.o \
 ./bin/cli/common/graph/seqTail.o \
@@ -46,7 +45,6 @@ CLI_DEPS := $(CLI_OBJS:.o=.d)
 JNI_OBJS += \
 ./bin/jni/common/graph/graph.o \
 ./bin/jni/common/graph/routing.o \
-./bin/jni/common/graph/routeTable.o \
 ./bin/jni/common/graph/routeTableArray.o \
 ./bin/jni/common/graph/routeTableTree.o \
 ./bin/jni/common/graph/seqTail.o \

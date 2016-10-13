@@ -4,6 +4,20 @@
 //
 //
 
+
+// Idea for PackedArray format: store arrays of pointers, referencing a block of route entries grouped by upstream sequence. The blocks consist of packed entries
+// PckArr format: 1 1 0 W W W W W  P P P P S S S S
+//                F F F F F F F F  R R R R R R R R
+//                Fptr*
+//                Rptr*
+
+// PA Block:      E E E E E E E E  E E E E E E E E (entry count)
+//                E E E E E E E E  E E E E E E E E (entry count)
+//			 	  U*, (D*, W*)*
+
+
+
+
 // Huge format:   1 1 1 W W W W W  P P P P S S S S
 //                F F F F F F F F  F F F F F F F F
 //                F F F F F F F F  F F F F F F F F
@@ -320,17 +334,17 @@ u8 *rtaInitRouteTableArrayBuilder(RouteTableArrayBuilder *builder, u8 *data, Mem
 	return data;
 }
 
-s32 rtaGetRouteTableBuilderDirty(RouteTableArrayBuilder *builder)
+s32 rtaGetRouteTableArrayBuilderDirty(RouteTableArrayBuilder *builder)
 {
 	return builder->newForwardEntryCount>0 || builder->newReverseEntryCount>0;
 }
 
-s32 rtaGetRouteTableBuilderPackedSize(RouteTableArrayBuilder *builder)
+s32 rtaGetRouteTableArrayBuilderPackedSize(RouteTableArrayBuilder *builder)
 {
 	return builder->totalPackedSize;
 }
 
-void rtaDumpRoutingTable(RouteTableArrayBuilder *builder)
+void rtaDumpRoutingTableArray(RouteTableArrayBuilder *builder)
 {
 	LOG(LOG_INFO,"Header: %i %i %i", builder->maxPrefix, builder->maxSuffix, builder->maxWidth);
 
@@ -354,7 +368,7 @@ void rtaDumpRoutingTable(RouteTableArrayBuilder *builder)
 
 }
 
-u8 *rtaWriteRouteTableBuilderPackedData(RouteTableArrayBuilder *builder, u8 *data)
+u8 *rtaWriteRouteTableArrayBuilderPackedData(RouteTableArrayBuilder *builder, u8 *data)
 {
 	u32 prefixBits=bitsRequired(builder->maxPrefix);
 	u32 suffixBits=bitsRequired(builder->maxSuffix);
@@ -483,7 +497,7 @@ static RouteTableEntry *mergeRoutes_ordered_forwardSingle(RouteTableArrayBuilder
 
 		if(minMargin<0 || maxMargin<0)
 			{
-			rtaDumpRoutingTable(builder);
+			rtaDumpRoutingTableArray(builder);
 
 			LOG(LOG_INFO,"Failed to add forward route for prefix %i suffix %i",targetPrefix,targetSuffix);
 			LOG(LOG_INFO,"Current edge offset %i minEdgePosition %i maxEdgePosition %i",upstreamEdgeOffset,minEdgePosition,maxEdgePosition);
@@ -1077,7 +1091,7 @@ void mergeRoutes(RouteTableBuilder *builder,
 
 */
 
-void rtaUnpackRouteTableForSmerLinked(SmerLinked *smerLinked, u8 *data, MemDispenser *disp)
+void rtaUnpackRouteTableArrayForSmerLinked(SmerLinked *smerLinked, u8 *data, MemDispenser *disp)
 {
 	u32 prefixBits=0, suffixBits=0, widthBits=0, forwardEntryCount=0, reverseEntryCount=0;
 
