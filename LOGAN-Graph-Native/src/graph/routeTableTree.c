@@ -61,12 +61,27 @@ u8 *rttInitRouteTableTreeBuilder(RouteTableTreeBuilder *builder, u8 *data, MemDi
 	builder->rootPtr=root;
 	data+=sizeof(RouteTableSmallRoot);
 
-	initSeqTailBuilder(&builder->prefixBuilder, root->prefixData, disp);
-	initSeqTailBuilder(&builder->suffixBuilder, root->suffixData, disp);
-	rtaInitRouteTableArrayBuilder(&builder->nestedBuilder, root->forwardRouteData[0], disp);
+	builder->prefixBuilder=dAlloc(disp, sizeof(SeqTailBuilder));
+	builder->suffixBuilder=dAlloc(disp, sizeof(SeqTailBuilder));
+	builder->nestedBuilder=dAlloc(disp, sizeof(RouteTableArrayBuilder));
+
+	initSeqTailBuilder(builder->prefixBuilder, root->prefixData, disp);
+	initSeqTailBuilder(builder->suffixBuilder, root->suffixData, disp);
+	rtaInitRouteTableArrayBuilder(builder->nestedBuilder, root->forwardRouteData[0], disp);
 
 	return data;
 }
+
+void rttUpgradeToRouteTableTreeBuilder(RouteTableTreeBuilder *builder,
+		SeqTailBuilder *prefixBuilder, SeqTailBuilder *suffixBuilder, RouteTableArrayBuilder *arrayBuilder, MemDispenser *disp)
+{
+	builder->prefixBuilder=prefixBuilder;
+	builder->suffixBuilder=suffixBuilder;
+	builder->nestedBuilder=arrayBuilder;
+
+	builder->rootPtr=NULL;
+}
+
 
 void rttDumpRoutingTable(RouteTableTreeBuilder *builder)
 {
@@ -75,7 +90,10 @@ void rttDumpRoutingTable(RouteTableTreeBuilder *builder)
 
 s32 rttGetRouteTableTreeBuilderDirty(RouteTableTreeBuilder *builder)
 {
-	return rtaGetRouteTableArrayBuilderDirty(&builder->nestedBuilder);
+	if(builder->rootPtr==NULL)
+		return 1;
+
+	return rtaGetRouteTableArrayBuilderDirty(builder->nestedBuilder);
 }
 
 s32 rttGetRouteTableTreeBuilderPackedSize(RouteTableTreeBuilder *builder)
@@ -85,15 +103,14 @@ s32 rttGetRouteTableTreeBuilderPackedSize(RouteTableTreeBuilder *builder)
 
 u8 *rttWriteRouteTableTreeBuilderPackedData(RouteTableTreeBuilder *builder, u8 *data)
 {
-	LOG(LOG_CRITICAL,"Not implemented");
-	return NULL;
+	return rtaWriteRouteTableArrayBuilderPackedData(builder->nestedBuilder, data);
 }
 
 void rttMergeRoutes(RouteTableTreeBuilder *builder,
 		RoutePatch *forwardRoutePatches, RoutePatch *reverseRoutePatches, s32 forwardRoutePatchCount, s32 reverseRoutePatchCount,
 		s32 maxNewPrefix, s32 maxNewSuffix, RoutingReadData **orderedDispatches, MemDispenser *disp)
 {
-	rtaMergeRoutes(&builder->nestedBuilder, forwardRoutePatches, reverseRoutePatches, forwardRoutePatchCount, reverseRoutePatchCount,
+	rtaMergeRoutes(builder->nestedBuilder, forwardRoutePatches, reverseRoutePatches, forwardRoutePatchCount, reverseRoutePatchCount,
 		maxNewPrefix, maxNewSuffix, orderedDispatches, disp);
 }
 

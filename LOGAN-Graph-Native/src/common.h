@@ -184,6 +184,7 @@ typedef struct swqBufferStr {
 #include "util/log.h"
 #include "util/pack.h"
 #include "util/smerImplicitTree.h"
+#include "util/varipack.h"
 
 #include "task/task.h"
 

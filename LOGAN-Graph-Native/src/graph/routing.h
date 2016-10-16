@@ -88,11 +88,12 @@ typedef struct routeTableBuilderStr
 
 	RouteTableArrayBuilder *arrayBuilder;
 	RouteTableTreeBuilder *treeBuilder;
+	s32 upgradedToTree;
 
 } RouteTableBuilder;
 
 
-
+#define ROUTING_TREE_THRESHOLD 256
 
 
 s32 rtItemSizeResolver(u8 *item);

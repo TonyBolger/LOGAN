@@ -292,7 +292,10 @@ static u8 *readRouteTableBuilderPackedData(RouteTableArrayBuilder *builder, u8 *
 	builder->maxWidth=maxWidth;
 
 	int tableSize=PAD_1BITLENGTH_BYTE((prefixBits+suffixBits+widthBits)*(forwardEntryCount+reverseEntryCount));
-	builder->totalPackedSize=headerSize+tableSize;
+	int totalSize=headerSize+tableSize;
+	builder->totalPackedSize=totalSize;
+
+	builder->oldDataSize=totalSize;
 
 	return data+tableSize;
 }

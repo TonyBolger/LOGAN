@@ -1,7 +1,6 @@
 #ifndef __ROUTE_TABLE_TREE_H
 #define __ROUTE_TABLE_TREE_H
 
-#include "../common.h"
 
 
 typedef struct routeTableSmallRootStr
@@ -43,9 +42,9 @@ struct routeTableTreeBuilderStr
 {
 	MemDispenser *disp;
 
-	SeqTailBuilder prefixBuilder;
-	SeqTailBuilder suffixBuilder;
-	RouteTableArrayBuilder nestedBuilder;
+	SeqTailBuilder *prefixBuilder;
+	SeqTailBuilder *suffixBuilder;
+	RouteTableArrayBuilder *nestedBuilder;
 
 	RouteTableSmallRoot *rootPtr;
 
@@ -55,6 +54,7 @@ struct routeTableTreeBuilderStr
 
 u8 *rttScanRouteTableTree(u8 *data);
 u8 *rttInitRouteTableTreeBuilder(RouteTableTreeBuilder *builder, u8 *data, MemDispenser *disp);
+void rttUpgradeToRouteTableTreeBuilder(RouteTableTreeBuilder *builder, SeqTailBuilder *prefixBuilder, SeqTailBuilder *suffixBuilder, RouteTableArrayBuilder *arrayBuilder, MemDispenser *disp);
 
 void rttDumpRoutingTable(RouteTableTreeBuilder *builder);
 

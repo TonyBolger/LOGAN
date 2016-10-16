@@ -1,12 +1,13 @@
 #ifndef __ROUTE_TABLE_ARRAY_H
 #define __ROUTE_TABLE_ARRAY_H
 
-#include "../common.h"
 
 
 struct routeTableArrayBuilderStr
 {
 	MemDispenser *disp;
+
+	u32 oldDataSize;
 
 	RouteTableEntry *oldForwardEntries;
 	RouteTableEntry *oldReverseEntries;

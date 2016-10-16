@@ -74,6 +74,7 @@ typedef struct memCircHeapGenerationStr
 
 typedef struct memCircHeapChunkIndexEntryStr {
 	s32 index;
+	s32 subindex;
 	s32 size;
 } MemCircHeapChunkIndexEntry;
 

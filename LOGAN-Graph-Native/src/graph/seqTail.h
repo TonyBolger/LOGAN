@@ -10,6 +10,9 @@ typedef struct seqTailBuilderStr
 {
 	MemDispenser *disp;
 
+	u8 *oldData;
+	s32 oldDataSize;
+
 	s64 *oldTails;
 	s64 *newTails;
 

@@ -37,6 +37,7 @@ CLI_OBJS += \
 ./bin/cli/common/util/log.o \
 ./bin/cli/common/util/pack.o \
 ./bin/cli/common/util/smerImplicitTree.o \
+./bin/cli/common/util/varipack.o \
 ./bin/cli/obj/main.o 
 
 CLI_DEPS := $(CLI_OBJS:.o=.d)
@@ -67,6 +68,7 @@ JNI_OBJS += \
 ./bin/jni/common/util/log.o \
 ./bin/jni/common/util/pack.o \
 ./bin/jni/common/util/smerImplicitTree.o \
+./bin/jni/common/util/varipack.o \
 ./bin/jni/obj/JNI_graph.o 
 
 JNI_DEPS := $(JNI_OBJS:.o=.d)
