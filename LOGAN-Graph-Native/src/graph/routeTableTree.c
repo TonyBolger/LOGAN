@@ -52,41 +52,20 @@ u8 *rttScanRouteTableTree(u8 *data)
 	return NULL;
 }
 
-u8 *rttInitRouteTableTreeBuilder(RouteTableTreeBuilder *builder, u8 *data, u8 *prefixData, u8 *suffixData, u8 *routeData, MemDispenser *disp)
+u8 *rttInitRouteTableTreeBuilder(RouteTableTreeBuilder *builder, u8 *routeData, MemDispenser *disp)
 {
 	builder->disp=disp;
 
-
-	RouteTableSmallRoot *root=(RouteTableSmallRoot *)data;
-
-	builder->rootPtr=root;
-	data+=sizeof(RouteTableSmallRoot);
-
 	builder->nestedBuilder=dAlloc(disp, sizeof(RouteTableArrayBuilder));
+	routeData=rtaInitRouteTableArrayBuilder(builder->nestedBuilder, routeData, disp);
 
-	initSeqTailBuilder(builder->prefixBuilder, prefixData, disp);
-	initSeqTailBuilder(builder->suffixBuilder, suffixData, disp);
-	rtaInitRouteTableArrayBuilder(builder->nestedBuilder, routeData, disp);
-
-	/*
-	u8 *prefixEnd=initSeqTailBuilder(builder->prefixBuilder, prefixData, disp);
-	u8 *suffixEnd=initSeqTailBuilder(builder->suffixBuilder, suffixData, disp);
-	u8 *routeEnd=rtaInitRouteTableArrayBuilder(builder->nestedBuilder, routeData, disp);
-
-	LOG(LOG_INFO,"Done %i %i %i", (prefixEnd-prefixData), (suffixEnd-suffixData), (routeEnd-routeData));
-*/
-
-	return data;
+	return routeData;
 }
 
-void rttUpgradeToRouteTableTreeBuilder(RouteTableTreeBuilder *builder,
-		SeqTailBuilder *prefixBuilder, SeqTailBuilder *suffixBuilder, RouteTableArrayBuilder *arrayBuilder, MemDispenser *disp)
+void rttUpgradeToRouteTableTreeBuilder(RouteTableArrayBuilder *arrayBuilder,  RouteTableTreeBuilder *treeBuilder, MemDispenser *disp)
 {
-	builder->prefixBuilder=prefixBuilder;
-	builder->suffixBuilder=suffixBuilder;
-	builder->nestedBuilder=arrayBuilder;
-
-	builder->rootPtr=NULL;
+	treeBuilder->nestedBuilder=arrayBuilder;
+	treeBuilder->rootPtr=NULL;
 }
 
 

@@ -78,19 +78,39 @@ typedef struct routePatchMergePositionOrderedReadtreeStr // Represents sets of r
 } RoutePatchMergePositionOrderedReadtree;
 
 
+typedef struct heapDataBlockStr
+{
+	s32 subindexSize;
+	s32 subindex;
+	s32 headerSize;
+	s32 dataSize;
+	u8 *blockPtr; // Warning: Invalidated by (other) allocs
+} HeapDataBlock;
+
 
 typedef struct routeTableArrayBuilderStr RouteTableArrayBuilder;
 typedef struct routeTableTreeBuilderStr RouteTableTreeBuilder;
 
-typedef struct routeTableBuilderStr
+typedef struct routingComboBuilderStr
 {
 	MemDispenser *disp;
+	u8 **rootPtr;
+
+	SeqTailBuilder prefixBuilder;
+	SeqTailBuilder suffixBuilder;
 
 	RouteTableArrayBuilder *arrayBuilder;
+	HeapDataBlock combinedDataBlock;
+
 	RouteTableTreeBuilder *treeBuilder;
+	HeapDataBlock topDataBlock;
+	HeapDataBlock prefixDataBlock;
+	HeapDataBlock suffixDataBlock;
+	HeapDataBlock routeTableDataBlock;
+
 	s32 upgradedToTree;
 
-} RouteTableBuilder;
+} RoutingComboBuilder;
 
 
 #define ROUTING_TREE_THRESHOLD 256

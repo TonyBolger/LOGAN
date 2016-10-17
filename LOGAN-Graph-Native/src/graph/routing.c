@@ -473,6 +473,8 @@ MemCircHeapChunkIndex *rtReclaimIndexer(u8 *heapDataPtr, s64 targetAmount, u8 ta
 			{
 			if((header & ALLOC_HEADER_INDIRECT_MASK)==ALLOC_HEADER_INDIRECT_ROOT_VALUE) // Indirect root
 				{
+//				LOG(LOG_INFO,"Indexed indirect root at %p",heapDataPtr);
+
 				s32 chunkTagOffsetDiff=0, ptrBlockSize=0;
 				decodeIndirectRootBlockHeader(heapDataPtr, &chunkTagOffsetDiff, &ptrBlockSize);
 				currentIndex+=chunkTagOffsetDiff;
@@ -529,6 +531,8 @@ MemCircHeapChunkIndex *rtReclaimIndexer(u8 *heapDataPtr, s64 targetAmount, u8 ta
 					{
 					s32 sindexSize=0, sindex=0;
 					s32 subindexSize=0, subindex=0;
+
+//					LOG(LOG_INFO,"Indexed leaf at %p",heapDataPtr);
 
 					decodeNonRootBlockHeader(heapDataPtr, &sindexSize, &sindex, &subindexSize, &subindex);
 
@@ -633,6 +637,7 @@ void rtRelocater(MemCircHeapChunkIndex *index, u8 tag, u8 **tagData, s32 tagData
 				//RouteTableSmallRoot *rootPtr=(RouteTableSmallRoot *)dataPtr;
 
 				encodeIndirectRootBlockHeader(diff, ptrBlock, newChunk);
+//				LOG(LOG_INFO,"Moving indirect root to %p",newChunk);
 				}
 
 			if(size<blockHeaderSize)
@@ -669,6 +674,8 @@ void rtRelocater(MemCircHeapChunkIndex *index, u8 tag, u8 **tagData, s32 tagData
 				dataPtr=rootPtr->forwardRouteData[0];
 				rootPtr->forwardRouteData[0]=newChunk;
 				}
+
+//			LOG(LOG_INFO,"Moving indirect leaf to %p, ref by %p",newChunk,*primaryPtr);
 
 //			LOG(LOG_INFO,"Moving %i bytes from %p to %p",size,dataPtr,newChunk);
 
@@ -713,38 +720,87 @@ static int reverseSuffixSorter(const void *a, const void *b)
 
 
 
-static u8 *initRouteTableArrayBuilder(RouteTableBuilder *builder, u8 *data, MemDispenser *disp)
+static void createBuildersFromNullData(RoutingComboBuilder *builder)
 {
-	builder->disp=disp;
+	builder->combinedDataBlock.subindexSize=0;
+	builder->combinedDataBlock.subindex=-1;
+	builder->combinedDataBlock.headerSize=0;
+	builder->combinedDataBlock.dataSize=0;
+	builder->combinedDataBlock.blockPtr=NULL;
 
-	RouteTableArrayBuilder *arrayBuilder=dAlloc(disp, sizeof(RouteTableArrayBuilder));
-	builder->arrayBuilder=arrayBuilder;
+	initSeqTailBuilder(&(builder->prefixBuilder), NULL, builder->disp);
+	initSeqTailBuilder(&(builder->suffixBuilder), NULL, builder->disp);
+
+	builder->arrayBuilder=dAlloc(builder->disp, sizeof(RouteTableArrayBuilder));
 	builder->treeBuilder=NULL;
-	builder->upgradedToTree=0;
 
-	return rtaInitRouteTableArrayBuilder(arrayBuilder,data,disp);
+	rtaInitRouteTableArrayBuilder(builder->arrayBuilder, NULL, builder->disp);
+
+	builder->upgradedToTree=0;
+}
+
+
+
+
+
+/*
+static void dumpRoutingTable(RouteTableBuilder *builder)
+{
+	rtaDumpRoutingTable(builder->arrayBuilder);
+}
+*/
+
+
+static void createBuildersFromDirectData(RoutingComboBuilder *builder)
+{
+	u8 *data=*(builder->rootPtr);
+
+	s32 headerSize=getDirectBlockHeaderSize();
+	u8 *afterHeader=data+headerSize;
+
+	builder->combinedDataBlock.subindexSize=0;
+	builder->combinedDataBlock.subindex=-1;
+	builder->combinedDataBlock.headerSize=headerSize;
+	builder->combinedDataBlock.blockPtr=data;
+
+	u8 *afterData=afterHeader;
+	afterData=initSeqTailBuilder(&(builder->prefixBuilder), afterData, builder->disp);
+	afterData=initSeqTailBuilder(&(builder->suffixBuilder), afterData, builder->disp);
+
+	builder->arrayBuilder=dAlloc(builder->disp, sizeof(RouteTableArrayBuilder));
+	builder->treeBuilder=NULL;
+
+	afterData=rtaInitRouteTableArrayBuilder(builder->arrayBuilder, afterData, builder->disp);
+
+	u32 size=afterData-afterHeader;
+	builder->combinedDataBlock.dataSize=size;
+
+	builder->upgradedToTree=0;
 }
 
 
 //static
-u8 *initRouteTableTreeBuilder(RouteTableBuilder *builder, SeqTailBuilder *prefixBuilder, SeqTailBuilder *suffixBuilder, u8 *data, MemDispenser *disp)
+void createBuildersFromIndirectData(RoutingComboBuilder *builder)
 {
-	builder->disp=disp;
+	//LOG(LOG_INFO,"Creating from indirect data");
 
-	RouteTableTreeBuilder *treeBuilder=dAlloc(disp, sizeof(RouteTableTreeBuilder));
+	u8 *data=*(builder->rootPtr);
 
-	treeBuilder->prefixBuilder=prefixBuilder;
-	treeBuilder->suffixBuilder=suffixBuilder;
+	s32 headerSize=getIndirectRootBlockHeaderSize();
+
+	builder->topDataBlock.subindexSize=0;
+	builder->topDataBlock.subindex=-1;
+	builder->topDataBlock.headerSize=headerSize;
+	builder->topDataBlock.blockPtr=data;
 
 	builder->arrayBuilder=NULL;
-	builder->treeBuilder=treeBuilder;
-	builder->upgradedToTree=0;
+	builder->treeBuilder=dAlloc(builder->disp, sizeof(RouteTableTreeBuilder));
 
-	RouteTableSmallRoot *root=(RouteTableSmallRoot *)data;
+	RouteTableSmallRoot *root=(RouteTableSmallRoot *)(data+headerSize);
+	builder->treeBuilder->rootPtr=root;
 
-	s32 indexSize=0, subindexSize=0;
+//	LOG(LOG_INFO,"Data is %p, root is %p, p/s %p %p",data,root,root->prefixData, root->suffixData);
 
-//	LOG(LOG_INFO,"Indirect data raw blocks %p %p %p",root->prefixData,root->suffixData,root->forwardRouteData[0]);
 
 	if((*(root->prefixData)&ALLOC_HEADER_LIVE_MASK)==0x0)
 		{
@@ -761,151 +817,67 @@ u8 *initRouteTableTreeBuilder(RouteTableBuilder *builder, SeqTailBuilder *prefix
 		LOG(LOG_CRITICAL,"Route Table references dead block");
 		}
 
-	//LOG(LOG_INFO,"Decode for init called");
+	s32 indexSize=0, subindexSize=0;
 
-	decodeNonRootBlockHeader(root->prefixData, &indexSize, NULL, &subindexSize, NULL);
-	//LOG(LOG_INFO,"Sizes: %i %i",indexSize, subindexSize);
+	// Extract Prefix Info
+	decodeNonRootBlockHeader(root->prefixData, &indexSize, NULL, &subindexSize, &builder->prefixDataBlock.subindex);
+	headerSize=getNonRootBlockHeaderSize(indexSize, subindexSize);
+
+	builder->prefixDataBlock.subindexSize=subindexSize;
+	builder->prefixDataBlock.headerSize=headerSize;
+	builder->prefixDataBlock.blockPtr=root->prefixData;
+
 	u8 *prefixData=root->prefixData+getNonRootBlockHeaderSize(indexSize, subindexSize);
+	initSeqTailBuilder(&(builder->prefixBuilder), prefixData, builder->disp);
 
-	decodeNonRootBlockHeader(root->suffixData, &indexSize, NULL, &subindexSize, NULL);
-	//LOG(LOG_INFO,"Sizes: %i %i",indexSize, subindexSize);
+
+	// Extract Suffix Info
+	decodeNonRootBlockHeader(root->suffixData, &indexSize, NULL, &subindexSize, &builder->suffixDataBlock.subindex);
+	headerSize=getNonRootBlockHeaderSize(indexSize, subindexSize);
+
+	builder->suffixDataBlock.subindexSize=subindexSize;
+	builder->suffixDataBlock.headerSize=headerSize;
+	builder->suffixDataBlock.blockPtr=root->suffixData;
+
 	u8 *suffixData=root->suffixData+getNonRootBlockHeaderSize(indexSize, subindexSize);
+	initSeqTailBuilder(&(builder->suffixBuilder), suffixData, builder->disp);
 
-	decodeNonRootBlockHeader(root->forwardRouteData[0], &indexSize, NULL, &subindexSize, NULL);
+
+	// Extract RouteTable Info
+
+	decodeNonRootBlockHeader(root->forwardRouteData[0], &indexSize, NULL, &subindexSize, &builder->routeTableDataBlock.subindex);
+	headerSize=getNonRootBlockHeaderSize(indexSize, subindexSize);
+
+	builder->suffixDataBlock.subindexSize=subindexSize;
+	builder->suffixDataBlock.headerSize=headerSize;
+	builder->suffixDataBlock.blockPtr=root->forwardRouteData[0];
+
 	//LOG(LOG_INFO,"Sizes: %i %i",indexSize, subindexSize);
 	u8 *routeData=root->forwardRouteData[0]+getNonRootBlockHeaderSize(indexSize, subindexSize);
+	rttInitRouteTableTreeBuilder(builder->treeBuilder, routeData, builder->disp);
 
-	//LOG(LOG_INFO,"Indirect corrected data blocks %p %p %p",prefixData,suffixData,routeData);
-
-	u8 *tmp=rttInitRouteTableTreeBuilder(treeBuilder,data,prefixData, suffixData, routeData, disp);
-
-//	LOG(LOG_INFO,"Decode for init done");
-
-	return tmp;
+	builder->upgradedToTree=0;
 }
 
 
-
-
-
-
-static void createBuildersFromNullData(s32 *headerSize,
-		SeqTailBuilder *prefixBuilder, s32 *prefixDataSize,
-		SeqTailBuilder *suffixBuilder, s32 *suffixDataSize,
-		RouteTableBuilder *routeTableBuilder, s32 *routeTableDataSize,
-		MemDispenser *disp)
+static void writeBuildersAsDirectData(RoutingComboBuilder *builder, s8 sliceTag, s32 sliceIndex, MemCircHeap *circHeap)
 {
-	initSeqTailBuilder(prefixBuilder, NULL, disp);
-	initSeqTailBuilder(suffixBuilder, NULL, disp);
-	initRouteTableArrayBuilder(routeTableBuilder, NULL, disp);
 
-	*headerSize=0;
-	*prefixDataSize=0;
-	*suffixDataSize=0;
-	*routeTableDataSize=0;
-}
-
-
-
-
-
-/*
-static void dumpRoutingTable(RouteTableBuilder *builder)
-{
-	rtaDumpRoutingTable(builder->arrayBuilder);
-}
-*/
-
-
-static void createBuildersFromDirectData(u8 *data, s32 *headerSize,
-			SeqTailBuilder *prefixBuilder, s32 *prefixDataSize,
-			SeqTailBuilder *suffixBuilder, s32 *suffixDataSize,
-			RouteTableBuilder *routeTableBuilder, s32 *routeTableDataSize,
-			MemDispenser *disp)
-{
-	data+=2;
-	*headerSize=2;
-
-	u8 *tmp;
-
-	tmp=data;
-	data=initSeqTailBuilder(prefixBuilder, data, disp);
-	*prefixDataSize=data-tmp;
-
-	tmp=data;
-	data=initSeqTailBuilder(suffixBuilder, data, disp);
-	*suffixDataSize=data-tmp;
-
-	tmp=data;
-	data=initRouteTableArrayBuilder(routeTableBuilder, data, disp);
-	*routeTableDataSize=data-tmp;
-
-	prefixBuilder->oldData=NULL;
-	suffixBuilder->oldData=NULL;
-}
-
-
-//static
-void createBuildersFromIndirectData(u8 *data, s32 *headerSize,
-			SeqTailBuilder *prefixBuilder, s32 *prefixDataSize,
-			SeqTailBuilder *suffixBuilder, s32 *suffixDataSize,
-			RouteTableBuilder *routeTableBuilder, s32 *routeTableDataSize,
-			MemDispenser *disp)
-{
-	//LOG(LOG_INFO,"Creating from indirect data");
-
-	data+=2;
-	*headerSize=2;
-
-	initRouteTableTreeBuilder(routeTableBuilder, prefixBuilder, suffixBuilder, data, disp);
-
-	prefixBuilder->oldData=routeTableBuilder->treeBuilder->rootPtr->prefixData;
-	suffixBuilder->oldData=routeTableBuilder->treeBuilder->rootPtr->suffixData;
-
-
-
-	/*
-
-	data=initRouteTableTreeBuilder(routeTableBuilder, data, disp);
-
-	u8 *tmp;
-
-	tmp=data;
-	data=initSeqTailBuilder(prefixBuilder, data, disp);
-	*prefixDataSize=data-tmp;
-
-	tmp=data;
-	data=initSeqTailBuilder(suffixBuilder, data, disp);
-	*suffixDataSize=data-tmp;
-
-	tmp=data;
-	data=initRouteTableArrayBuilder(routeTableBuilder, data, disp);
-	*routeTableDataSize=data-tmp;
-
-	*/
-
-}
-
-
-static void writeBuildersAsDirectData(u8 **smerDataPtr, s8 sliceTag, s32 sliceIndex,
-		SeqTailBuilder *prefixBuilder, s32 oldPrefixDataSize,
-		SeqTailBuilder *suffixBuilder, s32 oldSuffixDataSize,
-		RouteTableBuilder *routeTableBuilder, s32 oldRouteTableDataSize,
-		MemCircHeap *circHeap)
-{
-	if(!(getSeqTailBuilderDirty(prefixBuilder) || getSeqTailBuilderDirty(suffixBuilder) || rtaGetRouteTableArrayBuilderDirty(routeTableBuilder->arrayBuilder)))
+	if(!(getSeqTailBuilderDirty(&(builder->prefixBuilder)) ||
+		 getSeqTailBuilderDirty(&(builder->suffixBuilder)) ||
+		 rtaGetRouteTableArrayBuilderDirty(builder->arrayBuilder)))
 		{
 		LOG(LOG_INFO,"Nothing to write");
 		return;
 		}
 
-	int oldTotalSize=2+oldPrefixDataSize+oldSuffixDataSize+oldRouteTableDataSize;
+	int oldTotalSize=builder->combinedDataBlock.headerSize+builder->combinedDataBlock.dataSize;
 
-	int prefixPackedSize=getSeqTailBuilderPackedSize(prefixBuilder);
-	int suffixPackedSize=getSeqTailBuilderPackedSize(suffixBuilder);
-	int routeTablePackedSize=rtaGetRouteTableArrayBuilderPackedSize(routeTableBuilder->arrayBuilder);
+	int prefixPackedSize=getSeqTailBuilderPackedSize(&(builder->prefixBuilder));
+	int suffixPackedSize=getSeqTailBuilderPackedSize(&(builder->suffixBuilder));
+	int routeTablePackedSize=rtaGetRouteTableArrayBuilderPackedSize(builder->arrayBuilder);
 
-	int totalSize=2+prefixPackedSize+suffixPackedSize+routeTablePackedSize;
+	int totalSize=getDirectBlockHeaderSize()+prefixPackedSize+suffixPackedSize+routeTablePackedSize;
 
 	if(totalSize>16083)
 		{
@@ -919,7 +891,7 @@ static void writeBuildersAsDirectData(u8 **smerDataPtr, s8 sliceTag, s32 sliceIn
 
 		}
 
-	u8 *oldData=*smerDataPtr;
+	u8 *oldData=builder->combinedDataBlock.blockPtr;
 	u8 *newData;
 
 	// Mark old block as dead
@@ -940,56 +912,51 @@ static void writeBuildersAsDirectData(u8 **smerDataPtr, s8 sliceTag, s32 sliceIn
 
 	s32 diff=sliceIndex-oldTagOffset;
 
-	*smerDataPtr=newData;
+	*(builder->rootPtr)=newData;
+
 	encodeDirectBlockHeader(diff, newData);
 
-	newData+=2;
-	newData=writeSeqTailBuilderPackedData(prefixBuilder, newData);
-	newData=writeSeqTailBuilderPackedData(suffixBuilder, newData);
-	newData=rtaWriteRouteTableArrayBuilderPackedData(routeTableBuilder->arrayBuilder, newData);
+	newData+=getDirectBlockHeaderSize();
+	newData=writeSeqTailBuilderPackedData(&(builder->prefixBuilder), newData);
+	newData=writeSeqTailBuilderPackedData(&(builder->suffixBuilder), newData);
+	newData=rtaWriteRouteTableArrayBuilderPackedData(builder->arrayBuilder, newData);
 
 }
 
-static int considerUpgradingToTree(RouteTableBuilder *routeTableBuilder, int newForwardRoutes, int newReverseRoutes)
+static int considerUpgradingToTree(RoutingComboBuilder *builder, int newForwardRoutes, int newReverseRoutes)
 {
-	if(routeTableBuilder->arrayBuilder==NULL)
+	if(builder->arrayBuilder==NULL)
 		return 0;
 
-	if(routeTableBuilder->treeBuilder!=NULL)
-		{
-		LOG(LOG_CRITICAL,"Routes already a Tree");
+	if(builder->treeBuilder!=NULL)
 		return 0;
-		}
 
-	int existingRoutes=(routeTableBuilder->arrayBuilder->oldForwardEntryCount)+(routeTableBuilder->arrayBuilder->oldReverseEntryCount);
+	int existingRoutes=(builder->arrayBuilder->oldForwardEntryCount)+(builder->arrayBuilder->oldReverseEntryCount);
 	int totalRoutes=existingRoutes+newForwardRoutes+newReverseRoutes;
 
 	return totalRoutes>ROUTING_TREE_THRESHOLD;
 }
 
 
-static void upgradeToTree(RouteTableBuilder *routeTableBuilder,	SeqTailBuilder *prefixBuilder, SeqTailBuilder *suffixBuilder)
+static void upgradeToTree(RoutingComboBuilder *builder)
 {
-	RouteTableTreeBuilder *treeBuilder=dAlloc(routeTableBuilder->disp, sizeof(RouteTableTreeBuilder));
-	routeTableBuilder->treeBuilder=treeBuilder;
+	RouteTableTreeBuilder *treeBuilder=dAlloc(builder->disp, sizeof(RouteTableTreeBuilder));
+	builder->treeBuilder=treeBuilder;
 
-	routeTableBuilder->upgradedToTree=1;
-
-	rttUpgradeToRouteTableTreeBuilder(treeBuilder, prefixBuilder, suffixBuilder, routeTableBuilder->arrayBuilder, routeTableBuilder->disp);
+	rttUpgradeToRouteTableTreeBuilder(builder->arrayBuilder,  builder->treeBuilder, builder->disp);
+	builder->upgradedToTree=1;
 }
 
 
-static void writeBuildersAsIndirectData(u8 **smerDataPtr, s8 sliceTag, s32 sliceIndex,
-		SeqTailBuilder *prefixBuilder, SeqTailBuilder *suffixBuilder, RouteTableBuilder *routeTableBuilder,
-		MemCircHeap *circHeap)
+static void writeBuildersAsIndirectData(RoutingComboBuilder *routingBuilder, s8 sliceTag, s32 sliceIndex, MemCircHeap *circHeap)
 {
 	int sliceIndexSize=varipackLength(sliceIndex);
 
-	RouteTableSmallRoot *root=routeTableBuilder->treeBuilder->rootPtr;
+	RouteTableSmallRoot *root=routingBuilder->treeBuilder->rootPtr;
 
-	if(routeTableBuilder->upgradedToTree || root==NULL)
+	if(routingBuilder->upgradedToTree || root==NULL)
 		{
-		u8 *oldData=*smerDataPtr;
+		u8 *oldData=*(routingBuilder->rootPtr);
 
 		if(oldData!=NULL)
 			{
@@ -1003,15 +970,15 @@ static void writeBuildersAsIndirectData(u8 **smerDataPtr, s8 sliceTag, s32 slice
 		s32 oldTagOffset=0;
 		u8 *newData=circAlloc(circHeap, rootTotalSize, sliceTag, sliceIndex, &oldTagOffset);
 
-		//LOG(LOG_INFO,"Writing indirect root to %p",newData);
+//		LOG(LOG_INFO,"Writing indirect root to %p",newData);
 
 		s32 diff=sliceIndex-oldTagOffset;
-		*smerDataPtr=newData;
+		*(routingBuilder->rootPtr)=newData;
 
 		encodeIndirectRootBlockHeader(diff, 0, newData);
 
 		root=(RouteTableSmallRoot *)(newData+getIndirectRootBlockHeaderSize());
-		routeTableBuilder->treeBuilder->rootPtr=root;
+		routingBuilder->treeBuilder->rootPtr=root;
 
 		root->prefixData=NULL;
 		root->suffixData=NULL;
@@ -1019,34 +986,18 @@ static void writeBuildersAsIndirectData(u8 **smerDataPtr, s8 sliceTag, s32 slice
 		root->reverseRouteData[0]=NULL;
 		}
 
-	if(routeTableBuilder->upgradedToTree || getSeqTailBuilderDirty(prefixBuilder))
+	// Consider re-using?
+	if(routingBuilder->upgradedToTree || getSeqTailBuilderDirty(&(routingBuilder->prefixBuilder)))
 		{
 		int subindex=0;
 		int subindexSize=varipackLength(subindex);
 
 		int prefixHeaderSize=getNonRootBlockHeaderSize(sliceIndexSize, subindexSize);
-
-		int prefixTotalSize=getSeqTailBuilderPackedSize(prefixBuilder)+prefixHeaderSize;
-
-		/*
-		u8 *oldData=prefixBuilder->oldData;
-
-		// Mark old block as dead
-
-		if(oldData!=NULL)
-			{
-			LOG(LOG_INFO,"Deleting prefix at %p",oldData);
-			*oldData&=~ALLOC_HEADER_LIVE_MASK;
-			}
-*/
-
+		int prefixTotalSize=getSeqTailBuilderPackedSize(&(routingBuilder->prefixBuilder))+prefixHeaderSize;
 
 		s32 oldTagOffset=0;
 		u8 *newData=circAlloc(circHeap, prefixTotalSize, sliceTag, sliceIndex, &oldTagOffset);
-
-		//LOG(LOG_INFO,"Writing indirect prefix to %p",newData);
-
-		//LOG(LOG_INFO,"Offset Diff: %i for %i",offsetDiff,sliceIndex);
+//		LOG(LOG_INFO,"Writing prefix to %p",newData);
 
 		if(newData==NULL)
 			{
@@ -1058,56 +1009,33 @@ static void writeBuildersAsIndirectData(u8 **smerDataPtr, s8 sliceTag, s32 slice
 		u8 *newPrefixData=newData;
 		newData+=prefixHeaderSize;
 
-		writeSeqTailBuilderPackedData(prefixBuilder, newData);
+		writeSeqTailBuilderPackedData(&(routingBuilder->prefixBuilder), newData);
 
 		// Hacky due to moving data during alloc
 
-		u8 *rootData=(*smerDataPtr)+getIndirectRootBlockHeaderSize();
+		u8 *rootData=(*(routingBuilder->rootPtr))+getIndirectRootBlockHeaderSize();
 		RouteTableSmallRoot *newRoot=(RouteTableSmallRoot *)rootData;
 
 		u8 *oldData=newRoot->prefixData;
 
 		if(oldData!=NULL)
-			{
-			//LOG(LOG_INFO,"Deleting prefix at %p",oldData);
 			*oldData&=~ALLOC_HEADER_LIVE_MASK;
-			}
 
 		newRoot->prefixData=newPrefixData;
 		}
 
-	//else
-		//root->prefixData=prefixBuilder->oldData;
-
-
-	if(routeTableBuilder->upgradedToTree || getSeqTailBuilderDirty(suffixBuilder))
+	// Consider re-using?
+	if(routingBuilder->upgradedToTree || getSeqTailBuilderDirty(&(routingBuilder->suffixBuilder)))
 		{
 		int subindex=1;
 		int subindexSize=varipackLength(subindex);
 
 		int suffixHeaderSize=getNonRootBlockHeaderSize(sliceIndexSize, subindexSize);
-
-		int suffixTotalSize=getSeqTailBuilderPackedSize(suffixBuilder)+suffixHeaderSize;
-
-		/*
-		u8 *oldData=suffixBuilder->oldData;
-
-		// Mark old block as dead
-
-		if(oldData!=NULL)
-			{
-			LOG(LOG_INFO,"Deleting suffix at %p",oldData);
-			*oldData&=~ALLOC_HEADER_LIVE_MASK;
-			}
-
-*/
+		int suffixTotalSize=getSeqTailBuilderPackedSize(&(routingBuilder->suffixBuilder))+suffixHeaderSize;
 
 		s32 oldTagOffset=0;
 		u8 *newData=circAlloc(circHeap, suffixTotalSize, sliceTag, sliceIndex, &oldTagOffset);
-
-//		LOG(LOG_INFO,"Writing indirect suffix to %p",newData);
-
-		//LOG(LOG_INFO,"Offset Diff: %i for %i",offsetDiff,sliceIndex);
+//		LOG(LOG_INFO,"Writing suffix to %p",newData);
 
 		if(newData==NULL)
 			{
@@ -1119,52 +1047,35 @@ static void writeBuildersAsIndirectData(u8 **smerDataPtr, s8 sliceTag, s32 slice
 		u8 *newSuffixData=newData;
 		newData+=suffixHeaderSize;
 
-		writeSeqTailBuilderPackedData(suffixBuilder, newData);
+		writeSeqTailBuilderPackedData(&(routingBuilder->suffixBuilder), newData);
 
 		// Hacky due to moving data during alloc
 
-		u8 *rootData=(*smerDataPtr)+getIndirectRootBlockHeaderSize();
+		u8 *rootData=(*(routingBuilder->rootPtr))+getIndirectRootBlockHeaderSize();
 		RouteTableSmallRoot *newRoot=(RouteTableSmallRoot *)rootData;
 
 		u8 *oldData=newRoot->suffixData;
 
 		if(oldData!=NULL)
-			{
-			//LOG(LOG_INFO,"Deleting suffix at %p",oldData);
 			*oldData&=~ALLOC_HEADER_LIVE_MASK;
-			}
 
 		newRoot->suffixData=newSuffixData;
 		}
 	//else
 //		root->suffixData=suffixBuilder->oldData;
 
-
-	if(routeTableBuilder->upgradedToTree || rttGetRouteTableTreeBuilderDirty(routeTableBuilder->treeBuilder))
+	// Consider re-using?
+	if(routingBuilder->upgradedToTree || rttGetRouteTableTreeBuilderDirty(routingBuilder->treeBuilder))
 		{
 		int subindex=2;
 		int subindexSize=varipackLength(subindex);
 
 		int routeTableHeaderSize=getNonRootBlockHeaderSize(sliceIndexSize, subindexSize);
-
-		int routeTableTotalSize=rtaGetRouteTableArrayBuilderPackedSize(routeTableBuilder->treeBuilder->nestedBuilder)+routeTableHeaderSize;
-
-		// Mark old block as dead
-
-		/*
-		if(oldRouteData!=NULL)
-			{
-			LOG(LOG_INFO,"Deleting route table at %p",oldRouteData);
-			*oldRouteData&=~ALLOC_HEADER_LIVE_MASK;
-			}
-*/
+		int routeTableTotalSize=rtaGetRouteTableArrayBuilderPackedSize(routingBuilder->treeBuilder->nestedBuilder)+routeTableHeaderSize;
 
 		s32 oldTagOffset=0;
 		u8 *newData=circAlloc(circHeap, routeTableTotalSize, sliceTag, sliceIndex, &oldTagOffset);
-
-//		LOG(LOG_INFO,"Writing indirect rootTable to %p %i with indexes %i %i",newData, routeTableTotalSize, sliceIndex, subindex);
-
-		//LOG(LOG_INFO,"Offset Diff: %i for %i",offsetDiff,sliceIndex);
+//		LOG(LOG_INFO,"Writing routes to %p",newData);
 
 		if(newData==NULL)
 			{
@@ -1174,21 +1085,19 @@ static void writeBuildersAsIndirectData(u8 **smerDataPtr, s8 sliceTag, s32 slice
 		encodeNonRootBlockHeader(1, sliceIndexSize, sliceIndex, subindexSize, subindex, newData);
 
 		u8 *newRouteData=newData;
-//		root->forwardRouteData[0]=newData;
 		newData+=routeTableHeaderSize;
 
-		newData=rttWriteRouteTableTreeBuilderPackedData(routeTableBuilder->treeBuilder, newData);
+		rttWriteRouteTableTreeBuilderPackedData(routingBuilder->treeBuilder, newData);
 
 		// Hacky due to moving data during alloc
 
-		u8 *rootData=(*smerDataPtr)+getIndirectRootBlockHeaderSize();
+		u8 *rootData=(*(routingBuilder->rootPtr))+getIndirectRootBlockHeaderSize();
 		RouteTableSmallRoot *newRoot=(RouteTableSmallRoot *)rootData;
 
 		u8 *oldData=newRoot->forwardRouteData[0];
 
 		if(oldData!=NULL)
 			{
-	//		LOG(LOG_INFO,"Deleting routes at %p",oldData);
 			*oldData&=~ALLOC_HEADER_LIVE_MASK;
 			}
 
@@ -1363,10 +1272,12 @@ int rtRouteReadsForSmer(RoutingIndexedReadReferenceBlock *rdi, SmerArraySlice *s
 	//if(smerData!=NULL)
 //		LOG(LOG_INFO, "Index: %i of %i Entries %i Data: %p",sliceIndex,slice->smerCount, rdi->entryCount, smerData);
 
-	SeqTailBuilder prefixBuilder, suffixBuilder;
-	RouteTableBuilder routeTableBuilder;
+	RoutingComboBuilder routingBuilder;
 
-	s32 oldHeaderSize=0, oldPrefixDataSize=0, oldSuffixDataSize=0, oldRouteTableDataSize=0;
+	routingBuilder.disp=disp;
+	routingBuilder.rootPtr=slice->smerData+sliceIndex;
+
+//	s32 oldHeaderSize=0, oldPrefixDataSize=0, oldSuffixDataSize=0, oldRouteTableDataSize=0;
 
 	if(smerData!=NULL)
 		{
@@ -1374,36 +1285,25 @@ int rtRouteReadsForSmer(RoutingIndexedReadReferenceBlock *rdi, SmerArraySlice *s
 
 		if((header&ALLOC_HEADER_LIVE_DIRECT_MASK)==ALLOC_HEADER_LIVE_DIRECT_VALUE)
 			{
-			routeTableBuilder.treeBuilder=NULL;
-
-			createBuildersFromDirectData(smerData, &oldHeaderSize,
-					&prefixBuilder, &oldPrefixDataSize, &suffixBuilder, &oldSuffixDataSize,
-					&routeTableBuilder, &oldRouteTableDataSize, disp);
-
+			createBuildersFromDirectData(&routingBuilder);
 			}
 		// ALLOC_HEADER_LIVE_INDIRECT_ROOT_VALUE
 
 		else if((header&ALLOC_HEADER_LIVE_INDIRECT_MASK)==ALLOC_HEADER_LIVE_INDIRECT_ROOT_VALUE)
 			{
-			routeTableBuilder.arrayBuilder=NULL;
-
-			createBuildersFromIndirectData(smerData, &oldHeaderSize,
-					&prefixBuilder, &oldPrefixDataSize, &suffixBuilder, &oldSuffixDataSize,
-					&routeTableBuilder, &oldRouteTableDataSize, disp);
+			createBuildersFromIndirectData(&routingBuilder);
 			}
 		else
 			{
-			routeTableBuilder.arrayBuilder=NULL;
-			routeTableBuilder.treeBuilder=NULL;
+			routingBuilder.arrayBuilder=NULL;
+			routingBuilder.treeBuilder=NULL;
 
 			LOG(LOG_CRITICAL,"Alloc header invalid %2x at %p",header,smerData);
 			}
 		}
 	else
 		{
-		createBuildersFromNullData(&oldHeaderSize,
-				&prefixBuilder, &oldPrefixDataSize, &suffixBuilder, &oldSuffixDataSize,
-				&routeTableBuilder, &oldRouteTableDataSize, disp);
+		createBuildersFromNullData(&routingBuilder);
 		}
 
 	int entryCount=rdi->entryCount;
@@ -1417,28 +1317,24 @@ int rtRouteReadsForSmer(RoutingIndexedReadReferenceBlock *rdi, SmerArraySlice *s
 	s32 maxNewPrefix=0;
 	s32 maxNewSuffix=0;
 
-	createRoutePatches(rdi, entryCount, &prefixBuilder, &suffixBuilder, forwardPatches, reversePatches,
+	createRoutePatches(rdi, entryCount,
+			&(routingBuilder.prefixBuilder), &(routingBuilder.suffixBuilder), forwardPatches, reversePatches,
 			&forwardCount, &reverseCount, &maxNewPrefix, &maxNewSuffix);
 
-	if(considerUpgradingToTree(&routeTableBuilder, forwardCount, reverseCount))
-		upgradeToTree(&routeTableBuilder, &prefixBuilder, &suffixBuilder);
+	if(considerUpgradingToTree(&routingBuilder, forwardCount, reverseCount))
+		upgradeToTree(&routingBuilder);
 
-	if(routeTableBuilder.treeBuilder!=NULL)
+	if(routingBuilder.treeBuilder!=NULL)
 		{
-		rttMergeRoutes(routeTableBuilder.treeBuilder, forwardPatches, reversePatches, forwardCount, reverseCount, maxNewPrefix, maxNewSuffix, orderedDispatches, disp);
+		rttMergeRoutes(routingBuilder.treeBuilder, forwardPatches, reversePatches, forwardCount, reverseCount, maxNewPrefix, maxNewSuffix, orderedDispatches, disp);
 
-		writeBuildersAsIndirectData(slice->smerData+sliceIndex, sliceTag, sliceIndex,
-				&prefixBuilder, &suffixBuilder, &routeTableBuilder, circHeap);
+		writeBuildersAsIndirectData(&routingBuilder, sliceTag, sliceIndex,circHeap);
 		}
 	else
 		{
-		rtaMergeRoutes(routeTableBuilder.arrayBuilder, forwardPatches, reversePatches, forwardCount, reverseCount, maxNewPrefix, maxNewSuffix, orderedDispatches, disp);
+		rtaMergeRoutes(routingBuilder.arrayBuilder, forwardPatches, reversePatches, forwardCount, reverseCount, maxNewPrefix, maxNewSuffix, orderedDispatches, disp);
 
-		writeBuildersAsDirectData(slice->smerData+sliceIndex, sliceTag, sliceIndex,
-				&prefixBuilder, oldPrefixDataSize,
-				&suffixBuilder, oldSuffixDataSize,
-				&routeTableBuilder, oldRouteTableDataSize,
-				circHeap);
+		writeBuildersAsDirectData(&routingBuilder, sliceTag, sliceIndex, circHeap);
 
 		}
 

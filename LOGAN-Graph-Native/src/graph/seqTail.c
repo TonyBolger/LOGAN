@@ -62,7 +62,6 @@ static u8 *readSeqTailBuilderPackedData(SeqTailBuilder *builder, u8 *data)
 	builder->oldTailCount=oldCount;
 	builder->totalPackedSize=totalPackedSize+2;
 
-	builder->oldData=NULL;
 	builder->oldDataSize=totalPackedSize;
 
 	return data+totalPackedSize;
