@@ -1,7 +1,10 @@
 #ifndef __ROUTE_TABLE_TREE_H
 #define __ROUTE_TABLE_TREE_H
 
-
+typedef struct rootTableGenericRootStr
+{
+	u8 *data[256];
+} RootTableGenericRoot;
 
 typedef struct routeTableSmallRootStr
 {
@@ -44,8 +47,8 @@ struct routeTableTreeBuilderStr
 
 	SeqTailBuilder *prefixBuilder;
 	SeqTailBuilder *suffixBuilder;
-	RouteTableArrayBuilder *nestedBuilder;
 
+	RouteTableArrayBuilder *nestedBuilder;
 	RouteTableSmallRoot *rootPtr;
 
 };
@@ -53,7 +56,7 @@ struct routeTableTreeBuilderStr
 
 
 u8 *rttScanRouteTableTree(u8 *data);
-u8 *rttInitRouteTableTreeBuilder(RouteTableTreeBuilder *builder, u8 *data, MemDispenser *disp);
+u8 *rttInitRouteTableTreeBuilder(RouteTableTreeBuilder *builder, u8 *data, u8 *prefixData, u8 *suffixData, u8 *routeData, MemDispenser *disp);
 void rttUpgradeToRouteTableTreeBuilder(RouteTableTreeBuilder *builder, SeqTailBuilder *prefixBuilder, SeqTailBuilder *suffixBuilder, RouteTableArrayBuilder *arrayBuilder, MemDispenser *disp);
 
 void rttDumpRoutingTable(RouteTableTreeBuilder *builder);

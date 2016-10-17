@@ -470,6 +470,13 @@ static MemCircHeapChunkIndex *moveIndexedHeap(MemCircHeap *circHeap, MemCircHeap
 		{
 		if(scan->sizeLive>0)
 			{
+			if(scan->firstLiveTagOffset==-1)
+				{
+				int currentOffset=circHeap->generations[allocGeneration].allocCurrentChunkTagOffset;
+				scan->firstLiveTagOffset=currentOffset;
+				scan->lastLiveTagOffset=currentOffset;
+				}
+
 			u8 *newChunk=allocFromGeneration(circHeap->generations+allocGeneration, scan->sizeLive,
 					scan->chunkTag, scan->firstLiveTagOffset, scan->lastLiveTagOffset, &(scan->newChunkOldTagOffset));
 
