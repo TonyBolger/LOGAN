@@ -123,27 +123,6 @@ Alloc Header:
 
 
 
-
-
-s32 rtItemSizeResolver(u8 *item)
-{
-	u8 *scanPtr;
-
-	if(item!=NULL)
-		{
-		scanPtr=item+2;
-
-		scanPtr=scanTails(scanPtr);
-		scanPtr=scanTails(scanPtr);
-		scanPtr=rtaScanRouteTableArray(scanPtr);
-
-		return scanPtr-item;
-		}
-
-	return 0;
-}
-
-
 static void dumpTagData(u8 **tagData, s32 tagDataLength)
 {
 	for(int i=0;i<tagDataLength;i++)
@@ -212,8 +191,7 @@ static s32 getDirectBlockHeaderSize()
 
 
 
-//static
-void encodeIndirectRootBlockHeader(s32 tagOffsetDiff, s32 ptrBlockSize, u8 *data)
+static void encodeIndirectRootBlockHeader(s32 tagOffsetDiff, s32 ptrBlockSize, u8 *data)
 {
 	if(tagOffsetDiff<0)
 		{
@@ -249,8 +227,7 @@ void encodeIndirectRootBlockHeader(s32 tagOffsetDiff, s32 ptrBlockSize, u8 *data
 		}
 }
 
-//static
-void decodeIndirectRootBlockHeader(u8 *data, s32 *tagOffsetDiffPtr, s32 *ptrBlockSizePtr)
+static void decodeIndirectRootBlockHeader(u8 *data, s32 *tagOffsetDiffPtr, s32 *ptrBlockSizePtr)
 {
 	u8 header=*data++;
 
@@ -271,14 +248,13 @@ void decodeIndirectRootBlockHeader(u8 *data, s32 *tagOffsetDiffPtr, s32 *ptrBloc
 
 }
 
-//static
-s32 getIndirectRootBlockHeaderSize()
+static s32 getIndirectRootBlockHeaderSize()
 {
 	return 2;
 }
 
 
-void encodeNonRootBlockHeader(u32 isLeaf, u32 indexSize, u32 index, u32 subindexSize, u32 subindex, u8 *data)
+void rtEncodeNonRootBlockHeader(u32 isLeaf, u32 indexSize, u32 index, u32 subindexSize, u32 subindex, u8 *data)
 {
 	//LOG(LOG_INFO,"Encoding Leaf: %i Index: %i %i Subindex: %i %i", isLeaf, indexSize, index, subindexSize, subindex);
 
@@ -293,13 +269,12 @@ void encodeNonRootBlockHeader(u32 isLeaf, u32 indexSize, u32 index, u32 subindex
 
 }
 
-//static
-void decodeNonRootBlockHeader(u8 *data, s32 *indexSizePtr, s32 *indexPtr, s32 *subindexSizePtr, s32 *subindexPtr)
+void rtDecodeNonRootBlockHeader(u8 *data, s32 *isLeafPtr, s32 *indexSizePtr, s32 *indexPtr, s32 *subindexSizePtr, s32 *subindexPtr)
 {
 	u8 header=*data++;
 
-//	if(isLeafPtr!=NULL)
-//		*isLeafPtr=(header>>6)&0x1;
+	if(isLeafPtr!=NULL)
+		*isLeafPtr=(header>>6)&0x1;
 
 	s32 indexSize=1+((header>>3)&0x3);
 	s32 subindexSize=1+((header>>1)&0x1);
@@ -320,8 +295,7 @@ void decodeNonRootBlockHeader(u8 *data, s32 *indexSizePtr, s32 *indexPtr, s32 *s
 
 }
 
-//static
-s32 getNonRootBlockHeaderSize(int indexSize, int subIndexSize)
+s32 rtGetNonRootBlockHeaderSize(int indexSize, int subIndexSize)
 {
 	return 1+indexSize+subIndexSize;
 }
@@ -479,12 +453,8 @@ MemCircHeapChunkIndex *rtReclaimIndexer(u8 *heapDataPtr, s64 targetAmount, u8 ta
 				decodeIndirectRootBlockHeader(heapDataPtr, &chunkTagOffsetDiff, &ptrBlockSize);
 				currentIndex+=chunkTagOffsetDiff;
 
-				s32 size=0;
+				s32 size=getIndirectRootBlockHeaderSize()+ROUTE_TABLE_ROOT_SIZE[ptrBlockSize];
 
-				if(ptrBlockSize==0)
-					size=getIndirectRootBlockHeaderSize()+sizeof(RouteTableSmallRoot);
-				else
-					LOG(LOG_CRITICAL,"Found indirect non-small root block in reclaimIndexer");
 
 				if(header & ALLOC_HEADER_LIVE_MASK)
 					{
@@ -534,11 +504,11 @@ MemCircHeapChunkIndex *rtReclaimIndexer(u8 *heapDataPtr, s64 targetAmount, u8 ta
 
 //					LOG(LOG_INFO,"Indexed leaf at %p",heapDataPtr);
 
-					decodeNonRootBlockHeader(heapDataPtr, &sindexSize, &sindex, &subindexSize, &subindex);
+					rtDecodeNonRootBlockHeader(heapDataPtr, NULL, &sindexSize, &sindex, &subindexSize, &subindex);
 
 //					LOG(LOG_INFO,"Found indirect leaf %p in reclaimIndexer with %i %i %i %i",heapDataPtr, sindexSize,sindex,subindexSize,subindex);
 
-					s32 headerSize=getNonRootBlockHeaderSize(sindexSize, subindexSize);
+					s32 headerSize=rtGetNonRootBlockHeaderSize(sindexSize, subindexSize);
 					u8 *scanPtr=heapDataPtr+headerSize;
 
 					if(subindex==0 || subindex==1)
@@ -796,65 +766,51 @@ void createBuildersFromIndirectData(RoutingComboBuilder *builder)
 	builder->arrayBuilder=NULL;
 	builder->treeBuilder=dAlloc(builder->disp, sizeof(RouteTableTreeBuilder));
 
-	RouteTableSmallRoot *root=(RouteTableSmallRoot *)(data+headerSize);
-	builder->treeBuilder->rootPtr=root;
+	RouteTableRoot *root=(RouteTableRoot *)(data+headerSize);
 
 //	LOG(LOG_INFO,"Data is %p, root is %p, p/s %p %p",data,root,root->prefixData, root->suffixData);
 
+	u8 *prefixBlockData=root->data[0];
+	u8 *suffixBlockData=root->data[1];
 
-	if((*(root->prefixData)&ALLOC_HEADER_LIVE_MASK)==0x0)
+	if((*prefixBlockData&ALLOC_HEADER_LIVE_MASK)==0x0)
 		{
 		LOG(LOG_CRITICAL,"Prefix references dead block");
 		}
 
-	if((*(root->suffixData)&ALLOC_HEADER_LIVE_MASK)==0x0)
+	if((*suffixBlockData&ALLOC_HEADER_LIVE_MASK)==0x0)
 		{
 		LOG(LOG_CRITICAL,"Suffix references dead block");
-		}
-
-	if((*(root->forwardRouteData[0])&ALLOC_HEADER_LIVE_MASK)==0x0)
-		{
-		LOG(LOG_CRITICAL,"Route Table references dead block");
 		}
 
 	s32 indexSize=0, subindexSize=0;
 
 	// Extract Prefix Info
-	decodeNonRootBlockHeader(root->prefixData, &indexSize, NULL, &subindexSize, &builder->prefixDataBlock.subindex);
-	headerSize=getNonRootBlockHeaderSize(indexSize, subindexSize);
+	rtDecodeNonRootBlockHeader(prefixBlockData, NULL, &indexSize, NULL, &subindexSize, &builder->prefixDataBlock.subindex);
+	headerSize=rtGetNonRootBlockHeaderSize(indexSize, subindexSize);
 
 	builder->prefixDataBlock.subindexSize=subindexSize;
 	builder->prefixDataBlock.headerSize=headerSize;
-	builder->prefixDataBlock.blockPtr=root->prefixData;
+	builder->prefixDataBlock.blockPtr=prefixBlockData;
 
-	u8 *prefixData=root->prefixData+getNonRootBlockHeaderSize(indexSize, subindexSize);
+	u8 *prefixData=prefixBlockData+headerSize;
 	initSeqTailBuilder(&(builder->prefixBuilder), prefixData, builder->disp);
 
 
 	// Extract Suffix Info
-	decodeNonRootBlockHeader(root->suffixData, &indexSize, NULL, &subindexSize, &builder->suffixDataBlock.subindex);
-	headerSize=getNonRootBlockHeaderSize(indexSize, subindexSize);
+	rtDecodeNonRootBlockHeader(suffixBlockData, NULL, &indexSize, NULL, &subindexSize, &builder->suffixDataBlock.subindex);
+	headerSize=rtGetNonRootBlockHeaderSize(indexSize, subindexSize);
 
 	builder->suffixDataBlock.subindexSize=subindexSize;
 	builder->suffixDataBlock.headerSize=headerSize;
-	builder->suffixDataBlock.blockPtr=root->suffixData;
+	builder->suffixDataBlock.blockPtr=suffixBlockData;
 
-	u8 *suffixData=root->suffixData+getNonRootBlockHeaderSize(indexSize, subindexSize);
+	u8 *suffixData=suffixBlockData+headerSize;
 	initSeqTailBuilder(&(builder->suffixBuilder), suffixData, builder->disp);
-
 
 	// Extract RouteTable Info
 
-	decodeNonRootBlockHeader(root->forwardRouteData[0], &indexSize, NULL, &subindexSize, &builder->routeTableDataBlock.subindex);
-	headerSize=getNonRootBlockHeaderSize(indexSize, subindexSize);
-
-	builder->suffixDataBlock.subindexSize=subindexSize;
-	builder->suffixDataBlock.headerSize=headerSize;
-	builder->suffixDataBlock.blockPtr=root->forwardRouteData[0];
-
-	//LOG(LOG_INFO,"Sizes: %i %i",indexSize, subindexSize);
-	u8 *routeData=root->forwardRouteData[0]+getNonRootBlockHeaderSize(indexSize, subindexSize);
-	rttInitRouteTableTreeBuilder(builder->treeBuilder, routeData, builder->disp);
+	rttInitRouteTableTreeBuilder(builder->treeBuilder, &(builder->topDataBlock), builder->disp);
 
 	builder->upgradedToTree=0;
 }
@@ -950,6 +906,9 @@ static void upgradeToTree(RoutingComboBuilder *builder)
 
 static void writeBuildersAsIndirectData(RoutingComboBuilder *routingBuilder, s8 sliceTag, s32 sliceIndex, MemCircHeap *circHeap)
 {
+	LOG(LOG_CRITICAL,"Not implemented: writeBuildersAsIndirectData");
+
+	/*
 	int sliceIndexSize=varipackLength(sliceIndex);
 
 	RouteTableSmallRoot *root=routingBuilder->treeBuilder->rootPtr;
@@ -992,7 +951,7 @@ static void writeBuildersAsIndirectData(RoutingComboBuilder *routingBuilder, s8 
 		int subindex=0;
 		int subindexSize=varipackLength(subindex);
 
-		int prefixHeaderSize=getNonRootBlockHeaderSize(sliceIndexSize, subindexSize);
+		int prefixHeaderSize=rtGetNonRootBlockHeaderSize(sliceIndexSize, subindexSize);
 		int prefixTotalSize=getSeqTailBuilderPackedSize(&(routingBuilder->prefixBuilder))+prefixHeaderSize;
 
 		s32 oldTagOffset=0;
@@ -1004,7 +963,7 @@ static void writeBuildersAsIndirectData(RoutingComboBuilder *routingBuilder, s8 
 			LOG(LOG_CRITICAL,"Failed at alloc after compact: Wanted %i",prefixTotalSize);
 			}
 
-		encodeNonRootBlockHeader(1, sliceIndexSize, sliceIndex, subindexSize, subindex, newData);
+		rtEncodeNonRootBlockHeader(1, sliceIndexSize, sliceIndex, subindexSize, subindex, newData);
 
 		u8 *newPrefixData=newData;
 		newData+=prefixHeaderSize;
@@ -1030,7 +989,7 @@ static void writeBuildersAsIndirectData(RoutingComboBuilder *routingBuilder, s8 
 		int subindex=1;
 		int subindexSize=varipackLength(subindex);
 
-		int suffixHeaderSize=getNonRootBlockHeaderSize(sliceIndexSize, subindexSize);
+		int suffixHeaderSize=rtGetNonRootBlockHeaderSize(sliceIndexSize, subindexSize);
 		int suffixTotalSize=getSeqTailBuilderPackedSize(&(routingBuilder->suffixBuilder))+suffixHeaderSize;
 
 		s32 oldTagOffset=0;
@@ -1042,7 +1001,7 @@ static void writeBuildersAsIndirectData(RoutingComboBuilder *routingBuilder, s8 
 			LOG(LOG_CRITICAL,"Failed at alloc after compact: Wanted %i",suffixTotalSize);
 			}
 
-		encodeNonRootBlockHeader(1, sliceIndexSize, sliceIndex, subindexSize, subindex, newData);
+		rtEncodeNonRootBlockHeader(1, sliceIndexSize, sliceIndex, subindexSize, subindex, newData);
 
 		u8 *newSuffixData=newData;
 		newData+=suffixHeaderSize;
@@ -1070,8 +1029,8 @@ static void writeBuildersAsIndirectData(RoutingComboBuilder *routingBuilder, s8 
 		int subindex=2;
 		int subindexSize=varipackLength(subindex);
 
-		int routeTableHeaderSize=getNonRootBlockHeaderSize(sliceIndexSize, subindexSize);
-		int routeTableTotalSize=rtaGetRouteTableArrayBuilderPackedSize(routingBuilder->treeBuilder->nestedBuilder)+routeTableHeaderSize;
+		int routeTableHeaderSize=rtGetNonRootBlockHeaderSize(sliceIndexSize, subindexSize);
+		int routeTableTotalSize=rttGetRouteTableTreeBuilderPackedSize(routingBuilder->treeBuilder)+routeTableHeaderSize;
 
 		s32 oldTagOffset=0;
 		u8 *newData=circAlloc(circHeap, routeTableTotalSize, sliceTag, sliceIndex, &oldTagOffset);
@@ -1082,7 +1041,7 @@ static void writeBuildersAsIndirectData(RoutingComboBuilder *routingBuilder, s8 
 			LOG(LOG_CRITICAL,"Failed at alloc after compact: Wanted %i",routeTableTotalSize);
 			}
 
-		encodeNonRootBlockHeader(1, sliceIndexSize, sliceIndex, subindexSize, subindex, newData);
+		rtEncodeNonRootBlockHeader(1, sliceIndexSize, sliceIndex, subindexSize, subindex, newData);
 
 		u8 *newRouteData=newData;
 		newData+=routeTableHeaderSize;
@@ -1103,7 +1062,7 @@ static void writeBuildersAsIndirectData(RoutingComboBuilder *routingBuilder, s8 
 
 		newRoot->forwardRouteData[0]=newRouteData;
 		}
-
+*/
 }
 
 

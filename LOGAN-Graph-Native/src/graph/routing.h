@@ -116,10 +116,13 @@ typedef struct routingComboBuilderStr
 #define ROUTING_TREE_THRESHOLD 256
 
 
-s32 rtItemSizeResolver(u8 *item);
+
+void rtEncodeNonRootBlockHeader(u32 isLeaf, u32 indexSize, u32 index, u32 subindexSize, u32 subindex, u8 *data);
+void rtDecodeNonRootBlockHeader(u8 *data, s32 *isLeafPtr, s32 *indexSizePtr, s32 *indexPtr, s32 *subindexSizePtr, s32 *subindexPtr);
+s32 rtGetNonRootBlockHeaderSize(int indexSize, int subIndexSize);
+
 MemCircHeapChunkIndex *rtReclaimIndexer(u8 *data, s64 targetAmount, u8 tag, u8 **tagData, s32 tagDataLength, s32 tagSearchOffset, MemDispenser *disp);
 void rtRelocater(MemCircHeapChunkIndex *index, u8 tag, u8 **tagData, s32 tagDataLength);
-
 
 int rtRouteReadsForSmer(RoutingIndexedReadReferenceBlock *rdi, SmerArraySlice *slice, RoutingReadData **orderedDispatches, MemDispenser *disp, MemCircHeap *circHeap, u8 sliceTag);
 
