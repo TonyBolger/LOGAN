@@ -53,6 +53,8 @@ typedef union s32floatUnion {
 
 
 
+#define ROUTING_TABLE_FORWARD 0
+#define ROUTING_TABLE_REVERSE 1
 
 
 typedef struct routePatchMergeWideReadsetStr // Represents a set of reads with same upstream, flexible positions, but potentially varied downstream
@@ -104,9 +106,13 @@ typedef struct routingComboBuilderStr
 
 	RouteTableTreeBuilder *treeBuilder;
 	HeapDataBlock topDataBlock;
+
 	HeapDataBlock prefixDataBlock;
 	HeapDataBlock suffixDataBlock;
-	HeapDataBlock routeTableDataBlock;
+	HeapDataBlock forwardBranchBlock;
+	HeapDataBlock forwardLeafBlock;
+	HeapDataBlock reverseBranchBlock;
+	HeapDataBlock reverseLeafBlock;
 
 	s32 upgradedToTree;
 

@@ -1,10 +1,9 @@
 
 #include "common.h"
 
-const s32 ROUTE_TABLE_ROOT_SIZE[]={sizeof(RouteTableSmallRoot),sizeof(RouteTableMediumRoot),sizeof(RouteTableLargeRoot),sizeof(RouteTableHugeRoot)};
 
-#define ROUTING_TABLE_FORWARD 0
-#define ROUTING_TABLE_REVERSE 1
+
+/*
 
 static void initTreeProxyElement_existing(RouteTableTreeElementProxy *proxyElement, RouteTableTreeElementProxy *parentProxy, s32 inParentIndex, u8 *data)
 {
@@ -269,7 +268,7 @@ RouteTableTreeElementProxy *walkerInsertLeafAfter(RouteTableTreeWalker *walker)
 			}
 
 		}
-*/
+
 
 
 }
@@ -358,6 +357,11 @@ void walkerAppendPreorderedEntry(RouteTableTreeWalker *walker, RouteTableEntry *
 }
 
 
+*/
+
+
+
+
 void walkerAppendPreorderedEntries(RouteTableTreeWalker *walker, RouteTableEntry *entries, u32 entryCount, int routingTable)
 {
 	walkerReset(walker);
@@ -368,23 +372,15 @@ void walkerAppendPreorderedEntries(RouteTableTreeWalker *walker, RouteTableEntry
 }
 
 
-static void initTreeProxy(RouteTableTreeProxy *proxy, u8 *blockData[], s32 routeDataCount, MemDispenser *disp)
+
+
+static void initTreeProxy(RouteTableTreeProxy *proxy, RouteTableBranchArray *branchArray, RouteTableLeafArray *leafArray, MemDispenser *disp)
 {
 	proxy->disp=disp;
 
-	for(int i=0;i<routeDataCount;i++)
-		{
-		proxy->directChildren[i]=dAlloc(disp, sizeof(RouteTableTreeElementProxy));
-		initTreeProxyElement_existing(proxy->directChildren[i], NULL, i, blockData[i]);
-		}
+	proxy->branchArray=branchArray;
+	proxy->leafArray=leafArray;
 
-	for(int i=routeDataCount; i< ROUTE_TABLE_TREE_HUGEROOT_ENTRIES; i++)
-		proxy->directChildren[i]=NULL;
-
-	proxy->directChildrenCount=routeDataCount;
-
-	proxy->newBranches=NULL;
-	proxy->newLeaves=NULL;
 }
 
 

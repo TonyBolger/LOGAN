@@ -15,20 +15,20 @@ Alloc Header:
 	. 0 x x x x x x : Direct block
 	. 1 x x x x x x : Indirect block formats
 
-	. 0 g g g x x x : Direct, g=gap exponent(1+), x=reserved
+	. 0 x x x g g g : Direct,  x=reserved, g=gap exponent(1+)
 
-	. 0 0 0 0 0 1 0 : Unused
-	. 0 0 0 0 1 0 0 : Unused
-	. 0 0 0 0 1 1 0 : Unused
+	. 1 0 0 0 i i 0 : Prefix Tail block, i=index size
+    . 1 0 0 1 i i 1 : Suffix Tail block, i=index size
+	. 1 0 0 0 i i s : Forward Leaf block, i=index size, s=subindexed block (2nd level indirect array)
+    . 1 0 0 1 i i s : Reverse Leaf block, i=index size, s=subindexed block (2nd level indirect array)
+    . 1 0 1 0 i i s : Forward Branch block, i=index size, s=subindexed block (2nd level indirect array)
+    . 1 0 1 1 i i s : Reverse Branch block, i=index size, s=subindexed block (2nd level indirect array)
+	. 1 1 1 0 g g g : Indirect root, g=gap exponent(1+), Direct node arrays
+	. 1 1 1 1 g g g : Indirect root, g=gap exponent(1+), Indirect node arrays (future)
 
-	. 1 g g g p p 0 : Indirect root, g=gap exponent(1+), p=pointer block size
+	Branches/Leaves headers are followed by 1-4 byte smer slice index, and an optional 1 byte subindex
 
-    . 1 0 i i s s 1 : Indirect route branch, i=index size, s=subindex size
-    . 1 1 i i s s 1 : Indirect route leaf, i=index size, s=subindex size
-
-	Branches/Leaves marker followed by 1-4 byte index, 1-4 bytes sub-index
-	Branches then followed with up to 256 pointers (optionally NULL)
-	Leaf is followed by size (u16)
+	Direct and Indirect root blocks encode a relative index offset vs the last such block
 
 	Gap exponent 1: 0-255 gap (with value): Exact
 	Gap exponent 2: 256-511 gap (with value+256): Exact
@@ -38,10 +38,6 @@ Alloc Header:
 	Gap exponent 6: 0xF0 Indirect root with 4096-8191 gap (with value*16+4096): 0-15
     Gap exponent 7: 0xF8 Indirect root with 8192-16383 gap (with value*32+8192): 0-31
 
-	Pointer block 1: Indirect root 4 pointers (2 tail, 1 forward route, 1 reverse route)
-	Pointer block 2: Indirect root 16 pointers (2 tail, 7 forward route, 7 reverse route)
-	Pointer block 3: Indirect root 64 pointers (2 tail, 31 forward route, 31 reverse route)
-	Pointer block 4: Indirect root 256 pointers (2 tail, 127 forward route, 127 reverse route)
 
 
 	x 0 x x x x 1 x : Large # prefixes (>255)
@@ -49,14 +45,6 @@ Alloc Header:
 
 	x 0 x x x x x 1 : Large # suffixes (>255)
 	x 0 x x x x x 0 : Small # suffixes
-
-
-
-
-
-    Indirect root -> 256 * Branch high level
-    Branch HL -> 256 * Branch mid level
-    Branch ML ->
 
  */
 
@@ -89,26 +77,29 @@ Alloc Header:
 #define ALLOC_HEADER_LIVE_DIRECT_MASK 0xC0					// ? ? - -  - - - -
 #define ALLOC_HEADER_LIVE_DIRECT_VALUE 0x80					// 1 0 - -  - - - -
 
-#define ALLOC_HEADER_DIRECT_GAPSIZE_MASK 0x38				// - - ? ?  ? - - -
-#define ALLOC_HEADER_LIVE_DIRECT_GAPSMALL 0x88              // 1 0 0 0  1 0 0 0
+#define ALLOC_HEADER_DIRECT_GAPSIZE_MASK 0x07				// - - - -  - ? ? ?
+#define ALLOC_HEADER_LIVE_DIRECT_GAPSMALL 0x81              // 1 0 0 0  0 0 0 1
 
 // Check type of Indirect
 
-#define ALLOC_HEADER_INDIRECT_MASK 0x41     				// ? ? - -  - - - ?
-#define ALLOC_HEADER_INDIRECT_ROOT_VALUE 0x40    			// 1 1 - -  - - - 0
-#define ALLOC_HEADER_INDIRECT_NONROOT_VALUE 0x41	 		// 1 1 - -  - - - 1
+#define ALLOC_HEADER_INDIRECT_TOP_MASK  0x70   				// - ? ? ?  - - - -
+#define ALLOC_HEADER_INDIRECT_TAIL_VALUE 0x70    			// - 1 0 0  - - - -
+#define ALLOC_HEADER_INDIRECT_LEAF_VALUE 0x70    			// - 1 0 1  - - - -
+#define ALLOC_HEADER_INDIRECT_BRANCH_VALUE 0x70    			// - 1 1 0  - - - -
+#define ALLOC_HEADER_INDIRECT_TOP_VALUE 0x70    			// - 1 1 1  - - - -
 
-#define ALLOC_HEADER_LIVE_INDIRECT_MASK 0xC1     			// ? ? - -  - - - ?
-#define ALLOC_HEADER_LIVE_INDIRECT_ROOT_VALUE 0xC0    		// 1 1 - -  - - - 0
-#define ALLOC_HEADER_LIVE_INDIRECT_NONROOT_VALUE 0xC1		// 1 1 - -  - - - 1
+//. 1 1 1 1 g g g
 
+#define ALLOC_HEADER_LIVE_INDIRECT_TOP_MASK  0xF0     		// ? ? ? ?  - - - -
+#define ALLOC_HEADER_LIVE_INDIRECT_TOP_VALUE 0xF0    		// 1 1 1 1  - - - -
 
-#define ALLOC_HEADER_INDIRECT_ROOT_GAPSIZE_MASK 0x38  		// - - ? ?  ? - - -
-#define ALLOC_HEADER_INDIRECT_ROOT_PTRSIZE_MASK 0x06   		// - - - -  - ? ? -
+#define ALLOC_HEADER_INDIRECT_TOP_GAPSIZE_MASK 0x07  		// - - - -  - ? ? ?
 
-#define ALLOC_HEADER_LIVE_INDIRECT_ROOT_GAPSMALL 0xC8   	// 1 1 0 0  1 0 0 0
+#define ALLOC_HEADER_LIVE_INDIRECT_ROOT_GAPSMALL 0xC1   	// 1 1 0 0  0 0 0 1
 
 // Check type of NonRoot
+
+
 
 #define ALLOC_HEADER_NONROOT_MASK 0x61						// - ? ? -  - - - ?
 #define ALLOC_HEADER_NONROOT_BRANCH 0x41					// - 1 0 -  - - - 1
@@ -119,7 +110,12 @@ Alloc Header:
 #define ALLOC_HEADER_LIVE_NONROOT_LEAF 0xE1					// 1 1 1 -  - - - 1
 
 
-
+//	. 1 0 0 0 i i x : Prefix Tail block, i=index size
+//  . 1 0 0 1 i i x : Suffix Tail block, i=index size
+//	. 1 0 1 0 i i s : Forward Branch block, i=index size, s=subindexed block (2nd level indirect array)
+//  . 1 0 1 0 i i s : Reverse Branch block, i=index size, s=subindexed block (2nd level indirect array)
+//  . 1 1 0 1 i i s : Forward Leaf block, i=index size, s=subindexed block (2nd level indirect array)
+//  . 1 1 0 1 i i s : Reverse Leaf block, i=index size, s=subindexed block (2nd level indirect array)
 
 
 
@@ -453,8 +449,7 @@ MemCircHeapChunkIndex *rtReclaimIndexer(u8 *heapDataPtr, s64 targetAmount, u8 ta
 				decodeIndirectRootBlockHeader(heapDataPtr, &chunkTagOffsetDiff, &ptrBlockSize);
 				currentIndex+=chunkTagOffsetDiff;
 
-				s32 size=getIndirectRootBlockHeaderSize()+ROUTE_TABLE_ROOT_SIZE[ptrBlockSize];
-
+				s32 size=getIndirectRootBlockHeaderSize()+sizeof(RouteTableBlockTop);
 
 				if(header & ALLOC_HEADER_LIVE_MASK)
 					{
@@ -625,10 +620,12 @@ void rtRelocater(MemCircHeapChunkIndex *index, u8 tag, u8 **tagData, s32 tagData
 			{
 			//LOG(LOG_INFO,"Leaf/Branch %i %i %i",size,sindex,subindex);
 
-			RouteTableSmallRoot *rootPtr=(RouteTableSmallRoot *)((*primaryPtr)+getIndirectRootBlockHeaderSize());
+			RouteTableBlockTop *topPtr=(RouteTableBlockTop *)((*primaryPtr)+getIndirectRootBlockHeaderSize());
 
 			u8 *dataPtr=NULL;
 
+			LOG(LOG_CRITICAL,"Fix me");
+			/*
 			if(subindex==0)
 				{
 				dataPtr=rootPtr->prefixData;
@@ -644,6 +641,7 @@ void rtRelocater(MemCircHeapChunkIndex *index, u8 tag, u8 **tagData, s32 tagData
 				dataPtr=rootPtr->forwardRouteData[0];
 				rootPtr->forwardRouteData[0]=newChunk;
 				}
+*/
 
 //			LOG(LOG_INFO,"Moving indirect leaf to %p, ref by %p",newChunk,*primaryPtr);
 
@@ -766,12 +764,12 @@ void createBuildersFromIndirectData(RoutingComboBuilder *builder)
 	builder->arrayBuilder=NULL;
 	builder->treeBuilder=dAlloc(builder->disp, sizeof(RouteTableTreeBuilder));
 
-	RouteTableRoot *root=(RouteTableRoot *)(data+headerSize);
+	RouteTableBlockTop *root=(RouteTableBlockTop *)(data+headerSize);
 
 //	LOG(LOG_INFO,"Data is %p, root is %p, p/s %p %p",data,root,root->prefixData, root->suffixData);
 
-	u8 *prefixBlockData=root->data[0];
-	u8 *suffixBlockData=root->data[1];
+	u8 *prefixBlockData=root->prefixData;
+	u8 *suffixBlockData=root->suffixData;
 
 	if((*prefixBlockData&ALLOC_HEADER_LIVE_MASK)==0x0)
 		{

@@ -3,132 +3,92 @@
 
 // Route Table is loosely similar to a B-tree
 
-// Route Table Root
-// All modes: 0: prefix, 1: suffix
-// Small mode:   4 in total, 2: forward, 3: reverse
-// Medium mode: 16 in total, 2-8: forward, 9-15: reverse
-// Large mode:  64 in total, 2-32: forward, 33-63: reverse
-// Huge mode:  256 in total, 2-128: forward, 129-255: reverse
+// Route Table Root: Contains block ptrs as follows:
+// 2 tail blocks: prefix and suffix
+// Forward Branch block
+// Forward Leaf block
+// Reverse Branch block
+// Reverse Leaf block
 
 // Branches contain a min/max upstream id range. Leaves contain a precise upstream ID
 //
-// Minimum Valid tree: Small Root -> Leaf
-//
-
-#define ROUTE_TABLE_TREE_SMALLROOT_ENTRIES 1
-#define ROUTE_TABLE_TREE_MEDIUMROOT_ENTRIES 7
-#define ROUTE_TABLE_TREE_LARGEROOT_ENTRIES 31
-#define ROUTE_TABLE_TREE_HUGEROOT_ENTRIES 127
+// Minimum Valid tree: Empty root
 
 #define ROUTE_TABLE_TREE_BRANCH_CHILDREN 256
 #define ROUTE_TABLE_TREE_LEAF_ENTRIES 256
 
-typedef struct rootTableGenericRootStr
-{
-	u8 *data[256];
-} RouteTableRoot;
+/* Structs representing the various parts of the tree in heap-block format */
 
-typedef struct routeTableSmallRootStr
+typedef struct rootTableTopBlockStr
 {
 	u8 *prefixData;
 	u8 *suffixData;
-	u8 *forwardRouteData[ROUTE_TABLE_TREE_SMALLROOT_ENTRIES];
-	u8 *reverseRouteData[ROUTE_TABLE_TREE_SMALLROOT_ENTRIES];
-} RouteTableSmallRoot;
 
-typedef struct routeTableMediumRootStr
+	u8 *forwardLeaves;   // Either a leaf array or a nested array, each to leaf arrays
+	u8 *reverseLeaves;   // Either a leaf array or a nested array, each to leaf arrays
+
+	u8 *forwardBranches; // Either a branch array or a nested array, each to branch arrays
+	u8 *reverseBranches; // Either a branch array or a nested array, each to branch arrays
+
+} __attribute__((packed)) RouteTableBlockTop;
+
+typedef struct routeTableBranchBlockStr
 {
-	u8 *prefixData;
-	u8 *suffixData;
-	u8 *forwardRouteData[ROUTE_TABLE_TREE_MEDIUMROOT_ENTRIES];
-	u8 *reverseRouteData[ROUTE_TABLE_TREE_MEDIUMROOT_ENTRIES];
-} RouteTableMediumRoot;
+	s16 childCount;
+	s16 parentIndex;
 
-typedef struct routeTableLargeRootStr
-{
-	u8 *prefixData;
-	u8 *suffixData;
-	u8 *forwardRouteData[ROUTE_TABLE_TREE_LARGEROOT_ENTRIES];
-	u8 *reverseRouteData[ROUTE_TABLE_TREE_LARGEROOT_ENTRIES];
-} RouteTableLargeRoot;
-
-typedef struct routeTableHugeRootStr
-{
-	u8 *prefixData;
-	u8 *suffixData;
-	u8 *forwardRouteData[ROUTE_TABLE_TREE_HUGEROOT_ENTRIES];
-	u8 *reverseRouteData[ROUTE_TABLE_TREE_HUGEROOT_ENTRIES];
-} RouteTableHugeRoot;
-
-extern const s32 ROUTE_TABLE_ROOT_SIZE[];
-
-typedef struct routeTableBranchStr
-{
 	s16 upstreamMin;
 	s16 upstreamMax;
-	u8 *childData[ROUTE_TABLE_TREE_BRANCH_CHILDREN];
-} RouteTableBranch;
+
+	s16 childIndex[ROUTE_TABLE_TREE_BRANCH_CHILDREN];
+} __attribute__((packed)) RouteTableBranchBlock;
 
 typedef struct routeTableLeafEntryStr
 {
 	s16 downstream;
 	s16 width;
-} RouteTableLeafEntry;
+} __attribute__((packed)) RouteTableLeafEntry;
 
-typedef struct routeTableLeafStr
+typedef struct routeTableLeafBlockStr
 {
+	s16 entryCount;
+
+	s16 parentIndex;
 	s16 upstream;
 	RouteTableLeafEntry entries[ROUTE_TABLE_TREE_LEAF_ENTRIES];
-} RouteTableLeaf;
+} __attribute__((packed)) RouteTableLeafBlock;
 
-
-typedef struct routeTableTreeElementProxyStr
+/*
+typedef struct routeTableNestedArrayBlockStr
 {
-	struct routeTableTreeElementProxyStr *next;
+	u8 dataCount;
+	u8 *nestedData[];
+} __attribute__((packed)) RouteTableNestedArrayBlock;
+*/
 
-	struct routeTableTreeElementProxyStr *parentProxy; // if attached to branch, NULL if attached to root
-	s32 inParentIndex; // Always starts at zero - Corrected for tails and other routing table
 
-	u8 *blockData; // Set if the data in the GC heap, NULL if new
 
-	RouteTableBranch *branchData; // Branches only: May be either temporary or GC heap memory
-	struct routeTableTreeElementProxyStr **childProxies; // For branches only, created as needed
-	s32 childProxyCount;
 
-	RouteTableLeaf *leafData; // Leaves only: May be either temporary or GC heap memory
-	s32 leafEntryCount;
 
-	s32 headerDirty; // Need to rewrite header
-	s32 contentDirty; // Need to rewrite header
+/* Structs wrapping the heap-format tree, allowing nicer manipulation */
 
-} RouteTableTreeElementProxy;
 
 typedef struct routeTableTreeProxyStr
 {
 	MemDispenser *disp;
 
-	RouteTableTreeElementProxy *directChildren[ROUTE_TABLE_TREE_HUGEROOT_ENTRIES];
-	s32 directChildrenCount;
-	s32 contentDirty;
 
-	RouteTableTreeElementProxy *newBranches;
-	RouteTableTreeElementProxy *newLeaves;
 
+//	RouteTableBranchArray *branchArray;
+//	RouteTableLeafArray *leafArray;
 } RouteTableTreeProxy;
 
 typedef struct routeTableTreeWalkerStr
 {
 	RouteTableTreeProxy *treeProxy;
-	s32 rootIndex; // Index in root
 
-	RouteTableTreeElementProxy *firstBranchProxy; // If at least one branch level
-	s32 firstBranchIndex;
-
-	RouteTableTreeElementProxy *secondBranchProxy; // If two branch levels
-	s32 secondBranchIndex;
-
-	RouteTableTreeElementProxy *leafProxy; // If at least one leaf
-	s32 leafIndex;
+	s16 currentNodeIndex;
+	s16 currentLeafEntry;
 
 } RouteTableTreeWalker;
 
