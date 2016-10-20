@@ -14,12 +14,16 @@
 //
 // Minimum Valid tree: Empty root
 
-#define ROUTE_TABLE_TREE_BRANCH_CHILDREN 256
-#define ROUTE_TABLE_TREE_LEAF_ENTRIES 256
+//
+
+#define ROUTE_TABLE_TREE_ARRAY_ENTRIES 1024
+
+#define ROUTE_TABLE_TREE_BRANCH_CHILDREN 64
+#define ROUTE_TABLE_TREE_LEAF_ENTRIES 1024
 
 /* Structs representing the various parts of the tree in heap-block format */
 
-typedef struct rootTableTopBlockStr
+typedef struct rootTableTreeTopBlockStr
 {
 	u8 *prefixData;
 	u8 *suffixData;
@@ -30,9 +34,12 @@ typedef struct rootTableTopBlockStr
 	u8 *forwardBranches; // Either a branch array or a nested array, each to branch arrays
 	u8 *reverseBranches; // Either a branch array or a nested array, each to branch arrays
 
-} __attribute__((packed)) RouteTableBlockTop;
+//	u8 *forwardOffsetIndex;
+//	u8 *reverseOffsetIndex;
+} __attribute__((packed)) RouteTableTreeTopBlock;
 
-typedef struct routeTableBranchBlockStr
+
+typedef struct routeTableTreeBranchBlockStr
 {
 	s16 childCount;
 	s16 parentIndex;
@@ -40,14 +47,14 @@ typedef struct routeTableBranchBlockStr
 	s16 upstreamMin;
 	s16 upstreamMax;
 
-	s16 childIndex[ROUTE_TABLE_TREE_BRANCH_CHILDREN];
-} __attribute__((packed)) RouteTableBranchBlock;
+	s16 childIndex[]; // Max is ROUTE_TABLE_TREE_BRANCH_CHILDREN
+} __attribute__((packed)) RouteTableTreeBranchBlock;
 
-typedef struct routeTableLeafEntryStr
+typedef struct routeTableTreeLeafEntryStr
 {
 	s16 downstream;
 	s16 width;
-} __attribute__((packed)) RouteTableLeafEntry;
+} __attribute__((packed)) RouteTableTreeLeafEntry;
 
 typedef struct routeTableLeafBlockStr
 {
@@ -55,16 +62,30 @@ typedef struct routeTableLeafBlockStr
 
 	s16 parentIndex;
 	s16 upstream;
-	RouteTableLeafEntry entries[ROUTE_TABLE_TREE_LEAF_ENTRIES];
-} __attribute__((packed)) RouteTableLeafBlock;
+	RouteTableTreeLeafEntry entries[]; // Max is ROUTE_TABLE_TREE_LEAF_ENTRIES
+} __attribute__((packed)) RouteTableTreeLeafBlock;
 
-/*
-typedef struct routeTableNestedArrayBlockStr
+
+typedef struct routeTableTreeOffsetBlockStr
 {
-	u8 dataCount;
-	u8 *nestedData[];
-} __attribute__((packed)) RouteTableNestedArrayBlock;
-*/
+	s16 entryCount;
+
+	s16 upstreamMin;
+	s16 upstreamCount;
+	s16 downstreamMin;
+	s16 downstreamCount;
+
+	s32 offsets[];
+} __attribute__((packed)) RouteTableTreeOffsetBlock;
+
+
+
+typedef struct routeTableTreeArrayBlockStr
+{
+	u16 dataCount;
+	u8 *data[];
+} __attribute__((packed)) RouteTableTreeArrayBlock;
+
 
 
 

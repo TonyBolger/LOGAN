@@ -9,24 +9,80 @@ Alloc Header:
 
     1 0 0 0 0 0 0 0 : CHUNK: Start of chunk header (with 1 byte tag)
 
-	1 x x x x x x x : Live block
-	0 x x x x x x x : Dead block
+	1 x x x x x x x : Live block (127 options)
+	0 x x x x x x x : Dead block (127 options)
 
-	. 0 x x x x x x : Direct block
-	. 1 x x x x x x : Indirect block formats
+	. 0 0 . . g g g: g=gap exponent(1+)
+	. 0 1 . . . i i: Index Size (1-4)
+	. 1 0 . . . i i: Index Size (1-4)
+	. 1 1 . . . i i: Index Size (1-4)
 
-	. 0 x x x g g g : Direct,  x=reserved, g=gap exponent(1+)
+	3 live, 3 dead options
 
-	. 1 0 0 0 i i 0 : Prefix Tail block, i=index size
-    . 1 0 0 1 i i 1 : Suffix Tail block, i=index size
-	. 1 0 0 0 i i s : Forward Leaf block, i=index size, s=subindexed block (2nd level indirect array)
-    . 1 0 0 1 i i s : Reverse Leaf block, i=index size, s=subindexed block (2nd level indirect array)
-    . 1 0 1 0 i i s : Forward Branch block, i=index size, s=subindexed block (2nd level indirect array)
-    . 1 0 1 1 i i s : Reverse Branch block, i=index size, s=subindexed block (2nd level indirect array)
-	. 1 1 1 0 g g g : Indirect root, g=gap exponent(1+), Direct node arrays
-	. 1 1 1 1 g g g : Indirect root, g=gap exponent(1+), Indirect node arrays (future)
+	. 0 0 0 1 0 0 0: Unused
+    . 0 0 1 0 0 0 0: Unused
+    . 0 0 1 1 0 0 0: Unused
 
-	Branches/Leaves headers are followed by 1-4 byte smer slice index, and an optional 1 byte subindex
+	14 live, 14 dead options
+
+	. 0 0 0 0 g g g: Direct (2 byte header)
+    . 0 0 0 1 g g g: Indirect Top (2 byte header)				RouteTableTreeTopBlock
+
+    16 live, 16 dead options
+
+    . 0 0 1 0 0 i i: Prefix Tail block, standard
+    . 0 0 1 0 1 i i: Prefix Tail block, big/alternate?
+    . 0 0 1 1 0 i i: Prefix Tail block, standard
+    . 0 0 1 1 1 i i: Suffix Tail block, big/alternate?
+
+	32 live, 32 dead options
+
+      0 1 0 0 0 i i: Forward Leaf Shallow Ptr					RouteTableTreeArrayBlock
+      0 1 0 0 1 i i: Forward Leaf Deep Ptr (1 byte sub)			RouteTableTreeArrayBlock
+      0 1 0 1 0 i i: Forward Leaf Shallow Data (1 byte sub)		RouteTableTreeLeafBlock
+      0 1 0 1 1 i i: Forward Leaf Deep Data (2 byte sub)		RouteTableTreeLeafBlock
+
+      0 1 1 0 0 i i: Reverse Leaf Shallow Ptr					RouteTableTreeArrayBlock
+      0 1 1 0 1 i i: Reverse Leaf Deep Ptr (1 byte sub)			RouteTableTreeArrayBlock
+      0 1 1 1 0 i i: Reverse Leaf Shallow Data (1 byte sub)		RouteTableTreeLeafBlock
+      0 1 1 1 1 i i: Reverse Leaf Deep Data (2 byte sub)		RouteTableTreeLeafBlock
+
+	32 live, 32 dead options
+
+      1 0 0 0 0 i i: Forward Branch Shallow Ptr					RouteTableTreeArrayBlock
+      1 0 0 1 1 i i: Forward Branch Deep Ptr (1 byte sub)		RouteTableTreeArrayBlock
+      1 0 1 0 0 i i: Forward Branch Shallow Data (1 byte sub)	RouteTableTreeBranchBlock
+      1 0 1 1 1 i i: Forward Branch Deep Data (2 byte sub)		RouteTableTreeBranchBlock
+
+      1 0 0 0 0 i i: Reverse Branch Shallow Ptr					RouteTableTreeArrayBlock
+      1 0 0 1 1 i i: Reverse Branch Deep Ptr (1 byte sub)		RouteTableTreeArrayBlock
+      1 0 1 0 0 i i: Reverse Branch Shallow Data (1 byte sub)	RouteTableTreeBranchBlock
+      1 0 1 1 1 i i: Reverse Branch Deep Data (2 byte sub)		RouteTableTreeBranchBlock
+
+	32 live, 32 dead options
+
+      1 1 0 0 0 i i: Forward Offset Shallow Ptr					RouteTableTreeArrayBlock
+      1 1 0 1 1 i i: Forward Offset Deep Ptr (1 byte sub)		RouteTableTreeArrayBlock
+      1 1 1 0 0 i i: Forward Offset Shallow Data (1 byte sub)	RouteTableTreeOffsetBlock
+      1 1 1 1 1 i i: Forward Offset Deep Data (2 byte sub)		RouteTableTreeOffsetBlock
+
+      1 1 0 0 0 i i: Reverse Offset Shallow Ptr					RouteTableTreeArrayBlock
+      1 1 0 1 1 i i: Reverse Offset Deep Ptr (1 byte sub)		RouteTableTreeArrayBlock
+      1 1 1 0 0 i i: Reverse Offset Shallow Data (1 byte sub)	RouteTableTreeOffsetBlock
+      1 1 1 1 1 i i: Reverse Offset Deep Data (2 byte sub)		RouteTableTreeOffsetBlock
+
+
+ Tree Related
+
+ 	. 0 1 Leaf
+	. 1 0 Branch
+	. 1 1 Offset
+          x 		Fwd/Rev
+	        x 	Pointer/Data
+	          x   	Shallow/Deep
+	            i i
+
+
 
 	Direct and Indirect root blocks encode a relative index offset vs the last such block
 
@@ -68,46 +124,92 @@ Alloc Header:
 
 #define ALLOC_HEADER_LIVE_MASK 0x80							// ? - - -  - - - -
 
-// Check Direct
+// Check Gap-coded											// . 0 0 0  . g g g: g=gap exponent(1+)
 
-#define ALLOC_HEADER_DIRECT_MASK 0x40						// - ? - -  - - - -
-#define ALLOC_HEADER_DIRECT_VALUE 0x00						// - 0 - -  - - - -
-#define ALLOC_HEADER_INDIRECT_VALUE 0x40					// - 1 - -  - - - -
+#define ALLOC_HEADER_GAP_MASK 0x70	 						// - ? ? ?  - - - -
+#define ALLOC_HEADER_GAP_VALUE 0x00							// - 0 0 0  - - - -
+#define ALLOC_HEADER_TAIL_VALUE 0x10						// - 0 0 1  - - - -
+#define ALLOC_HEADER_FWDLEAF_VALUE 0x20 		   			// - 0 1 0  - - - -
+#define ALLOC_HEADER_REVLEAF_VALUE 0x30 		   			// - 0 1 1  - - - -
+#define ALLOC_HEADER_FWDBRANCH_VALUE 0x40    				// - 1 0 0  - - - -
+#define ALLOC_HEADER_REVBRANCH_VALUE 0x50    				// - 1 0 1  - - - -
+#define ALLOC_HEADER_FWDOFFSET_VALUE 0x60    				// - 1 1 0  - - - -
+#define ALLOC_HEADER_REVOFFSET_VALUE 0x70    				// - 1 1 1  - - - -
 
-#define ALLOC_HEADER_LIVE_DIRECT_MASK 0xC0					// ? ? - -  - - - -
-#define ALLOC_HEADER_LIVE_DIRECT_VALUE 0x80					// 1 0 - -  - - - -
+// Check Gap-coded & live
+#define ALLOC_HEADER_LIVE_GAP_MASK 0xE0						// ? ? ? ?  - - - -
+#define ALLOC_HEADER_LIVE_GAP_VALUE 0x80					// 1 0 0 0  - - - -
+#define ALLOC_HEADER_LIVE_TAIL_VALUE 0x90					// 1 0 0 1  - - - -
+#define ALLOC_HEADER_LIVE_FWDLEAF_VALUE 0xA0 				// 1 0 1 0  - - - -
+#define ALLOC_HEADER_LIVE_REVLEAF_VALUE 0xB0 				// 1 0 1 1  - - - -
+#define ALLOC_HEADER_LIVE_FWDBRANCH_VALUE 0xC0    			// 1 1 0 0  - - - -
+#define ALLOC_HEADER_LIVE_REVBRANCH_VALUE 0xD0    			// 1 1 0 1  - - - -
+#define ALLOC_HEADER_LIVE_FWDOFFSET_VALUE 0xE0    			// 1 1 1 0  - - - -
+#define ALLOC_HEADER_LIVE_REVOFFSET_VALUE 0xF0    			// 1 1 1 1  - - - -
 
-#define ALLOC_HEADER_DIRECT_GAPSIZE_MASK 0x07				// - - - -  - ? ? ?
-#define ALLOC_HEADER_LIVE_DIRECT_GAPSMALL 0x81              // 1 0 0 0  0 0 0 1
+#define ALLOC_HEADER_GAP_TYPE_MASK 0x78			// Tree en			// - ? ? ?  ? - - -
+#define ALLOC_HEADER_GAP_DIRECT_VALUE 0x00					// - 0 0 0  0 - - -
+#define ALLOC_HEADER_GAP_TOP_VALUE  0x08					// - 0 0 0  1 - - -
 
-// Check type of Indirect
+#define ALLOC_HEADER_GAPSIZE_MASK 0x07				        // - - - -  - ? ? ?
 
-#define ALLOC_HEADER_INDIRECT_TOP_MASK  0x70   				// - ? ? ?  - - - -
-#define ALLOC_HEADER_INDIRECT_TAIL_VALUE 0x70    			// - 1 0 0  - - - -
-#define ALLOC_HEADER_INDIRECT_LEAF_VALUE 0x70    			// - 1 0 1  - - - -
-#define ALLOC_HEADER_INDIRECT_BRANCH_VALUE 0x70    			// - 1 1 0  - - - -
-#define ALLOC_HEADER_INDIRECT_TOP_VALUE 0x70    			// - 1 1 1  - - - -
+#define ALLOC_HEADER_ARRAYFMT_MASK 0x0C				        // - - - -  ? ? - -
+#define ALLOC_HEADER_ARRAYFMT_SHALLOWPTR_VALUE 0x00       	// - - - -  0 0 - -
+#define ALLOC_HEADER_ARRAYFMT_DEEPPTR_VALUE 0x04			// - - - -  0 1 - -
+#define ALLOC_HEADER_ARRAYFMT_SHALLOWDATA_VALUE 0x08		// - - - -  1 0 - -
+#define ALLOC_HEADER_ARRAYFMT_DEEPDATA_VALUE 0x0C			// - - - -  1 1 - -
+
+#define ALLOC_HEADER_INDEX_MASK 0x03				        // - - - -  - - ? ?
+
+
+
+
+
+
+
+
+//#define ALLOC_HEADER_INTOP_VALUE 0x20			            // - 0 1 -  - - - -
+
+//#define ALLOC_HEADER_LIVE_DIRECT_MASK 0xC0					// ? ? ? -  - - - -
+//#define ALLOC_HEADER_LIVE_DIRECT_VALUE 0x80					// 1 0 0 -  - - - -
+//#define ALLOC_HEADER_LIVE_INDIRECT_TOP_VALUE 0x80			// 1 0 0 -  - - - -
+
+//#define ALLOC_HEADER_GAPSIZE_MASK 0x07				        // - - - -  - ? ? ?
+//#define ALLOC_HEADER_LIVE_DIRECT_GAPSMALL 0x81              // 1 0 0 0  0 0 0 1
+//#define ALLOC_HEADER_LIVE_INTOP_GAPSMALL 0x81               // 1 0 1 0  0 0 0 1
+
+// Check type of Indirect Member (not top)
+
+//#define ALLOC_HEADER_INDIRECT_MASK  0x70   			  	    // - ? ? ?  - - - -
+//#define ALLOC_HEADER_INDIRECT_TAIL_VALUE 0x70    			// - 1 0 0  - - - -
+//#define ALLOC_HEADER_INDIRECT_LEAF_VALUE 0x70    			// - 1 0 1  - - - -
+//#define ALLOC_HEADER_INDIRECT_BRANCH_VALUE 0x70    			// - 1 1 0  - - - -
+//#define ALLOC_HEADER_INDIRECT_TOP_VALUE 0x70    			// - 1 1 1  - - - -
 
 //. 1 1 1 1 g g g
 
-#define ALLOC_HEADER_LIVE_INDIRECT_TOP_MASK  0xF0     		// ? ? ? ?  - - - -
-#define ALLOC_HEADER_LIVE_INDIRECT_TOP_VALUE 0xF0    		// 1 1 1 1  - - - -
 
-#define ALLOC_HEADER_INDIRECT_TOP_GAPSIZE_MASK 0x07  		// - - - -  - ? ? ?
+//#define ALLOC_HEADER_LIVE_INDIRECT_TOP_MASK  0xF0     		// ? ? ? ?  - - - -
+//#define ALLOC_HEADER_LIVE_INDIRECT_TOP_VALUE 0xF0    		// 1 1 1 1  - - - -
 
-#define ALLOC_HEADER_LIVE_INDIRECT_ROOT_GAPSMALL 0xC1   	// 1 1 0 0  0 0 0 1
+//#define ALLOC_HEADER_INDIRECT_TOP_GAPSIZE_MASK 0x07  		// - - - -  - ? ? ?
+//#define ALLOC_HEADER_LIVE_INDIRECT_ROOT_GAPSMALL 0xC1   	// 1 1 0 0  0 0 0 1
 
 // Check type of NonRoot
 
 
 
-#define ALLOC_HEADER_NONROOT_MASK 0x61						// - ? ? -  - - - ?
-#define ALLOC_HEADER_NONROOT_BRANCH 0x41					// - 1 0 -  - - - 1
-#define ALLOC_HEADER_NONROOT_LEAF 0x61						// - 1 1 -  - - - 1
 
-#define ALLOC_HEADER_LIVE_NONROOT_MASK 0xE1					// ? ? ? -  - - - ?
-#define ALLOC_HEADER_LIVE_NONROOT_BRANCH 0xC1				// 1 1 0 -  - - - 1
-#define ALLOC_HEADER_LIVE_NONROOT_LEAF 0xE1					// 1 1 1 -  - - - 1
+
+
+
+//#define ALLOC_HEADER_NONROOT_MASK 0x61						// - ? ? -  - - - ?
+//#define ALLOC_HEADER_NONROOT_BRANCH 0x41					// - 1 0 -  - - - 1
+//#define ALLOC_HEADER_NONROOT_LEAF 0x61						// - 1 1 -  - - - 1
+
+//#define ALLOC_HEADER_LIVE_NONROOT_MASK 0xE1					// ? ? ? -  - - - ?
+//#define ALLOC_HEADER_LIVE_NONROOT_BRANCH 0xC1				// 1 1 0 -  - - - 1
+//#define ALLOC_HEADER_LIVE_NONROOT_LEAF 0xE1					// 1 1 1 -  - - - 1
 
 
 //	. 1 0 0 0 i i x : Prefix Tail block, i=index size
