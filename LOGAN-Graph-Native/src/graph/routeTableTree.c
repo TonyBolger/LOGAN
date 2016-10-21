@@ -374,12 +374,12 @@ void walkerAppendPreorderedEntries(RouteTableTreeWalker *walker, RouteTableEntry
 
 
 
-static void initTreeProxy(RouteTableTreeProxy *proxy, RouteTableBranchArray *branchArray, RouteTableLeafArray *leafArray, MemDispenser *disp)
+static void initTreeProxy(RouteTableTreeProxy *proxy, RouteTableTreeBranchBlock *branchArray, RouteTableTreeLeafBlock *leafArray, MemDispenser *disp)
 {
 	proxy->disp=disp;
 
-	proxy->branchArray=branchArray;
-	proxy->leafArray=leafArray;
+//	proxy->branchArray=branchArray;
+//	proxy->leafArray=leafArray;
 
 }
 
@@ -429,7 +429,7 @@ s32 rttGetRouteTableTreeBuilderDirty(RouteTableTreeBuilder *builder)
 
 s32 rttGetRouteTableTreeBuilderPackedSize(RouteTableTreeBuilder *builder)
 {
-	return ROUTE_TABLE_ROOT_SIZE[builder->rootSize];
+	return sizeof(RouteTableTreeTopBlock);
 }
 
 u8 *rttWriteRouteTableTreeBuilderPackedData(RouteTableTreeBuilder *builder, u8 *data)

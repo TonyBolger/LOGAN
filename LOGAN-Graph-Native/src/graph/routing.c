@@ -25,15 +25,30 @@ Alloc Header:
 
 	14 live, 14 dead options
 
-	. 0 0 0 0 g g g: Direct (2 byte header)
-    . 0 0 0 1 g g g: Indirect Top (2 byte header)				RouteTableTreeTopBlock
+	. 0 0 0 1 g g g: Direct (2 byte header)
+    . 0 0 1 1 g g g: Indirect Top ( byte header)				RouteTableTreeTopBlock
+
+
+    . 0 0 0 1 g g g: Direct
+    . 0 0 1 1 g g g: IndirectTop
+	. 0 0 0 0 x i i: Prefix, x=reserved, i=index size
+	. 0 0 1 0 x i i: Suffix, x=reserved, i=index size
+
+	. 0 1 0 p s i i: Forward Leaf, p=pointer/data, s=shallow/deep
+	. 0 1 1 p s i i: Reverse Leaf, p=pointer/data, s=shallow/deep
+	. 1 0 0 p s i i: Forward Branch, p=pointer/data, s=shallow/deep
+	. 1 0 1 p s i i: Reverse Branch, p=pointer/data, s=shallow/deep
+	. 1 1 0 p s i i: Forward Offset, p=pointer/data, s=shallow/deep
+	. 1 1 1 p s i i: Reverse Offset, p=pointer/data, s=shallow/deep
+
+
 
     16 live, 16 dead options
 
-    . 0 0 1 0 0 i i: Prefix Tail block, standard
-    . 0 0 1 0 1 i i: Prefix Tail block, big/alternate?
-    . 0 0 1 1 0 i i: Prefix Tail block, standard
-    . 0 0 1 1 1 i i: Suffix Tail block, big/alternate?
+    . 0 0 0 0 0 i i: Prefix Tail block, standard
+    . 0 0 0 0 1 i i: Prefix Tail block, big/alternate?
+    . 0 0 1 0 0 i i: Suffix Tail block, standard
+    . 0 0 1 0 1 i i: Suffix Tail block, big/alternate?
 
 	32 live, 32 dead options
 
@@ -117,41 +132,55 @@ Alloc Header:
 //
 //
 
-
 //#define ALLOC_HEADER_DEFAULT 0xBF
 
 // Check Live
-
 #define ALLOC_HEADER_LIVE_MASK 0x80							// ? - - -  - - - -
 
 // Check Gap-coded											// . 0 0 0  . g g g: g=gap exponent(1+)
+#define ALLOC_HEADER_GAP_MASK 0x68	 						// - ? ? -  ? - - -
+#define ALLOC_HEADER_GAP_VALUE 0x08							// - 0 0 -  1 - - -
 
-#define ALLOC_HEADER_GAP_MASK 0x70	 						// - ? ? ?  - - - -
-#define ALLOC_HEADER_GAP_VALUE 0x00							// - 0 0 0  - - - -
-#define ALLOC_HEADER_TAIL_VALUE 0x10						// - 0 0 1  - - - -
-#define ALLOC_HEADER_FWDLEAF_VALUE 0x20 		   			// - 0 1 0  - - - -
-#define ALLOC_HEADER_REVLEAF_VALUE 0x30 		   			// - 0 1 1  - - - -
-#define ALLOC_HEADER_FWDBRANCH_VALUE 0x40    				// - 1 0 0  - - - -
-#define ALLOC_HEADER_REVBRANCH_VALUE 0x50    				// - 1 0 1  - - - -
-#define ALLOC_HEADER_FWDOFFSET_VALUE 0x60    				// - 1 1 0  - - - -
-#define ALLOC_HEADER_REVOFFSET_VALUE 0x70    				// - 1 1 1  - - - -
+#define ALLOC_HEADER_GAP_ROOT_MASK 0x78	 					// - ? ? ?  ? - - -
+#define ALLOC_HEADER_GAP_ROOT_DIRECT_VALUE 0x08				// - 0 0 0  1 - - -
+#define ALLOC_HEADER_GAP_ROOT_TOP_VALUE 0x18				// - 0 0 1  1 - - -
 
 // Check Gap-coded & live
-#define ALLOC_HEADER_LIVE_GAP_MASK 0xE0						// ? ? ? ?  - - - -
-#define ALLOC_HEADER_LIVE_GAP_VALUE 0x80					// 1 0 0 0  - - - -
-#define ALLOC_HEADER_LIVE_TAIL_VALUE 0x90					// 1 0 0 1  - - - -
-#define ALLOC_HEADER_LIVE_FWDLEAF_VALUE 0xA0 				// 1 0 1 0  - - - -
-#define ALLOC_HEADER_LIVE_REVLEAF_VALUE 0xB0 				// 1 0 1 1  - - - -
-#define ALLOC_HEADER_LIVE_FWDBRANCH_VALUE 0xC0    			// 1 1 0 0  - - - -
-#define ALLOC_HEADER_LIVE_REVBRANCH_VALUE 0xD0    			// 1 1 0 1  - - - -
-#define ALLOC_HEADER_LIVE_FWDOFFSET_VALUE 0xE0    			// 1 1 1 0  - - - -
-#define ALLOC_HEADER_LIVE_REVOFFSET_VALUE 0xF0    			// 1 1 1 1  - - - -
+#define ALLOC_HEADER_LIVE_GAP_MASK 0xE8						// ? ? ? -  ? - - -
+#define ALLOC_HEADER_LIVE_GAP_ROOT_VALUE 0x88				// 1 0 0 -  1 - - -
 
-#define ALLOC_HEADER_GAP_TYPE_MASK 0x78			// Tree en			// - ? ? ?  ? - - -
-#define ALLOC_HEADER_GAP_DIRECT_VALUE 0x00					// - 0 0 0  0 - - -
-#define ALLOC_HEADER_GAP_TOP_VALUE  0x08					// - 0 0 0  1 - - -
+#define ALLOC_HEADER_LIVE_GAP_ROOT_MASK 0xF8	 			// ? ? ? ?  ? - - -
+#define ALLOC_HEADER_LIVE_GAP_ROOT_DIRECT_VALUE 0x88		// 1 0 0 0  1 - - -
+#define ALLOC_HEADER_LIVE_GAP_ROOT_TOP_VALUE 0x98			// 1 0 0 1  1 - - -
+
+
+// Check Block & live
+
+#define ALLOC_HEADER_BLOCK_MASK	0x70						// - ? ? ?  - - - -
+#define ALLOC_HEADER_BLOCK_PREFIX 0x00						// - 0 0 0  - - - -
+#define ALLOC_HEADER_BLOCK_SUFFIX 0x10						// - 0 0 1  - - - -
+#define ALLOC_HEADER_BLOCK_FWDLEAF 0x20						// - 0 1 0  - - - -
+#define ALLOC_HEADER_BLOCK_REVLEAF 0x30						// - 0 1 1  - - - -
+#define ALLOC_HEADER_BLOCK_FWDBRANCH 0x40					// - 1 0 0  - - - -
+#define ALLOC_HEADER_BLOCK_REVBRANCH 0x50					// - 1 0 1  - - - -
+#define ALLOC_HEADER_BLOCK_FWDOFFSET 0x60					// - 1 1 0  - - - -
+#define ALLOC_HEADER_BLOCK_REVOFFSET 0x70					// - 1 1 1  - - - -
+
+#define ALLOC_HEADER_LIVE_BLOCK_MASK 0xF0					// ? ? ? ?  - - - -
+#define ALLOC_HEADER_LIVE_BLOCK_PREFIX 0x80					// 1 0 0 0  - - - -
+#define ALLOC_HEADER_LIVE_BLOCK_SUFFIX 0x90					// 1 0 0 1  - - - -
+#define ALLOC_HEADER_LIVE_BLOCK_FWDLEAF 0xA0				// 1 0 1 0  - - - -
+#define ALLOC_HEADER_LIVE_BLOCK_REVLEAF 0xB0				// 1 0 1 1  - - - -
+#define ALLOC_HEADER_LIVE_BLOCK_FWDBRANCH 0xC0				// 1 1 0 0  - - - -
+#define ALLOC_HEADER_LIVE_BLOCK_REVBRANCH 0xD0				// 1 1 0 1  - - - -
+#define ALLOC_HEADER_LIVE_BLOCK_FWDOFFSET 0xE0				// 1 1 1 0  - - - -
+#define ALLOC_HEADER_LIVE_BLOCK_REVOFFSET 0xF0				// 1 1 1 1  - - - -
+
+// Extaction masks
 
 #define ALLOC_HEADER_GAPSIZE_MASK 0x07				        // - - - -  - ? ? ?
+#define ALLOC_HEADER_TAIL_MASK 0x10							// - - - ?  - - - -
+#define ALLOC_HEADER_INDEX_MASK 0x03						// - - - -  - - ? ?
 
 #define ALLOC_HEADER_ARRAYFMT_MASK 0x0C				        // - - - -  ? ? - -
 #define ALLOC_HEADER_ARRAYFMT_SHALLOWPTR_VALUE 0x00       	// - - - -  0 0 - -
@@ -161,12 +190,16 @@ Alloc Header:
 
 #define ALLOC_HEADER_INDEX_MASK 0x03				        // - - - -  - - ? ?
 
+// Initialization values
 
+#define ALLOC_HEADER_LIVE_DIRECT_GAPSMALL 0x89				// 1 0 0 0  1 0 0 1
+#define ALLOC_HEADER_LIVE_TOP_GAPSMALL 0x99					// 1 0 0 1  1 0 0 1
 
+#define ALLOC_HEADER_LIVE_TAIL		   0x80					// 1 0 0 0  0 0 0 0
+#define ALLOC_HEADER_LIVE_PREFIX	   0x80					// 1 0 0 0  0 0 0 0
+#define ALLOC_HEADER_LIVE_SUFFIX	   0x90					// 1 0 0 1  0 0 0 0
 
-
-
-
+#define ALLOC_HEADER_LIVE_ARRAY		   0x80					// 1 0 0 0  0 0 0 0
 
 //#define ALLOC_HEADER_INTOP_VALUE 0x20			            // - 0 1 -  - - - -
 
@@ -229,7 +262,8 @@ static void dumpTagData(u8 **tagData, s32 tagDataLength)
 		}
 }
 
-static void encodeDirectBlockHeader(s32 tagOffsetDiff, u8 *data)
+//static
+int encodeGapDirectBlockHeader(s32 tagOffsetDiff, u8 *data)
 {
 	if(tagOffsetDiff<0)
 		{
@@ -254,53 +288,29 @@ static void encodeDirectBlockHeader(s32 tagOffsetDiff, u8 *data)
 		u8 exp=((helper.s32Val>>23)&0xF)-6;
 		u8 man=(helper.s32Val>>15)&0xFF;
 
-		u8 data1=ALLOC_HEADER_LIVE_DIRECT_GAPSMALL + (exp << 3);
+		u8 data1=ALLOC_HEADER_LIVE_DIRECT_GAPSMALL + (exp);
 
 		*data++=data1;
 		*data=man;
 
 		//LOG(LOG_INFO,"Wrote other Header: %02x %02x for %i (exp %i)",data1,man,tagOffsetDiff,exp);
 		}
-}
 
-static void decodeDirectBlockHeader(u8 *data, s32 *tagOffsetDiffPtr)
-{
-	u8 header=*data++;
-
-	if(tagOffsetDiffPtr!=NULL)
-		{
-		int exp=((header&ALLOC_HEADER_DIRECT_GAPSIZE_MASK)>>3);
-
-		u32 res=*data;
-
-		if(exp>1)
-			res=(256+res)<<(exp-2);
-
-		*tagOffsetDiffPtr=res;
-		}
-
-}
-
-static s32 getDirectBlockHeaderSize()
-{
 	return 2;
 }
 
 
-
-
-static void encodeIndirectRootBlockHeader(s32 tagOffsetDiff, s32 ptrBlockSize, u8 *data)
+//static
+int encodeGapTopBlockHeader(s32 tagOffsetDiff, u8 *data)
 {
 	if(tagOffsetDiff<0)
 		{
 		LOG(LOG_CRITICAL,"Expected positive tagOffsetDiff indirect: %i",tagOffsetDiff);
 		}
 
-	ptrBlockSize<<=1;
-
 	if(tagOffsetDiff<256)
 		{
-		*data++=ALLOC_HEADER_LIVE_INDIRECT_ROOT_GAPSMALL+ptrBlockSize;
+		*data++=ALLOC_HEADER_LIVE_TOP_GAPSMALL;
 		*data=(u8)(tagOffsetDiff);
 
 //		LOG(LOG_INFO,"Wrote small Header: %02x %02x for %i",ALLOC_HEADER_LIVE_DIRECT_SMALL, tagOffsetDiff&0xFF, tagOffsetDiff);
@@ -316,22 +326,25 @@ static void encodeIndirectRootBlockHeader(s32 tagOffsetDiff, s32 ptrBlockSize, u
 		u8 exp=((helper.s32Val>>23)&0xF)-6;
 		u8 man=(helper.s32Val>>15)&0xFF;
 
-		u8 data1=ALLOC_HEADER_LIVE_INDIRECT_ROOT_GAPSMALL+(exp << 3)+ptrBlockSize;
+		u8 data1=ALLOC_HEADER_LIVE_TOP_GAPSMALL+exp;
 
 		*data++=data1;
 		*data=man;
 
 		//LOG(LOG_INFO,"Wrote other Header: %02x %02x for %i (exp %i)",data1,man,tagOffsetDiff,exp);
 		}
+
+	return 2;
 }
 
-static void decodeIndirectRootBlockHeader(u8 *data, s32 *tagOffsetDiffPtr, s32 *ptrBlockSizePtr)
+//static
+int decodeGapBlockHeader(u8 *data, s32 *tagOffsetDiffPtr)
 {
 	u8 header=*data++;
 
 	if(tagOffsetDiffPtr!=NULL)
 		{
-		int exp=((header&ALLOC_HEADER_INDIRECT_ROOT_GAPSIZE_MASK)>>3);
+		int exp=(header&ALLOC_HEADER_GAPSIZE_MASK);
 
 		u32 res=*data;
 
@@ -341,61 +354,121 @@ static void decodeIndirectRootBlockHeader(u8 *data, s32 *tagOffsetDiffPtr, s32 *
 		*tagOffsetDiffPtr=res;
 		}
 
-	if(ptrBlockSizePtr!=NULL)
-		*ptrBlockSizePtr=(header&ALLOC_HEADER_INDIRECT_ROOT_PTRSIZE_MASK)>>1;
-
+	return 2;
 }
 
-static s32 getIndirectRootBlockHeaderSize()
+//static
+s32 getGapBlockHeaderSize()
 {
 	return 2;
 }
 
 
-void rtEncodeNonRootBlockHeader(u32 isLeaf, u32 indexSize, u32 index, u32 subindexSize, u32 subindex, u8 *data)
+
+s32 rtEncodeTailBlockHeader(u32 prefixSuffix, u32 indexSize, u32 index, u8 *data)
 {
 	//LOG(LOG_INFO,"Encoding Leaf: %i Index: %i %i Subindex: %i %i", isLeaf, indexSize, index, subindexSize, subindex);
 
-	if(isLeaf)
-		*data++=ALLOC_HEADER_LIVE_NONROOT_LEAF+((indexSize-1)<<3)+((subindexSize-1)<<1);
-	else
-		*data++=ALLOC_HEADER_LIVE_NONROOT_BRANCH+((indexSize-1)<<3)+((subindexSize-1)<<1);
+	//ALLOC_HEADER_LIVE_TAIL
 
+	*data++=(prefixSuffix?ALLOC_HEADER_LIVE_SUFFIX:ALLOC_HEADER_LIVE_PREFIX)+indexSize;
 	varipackEncode(index, data);
-	data+=indexSize;
-	varipackEncode(subindex, data);
 
+	return 1+indexSize;
 }
 
-void rtDecodeNonRootBlockHeader(u8 *data, s32 *isLeafPtr, s32 *indexSizePtr, s32 *indexPtr, s32 *subindexSizePtr, s32 *subindexPtr)
+s32 rtDecodeTailBlockHeader(u8 *data, s32 *prefixSuffix, s32 *indexSizePtr, s32 *indexPtr)
 {
 	u8 header=*data++;
 
-	if(isLeafPtr!=NULL)
-		*isLeafPtr=(header>>6)&0x1;
+	if(prefixSuffix!=NULL)
+		*prefixSuffix=ALLOC_HEADER_TAIL_MASK!=0;
 
-	s32 indexSize=1+((header>>3)&0x3);
-	s32 subindexSize=1+((header>>1)&0x1);
+	s32 indexSize=1+(header&0x3);
 
 	if(indexSizePtr!=NULL)
 		*indexSizePtr=indexSize;
 
-	if(subindexSizePtr!=NULL)
-		*subindexSizePtr=subindexSize;
-
 	if(indexPtr!=NULL)
 		*indexPtr=varipackDecode(indexSize, data);
 
-	data+=indexSize;
-
-	if(subindexPtr!=NULL)
-		*subindexPtr=varipackDecode(subindexSize, data);
-
+	return 1+indexSize;
 }
 
-s32 rtGetNonRootBlockHeaderSize(int indexSize, int subIndexSize)
+s32 rtGetTailBlockHeaderSize(int indexSize)
 {
-	return 1+indexSize+subIndexSize;
+	return 1+indexSize;
+}
+
+
+s32 rtEncodeArrayBlockHeader(u32 arrayNum, u32 arrayType, u32 indexSize, u32 index, u32 subindex, u8 *data)
+{
+	//LOG(LOG_INFO,"Encoding Leaf: %i Index: %i %i Subindex: %i %i", isLeaf, indexSize, index, subindexSize, subindex);
+
+	*data++=(ALLOC_HEADER_LIVE_ARRAY+(arrayNum<<4)+(arrayType<<2)+indexSize);
+	varipackEncode(index, data);
+
+	switch(arrayType)
+	{
+		case 1:
+		case 2:
+			*data=subindex;
+			break;
+
+		case 3:
+			*((u16 *)data)=subindex;
+	}
+
+	return 1+indexSize;
+}
+
+
+// u32 arrayNum, u32 arrayType, u32 indexSize, u32 index, u32 subindex
+s32 rtDecodeArrayBlockHeader(u8 *data, u32 *arrayNumPtr, u32 *arrayTypePtr, u32 *indexSizePtr, u32 *indexPtr, u32 *subindexSizePtr, u32 *subindexPtr)
+{
+	u8 header=(*data++)-ALLOC_HEADER_LIVE_ARRAY;
+
+	u32 indexSize=header&0x3;
+	u32 arrayType=(header>>2)&0x3;
+	u32 arrayNum=(header>>4)&0x7;
+
+	if(arrayNumPtr!=NULL)
+		*arrayNumPtr=arrayNum;
+
+	if(arrayTypePtr!=NULL)
+		*arrayTypePtr=arrayType;
+
+	if(indexSizePtr!=NULL)
+		*indexSizePtr=indexSize;
+
+	u32 subindexSize=0, subindex;
+
+	switch(arrayType)
+		{
+		case 1:
+		case 2:
+			subindexSize=1;
+			subindex=*data;
+			break;
+
+		case 3:
+			subindexSize=2;
+			subindex=*((u16 *)data);
+		}
+
+	if(subindexSizePtr!=NULL)
+		*subindexSizePtr=subindexSize;
+
+	if(subindexPtr!=NULL)
+		*subindexPtr=subindex;
+
+	return 1+indexSize+subindexSize;
+}
+
+
+s32 rtGetArrayBlockHeaderSize(int indexSize, int subindexSize)
+{
+	return 1+indexSize+subindexSize;
 }
 
 
@@ -866,12 +939,12 @@ void createBuildersFromIndirectData(RoutingComboBuilder *builder)
 	builder->arrayBuilder=NULL;
 	builder->treeBuilder=dAlloc(builder->disp, sizeof(RouteTableTreeBuilder));
 
-	RouteTableBlockTop *root=(RouteTableBlockTop *)(data+headerSize);
+	RouteTableTreeTopBlock *top=(RouteTableTreeTopBlock *)(data+headerSize);
 
 //	LOG(LOG_INFO,"Data is %p, root is %p, p/s %p %p",data,root,root->prefixData, root->suffixData);
 
-	u8 *prefixBlockData=root->prefixData;
-	u8 *suffixBlockData=root->suffixData;
+	u8 *prefixBlockData=top->prefixData;
+	u8 *suffixBlockData=top->suffixData;
 
 	if((*prefixBlockData&ALLOC_HEADER_LIVE_MASK)==0x0)
 		{
@@ -1342,13 +1415,13 @@ int rtRouteReadsForSmer(RoutingIndexedReadReferenceBlock *rdi, SmerArraySlice *s
 		{
 		u8 header=*smerData;
 
-		if((header&ALLOC_HEADER_LIVE_DIRECT_MASK)==ALLOC_HEADER_LIVE_DIRECT_VALUE)
+		if((header&ALLOC_HEADER_LIVE_GAP_ROOT_MASK)==ALLOC_HEADER_LIVE_GAP_ROOT_DIRECT_VALUE)
 			{
 			createBuildersFromDirectData(&routingBuilder);
 			}
 		// ALLOC_HEADER_LIVE_INDIRECT_ROOT_VALUE
 
-		else if((header&ALLOC_HEADER_LIVE_INDIRECT_MASK)==ALLOC_HEADER_LIVE_INDIRECT_ROOT_VALUE)
+		else if((header&ALLOC_HEADER_LIVE_GAP_ROOT_MASK)==ALLOC_HEADER_LIVE_GAP_ROOT_TOP_VALUE)
 			{
 			createBuildersFromIndirectData(&routingBuilder);
 			}
