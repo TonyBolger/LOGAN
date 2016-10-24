@@ -12,23 +12,7 @@ Alloc Header:
 	1 x x x x x x x : Live block (127 options)
 	0 x x x x x x x : Dead block (127 options)
 
-	. 0 0 . . g g g: g=gap exponent(1+)
-	. 0 1 . . . i i: Index Size (1-4)
-	. 1 0 . . . i i: Index Size (1-4)
-	. 1 1 . . . i i: Index Size (1-4)
-
-	3 live, 3 dead options
-
-	. 0 0 0 1 0 0 0: Unused
-    . 0 0 1 0 0 0 0: Unused
-    . 0 0 1 1 0 0 0: Unused
-
-	14 live, 14 dead options
-
-	. 0 0 0 1 g g g: Direct (2 byte header)
-    . 0 0 1 1 g g g: Indirect Top ( byte header)				RouteTableTreeTopBlock
-
-
+	Summary:
     . 0 0 0 1 g g g: Direct
     . 0 0 1 1 g g g: IndirectTop
 	. 0 0 0 0 x i i: Prefix, x=reserved, i=index size
@@ -41,14 +25,40 @@ Alloc Header:
 	. 1 1 0 p s i i: Forward Offset, p=pointer/data, s=shallow/deep
 	. 1 1 1 p s i i: Reverse Offset, p=pointer/data, s=shallow/deep
 
+	3 live, 3 dead options
 
+	. 0 0 0 1 0 0 0: Unused
+    . 0 0 1 0 0 0 0: Unused
+    . 0 0 1 1 0 0 0: Unused
+
+	14 live, 14 dead options
+
+	. 0 0 0 1 g g g: Direct (2 byte header)
+    . 0 0 1 1 g g g: Indirect Top ( byte header)				RouteTableTreeTopBlock
+
+	28 live, 28 dead options
+
+    . 0 0 0 1 g g g: Direct
+    . 0 0 1 1 g g g: IndirectTop
+	. 0 0 0 0 x i i: Prefix, x=reserved, i=index size
+	. 0 0 1 0 x i i: Suffix, x=reserved, i=index size
+
+	96 Live, 96 head options
+	. 0 1 0 p s i i: Forward Leaf, p=pointer/data, s=shallow/deep
+	. 0 1 1 p s i i: Reverse Leaf, p=pointer/data, s=shallow/deep
+	. 1 0 0 p s i i: Forward Branch, p=pointer/data, s=shallow/deep
+	. 1 0 1 p s i i: Reverse Branch, p=pointer/data, s=shallow/deep
+	. 1 1 0 p s i i: Forward Offset, p=pointer/data, s=shallow/deep
+	. 1 1 1 p s i i: Reverse Offset, p=pointer/data, s=shallow/deep
+
+	Full Breakdown:
 
     16 live, 16 dead options
 
     . 0 0 0 0 0 i i: Prefix Tail block, standard
-    . 0 0 0 0 1 i i: Prefix Tail block, big/alternate?
+    . 0 0 0 0 1 i i: Prefix Tail block, big or alternate?
     . 0 0 1 0 0 i i: Suffix Tail block, standard
-    . 0 0 1 0 1 i i: Suffix Tail block, big/alternate?
+    . 0 0 1 0 1 i i: Suffix Tail block, big or alternate?
 
 	32 live, 32 dead options
 
@@ -65,25 +75,25 @@ Alloc Header:
 	32 live, 32 dead options
 
       1 0 0 0 0 i i: Forward Branch Shallow Ptr					RouteTableTreeArrayBlock
-      1 0 0 1 1 i i: Forward Branch Deep Ptr (1 byte sub)		RouteTableTreeArrayBlock
-      1 0 1 0 0 i i: Forward Branch Shallow Data (1 byte sub)	RouteTableTreeBranchBlock
-      1 0 1 1 1 i i: Forward Branch Deep Data (2 byte sub)		RouteTableTreeBranchBlock
+      1 0 0 0 1 i i: Forward Branch Deep Ptr (1 byte sub)		RouteTableTreeArrayBlock
+      1 0 0 1 0 i i: Forward Branch Shallow Data (1 byte sub)	RouteTableTreeBranchBlock
+      1 0 0 1 1 i i: Forward Branch Deep Data (2 byte sub)		RouteTableTreeBranchBlock
 
-      1 0 0 0 0 i i: Reverse Branch Shallow Ptr					RouteTableTreeArrayBlock
-      1 0 0 1 1 i i: Reverse Branch Deep Ptr (1 byte sub)		RouteTableTreeArrayBlock
-      1 0 1 0 0 i i: Reverse Branch Shallow Data (1 byte sub)	RouteTableTreeBranchBlock
+      1 0 1 0 0 i i: Reverse Branch Shallow Ptr					RouteTableTreeArrayBlock
+      1 0 1 0 1 i i: Reverse Branch Deep Ptr (1 byte sub)		RouteTableTreeArrayBlock
+      1 0 1 1 0 i i: Reverse Branch Shallow Data (1 byte sub)	RouteTableTreeBranchBlock
       1 0 1 1 1 i i: Reverse Branch Deep Data (2 byte sub)		RouteTableTreeBranchBlock
 
 	32 live, 32 dead options
 
       1 1 0 0 0 i i: Forward Offset Shallow Ptr					RouteTableTreeArrayBlock
-      1 1 0 1 1 i i: Forward Offset Deep Ptr (1 byte sub)		RouteTableTreeArrayBlock
-      1 1 1 0 0 i i: Forward Offset Shallow Data (1 byte sub)	RouteTableTreeOffsetBlock
-      1 1 1 1 1 i i: Forward Offset Deep Data (2 byte sub)		RouteTableTreeOffsetBlock
+      1 1 0 0 1 i i: Forward Offset Deep Ptr (1 byte sub)		RouteTableTreeArrayBlock
+      1 1 0 1 0 i i: Forward Offset Shallow Data (1 byte sub)	RouteTableTreeOffsetBlock
+      1 1 0 1 1 i i: Forward Offset Deep Data (2 byte sub)		RouteTableTreeOffsetBlock
 
-      1 1 0 0 0 i i: Reverse Offset Shallow Ptr					RouteTableTreeArrayBlock
-      1 1 0 1 1 i i: Reverse Offset Deep Ptr (1 byte sub)		RouteTableTreeArrayBlock
-      1 1 1 0 0 i i: Reverse Offset Shallow Data (1 byte sub)	RouteTableTreeOffsetBlock
+      1 1 1 0 0 i i: Reverse Offset Shallow Ptr					RouteTableTreeArrayBlock
+      1 1 1 0 1 i i: Reverse Offset Deep Ptr (1 byte sub)		RouteTableTreeArrayBlock
+      1 1 1 1 0 i i: Reverse Offset Shallow Data (1 byte sub)	RouteTableTreeOffsetBlock
       1 1 1 1 1 i i: Reverse Offset Deep Data (2 byte sub)		RouteTableTreeOffsetBlock
 
 
@@ -110,13 +120,6 @@ Alloc Header:
     Gap exponent 7: 0xF8 Indirect root with 8192-16383 gap (with value*32+8192): 0-31
 
 
-
-	x 0 x x x x 1 x : Large # prefixes (>255)
-	x 0 x x x x 0 x : Small # prefixes
-
-	x 0 x x x x x 1 : Large # suffixes (>255)
-	x 0 x x x x x 0 : Small # suffixes
-
  */
 
 
@@ -137,7 +140,7 @@ Alloc Header:
 // Check Live
 #define ALLOC_HEADER_LIVE_MASK 0x80							// ? - - -  - - - -
 
-// Check Gap-coded											// . 0 0 0  . g g g: g=gap exponent(1+)
+// Check Gap-coded											// . 0 0 -  0 g g g: g=gap exponent(1+)
 #define ALLOC_HEADER_GAP_MASK 0x68	 						// - ? ? -  ? - - -
 #define ALLOC_HEADER_GAP_VALUE 0x08							// - 0 0 -  1 - - -
 
@@ -156,25 +159,33 @@ Alloc Header:
 
 // Check Block & live
 
-#define ALLOC_HEADER_BLOCK_MASK	0x70						// - ? ? ?  - - - -
-#define ALLOC_HEADER_BLOCK_PREFIX 0x00						// - 0 0 0  - - - -
-#define ALLOC_HEADER_BLOCK_SUFFIX 0x10						// - 0 0 1  - - - -
-#define ALLOC_HEADER_BLOCK_FWDLEAF 0x20						// - 0 1 0  - - - -
-#define ALLOC_HEADER_BLOCK_REVLEAF 0x30						// - 0 1 1  - - - -
-#define ALLOC_HEADER_BLOCK_FWDBRANCH 0x40					// - 1 0 0  - - - -
-#define ALLOC_HEADER_BLOCK_REVBRANCH 0x50					// - 1 0 1  - - - -
-#define ALLOC_HEADER_BLOCK_FWDOFFSET 0x60					// - 1 1 0  - - - -
-#define ALLOC_HEADER_BLOCK_REVOFFSET 0x70					// - 1 1 1  - - - -
+#define ALLOC_HEADER_BLOCK_MASK	0x60						// - ? ? -  - - - -
+#define ALLOC_HEADER_BLOCK_TAIL 0x00						// - 0 0 -  - - - -
+#define ALLOC_HEADER_BLOCK_LEAF 0x20						// - 0 0 -  - - - -
+#define ALLOC_HEADER_BLOCK_BRANCH 0x40						// - 0 0 -  - - - -
+#define ALLOC_HEADER_BLOCK_OFFSET 0x60						// - 0 0 -  - - - -
 
-#define ALLOC_HEADER_LIVE_BLOCK_MASK 0xF0					// ? ? ? ?  - - - -
-#define ALLOC_HEADER_LIVE_BLOCK_PREFIX 0x80					// 1 0 0 0  - - - -
-#define ALLOC_HEADER_LIVE_BLOCK_SUFFIX 0x90					// 1 0 0 1  - - - -
-#define ALLOC_HEADER_LIVE_BLOCK_FWDLEAF 0xA0				// 1 0 1 0  - - - -
-#define ALLOC_HEADER_LIVE_BLOCK_REVLEAF 0xB0				// 1 0 1 1  - - - -
-#define ALLOC_HEADER_LIVE_BLOCK_FWDBRANCH 0xC0				// 1 1 0 0  - - - -
-#define ALLOC_HEADER_LIVE_BLOCK_REVBRANCH 0xD0				// 1 1 0 1  - - - -
-#define ALLOC_HEADER_LIVE_BLOCK_FWDOFFSET 0xE0				// 1 1 1 0  - - - -
-#define ALLOC_HEADER_LIVE_BLOCK_REVOFFSET 0xF0				// 1 1 1 1  - - - -
+
+
+//#define ALLOC_HEADER_BLOCK_MASK	0x70						// - ? ? ?  - - - -
+//#define ALLOC_HEADER_BLOCK_PREFIX 0x00						// - 0 0 0  - - - -
+//#define ALLOC_HEADER_BLOCK_SUFFIX 0x10						// - 0 0 1  - - - -
+//#define ALLOC_HEADER_BLOCK_FWDLEAF 0x20						// - 0 1 0  - - - -
+//#define ALLOC_HEADER_BLOCK_REVLEAF 0x30						// - 0 1 1  - - - -
+//#define ALLOC_HEADER_BLOCK_FWDBRANCH 0x40					// - 1 0 0  - - - -
+//#define ALLOC_HEADER_BLOCK_REVBRANCH 0x50					// - 1 0 1  - - - -
+//#define ALLOC_HEADER_BLOCK_FWDOFFSET 0x60					// - 1 1 0  - - - -
+//#define ALLOC_HEADER_BLOCK_REVOFFSET 0x70					// - 1 1 1  - - - -
+
+//#define ALLOC_HEADER_LIVE_BLOCK_MASK 0xF0					// ? ? ? ?  - - - -
+//#define ALLOC_HEADER_LIVE_BLOCK_PREFIX 0x80					// 1 0 0 0  - - - -
+//#define ALLOC_HEADER_LIVE_BLOCK_SUFFIX 0x90					// 1 0 0 1  - - - -
+//#define ALLOC_HEADER_LIVE_BLOCK_FWDLEAF 0xA0				// 1 0 1 0  - - - -
+//#define ALLOC_HEADER_LIVE_BLOCK_REVLEAF 0xB0				// 1 0 1 1  - - - -
+//#define ALLOC_HEADER_LIVE_BLOCK_FWDBRANCH 0xC0				// 1 1 0 0  - - - -
+//#define ALLOC_HEADER_LIVE_BLOCK_REVBRANCH 0xD0				// 1 1 0 1  - - - -
+//#define ALLOC_HEADER_LIVE_BLOCK_FWDOFFSET 0xE0				// 1 1 1 0  - - - -
+//#define ALLOC_HEADER_LIVE_BLOCK_REVOFFSET 0xF0				// 1 1 1 1  - - - -
 
 // Extaction masks
 
@@ -441,7 +452,7 @@ s32 rtDecodeArrayBlockHeader(u8 *data, u32 *arrayNumPtr, u32 *arrayTypePtr, u32 
 	if(indexSizePtr!=NULL)
 		*indexSizePtr=indexSize;
 
-	u32 subindexSize=0, subindex;
+	u32 subindexSize=0, subindex=0;
 
 	switch(arrayType)
 		{
@@ -565,66 +576,21 @@ MemCircHeapChunkIndex *rtReclaimIndexer(u8 *heapDataPtr, s64 targetAmount, u8 ta
 			break;
 			}
 
-		if((header & ALLOC_HEADER_DIRECT_MASK) == ALLOC_HEADER_DIRECT_VALUE)
+		if((header & ALLOC_HEADER_GAP_MASK) == ALLOC_HEADER_GAP_VALUE) // Gap encoded: Direct or top
 			{
-			s32 chunkTagOffsetDiff=0;
-			decodeDirectBlockHeader(heapDataPtr, &chunkTagOffsetDiff);
-
-			currentIndex+=chunkTagOffsetDiff;
-			u8 *scanPtr=heapDataPtr+2;
-
-			scanPtr=scanTails(scanPtr);
-			scanPtr=scanTails(scanPtr);
-			scanPtr=rtaScanRouteTableArray(scanPtr);
-
-			s32 size=scanPtr-heapDataPtr;
-
-			if(header & ALLOC_HEADER_LIVE_MASK)
+			if((header & ALLOC_HEADER_GAP_ROOT_MASK) == ALLOC_HEADER_GAP_ROOT_DIRECT_VALUE) // Direct
 				{
-				currentIndex=scanTagData(tagData, tagDataLength, currentIndex, heapDataPtr);
+				s32 chunkTagOffsetDiff=0;
+				decodeGapBlockHeader(heapDataPtr, &chunkTagOffsetDiff);
 
-				if(currentIndex==-1)
-					{
-					LOG(LOG_INFO,"Failed to find expected heap pointer %p in tag data",heapDataPtr);
-					dumpTagData(tagData,tagDataLength);
-					return NULL;
-					}
-
-				if(firstTagOffset==-1)
-					firstTagOffset=currentIndex;
-
-				if(entry==index->entryAlloc)
-					index=allocOrExpandIndexer(index, disp);
-
-				index->entries[entry].index=currentIndex;
-				index->entries[entry].subindex=-1;
-				index->entries[entry].size=size;
-				entry++;
-
-				index->lastLiveTagOffset=currentIndex;
-
-				//LOG(LOG_INFO,"Live Item: %p %2x %i",heapDataPtr,header,size, currentIndex);
-				liveSize+=size;
-				}
-			else
-				{
-				deadSize+=size;
-				//LOG(LOG_INFO,"Dead Item: %p %2x %i",heapDataPtr,header,size);
-				}
-
-			heapDataPtr=scanPtr;
-			}
-		else // Some kind of indirect
-			{
-			if((header & ALLOC_HEADER_INDIRECT_MASK)==ALLOC_HEADER_INDIRECT_ROOT_VALUE) // Indirect root
-				{
-//				LOG(LOG_INFO,"Indexed indirect root at %p",heapDataPtr);
-
-				s32 chunkTagOffsetDiff=0, ptrBlockSize=0;
-				decodeIndirectRootBlockHeader(heapDataPtr, &chunkTagOffsetDiff, &ptrBlockSize);
 				currentIndex+=chunkTagOffsetDiff;
+				u8 *scanPtr=heapDataPtr+2;
 
-				s32 size=getIndirectRootBlockHeaderSize()+sizeof(RouteTableBlockTop);
+				scanPtr=scanTails(scanPtr);
+				scanPtr=scanTails(scanPtr);
+				scanPtr=rtaScanRouteTableArray(scanPtr);
+
+				s32 size=scanPtr-heapDataPtr;
 
 				if(header & ALLOC_HEADER_LIVE_MASK)
 					{
@@ -644,6 +610,7 @@ MemCircHeapChunkIndex *rtReclaimIndexer(u8 *heapDataPtr, s64 targetAmount, u8 ta
 						index=allocOrExpandIndexer(index, disp);
 
 					index->entries[entry].index=currentIndex;
+					index->entries[entry].topindex=ROUTE_TOPINDEX_DIRECT;
 					index->entries[entry].subindex=-1;
 					index->entries[entry].size=size;
 					entry++;
@@ -659,65 +626,25 @@ MemCircHeapChunkIndex *rtReclaimIndexer(u8 *heapDataPtr, s64 targetAmount, u8 ta
 					//LOG(LOG_INFO,"Dead Item: %p %2x %i",heapDataPtr,header,size);
 					}
 
-				heapDataPtr+=size;
+				heapDataPtr=scanPtr;
 				}
-			else
+			else // Top
 				{
-				if((header & ALLOC_HEADER_NONROOT_MASK)== ALLOC_HEADER_NONROOT_BRANCH) // Indirect branch
-					{
-					LOG(LOG_CRITICAL,"Found indirect branch in reclaimIndexer");
-					}
-				else																  // Indirect Leaf
-					{
-					s32 sindexSize=0, sindex=0;
-					s32 subindexSize=0, subindex=0;
-
-//					LOG(LOG_INFO,"Indexed leaf at %p",heapDataPtr);
-
-					rtDecodeNonRootBlockHeader(heapDataPtr, NULL, &sindexSize, &sindex, &subindexSize, &subindex);
-
-//					LOG(LOG_INFO,"Found indirect leaf %p in reclaimIndexer with %i %i %i %i",heapDataPtr, sindexSize,sindex,subindexSize,subindex);
-
-					s32 headerSize=rtGetNonRootBlockHeaderSize(sindexSize, subindexSize);
-					u8 *scanPtr=heapDataPtr+headerSize;
-
-					if(subindex==0 || subindex==1)
-						{
-//						LOG(LOG_INFO,"Tail scan");
-						scanPtr=scanTails(scanPtr);
-						}
-					else
-						{
-//						LOG(LOG_INFO,"Route scan");
-						scanPtr=rtaScanRouteTableArray(scanPtr);
-						}
-
-					s32 size=scanPtr-heapDataPtr;
-
-//					LOG(LOG_INFO,"Leaf size %i at %p",size, heapDataPtr);
-
-					if(header & ALLOC_HEADER_LIVE_MASK)
-						{
-						if(entry==index->entryAlloc)
-							index=allocOrExpandIndexer(index, disp);
-
-//						LOG(LOG_INFO,"Live entry with %i %i %i",sindex,subindex,size);
-
-						index->entries[entry].index=sindex;
-						index->entries[entry].subindex=subindex;
-						index->entries[entry].size=size;
-						entry++;
-
-						liveSize+=size;
-						}
-					else
-						{
-						deadSize+=size;
-						}
-
-					heapDataPtr+=size;
-					}
+				LOG(LOG_CRITICAL,"Not implemented");
 				}
+			}
+		else // Indirect: Tail or Array
+			{
+
+			if((header & ALLOC_HEADER_BLOCK_MASK)==ALLOC_HEADER_BLOCK_TAIL) // Tail: Prefix or Suffix
+				{
+				LOG(LOG_CRITICAL,"Not implemented");
+				}
+			else // Array: Leaf, Branch or Offset
+				{
+				LOG(LOG_CRITICAL,"Not implemented");
+				}
+
 			}
 		}
 
@@ -752,33 +679,19 @@ void rtRelocater(MemCircHeapChunkIndex *index, u8 tag, u8 **tagData, s32 tagData
 			}
 
 		s32 size=index->entries[i].size;
-		s32 subindex=index->entries[i].subindex;
+		s32 topindex=index->entries[i].topindex;
 
-		if(subindex==-1) // Direct or Indirect root (tag offset needs updating)
+		if(topindex<0) // Gap encoded: tag offset needs updating
 			{
-			u8 *headerPtr=*primaryPtr;
 			int blockHeaderSize=0;
 
 			s32 diff=sindex-prevOffset;
+			blockHeaderSize=getGapBlockHeaderSize();
 
-			if(((*headerPtr)&ALLOC_HEADER_DIRECT_MASK) == ALLOC_HEADER_DIRECT_VALUE)
-				{
-				blockHeaderSize=getDirectBlockHeaderSize();
-				encodeDirectBlockHeader(diff, newChunk);
-				}
-			else
-				{
-				s32 ptrBlock;
-				decodeIndirectRootBlockHeader(headerPtr, NULL, &ptrBlock);
-
-				blockHeaderSize=getIndirectRootBlockHeaderSize();
-
-				//u8 *dataPtr=headerPtr+blockHeaderSize;
-				//RouteTableSmallRoot *rootPtr=(RouteTableSmallRoot *)dataPtr;
-
-				encodeIndirectRootBlockHeader(diff, ptrBlock, newChunk);
-//				LOG(LOG_INFO,"Moving indirect root to %p",newChunk);
-				}
+			if(topindex==ROUTE_TOPINDEX_DIRECT) // Direct
+				encodeGapDirectBlockHeader(diff, newChunk);
+			else	// Top
+				encodeGapTopBlockHeader(diff, newChunk);
 
 			if(size<blockHeaderSize)
 				{
@@ -795,7 +708,9 @@ void rtRelocater(MemCircHeapChunkIndex *index, u8 tag, u8 **tagData, s32 tagData
 			{
 			//LOG(LOG_INFO,"Leaf/Branch %i %i %i",size,sindex,subindex);
 
-			RouteTableBlockTop *topPtr=(RouteTableBlockTop *)((*primaryPtr)+getIndirectRootBlockHeaderSize());
+			//int headerSize=de
+
+			//RouteTableTreeTopBlock *topPtr=(RouteTableTreeTopBlock *)((*primaryPtr)+getIndirectRootBlockHeaderSize());
 
 			u8 *dataPtr=NULL;
 
@@ -865,8 +780,8 @@ static int reverseSuffixSorter(const void *a, const void *b)
 
 static void createBuildersFromNullData(RoutingComboBuilder *builder)
 {
-	builder->combinedDataBlock.subindexSize=0;
-	builder->combinedDataBlock.subindex=-1;
+	//builder->combinedDataBlock.subindexSize=0;
+	//builder->combinedDataBlock.subindex=-1;
 	builder->combinedDataBlock.headerSize=0;
 	builder->combinedDataBlock.dataSize=0;
 	builder->combinedDataBlock.blockPtr=NULL;
@@ -898,11 +813,11 @@ static void createBuildersFromDirectData(RoutingComboBuilder *builder)
 {
 	u8 *data=*(builder->rootPtr);
 
-	s32 headerSize=getDirectBlockHeaderSize();
+	s32 headerSize=getGapBlockHeaderSize();
 	u8 *afterHeader=data+headerSize;
 
-	builder->combinedDataBlock.subindexSize=0;
-	builder->combinedDataBlock.subindex=-1;
+//	builder->combinedDataBlock.subindexSize=0;
+//	builder->combinedDataBlock.subindex=-1;
 	builder->combinedDataBlock.headerSize=headerSize;
 	builder->combinedDataBlock.blockPtr=data;
 
@@ -926,10 +841,10 @@ static void createBuildersFromDirectData(RoutingComboBuilder *builder)
 void createBuildersFromIndirectData(RoutingComboBuilder *builder)
 {
 	//LOG(LOG_INFO,"Creating from indirect data");
-
+/*
 	u8 *data=*(builder->rootPtr);
 
-	s32 headerSize=getIndirectRootBlockHeaderSize();
+	s32 headerSize=getGapBlockHeaderSize();
 
 	builder->topDataBlock.subindexSize=0;
 	builder->topDataBlock.subindex=-1;
@@ -943,8 +858,8 @@ void createBuildersFromIndirectData(RoutingComboBuilder *builder)
 
 //	LOG(LOG_INFO,"Data is %p, root is %p, p/s %p %p",data,root,root->prefixData, root->suffixData);
 
-	u8 *prefixBlockData=top->prefixData;
-	u8 *suffixBlockData=top->suffixData;
+	u8 *prefixBlockData=top->data[ROUTE_TOPINDEX_PREFIX];
+	u8 *suffixBlockData=top->data[ROUTE_TOPINDEX_SUFFIX];
 
 	if((*prefixBlockData&ALLOC_HEADER_LIVE_MASK)==0x0)
 		{
@@ -986,6 +901,9 @@ void createBuildersFromIndirectData(RoutingComboBuilder *builder)
 	rttInitRouteTableTreeBuilder(builder->treeBuilder, &(builder->topDataBlock), builder->disp);
 
 	builder->upgradedToTree=0;
+	*/
+
+	LOG(LOG_CRITICAL,"Not Implemented");
 }
 
 
@@ -1006,7 +924,7 @@ static void writeBuildersAsDirectData(RoutingComboBuilder *builder, s8 sliceTag,
 	int suffixPackedSize=getSeqTailBuilderPackedSize(&(builder->suffixBuilder));
 	int routeTablePackedSize=rtaGetRouteTableArrayBuilderPackedSize(builder->arrayBuilder);
 
-	int totalSize=getDirectBlockHeaderSize()+prefixPackedSize+suffixPackedSize+routeTablePackedSize;
+	int totalSize=getGapBlockHeaderSize()+prefixPackedSize+suffixPackedSize+routeTablePackedSize;
 
 	if(totalSize>16083)
 		{
@@ -1043,9 +961,9 @@ static void writeBuildersAsDirectData(RoutingComboBuilder *builder, s8 sliceTag,
 
 	*(builder->rootPtr)=newData;
 
-	encodeDirectBlockHeader(diff, newData);
+	encodeGapDirectBlockHeader(diff, newData);
 
-	newData+=getDirectBlockHeaderSize();
+	newData+=getGapBlockHeaderSize();
 	newData=writeSeqTailBuilderPackedData(&(builder->prefixBuilder), newData);
 	newData=writeSeqTailBuilderPackedData(&(builder->suffixBuilder), newData);
 	newData=rtaWriteRouteTableArrayBuilderPackedData(builder->arrayBuilder, newData);
@@ -1072,7 +990,13 @@ static void upgradeToTree(RoutingComboBuilder *builder)
 	RouteTableTreeBuilder *treeBuilder=dAlloc(builder->disp, sizeof(RouteTableTreeBuilder));
 	builder->treeBuilder=treeBuilder;
 
-	rttUpgradeToRouteTableTreeBuilder(builder->arrayBuilder,  builder->treeBuilder, builder->disp);
+	builder->topDataBlock.blockPtr=NULL;
+	builder->prefixDataBlock.blockPtr=NULL;
+	builder->suffixDataBlock.blockPtr=NULL;
+
+	rttUpgradeToRouteTableTreeBuilder(builder->arrayBuilder,  builder->treeBuilder,
+			&builder->topDataBlock, builder->disp);
+
 	builder->upgradedToTree=1;
 }
 

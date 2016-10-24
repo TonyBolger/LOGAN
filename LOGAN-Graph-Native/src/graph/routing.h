@@ -82,9 +82,9 @@ typedef struct routePatchMergePositionOrderedReadtreeStr // Represents sets of r
 
 typedef struct heapDataBlockStr
 {
-	s32 subindexSize;
-	s32 subindex;
-	s32 headerSize;
+	s32 headerSize; // Including index/subindex
+	//s32 subindexSize;
+	//s32 subindex;
 	s32 dataSize;
 	u8 *blockPtr; // Warning: Invalidated by (other) allocs
 } HeapDataBlock;
@@ -109,13 +109,8 @@ typedef struct routingComboBuilderStr
 
 	HeapDataBlock prefixDataBlock;
 	HeapDataBlock suffixDataBlock;
-	HeapDataBlock forwardBranchBlock;
-	HeapDataBlock forwardLeafBlock;
-	HeapDataBlock reverseBranchBlock;
-	HeapDataBlock reverseLeafBlock;
 
 	s32 upgradedToTree;
-
 } RoutingComboBuilder;
 
 
@@ -130,10 +125,6 @@ s32 rtEncodeArrayBlockHeader(u32 arrayNum, u32 arrayType, u32 indexSize, u32 ind
 s32 rtDecodeArrayBlockHeader(u8 *data, u32 *arrayNumPtr, u32 *arrayTypePtr, u32 *indexSizePtr, u32 *indexPtr, u32 *subindexSizePtr, u32 *subindexPtr);
 s32 rtGetArrayBlockHeaderSize(int indexSize, int subindexSize);
 
-
-void rtEncodeNonRootBlockHeader(u32 isLeaf, u32 indexSize, u32 index, u32 subindexSize, u32 subindex, u8 *data);
-void rtDecodeNonRootBlockHeader(u8 *data, s32 *isLeafPtr, s32 *indexSizePtr, s32 *indexPtr, s32 *subindexSizePtr, s32 *subindexPtr);
-s32 rtGetNonRootBlockHeaderSize(int indexSize, int subIndexSize);
 
 MemCircHeapChunkIndex *rtReclaimIndexer(u8 *data, s64 targetAmount, u8 tag, u8 **tagData, s32 tagDataLength, s32 tagSearchOffset, MemDispenser *disp);
 void rtRelocater(MemCircHeapChunkIndex *index, u8 tag, u8 **tagData, s32 tagDataLength);

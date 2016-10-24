@@ -14,34 +14,43 @@
 //
 // Minimum Valid tree: Empty root
 
-//
+// Two-level trees will need more than s16 indexes (currently 256*1024 possible leaves?)
 
-#define ROUTE_TABLE_TREE_ARRAY_ENTRIES 1024
+#define ROUTE_TABLE_TREE_PTR_ARRAY_ENTRIES 256
+#define ROUTE_TABLE_TREE_DATA_ARRAY_ENTRIES 1024
+#define ROUTE_TABLE_TREE_ARRAY_ENTRIES_CHUNK 4
 
 #define ROUTE_TABLE_TREE_BRANCH_CHILDREN 64
+#define ROUTE_TABLE_TREE_BRANCH_CHILDREN_CHUNK 4
+
 #define ROUTE_TABLE_TREE_LEAF_ENTRIES 1024
+#define ROUTE_TABLE_TREE_LEAF_ENTRIES_CHUNK 8
 
 /* Structs representing the various parts of the tree in heap-block format */
 
 typedef struct rootTableTreeTopBlockStr
 {
-	u8 *prefixData;
-	u8 *suffixData;
-
-	u8 *forwardLeaves;   // Either a leaf array or a nested array, each to leaf arrays
-	u8 *reverseLeaves;   // Either a leaf array or a nested array, each to leaf arrays
-
-	u8 *forwardBranches; // Either a branch array or a nested array, each to branch arrays
-	u8 *reverseBranches; // Either a branch array or a nested array, each to branch arrays
-
-//	u8 *forwardOffsetIndex;
-//	u8 *reverseOffsetIndex;
+	u8 *data[8]; // Tail(P,S), Leaf(F,R), Branch(F,R), Offset(F,R)
 } __attribute__((packed)) RouteTableTreeTopBlock;
 
+#define ROUTE_TOPINDEX_DIRECT -2
+#define ROUTE_TOPINDEX_TOP -1
+#define ROUTE_TOPINDEX_PREFIX 0
+#define ROUTE_TOPINDEX_SUFFIX 1
+#define ROUTE_TOPINDEX_FORWARD_LEAF 2
+#define ROUTE_TOPINDEX_REVERSE_LEAF 3
+#define ROUTE_TOPINDEX_FORWARD_BRANCH 4
+#define ROUTE_TOPINDEX_REVERSE_BRANCH 5
+#define ROUTE_TOPINDEX_FORWARD_OFFSET 6
+#define ROUTE_TOPINDEX_REVERSE_OFFSET 7
+
+#define ROUTE_TOPINDEX_MAX 8
+
+#define BRANCH_INDEX_INVALID (-32768)
 
 typedef struct routeTableTreeBranchBlockStr
 {
-	s16 childCount;
+	s16 childAlloc;
 	s16 parentIndex;
 
 	s16 upstreamMin;
@@ -49,6 +58,7 @@ typedef struct routeTableTreeBranchBlockStr
 
 	s16 childIndex[]; // Max is ROUTE_TABLE_TREE_BRANCH_CHILDREN
 } __attribute__((packed)) RouteTableTreeBranchBlock;
+
 
 typedef struct routeTableTreeLeafEntryStr
 {
@@ -58,7 +68,7 @@ typedef struct routeTableTreeLeafEntryStr
 
 typedef struct routeTableLeafBlockStr
 {
-	s16 entryCount;
+	s16 entryAlloc;
 
 	s16 parentIndex;
 	s16 upstream;
@@ -68,7 +78,7 @@ typedef struct routeTableLeafBlockStr
 
 typedef struct routeTableTreeOffsetBlockStr
 {
-	s16 entryCount;
+	s16 entryAlloc;
 
 	s16 upstreamMin;
 	s16 upstreamCount;
@@ -82,34 +92,80 @@ typedef struct routeTableTreeOffsetBlockStr
 
 typedef struct routeTableTreeArrayBlockStr
 {
-	u16 dataCount;
+	u16 dataAlloc;
 	u8 *data[];
 } __attribute__((packed)) RouteTableTreeArrayBlock;
 
 
 
-
-
-
 /* Structs wrapping the heap-format tree, allowing nicer manipulation */
+
+// Possible Array Formats:
+// 		Single Level: Shallow Ptr -> Shallow Data (1B sub) [1024]
+//      Two Level: Shallow Ptr-> Deep Ptr (1B sub) [256] -> Deep Data (2B sub) [1024]
+
+
+typedef struct routeTableTreeLeafProxyStr
+{
+	RouteTableTreeLeafBlock *dataBlock;
+	s32 index;
+
+	u16 entryAlloc;
+	u16 entryCount;
+
+} RouteTableTreeLeafProxy;
+
+typedef struct routeTableTreeBranchProxyStr
+{
+	RouteTableTreeBranchBlock *dataBlock;
+	s32 index;
+
+	u16 childAlloc;
+	u16 childCount;
+
+} RouteTableTreeBranchProxy;
+
+
+typedef struct routeTableTreeArrayProxyStr
+{
+	RouteTableTreeArrayBlock *ptrBlock; // If using two levels
+	u16 ptrAlloc;
+	u16 ptrCount;
+
+	RouteTableTreeArrayBlock *dataBlock;
+	u16 dataAlloc;
+	u16 dataCount;
+
+	u8 **newData;
+	u16 newDataAlloc;
+	u16 newDataCount;
+
+	HeapDataBlock *heapDataBlock;
+} RouteTableTreeArrayProxy;
+
+
 
 
 typedef struct routeTableTreeProxyStr
 {
 	MemDispenser *disp;
 
+	RouteTableTreeArrayProxy leafArrayProxy;
+	RouteTableTreeArrayProxy branchArrayProxy;
+	RouteTableTreeArrayProxy offsetArrayProxy;
 
+	RouteTableTreeBranchProxy *rootProxy;
 
-//	RouteTableBranchArray *branchArray;
-//	RouteTableLeafArray *leafArray;
 } RouteTableTreeProxy;
 
 typedef struct routeTableTreeWalkerStr
 {
 	RouteTableTreeProxy *treeProxy;
 
-	s16 currentNodeIndex;
-	s16 currentLeafEntry;
+	RouteTableTreeBranchProxy *branchProxy;
+	RouteTableTreeLeafProxy *leafProxy;
+
+	s16 leafEntry;
 
 } RouteTableTreeWalker;
 
@@ -118,8 +174,18 @@ struct routeTableTreeBuilderStr
 {
 	MemDispenser *disp;
 
-	u8 *rootBlockPtr;
-	s32 rootSize;
+	HeapDataBlock *topDataBlock;
+	RouteTableTreeTopBlock top;
+
+	//HeapDataBlock *prefixDataBlock;
+	//HeapDataBlock *suffixDataBlock;
+
+	HeapDataBlock forwardLeafDataBlock;
+	HeapDataBlock reverseLeafDataBlock;
+	HeapDataBlock forwardBranchDataBlock;
+	HeapDataBlock reverseBranchDataBlock;
+	HeapDataBlock forwardOffsetDataBlock;
+	HeapDataBlock reverseOffsetDataBlock;
 
 	RouteTableTreeProxy forwardProxy;
 	RouteTableTreeProxy reverseProxy;
@@ -133,7 +199,7 @@ struct routeTableTreeBuilderStr
 
 
 void rttInitRouteTableTreeBuilder(RouteTableTreeBuilder *builder, HeapDataBlock *dataBlock, MemDispenser *disp);
-void rttUpgradeToRouteTableTreeBuilder(RouteTableArrayBuilder *arrayBuilder,  RouteTableTreeBuilder *treeBuilder, MemDispenser *disp);
+void rttUpgradeToRouteTableTreeBuilder(RouteTableArrayBuilder *arrayBuilder,  RouteTableTreeBuilder *treeBuilder, HeapDataBlock *topDataBlock, MemDispenser *disp);
 
 void rttDumpRoutingTable(RouteTableTreeBuilder *builder);
 

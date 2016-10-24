@@ -2,389 +2,552 @@
 #include "common.h"
 
 
+#define ARRAY_TYPE_SHALLOW_PTR 0
+#define ARRAY_TYPE_DEEP_PTR 1
+#define ARRAY_TYPE_SHALLOW_DATA 2
+#define ARRAY_TYPE_DEEP_DATA 3
 
-/*
 
-static void initTreeProxyElement_existing(RouteTableTreeElementProxy *proxyElement, RouteTableTreeElementProxy *parentProxy, s32 inParentIndex, u8 *data)
+RouteTableTreeLeafBlock *reallocRouteTableTreeLeafBlockEntries(RouteTableTreeLeafBlock *oldBlock, MemDispenser *disp, s32 entryAlloc)
 {
-	proxyElement->next=NULL;
-	proxyElement->parentProxy=parentProxy;
-	proxyElement->inParentIndex=inParentIndex;
-
-	proxyElement->blockData=data;
-
-	s32 isLeaf=0, indexSize=0, subindexSize=0, subindex=0;
-
-	rtDecodeNonRootBlockHeader(data, &isLeaf, &indexSize, NULL, &subindexSize, &subindex);
-	int headerSize=rtGetNonRootBlockHeaderSize(indexSize, subindexSize);
-
-	if(isLeaf)
+	if(entryAlloc>ROUTE_TABLE_TREE_LEAF_ENTRIES)
 		{
-		proxyElement->branchData=NULL;
-		proxyElement->leafData=(RouteTableLeaf *)(data+headerSize);
-
-		int i=0;
-		while(i<ROUTE_TABLE_TREE_LEAF_ENTRIES && proxyElement->leafData->entries[i].width > 0)
-			i++;
-
-		proxyElement->leafEntryCount=i;
-		}
-	else
-		{
-		proxyElement->branchData=(RouteTableBranch *)(data+headerSize);
-		proxyElement->leafData=NULL;
+		LOG(LOG_CRITICAL,"Cannot allocate oversize leaf with %i children",entryAlloc);
 		}
 
-	proxyElement->childProxies=NULL;
+	RouteTableTreeLeafBlock *block=dAlloc(disp, sizeof(RouteTableTreeLeafBlock)+entryAlloc*sizeof(RouteTableTreeLeafEntry));
+	block->entryAlloc=entryAlloc;
+
+	s32 oldBlockEntryAlloc=0;
+	if(oldBlock!=NULL)
+		{
+		oldBlockEntryAlloc=oldBlock->entryAlloc;
+		memcpy(block,oldBlock, sizeof(RouteTableTreeLeafBlock)+oldBlockEntryAlloc*sizeof(RouteTableTreeLeafEntry));
+		}
+
+	for(int i=oldBlockEntryAlloc;i<entryAlloc;i++)
+		{
+		block->entries[i].downstream=-1;
+		block->entries[i].width=0;
+		}
+
+	return block;
+}
+
+
+RouteTableTreeLeafBlock *allocRouteTableTreeLeafBlock(MemDispenser *disp, s32 entryAlloc)
+{
+	if(entryAlloc>ROUTE_TABLE_TREE_LEAF_ENTRIES)
+			{
+			LOG(LOG_CRITICAL,"Cannot allocate oversize leaf with %i children",entryAlloc);
+			}
+
+	RouteTableTreeLeafBlock *block=dAlloc(disp, sizeof(RouteTableTreeLeafBlock)+entryAlloc*sizeof(RouteTableTreeLeafEntry));
+	block->entryAlloc=entryAlloc;
+
+	block->parentIndex=BRANCH_INDEX_INVALID;
+	block->upstream=-1;
+
+	for(int i=0;i<entryAlloc;i++)
+		{
+		block->entries[i].downstream=-1;
+		block->entries[i].width=0;
+		}
+
+	return block;
+}
+
+
+
+
+RouteTableTreeBranchBlock *allocRouteTableTreeBranchBlock(MemDispenser *disp, s32 childAlloc)
+{
+	if(childAlloc>ROUTE_TABLE_TREE_BRANCH_CHILDREN)
+		{
+		LOG(LOG_CRITICAL,"Cannot allocate oversize branch with %i children",childAlloc);
+		}
+
+	RouteTableTreeBranchBlock *block=dAlloc(disp, sizeof(RouteTableTreeBranchBlock)+childAlloc*sizeof(s16));
+	block->childAlloc=childAlloc;
+	block->parentIndex=BRANCH_INDEX_INVALID;
+	block->upstreamMin=-1;
+	block->upstreamMax=-1;
+
+	for(int i=0;i<childAlloc;i++)
+		block->childIndex[i]=BRANCH_INDEX_INVALID;
+
+	return block;
+}
+
+RouteTableTreeArrayBlock *allocRouteTableTreeDataArrayBlock(MemDispenser *disp, s32 dataAlloc)
+{
+	if(dataAlloc>ROUTE_TABLE_TREE_DATA_ARRAY_ENTRIES)
+			{
+			LOG(LOG_CRITICAL,"Cannot allocate oversize data array with %i children",dataAlloc);
+			}
+
+	RouteTableTreeArrayBlock *block=dAlloc(disp, sizeof(RouteTableTreeArrayBlock)+dataAlloc*sizeof(u8 *));
+	block->dataAlloc=dataAlloc;
+
+	for(int i=0;i<dataAlloc;i++)
+		block->data[i]=NULL;
+
+
+	return block;
+}
+
+RouteTableTreeArrayBlock *allocRouteTableTreePtrArrayBlock(MemDispenser *disp, s32 dataCount)
+{
+	if(dataCount>ROUTE_TABLE_TREE_PTR_ARRAY_ENTRIES)
+			{
+			LOG(LOG_CRITICAL,"Cannot allocate oversize data array with %i children",dataCount);
+			}
+
+	RouteTableTreeArrayBlock *block=dAlloc(disp, sizeof(RouteTableTreeArrayBlock)+dataCount*sizeof(u8 *));
+	block->dataAlloc=dataCount;
+	return block;
+}
+
+
+
+
+
+
+
+
+
+
+static void initBlockArrayProxy_scan(RouteTableTreeArrayBlock *arrayBlock, u16 *allocPtr, u16 *countPtr)
+{
+	if(arrayBlock==NULL)
+		{
+		*allocPtr=0;
+		*countPtr=0;
+		return;
+		}
+
+	u16 alloc=arrayBlock->dataAlloc;
+	*allocPtr=alloc;
+	u16 count=0;
+
+	for(int i=alloc;i>0;i--)
+		{
+		if(arrayBlock->data[i-1]!=NULL)
+			{
+			count=i;
+			break;
+			}
+		}
+
+	*countPtr=count;
+}
+
+static void initBlockArrayProxy(RouteTableTreeProxy *treeProxy, RouteTableTreeArrayProxy *arrayProxy, HeapDataBlock *heapDataBlock, u32 arrayType)
+{
+	arrayProxy->heapDataBlock=heapDataBlock;
+
+	switch(arrayType)
+		{
+		case ARRAY_TYPE_SHALLOW_PTR:
+			LOG(LOG_CRITICAL,"Not implemented");
+			break;
+
+		case ARRAY_TYPE_DEEP_PTR:
+			LOG(LOG_CRITICAL,"Invalid DeepPtr format for top-level block");
+			break;
+
+		case ARRAY_TYPE_SHALLOW_DATA:
+			arrayProxy->ptrBlock=NULL;
+			if(heapDataBlock->blockPtr!=NULL)
+				arrayProxy->dataBlock=(RouteTableTreeArrayBlock *)(heapDataBlock->blockPtr+heapDataBlock->headerSize);
+			else
+				arrayProxy->dataBlock=NULL;
+			break;
+
+		case ARRAY_TYPE_DEEP_DATA:
+			LOG(LOG_CRITICAL,"Invalid DeepData format for top-level block");
+			break;
+		}
+
+	initBlockArrayProxy_scan(arrayProxy->ptrBlock, &arrayProxy->ptrAlloc, &arrayProxy->ptrCount);
+	initBlockArrayProxy_scan(arrayProxy->dataBlock, &arrayProxy->dataAlloc, &arrayProxy->dataCount);
+
+	arrayProxy->newData=NULL;
+	arrayProxy->newDataAlloc=0;
+	arrayProxy->newDataCount=0;
+
+}
+
+
+//static
+s32 getBlockArraySize(RouteTableTreeArrayProxy *arrayProxy)
+{
+	if(arrayProxy->newDataCount>0)
+		return arrayProxy->newDataCount;
+
+	return arrayProxy->dataCount;
 }
 
 //static
-void initTreeProxyElement_newLeaf(RouteTableTreeElementProxy *proxyElement, RouteTableTreeElementProxy *parentProxy, s32 inParentIndex, MemDispenser *disp)
+u8 *getBlockArrayEntry(RouteTableTreeArrayProxy *arrayProxy, s32 index)
 {
-	proxyElement->next=NULL;
-	proxyElement->parentProxy=parentProxy;
-	proxyElement->inParentIndex=inParentIndex;
-
-	proxyElement->blockData=NULL;
-
-	proxyElement->branchData=NULL;
-
-	proxyElement->childProxies=NULL;
-	proxyElement->childProxyCount=0;
-
-	proxyElement->leafData=dAlloc(disp, sizeof(RouteTableLeaf));
-	memset(proxyElement->leafData, 0, sizeof(RouteTableLeaf));
-
-	proxyElement->leafEntryCount=0;
-}
-
-void initTreeProxyElement_newBranch(RouteTableTreeElementProxy *proxyElement, RouteTableTreeElementProxy *parentProxy, s32 inParentIndex, MemDispenser *disp)
-{
-	proxyElement->next=NULL;
-	proxyElement->parentProxy=parentProxy;
-	proxyElement->inParentIndex=inParentIndex;
-
-	proxyElement->blockData=NULL;
-
-	proxyElement->branchData=dAlloc(disp, sizeof(RouteTableBranch));
-	memset(proxyElement->branchData, 0, sizeof(RouteTableBranch));
-
-	proxyElement->childProxies=NULL;
-	proxyElement->childProxyCount=0;
-
-	proxyElement->leafData=NULL;
-
-	proxyElement->leafEntryCount=0;
-}
-
-void expandProxyElementChildren(RouteTableTreeElementProxy *proxyElement, MemDispenser *disp)
-{
-	if(proxyElement->branchData==NULL)
+	if(arrayProxy->ptrBlock!=NULL)
 		{
-		LOG(LOG_CRITICAL,"Cannot expand children elements on leaf node");
+		LOG(LOG_CRITICAL,"Two level arrays not implemented");
 		}
 
-	if(proxyElement->childProxies!=NULL)
+	if(index>=0 && index<arrayProxy->newDataCount)
 		{
-		LOG(LOG_CRITICAL,"Children elements already expanded on node");
+		u8 *newData=arrayProxy->dataBlock->data[index];
+
+		if(newData!=NULL)
+			return newData;
 		}
 
-	struct routeTableTreeElementProxyStr **childProxies=dAlloc(disp, sizeof(struct routeTableTreeElementProxyStr *)*ROUTE_TABLE_TREE_BRANCH_CHILDREN);
-	proxyElement->childProxies=childProxies;
-
-	int i=0;
-
-	while(i<ROUTE_TABLE_TREE_BRANCH_CHILDREN && proxyElement->branchData->childData[i]!=NULL)
-		{
-		struct routeTableTreeElementProxyStr *childProxy=dAlloc(disp, sizeof(struct routeTableTreeElementProxyStr *));
-		initTreeProxyElement_existing(childProxy, proxyElement, i, proxyElement->branchData->childData[i]);
-		childProxies[i++]=childProxy;
-		}
-
-	proxyElement->childProxyCount=i;
-
-	while(i<ROUTE_TABLE_TREE_BRANCH_CHILDREN)
-		childProxies[i++]=NULL;
-
-}
+	if(index>=0 && index<arrayProxy->dataCount)
+		return arrayProxy->dataBlock->data[index];
 
 
-void walkerReset(RouteTableTreeWalker *walker)
-{
-	walker->rootIndex=0;
+	LOG(LOG_CRITICAL,"Invalid array index %i - Size %i",index,arrayProxy->newDataCount);
 
-	walker->firstBranchProxy=NULL;
-	walker->firstBranchIndex=0;
-
-	walker->secondBranchProxy=NULL;
-	walker->secondBranchIndex=0;
-
-	walker->leafProxy=NULL;
-	walker->leafIndex=0;
-
-}
-
-
-void initTreeWalker(RouteTableTreeProxy *treeProxy, RouteTableTreeWalker *walker)
-{
-	walker->treeProxy=treeProxy;
-	walkerReset(walker);
-}
-
-
-RouteTableTreeElementProxy *walkerInsertLeafEmpty(RouteTableTreeWalker *walker, MemDispenser *disp)
-{
-	RouteTableTreeElementProxy *leaf=dAlloc(disp, sizeof(RouteTableTreeElementProxy));
-	initTreeProxyElement_newLeaf(leaf, NULL, 0, disp);
-
-	walker->treeProxy->directChildren[0]=leaf;
-	walker->treeProxy->directChildrenCount=1;
-
-	walker->leafProxy=leaf;
-	walker->leafIndex=0;
-
-	return leaf;
-}
-
-
-// Insert extra tree level by splitting root. Result is a single-child root. Existing children demoted
-// Existing children maintain indexes, and gain parent proxies
-// Walker positions/proxies shift due to additional level
-
-void walker_GrowTree(RouteTableTreeWalker *walker, MemDispenser *disp)
-{
-	if(walker->secondBranchProxy!=NULL)
-		{
-		LOG(LOG_CRITICAL,"Tree is already maximum height");
-		}
-
-	RouteTableTreeElementProxy *newBranch=dAlloc(disp,sizeof(RouteTableTreeElementProxy));
-
-	initTreeProxyElement_newBranch(newBranch, NULL, 0, disp);
-	newBranch->childProxies=dAlloc(disp, sizeof(struct routeTableTreeElementProxyStr *));
-
-	s32 directChildrenCount=walker->treeProxy->directChildrenCount;
-
-	for(int i=0;i<directChildrenCount;i++)
-		{
-		RouteTableTreeElementProxy *childProxy=walker->treeProxy->directChildren[i];
-
-		newBranch->childProxies[i]=childProxy;
-		newBranch->branchData->childData[i]=childProxy->blockData;
-
-		childProxy->parentProxy=newBranch;
-		walker->treeProxy->directChildren[i]=NULL;
-		}
-
-	newBranch->childProxyCount=directChildrenCount;
-
-	walker->treeProxy->directChildren[0]=newBranch;
-	walker->treeProxy->directChildrenCount=1;
-
-	walker->treeProxy->contentDirty=1;
-
-	walker->secondBranchIndex=walker->firstBranchIndex;
-	walker->secondBranchProxy=walker->firstBranchProxy;
-
-	walker->firstBranchIndex=walker->rootIndex;
-	walker->firstBranchProxy=newBranch;
-
-	walker->rootIndex=0;
-}
-
-
-// Insert extra element into a non-full node with Existing children indexes shuffled as needed
-
-void walker_BranchInsert(RouteTableTreeElementProxy *parent, RouteTableTreeElementProxy *newElement, s32 position)
-{
-
-}
-
-// Add an entry at the second level (child of root). May result in adding a level if root is full
-
-int walker_WidenTree_2Level(RouteTableTreeWalker *walker, RouteTableTreeElementProxy *newElement, s32 position, MemDispenser *disp) // Insert additional root children
-{
-	int currentDirectCount=walker->treeProxy->directChildrenCount;
-
-	if(position>currentDirectCount)
-		{
-		LOG(LOG_CRITICAL,"Attempt to add nodes beyond end of parent");
-		}
-
-	int newCount=currentDirectCount+1;
-	if(newCount>ROUTE_TABLE_TREE_HUGEROOT_ENTRIES)
-		{
-		walker_GrowTree(walker, disp);
-
-		RouteTableTreeElementProxy *newBranch=walker->treeProxy->directChildren[0];
-
-		return 1;
-		}
-
-	for(int i=currentDirectCount;i>position;i--)
-		{
-		walker->treeProxy->directChildren[i]=walker->treeProxy->directChildren[i-1];
-		walker->treeProxy->directChildren[i]->inParentIndex=i;
-		}
-
-	walker->treeProxy->directChildrenCount=newCount;
-	walker->rootIndex=position;
-
-	return 0;
-}
-
-int walker_SplitTree_3Level(RouteTableTreeWalker *walker, RouteTableTreeElementProxy *parent,
-		RouteTableTreeElementProxy *newElement, s32 position, MemDispenser *disp) // Perform split of L1 branch
-{
-	return 0;
-}
-
-
-
-int walker_SplitTree_4Level(RouteTableTreeWalker *walker, RouteTableTreeElementProxy *parent,
-		RouteTableTreeElementProxy *newElement, s32 position, MemDispenser *disp) // Perform split of L2 branch
-{
-	return 0;
-}
-
-
-RouteTableTreeElementProxy *walkerInsertLeafAfter(RouteTableTreeWalker *walker)
-{
 	return NULL;
 
-	//RouteTableTreeElementProxy *currentLeaf=walker->leafProxy;
+}
 
-	/*
-	if(walker->secondBranchProxy) // 4-level tree
+void ensureBlockArrayWritable(RouteTableTreeArrayProxy *arrayProxy, MemDispenser *disp)
+{
+	if(arrayProxy->newData==NULL) // Haven't yet written anything - make writable
 		{
-		int insertPosition=walker->secondBranchIndex+1;
-		int newCount=walker->secondBranchProxy->childProxyCount+1;
+		int newAllocCount=arrayProxy->dataAlloc;
 
-		if(newCount>=ROUTE_TABLE_TREE_LEAF_ENTRIES) // No space in second-level branch parent
-			{
+		if(arrayProxy->dataCount==newAllocCount)
+			newAllocCount+=ROUTE_TABLE_TREE_ARRAY_ENTRIES_CHUNK;
 
+		u8 **newData=dAlloc(disp, sizeof(u8 *)*newAllocCount);
 
+		if(newAllocCount>arrayProxy->dataCount)
+			memset(newData+sizeof(u8 *)*arrayProxy->dataCount, 0, sizeof(u8 *)*newAllocCount);
 
-			}
-
+		arrayProxy->newData=newData;
+		arrayProxy->newDataAlloc=newAllocCount;
+		arrayProxy->newDataCount=arrayProxy->dataCount;
 		}
 
+}
 
+//static
+void setBlockArrayEntry(RouteTableTreeArrayProxy *arrayProxy, s32 index, u8 *data, MemDispenser *disp)
+{
+	ensureBlockArrayWritable(arrayProxy, disp);
+
+	if(arrayProxy->ptrBlock!=NULL)
+		{
+		LOG(LOG_CRITICAL,"Two level arrays not implemented");
+		}
+
+	if(index>=0 && index<arrayProxy->dataCount)
+		arrayProxy->newData[index]=data;
+	else
+		LOG(LOG_CRITICAL,"Invalid array index %i - Size %i",index,arrayProxy->dataCount);
+}
+
+//static
+s32 appendBlockArrayEntry(RouteTableTreeArrayProxy *arrayProxy, u8 *data, MemDispenser *disp)
+{
+	ensureBlockArrayWritable(arrayProxy, disp);
+
+	if(arrayProxy->ptrBlock!=NULL)
+		{
+		LOG(LOG_CRITICAL,"Two level arrays not implemented");
+		}
+
+	if(arrayProxy->newDataCount>=arrayProxy->newDataAlloc)
+		{
+		int newAllocCount=arrayProxy->newDataAlloc+ROUTE_TABLE_TREE_ARRAY_ENTRIES_CHUNK;
+
+		if(newAllocCount>ROUTE_TABLE_TREE_DATA_ARRAY_ENTRIES)
+			{
+			LOG(LOG_CRITICAL,"Need to allocate more than %i entries (%i)",ROUTE_TABLE_TREE_DATA_ARRAY_ENTRIES, newAllocCount);
+			}
+
+		u8 **newData=dAlloc(disp, sizeof(u8 *)*newAllocCount);
+
+		arrayProxy->newData=dAlloc(disp, sizeof(u8 *)*newAllocCount);
+		memcpy(newData,arrayProxy->newData, sizeof(u8 *)*newAllocCount);
+
+		arrayProxy->newData=newData;
+		arrayProxy->newDataAlloc=newAllocCount;
+		}
+
+	s32 index=arrayProxy->newDataCount++;
+	arrayProxy->newData[index]=data;
+	return arrayProxy->dataAlloc+index;
+}
+
+
+
+//static
+void getRouteTableTreeBranchProxy_scan(RouteTableTreeBranchBlock *branchBlock, u16 *allocPtr, u16 *countPtr)
+{
+	if(branchBlock==NULL)
+		{
+		*allocPtr=0;
+		*countPtr=0;
+		return;
+		}
+
+	u16 alloc=branchBlock->childAlloc;
+	*allocPtr=alloc;
+	u16 count=0;
+
+	for(int i=alloc;i>0;i--)
+		{
+		if(branchBlock->childIndex[i-1]!=BRANCH_INDEX_INVALID)
+			{
+			count=i;
+			break;
+			}
+		}
+
+	*countPtr=count;
+}
+
+
+// static
+RouteTableTreeBranchProxy *getRouteTableTreeBranchProxy(RouteTableTreeProxy *treeProxy, s32 index)
+{
+	u8 *data=getBlockArrayEntry(&(treeProxy->branchArrayProxy), index);
+
+	RouteTableTreeBranchProxy *proxy=dAlloc(treeProxy->disp, sizeof(RouteTableTreeBranchProxy));
+
+	proxy->dataBlock=(RouteTableTreeBranchBlock *)data;
+	proxy->index=index;
+
+	getRouteTableTreeBranchProxy_scan(proxy->dataBlock, &proxy->childAlloc, &proxy->childCount);
+
+	return proxy;
+}
+
+// static
+void setRouteTableTreeBranchProxy(RouteTableTreeProxy *treeProxy, RouteTableTreeBranchProxy *branchProxy)
+{
+	setBlockArrayEntry(&(treeProxy->branchArrayProxy), branchProxy->index, (u8 *)branchProxy->dataBlock, treeProxy->disp);
+}
+
+//static
+RouteTableTreeBranchProxy *allocRouteTableTreeBranchProxy(RouteTableTreeProxy *treeProxy)
+{
+	RouteTableTreeBranchBlock *dataBlock=allocRouteTableTreeBranchBlock(treeProxy->disp, ROUTE_TABLE_TREE_BRANCH_CHILDREN_CHUNK);
+	s32 index=appendBlockArrayEntry(&(treeProxy->branchArrayProxy), (u8 *)dataBlock, treeProxy->disp);
+
+	RouteTableTreeBranchProxy *proxy=dAlloc(treeProxy->disp, sizeof(RouteTableTreeBranchProxy));
+	proxy->dataBlock=dataBlock;
+	proxy->index=index;
+
+	proxy->childAlloc=ROUTE_TABLE_TREE_BRANCH_CHILDREN_CHUNK;
+	proxy->childCount=0;
+
+	return proxy;
+}
+
+
+//static
+void getRouteTableTreeLeafProxy_scan(RouteTableTreeLeafBlock *leafBlock, u16 *allocPtr, u16 *countPtr)
+{
+	if(leafBlock==NULL)
+		{
+		*allocPtr=0;
+		*countPtr=0;
+		return;
+		}
+
+	u16 alloc=leafBlock->entryAlloc;
+	*allocPtr=alloc;
+	u16 count=0;
+
+	for(int i=alloc;i>0;i--)
+		{
+		if(leafBlock->entries[i-1].width!=0)
+			{
+			count=i;
+			break;
+			}
+		}
+
+	*countPtr=count;
+}
+
+
+// static
+RouteTableTreeLeafProxy *getRouteTableTreeLeafProxy(RouteTableTreeProxy *treeProxy, s32 index)
+{
+	u8 *data=getBlockArrayEntry(&(treeProxy->leafArrayProxy), index);
+
+	RouteTableTreeLeafProxy *proxy=dAlloc(treeProxy->disp, sizeof(RouteTableTreeLeafProxy));
+
+	proxy->dataBlock=(RouteTableTreeLeafBlock *)data;
+	proxy->index=index;
+
+	getRouteTableTreeLeafProxy_scan(proxy->dataBlock, &proxy->entryAlloc, &proxy->entryCount);
+
+	return proxy;
+}
+
+// static
+void setRouteTableTreeLeafProxy(RouteTableTreeProxy *treeProxy, RouteTableTreeLeafProxy *leafProxy)
+{
+	setBlockArrayEntry(&(treeProxy->leafArrayProxy), leafProxy->index, (u8 *)leafProxy->dataBlock, treeProxy->disp);
+}
+
+//static
+RouteTableTreeLeafProxy *allocRouteTableTreeLeafProxy(RouteTableTreeProxy *treeProxy)
+{
+	RouteTableTreeLeafBlock *dataBlock=allocRouteTableTreeLeafBlock(treeProxy->disp, ROUTE_TABLE_TREE_LEAF_ENTRIES_CHUNK);
+	s32 index=appendBlockArrayEntry(&(treeProxy->leafArrayProxy), (u8 *)dataBlock, treeProxy->disp);
+
+	RouteTableTreeLeafProxy *proxy=dAlloc(treeProxy->disp, sizeof(RouteTableTreeLeafProxy));
+	proxy->dataBlock=dataBlock;
+	proxy->index=index;
+
+	proxy->entryAlloc=ROUTE_TABLE_TREE_LEAF_ENTRIES_CHUNK;
+	proxy->entryCount=0;
+
+	return proxy;
+}
+
+
+
+static void initTreeProxy(RouteTableTreeProxy *proxy, HeapDataBlock *leafBlock, HeapDataBlock *branchBlock, HeapDataBlock *offsetBlock, MemDispenser *disp)
+{
+	proxy->disp=disp;
+
+	initBlockArrayProxy(proxy, &(proxy->leafArrayProxy), leafBlock, 2);
+	initBlockArrayProxy(proxy, &(proxy->branchArrayProxy), branchBlock, 2);
+	initBlockArrayProxy(proxy, &(proxy->offsetArrayProxy), offsetBlock, 2);
+
+	if(getBlockArraySize(&(proxy->branchArrayProxy))>0)
+		proxy->rootProxy=getRouteTableTreeBranchProxy(proxy, 0);
+	else
+		proxy->rootProxy=allocRouteTableTreeBranchProxy(proxy);
 
 }
 
 
-void walkerAppendPreorderedEntry(RouteTableTreeWalker *walker, RouteTableEntry *entry, int routingTable)
+static RouteTableTreeBranchProxy *treeProxyAppendLeafChild(RouteTableTreeProxy *treeProxy, RouteTableTreeBranchProxy *parent, RouteTableTreeLeafProxy *child)
 {
-	MemDispenser *disp=walker->treeProxy->disp;
+	s16 parentIndex=parent->index;
+	s16 childIndex=child->index;
 
-	int upstream=routingTable==ROUTING_TABLE_FORWARD?entry->prefix:entry->suffix;
-	//int downstream=routingTable==ROUTING_TABLE_FORWARD?entry->suffix:entry->prefix;
-
-	RouteTableTreeElementProxy *leaf=walker->leafProxy;
-
-	if(walker->leafProxy==NULL) // Possibilities: No more tree (root with no (remaining) children), tree with one, two or 3 levels
+	if(parent->childCount>=parent->childAlloc)
 		{
-		int childCount=walker->treeProxy->directChildrenCount;
-		if(childCount==0) // Empty Tree
-			{
-			leaf=walkerInsertLeafEmpty(walker,disp);
-			leaf->leafData->upstream=upstream;
-			}
-		else
-			{
-			walker->rootIndex=childCount-1;
-			RouteTableTreeElementProxy *rootChild=walker->treeProxy->directChildren[walker->rootIndex];
-
-			if(rootChild->leafData==NULL) // Multi level tree
-				{
-				walker->firstBranchProxy=rootChild;
-
-				if(rootChild->childProxies==NULL)
-					expandProxyElementChildren(rootChild, disp);
-
-				walker->firstBranchIndex=rootChild->childProxyCount-1;
-				if(walker->firstBranchIndex<0)
-					{
-					LOG(LOG_CRITICAL,"Found empty first level branch node");
-					}
-
-				RouteTableTreeElementProxy *firstBranchChild=rootChild->childProxies[walker->firstBranchIndex];
-				if(firstBranchChild->leafData==NULL) // Two branch levels
-					{
-					walker->secondBranchProxy=firstBranchChild;
-
-					if(firstBranchChild->childProxies==NULL)
-						expandProxyElementChildren(firstBranchChild, disp);
-
-					walker->secondBranchIndex=firstBranchChild->childProxyCount-1;
-					if(walker->secondBranchIndex<0)
-						{
-						LOG(LOG_CRITICAL,"Found empty second level branch node");
-						}
-
-					RouteTableTreeElementProxy *secondBranchChild=firstBranchChild->childProxies[walker->secondBranchIndex];
-					leaf=secondBranchChild;
-					}
-				else
-					leaf=firstBranchChild;
-				}
-			else
-				leaf=rootChild;
-
-			if(leaf->leafData!=NULL)
-				{
-				walker->leafProxy=leaf;
-				walker->leafIndex=leaf->leafEntryCount;
-				}
-			else
-				{
-				LOG(LOG_INFO,"Failed to find leaf")
-				}
-			}
+		LOG(LOG_INFO,"Not implemented");
 		}
 
-	if((leaf->leafData->upstream!=upstream) || walker->leafIndex>=ROUTE_TABLE_TREE_LEAF_ENTRIES)
-		{
-		LOG(LOG_CRITICAL,"Not implemented - need leaf append");
-		}
+	LOG(LOG_INFO,"Appended Leaf");
 
-	LOG(LOG_INFO,"Indexes are %i %i %i %i",walker->rootIndex,walker->firstBranchIndex,walker->secondBranchIndex, walker->leafIndex);
-	LOG(LOG_CRITICAL,"Got this far: leaf is %p",leaf);
+	parent->dataBlock->childIndex[parent->childCount++]=childIndex;
+	child->dataBlock->parentIndex=parentIndex;
 
-	// All walker fields should now be valid
-
+	return parent;
 }
 
 
-*/
 
 
 
 
-void walkerAppendPreorderedEntries(RouteTableTreeWalker *walker, RouteTableEntry *entries, u32 entryCount, int routingTable)
+
+
+static void initTreeWalker(RouteTableTreeWalker *walker, RouteTableTreeProxy *treeProxy)
 {
-	walkerReset(walker);
+	walker->treeProxy=treeProxy;
+
+	walker->branchProxy=treeProxy->rootProxy;
+	walker->leafProxy=NULL;
+
+	walker->leafEntry=-1;
+}
+
+static void walkerSeekEnd(RouteTableTreeWalker *walker)
+{
+	RouteTableTreeBranchProxy *branchProxy=walker->treeProxy->rootProxy;
+	RouteTableTreeLeafProxy *leafProxy=NULL;
+
+	s16 lastChildIndex=0;
+
+	while(branchProxy->childCount>0 && lastChildIndex>=0)
+		{
+		lastChildIndex=branchProxy->dataBlock->childIndex[branchProxy->childCount-1];
+
+		if(lastChildIndex>0)
+			{
+			branchProxy=getRouteTableTreeBranchProxy(walker->treeProxy, lastChildIndex);
+			}
+
+		}
+
+	if(lastChildIndex<0)
+		{
+		leafProxy=getRouteTableTreeLeafProxy(walker->treeProxy,1-lastChildIndex);
+		}
+
+	walker->branchProxy=branchProxy;
+	walker->leafProxy=leafProxy;
+
+	if(leafProxy!=NULL)
+		walker->leafEntry=leafProxy->entryCount;
+	else
+		walker->leafEntry=-1;
+}
+
+
+static void walkerAppendLeaf(RouteTableTreeWalker *walker, s16 upstream)
+{
+	RouteTableTreeLeafProxy *leafProxy=allocRouteTableTreeLeafProxy(walker->treeProxy);
+
+	walker->branchProxy=treeProxyAppendLeafChild(walker->treeProxy, walker->branchProxy, leafProxy);
+	leafProxy->dataBlock->upstream=upstream;
+
+	walker->leafProxy=leafProxy;
+	walker->leafEntry=leafProxy->entryCount;
+}
+
+static void walkerAppendPreorderedEntry(RouteTableTreeWalker *walker, RouteTableEntry *entry, int routingTable)
+{
+	s32 upstream=routingTable==ROUTING_TABLE_FORWARD?entry->prefix:entry->suffix;
+	s32 downstream=routingTable==ROUTING_TABLE_FORWARD?entry->suffix:entry->prefix;
+
+	if(walker->leafProxy==NULL || walker->leafProxy->entryCount==ROUTE_TABLE_TREE_LEAF_ENTRIES)
+		walkerAppendLeaf(walker, upstream);
+
+	u16 entryCount=walker->leafProxy->entryCount;
+
+	if(walker->leafProxy->entryAlloc==walker->leafProxy->entryCount)
+		{
+		RouteTableTreeLeafBlock *leaf=reallocRouteTableTreeLeafBlockEntries(walker->leafProxy->dataBlock, walker->treeProxy->disp,
+				walker->leafProxy->entryAlloc+ROUTE_TABLE_TREE_LEAF_ENTRIES_CHUNK);
+
+		walker->leafProxy->dataBlock=leaf;
+		}
+
+	walker->leafProxy->dataBlock->entries[entryCount].downstream=downstream;
+	walker->leafProxy->dataBlock->entries[entryCount].width=entry->width;
+
+	walker->leafEntry=++walker->leafProxy->entryCount;
+
+	LOG(LOG_INFO,"Appended Leaf Entry");
+}
+
+
+
+static void walkerAppendPreorderedEntries(RouteTableTreeWalker *walker, RouteTableEntry *entries, u32 entryCount, int routingTable)
+{
+	walkerSeekEnd(walker);
 
 	for(int i=0;i<entryCount;i++)
 		walkerAppendPreorderedEntry(walker,entries+i, routingTable);
 
 }
-
-
-
-
-static void initTreeProxy(RouteTableTreeProxy *proxy, RouteTableTreeBranchBlock *branchArray, RouteTableTreeLeafBlock *leafArray, MemDispenser *disp)
-{
-	proxy->disp=disp;
-
-//	proxy->branchArray=branchArray;
-//	proxy->leafArray=leafArray;
-
-}
-
-
-
 
 
 void rttInitRouteTableTreeBuilder(RouteTableTreeBuilder *builder, HeapDataBlock *dataBlock, MemDispenser *disp)
@@ -396,22 +559,34 @@ void rttInitRouteTableTreeBuilder(RouteTableTreeBuilder *builder, HeapDataBlock 
 
 }
 
-void rttUpgradeToRouteTableTreeBuilder(RouteTableArrayBuilder *arrayBuilder,  RouteTableTreeBuilder *treeBuilder, MemDispenser *disp)
+void rttUpgradeToRouteTableTreeBuilder(RouteTableArrayBuilder *arrayBuilder,  RouteTableTreeBuilder *treeBuilder, HeapDataBlock *topDataBlock, MemDispenser *disp)
 {
 	treeBuilder->disp=arrayBuilder->disp;
-	treeBuilder->rootBlockPtr=NULL;
-	treeBuilder->rootSize=0;
 
-	initTreeProxy(&(treeBuilder->forwardProxy), NULL, 0, disp);
-	initTreeProxy(&(treeBuilder->reverseProxy), NULL, 0, disp);
+	treeBuilder->topDataBlock=topDataBlock;
 
-	initTreeWalker(&(treeBuilder->forwardProxy), &(treeBuilder->forwardWalker));
-	initTreeWalker(&(treeBuilder->reverseProxy), &(treeBuilder->reverseWalker));
+	for(int i=0;i<ROUTE_TOPINDEX_MAX;i++)
+		treeBuilder->top.data[i]=NULL;
+
+	treeBuilder->forwardLeafDataBlock.blockPtr=NULL;
+	treeBuilder->reverseLeafDataBlock.blockPtr=NULL;
+	treeBuilder->forwardBranchDataBlock.blockPtr=NULL;
+	treeBuilder->reverseBranchDataBlock.blockPtr=NULL;
+	treeBuilder->forwardOffsetDataBlock.blockPtr=NULL;
+	treeBuilder->reverseOffsetDataBlock.blockPtr=NULL;
+
+	initTreeProxy(&(treeBuilder->forwardProxy), &(treeBuilder->forwardLeafDataBlock), &(treeBuilder->forwardBranchDataBlock), &(treeBuilder->forwardOffsetDataBlock), disp);
+	initTreeProxy(&(treeBuilder->reverseProxy), &(treeBuilder->reverseLeafDataBlock), &(treeBuilder->reverseBranchDataBlock), &(treeBuilder->reverseOffsetDataBlock), disp);
+
+	initTreeWalker(&(treeBuilder->forwardWalker), &(treeBuilder->forwardProxy));
+	initTreeWalker(&(treeBuilder->reverseWalker), &(treeBuilder->reverseProxy));
 
 	walkerAppendPreorderedEntries(&(treeBuilder->forwardWalker), arrayBuilder->oldForwardEntries, arrayBuilder->oldForwardEntryCount, ROUTING_TABLE_FORWARD);
 	walkerAppendPreorderedEntries(&(treeBuilder->reverseWalker), arrayBuilder->oldReverseEntries, arrayBuilder->oldReverseEntryCount, ROUTING_TABLE_REVERSE);
 
-	treeBuilder->newEntryCount=arrayBuilder->oldForwardEntryCount+arrayBuilder->oldReverseEntryCount;
+
+
+//	treeBuilder->newEntryCount=arrayBuilder->oldForwardEntryCount+arrayBuilder->oldReverseEntryCount;
 
 	LOG(LOG_CRITICAL,"Not implemented: rttUpgradeToRouteTableTreeBuilder");
 }
