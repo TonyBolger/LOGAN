@@ -20,11 +20,19 @@
 #define ROUTE_TABLE_TREE_DATA_ARRAY_ENTRIES 1024
 #define ROUTE_TABLE_TREE_ARRAY_ENTRIES_CHUNK 4
 
-#define ROUTE_TABLE_TREE_BRANCH_CHILDREN 64
+//#define ROUTE_TABLE_TREE_BRANCH_CHILDREN 64
+//#define ROUTE_TABLE_TREE_BRANCH_CHILDREN_CHUNK 8
+#define ROUTE_TABLE_TREE_BRANCH_CHILDREN 8
 #define ROUTE_TABLE_TREE_BRANCH_CHILDREN_CHUNK 4
+//#define ROUTE_TABLE_TREE_BRANCH_CHILDREN 2
+//#define ROUTE_TABLE_TREE_BRANCH_CHILDREN_CHUNK 2
 
-#define ROUTE_TABLE_TREE_LEAF_ENTRIES 1024
-#define ROUTE_TABLE_TREE_LEAF_ENTRIES_CHUNK 8
+//#define ROUTE_TABLE_TREE_LEAF_ENTRIES 1024
+//#define ROUTE_TABLE_TREE_LEAF_ENTRIES_CHUNK 8
+#define ROUTE_TABLE_TREE_LEAF_ENTRIES 8
+#define ROUTE_TABLE_TREE_LEAF_ENTRIES_CHUNK 4
+//#define ROUTE_TABLE_TREE_LEAF_ENTRIES 2
+//#define ROUTE_TABLE_TREE_LEAF_ENTRIES_CHUNK 2
 
 /* Structs representing the various parts of the tree in heap-block format */
 
@@ -46,6 +54,7 @@ typedef struct rootTableTreeTopBlockStr
 
 #define ROUTE_TOPINDEX_MAX 8
 
+#define BRANCH_INDEX_ROOT 0
 #define BRANCH_INDEX_INVALID (-32768)
 
 typedef struct routeTableTreeBranchBlockStr
@@ -69,8 +78,8 @@ typedef struct routeTableTreeLeafEntryStr
 typedef struct routeTableLeafBlockStr
 {
 	s16 entryAlloc;
-
 	s16 parentIndex;
+
 	s16 upstream;
 	RouteTableTreeLeafEntry entries[]; // Max is ROUTE_TABLE_TREE_LEAF_ENTRIES
 } __attribute__((packed)) RouteTableTreeLeafBlock;
@@ -136,7 +145,7 @@ typedef struct routeTableTreeArrayProxyStr
 	u16 dataAlloc;
 	u16 dataCount;
 
-	u8 **newData;
+	u8 **newData; // Temporary space for new stuff
 	u16 newDataAlloc;
 	u16 newDataCount;
 
@@ -162,10 +171,17 @@ typedef struct routeTableTreeWalkerStr
 {
 	RouteTableTreeProxy *treeProxy;
 
+	// Current Position
 	RouteTableTreeBranchProxy *branchProxy;
+	s16 branchChild;
 	RouteTableTreeLeafProxy *leafProxy;
-
 	s16 leafEntry;
+
+	s32 upstreamOffsetCount;
+	s32 downstreamOffsetCount;
+	s32 *upstreamOffsets;
+	s32 *downstreamOffsets;
+
 
 } RouteTableTreeWalker;
 

@@ -114,7 +114,7 @@ typedef struct routingComboBuilderStr
 } RoutingComboBuilder;
 
 
-#define ROUTING_TREE_THRESHOLD 256
+#define ROUTING_TREE_THRESHOLD 100
 
 
 s32 rtEncodeTailBlockHeader(u32 prefixSuffix, u32 indexSize, u32 index, u8 *data);
