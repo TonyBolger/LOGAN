@@ -463,6 +463,20 @@ RouteTableTreeLeafProxy *allocRouteTableTreeLeafProxy(RouteTableTreeProxy *treeP
 
 
 
+//static
+s16 getBranchChildPositionBranch(RouteTableTreeBranchProxy *parent, RouteTableTreeBranchProxy *child, s16 positionEstimate)
+{
+	return 0;
+}
+
+//static
+s16 getBranchChildPositionLeaf(RouteTableTreeBranchProxy *parent, RouteTableTreeLeafProxy *child, s16 positionEstimate)
+{
+	return 0;
+}
+
+
+
 static void initTreeProxy(RouteTableTreeProxy *proxy, HeapDataBlock *leafBlock, HeapDataBlock *branchBlock, HeapDataBlock *offsetBlock, MemDispenser *disp)
 {
 	proxy->disp=disp;
@@ -869,8 +883,12 @@ static RouteTableTreeBranchProxy *treeProxyAppendLeafChild(RouteTableTreeProxy *
 
 
 
+
+
 static void getNextLeafSibling(RouteTableTreeProxy *treeProxy, RouteTableTreeBranchProxy **branchPtr, s16 *branchChild, RouteTableTreeLeafProxy **leafPtr)
 {
+
+
 
 }
 
@@ -1109,7 +1127,7 @@ void mergeRoutes_ordered_forwardSingle(RouteTableTreeWalker *walker, RoutePatch 
 	//int minEdgePosition=(*(patch->rdiPtr))->minEdgePosition;
 	//int maxEdgePosition=(*(patch->rdiPtr))->maxEdgePosition;
 
-	s16 currentUpstream;
+	s16 currentUpstream=-1;
 	RouteTableTreeLeafEntry *currentEntry;
 
 	int res=walkerGetCurrentEntry(walker, &currentUpstream, &currentEntry);
