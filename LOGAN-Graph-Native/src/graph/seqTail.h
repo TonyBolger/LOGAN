@@ -31,6 +31,8 @@ void dumpSeqTailBuilder(SeqTailBuilder *builder);
 
 s32 getSeqTailBuilderDirty(SeqTailBuilder *seqTailBuilder);
 s32 getSeqTailBuilderPackedSize(SeqTailBuilder *seqTailBuilder);
+s32 getSeqTailTotalTailCount(SeqTailBuilder *builder);
+
 u8 *writeSeqTailBuilderPackedData(SeqTailBuilder *seqTailBuilder, u8 *data);
 
 s32 findSeqTail(SeqTailBuilder *seqTailBuilder, SmerId smer, s32 tailLength);

@@ -115,7 +115,7 @@ typedef struct routingComboBuilderStr
 
 
 #define ROUTING_TREE_THRESHOLD 100
-
+//#define ROUTING_TREE_THRESHOLD 1000000000
 
 s32 rtEncodeTailBlockHeader(u32 prefixSuffix, u32 indexSize, u32 index, u8 *data);
 s32 rtDecodeTailBlockHeader(u8 *data, s32 *prefixSuffix, s32 *indexSizePtr, s32 *indexPtr);

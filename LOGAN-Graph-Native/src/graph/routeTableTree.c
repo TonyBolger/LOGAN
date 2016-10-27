@@ -16,7 +16,6 @@ RouteTableTreeLeafBlock *reallocRouteTableTreeLeafBlockEntries(RouteTableTreeLea
 		}
 
 	RouteTableTreeLeafBlock *block=dAlloc(disp, sizeof(RouteTableTreeLeafBlock)+entryAlloc*sizeof(RouteTableTreeLeafEntry));
-	block->entryAlloc=entryAlloc;
 
 	s32 oldBlockEntryAlloc=0;
 	if(oldBlock!=NULL)
@@ -25,6 +24,7 @@ RouteTableTreeLeafBlock *reallocRouteTableTreeLeafBlockEntries(RouteTableTreeLea
 		s32 toKeepAlloc=MIN(oldBlockEntryAlloc, entryAlloc);
 
 		memcpy(block,oldBlock, sizeof(RouteTableTreeLeafBlock)+toKeepAlloc*sizeof(RouteTableTreeLeafEntry));
+		block->entryAlloc=entryAlloc;
 		}
 
 	for(int i=oldBlockEntryAlloc;i<entryAlloc;i++)
@@ -32,6 +32,8 @@ RouteTableTreeLeafBlock *reallocRouteTableTreeLeafBlockEntries(RouteTableTreeLea
 		block->entries[i].downstream=-1;
 		block->entries[i].width=0;
 		}
+
+	block->entryAlloc=entryAlloc;
 
 	return block;
 }
@@ -47,7 +49,7 @@ RouteTableTreeLeafBlock *allocRouteTableTreeLeafBlock(MemDispenser *disp, s32 en
 	RouteTableTreeLeafBlock *block=dAlloc(disp, sizeof(RouteTableTreeLeafBlock)+entryAlloc*sizeof(RouteTableTreeLeafEntry));
 	block->entryAlloc=entryAlloc;
 
-	block->parentIndex=BRANCH_INDEX_INVALID;
+	block->parentBrindex=BRANCH_NINDEX_INVALID;
 	block->upstream=-1;
 
 	for(int i=0;i<entryAlloc;i++)
@@ -68,8 +70,7 @@ RouteTableTreeBranchBlock *reallocRouteTableTreeBranchBlockEntries(RouteTableTre
 		}
 
 	RouteTableTreeBranchBlock *block=dAlloc(disp, sizeof(RouteTableTreeBranchBlock)+childAlloc*sizeof(s16));
-	block->childAlloc=childAlloc;
-	block->parentIndex=BRANCH_INDEX_INVALID;
+	block->parentBrindex=BRANCH_NINDEX_INVALID;
 	block->upstreamMin=-1;
 	block->upstreamMax=-1;
 
@@ -83,7 +84,9 @@ RouteTableTreeBranchBlock *reallocRouteTableTreeBranchBlockEntries(RouteTableTre
 		}
 
 	for(int i=oldBlockChildAlloc;i<childAlloc;i++)
-		block->childIndex[i]=BRANCH_INDEX_INVALID;
+		block->childNindex[i]=BRANCH_NINDEX_INVALID;
+
+	block->childAlloc=childAlloc;
 
 	return block;
 }
@@ -97,12 +100,12 @@ RouteTableTreeBranchBlock *allocRouteTableTreeBranchBlock(MemDispenser *disp, s3
 
 	RouteTableTreeBranchBlock *block=dAlloc(disp, sizeof(RouteTableTreeBranchBlock)+childAlloc*sizeof(s16));
 	block->childAlloc=childAlloc;
-	block->parentIndex=BRANCH_INDEX_INVALID;
+	block->parentBrindex=BRANCH_NINDEX_INVALID;
 	block->upstreamMin=-1;
 	block->upstreamMax=-1;
 
 	for(int i=0;i<childAlloc;i++)
-		block->childIndex[i]=BRANCH_INDEX_INVALID;
+		block->childNindex[i]=BRANCH_NINDEX_INVALID;
 
 	return block;
 }
@@ -326,7 +329,7 @@ void getRouteTableTreeBranchProxy_scan(RouteTableTreeBranchBlock *branchBlock, u
 
 	for(int i=alloc;i>0;i--)
 		{
-		if(branchBlock->childIndex[i-1]!=BRANCH_INDEX_INVALID)
+		if(branchBlock->childNindex[i-1]!=BRANCH_NINDEX_INVALID)
 			{
 			count=i;
 			break;
@@ -338,22 +341,32 @@ void getRouteTableTreeBranchProxy_scan(RouteTableTreeBranchBlock *branchBlock, u
 
 
 // static
-RouteTableTreeBranchBlock *getRouteTableTreeBranchRaw(RouteTableTreeProxy *treeProxy, s32 index)
+RouteTableTreeBranchBlock *getRouteTableTreeBranchRaw(RouteTableTreeProxy *treeProxy, s32 brindex)
 {
-	u8 *data=getBlockArrayEntry(&(treeProxy->branchArrayProxy), index);
+	if(brindex<0)
+		{
+		LOG(LOG_CRITICAL,"Brindex must be positive");
+		}
+
+	u8 *data=getBlockArrayEntry(&(treeProxy->branchArrayProxy), brindex);
 
 	return (RouteTableTreeBranchBlock *)data;
 }
 
 // static
-RouteTableTreeBranchProxy *getRouteTableTreeBranchProxy(RouteTableTreeProxy *treeProxy, s32 index)
+RouteTableTreeBranchProxy *getRouteTableTreeBranchProxy(RouteTableTreeProxy *treeProxy, s32 brindex)
 {
-	u8 *data=getBlockArrayEntry(&(treeProxy->branchArrayProxy), index);
+	if(brindex<0)
+		{
+		LOG(LOG_CRITICAL,"Brindex must be positive");
+		}
+
+	u8 *data=getBlockArrayEntry(&(treeProxy->branchArrayProxy), brindex);
 
 	RouteTableTreeBranchProxy *proxy=dAlloc(treeProxy->disp, sizeof(RouteTableTreeBranchProxy));
 
 	proxy->dataBlock=(RouteTableTreeBranchBlock *)data;
-	proxy->index=index;
+	proxy->brindex=brindex;
 
 	getRouteTableTreeBranchProxy_scan(proxy->dataBlock, &proxy->childAlloc, &proxy->childCount);
 
@@ -363,7 +376,7 @@ RouteTableTreeBranchProxy *getRouteTableTreeBranchProxy(RouteTableTreeProxy *tre
 // static
 void flushRouteTableTreeBranchProxy(RouteTableTreeProxy *treeProxy, RouteTableTreeBranchProxy *branchProxy)
 {
-	setBlockArrayEntry(&(treeProxy->branchArrayProxy), branchProxy->index, (u8 *)branchProxy->dataBlock, treeProxy->disp);
+	setBlockArrayEntry(&(treeProxy->branchArrayProxy), branchProxy->brindex, (u8 *)branchProxy->dataBlock, treeProxy->disp);
 }
 
 //static
@@ -373,11 +386,11 @@ RouteTableTreeBranchProxy *allocRouteTableTreeBranchProxy(RouteTableTreeProxy *t
 		childAlloc=ROUTE_TABLE_TREE_BRANCH_CHILDREN_CHUNK;
 
 	RouteTableTreeBranchBlock *dataBlock=allocRouteTableTreeBranchBlock(treeProxy->disp, childAlloc);
-	s32 index=appendBlockArrayEntry(&(treeProxy->branchArrayProxy), (u8 *)dataBlock, treeProxy->disp);
+	s32 brindex=appendBlockArrayEntry(&(treeProxy->branchArrayProxy), (u8 *)dataBlock, treeProxy->disp);
 
 	RouteTableTreeBranchProxy *proxy=dAlloc(treeProxy->disp, sizeof(RouteTableTreeBranchProxy));
 	proxy->dataBlock=dataBlock;
-	proxy->index=index;
+	proxy->brindex=brindex;
 
 	proxy->childAlloc=childAlloc;
 	proxy->childCount=0;
@@ -414,22 +427,34 @@ void getRouteTableTreeLeafProxy_scan(RouteTableTreeLeafBlock *leafBlock, u16 *al
 
 
 // static
-RouteTableTreeLeafBlock *getRouteTableTreeLeafRaw(RouteTableTreeProxy *treeProxy, s32 index)
+RouteTableTreeLeafBlock *getRouteTableTreeLeafRaw(RouteTableTreeProxy *treeProxy, s32 lindex)
 {
-	u8 *data=getBlockArrayEntry(&(treeProxy->leafArrayProxy), index);
+	if(lindex<0)
+		{
+		LOG(LOG_CRITICAL,"Lindex must be positive");
+		}
+
+	u8 *data=getBlockArrayEntry(&(treeProxy->leafArrayProxy), lindex);
 
 	return (RouteTableTreeLeafBlock *)data;
 }
 
 // static
-RouteTableTreeLeafProxy *getRouteTableTreeLeafProxy(RouteTableTreeProxy *treeProxy, s32 index)
+RouteTableTreeLeafProxy *getRouteTableTreeLeafProxy(RouteTableTreeProxy *treeProxy, s32 lindex)
 {
-	u8 *data=getBlockArrayEntry(&(treeProxy->leafArrayProxy), index);
+	if(lindex<0)
+		{
+		LOG(LOG_CRITICAL,"Lindex must be positive");
+		}
+
+	u8 *data=getBlockArrayEntry(&(treeProxy->leafArrayProxy), lindex);
 
 	RouteTableTreeLeafProxy *proxy=dAlloc(treeProxy->disp, sizeof(RouteTableTreeLeafProxy));
 
 	proxy->dataBlock=(RouteTableTreeLeafBlock *)data;
-	proxy->index=index;
+	proxy->lindex=lindex;
+
+	LOG(LOG_INFO,"GetRouteTableTreeLeaf : %i",lindex);
 
 	getRouteTableTreeLeafProxy_scan(proxy->dataBlock, &proxy->entryAlloc, &proxy->entryCount);
 
@@ -439,7 +464,9 @@ RouteTableTreeLeafProxy *getRouteTableTreeLeafProxy(RouteTableTreeProxy *treePro
 // static
 void flushRouteTableTreeLeafProxy(RouteTableTreeProxy *treeProxy, RouteTableTreeLeafProxy *leafProxy)
 {
-	setBlockArrayEntry(&(treeProxy->leafArrayProxy), leafProxy->index, (u8 *)leafProxy->dataBlock, treeProxy->disp);
+	LOG(LOG_INFO,"Flush %i to %p (%i)",leafProxy->lindex, leafProxy->dataBlock, leafProxy->dataBlock->entryAlloc);
+
+	setBlockArrayEntry(&(treeProxy->leafArrayProxy), leafProxy->lindex, (u8 *)leafProxy->dataBlock, treeProxy->disp);
 }
 
 //static
@@ -449,11 +476,13 @@ RouteTableTreeLeafProxy *allocRouteTableTreeLeafProxy(RouteTableTreeProxy *treeP
 		entryAlloc=ROUTE_TABLE_TREE_LEAF_ENTRIES_CHUNK;
 
 	RouteTableTreeLeafBlock *dataBlock=allocRouteTableTreeLeafBlock(treeProxy->disp, entryAlloc);
-	s32 index=appendBlockArrayEntry(&(treeProxy->leafArrayProxy), (u8 *)dataBlock, treeProxy->disp);
+	s32 lindex=appendBlockArrayEntry(&(treeProxy->leafArrayProxy), (u8 *)dataBlock, treeProxy->disp);
 
 	RouteTableTreeLeafProxy *proxy=dAlloc(treeProxy->disp, sizeof(RouteTableTreeLeafProxy));
 	proxy->dataBlock=dataBlock;
-	proxy->index=index;
+	proxy->lindex=lindex;
+
+	LOG(LOG_INFO,"AllocRouteTableTreeLeaf : %i",lindex);
 
 	proxy->entryAlloc=entryAlloc;
 	proxy->entryCount=0;
@@ -464,17 +493,116 @@ RouteTableTreeLeafProxy *allocRouteTableTreeLeafProxy(RouteTableTreeProxy *treeP
 
 
 //static
-s16 getBranchChildPositionBranch(RouteTableTreeBranchProxy *parent, RouteTableTreeBranchProxy *child, s16 positionEstimate)
+s16 getBranchChildSibdex_Branch_withEstimate(RouteTableTreeBranchProxy *parent, RouteTableTreeBranchProxy *child, s16 sibdexEstimate)
 {
-	return 0;
+	s16 childNindex=child->brindex;
+	u16 childCount=parent->childCount;
+
+	if(sibdexEstimate>=0 && sibdexEstimate<childCount && parent->dataBlock->childNindex[sibdexEstimate]==childNindex)
+		return sibdexEstimate;
+
+	for(int i=0;i<childCount;i++)
+		if(parent->dataBlock->childNindex[i]==childNindex)
+			return i;
+
+	return -1;
 }
 
 //static
-s16 getBranchChildPositionLeaf(RouteTableTreeBranchProxy *parent, RouteTableTreeLeafProxy *child, s16 positionEstimate)
+s16 getBranchChildSibdex_Branch(RouteTableTreeBranchProxy *parent, RouteTableTreeBranchProxy *child)
 {
-	return 0;
+	s16 childNindex=child->brindex;
+	u16 childCount=parent->childCount;
+
+	for(int i=0;i<childCount;i++)
+		if(parent->dataBlock->childNindex[i]==childNindex)
+			return i;
+
+	return -1;
 }
 
+
+//static
+s16 getBranchChildSibdex_Leaf_withEstimate(RouteTableTreeBranchProxy *parent, RouteTableTreeLeafProxy *child, s16 sibdexEstimate)
+{
+	s16 childNindex=LINDEX_TO_NINDEX(child->lindex);
+	u16 childCount=parent->childCount;
+
+	if(sibdexEstimate>=0 && sibdexEstimate<childCount && parent->dataBlock->childNindex[sibdexEstimate]==childNindex)
+		return sibdexEstimate;
+
+	LOG(LOG_INFO,"Parent: %i Leaf: %i as %i",parent->brindex,child->lindex,childNindex);
+
+	LOG(LOG_INFO,"Childcount: %i",childCount);
+
+
+	for(int i=0;i<childCount;i++)
+		{
+		LOG(LOG_INFO,"Nindex: %i",parent->dataBlock->childNindex[i]);
+
+		if(parent->dataBlock->childNindex[i]==childNindex)
+			return i;
+		}
+
+	return -1;
+}
+
+
+//static
+s16 getBranchChildSibdex_Leaf(RouteTableTreeBranchProxy *parent, RouteTableTreeLeafProxy *child)
+{
+	s16 childNindex=LINDEX_TO_NINDEX(child->lindex);
+	u16 childCount=parent->childCount;
+
+	for(int i=0;i<childCount;i++)
+		if(parent->dataBlock->childNindex[i]==childNindex)
+			return i;
+
+	return -1;
+}
+
+
+
+
+RouteTableTreeBranchProxy *getBranchParent(RouteTableTreeProxy *treeProxy, RouteTableTreeBranchProxy *child)
+{
+	return getRouteTableTreeBranchProxy(treeProxy, child->dataBlock->parentBrindex);
+}
+
+RouteTableTreeBranchProxy *getLeafParent(RouteTableTreeProxy *treeProxy, RouteTableTreeLeafProxy *child)
+{
+	return getRouteTableTreeBranchProxy(treeProxy, child->dataBlock->parentBrindex);
+}
+
+
+// static
+s32 getBranchChild(RouteTableTreeProxy *treeProxy, RouteTableTreeBranchProxy *parent, s16 sibdex, RouteTableTreeBranchProxy **branchChild, RouteTableTreeLeafProxy **leafChild)
+{
+	u16 childCount=parent->childCount;
+
+	if(sibdex<0 || sibdex>=childCount)
+		{
+		*branchChild=NULL;
+		*leafChild=NULL;
+		return 0;
+		}
+
+	s16 childNindex=parent->dataBlock->childNindex[sibdex];
+
+	if(childNindex>=0)
+		{
+		*branchChild=getRouteTableTreeBranchProxy(treeProxy, childNindex);
+		*leafChild=NULL;
+		}
+	else
+		{
+		*branchChild=NULL;
+		*leafChild=getRouteTableTreeLeafProxy(treeProxy, childNindex);
+		}
+
+	return 1;
+
+}
 
 
 static void initTreeProxy(RouteTableTreeProxy *proxy, HeapDataBlock *leafBlock, HeapDataBlock *branchBlock, HeapDataBlock *offsetBlock, MemDispenser *disp)
@@ -486,79 +614,96 @@ static void initTreeProxy(RouteTableTreeProxy *proxy, HeapDataBlock *leafBlock, 
 	initBlockArrayProxy(proxy, &(proxy->offsetArrayProxy), offsetBlock, 2);
 
 	if(getBlockArraySize(&(proxy->branchArrayProxy))>0)
-		proxy->rootProxy=getRouteTableTreeBranchProxy(proxy, BRANCH_INDEX_ROOT);
+		proxy->rootProxy=getRouteTableTreeBranchProxy(proxy, BRANCH_NINDEX_ROOT);
 	else
 		proxy->rootProxy=allocRouteTableTreeBranchProxy(proxy, ROUTE_TABLE_TREE_BRANCH_CHILDREN_CHUNK);
 
 }
 
 
-static void treeProxySeekStart(RouteTableTreeProxy *treeProxy, RouteTableTreeBranchProxy **branchPtr, s16 *branchChildPtr, RouteTableTreeLeafProxy **leafPtr)
+static void treeProxySeekStart(RouteTableTreeProxy *treeProxy, RouteTableTreeBranchProxy **branchPtr, s16 *branchChildSibdexPtr, RouteTableTreeLeafProxy **leafPtr)
 {
 	RouteTableTreeBranchProxy *branchProxy=treeProxy->rootProxy;
 	RouteTableTreeLeafProxy *leafProxy=NULL;
-	s16 branchChild=-1;
+	s16 sibdex=-1;
 
-	s16 lastChildIndex=0;
+	s16 childNindex=0;
 
-	while(branchProxy->childCount>0 && lastChildIndex>=0)
+	while(branchProxy->childCount>0 && childNindex>=0)
 		{
-		lastChildIndex=branchProxy->dataBlock->childIndex[0];
+		childNindex=branchProxy->dataBlock->childNindex[0];
 
-		if(lastChildIndex>0)
-			branchProxy=getRouteTableTreeBranchProxy(treeProxy, lastChildIndex);
+		if(childNindex>0)
+			branchProxy=getRouteTableTreeBranchProxy(treeProxy, childNindex);
 		}
 
-	if(lastChildIndex<0)
+	if(childNindex<0)
 		{
-		branchChild=0;
-		leafProxy=getRouteTableTreeLeafProxy(treeProxy,1-lastChildIndex);
+		sibdex=0;
+
+		LOG(LOG_INFO,"Get %i as %i",childNindex, NINDEX_TO_LINDEX(childNindex));
+
+		leafProxy=getRouteTableTreeLeafProxy(treeProxy,NINDEX_TO_LINDEX(childNindex));
+		}
+
+	if(leafProxy!=NULL)
+		{
+		LOG(LOG_INFO,"Branch %i Child %i (%i of %i) Sibdex %i",branchProxy->brindex,leafProxy->lindex,leafProxy->entryCount,leafProxy->entryAlloc, sibdex);
+		}
+	else
+		{
+		LOG(LOG_INFO,"Branch %i Null Leaf",branchProxy->brindex);
 		}
 
 	if(branchPtr!=NULL)
 		*branchPtr=branchProxy;
 
-	if(branchChildPtr!=NULL)
-		*branchChildPtr=branchChild;
+	if(branchChildSibdexPtr!=NULL)
+		*branchChildSibdexPtr=sibdex;
 
 	if(leafPtr!=NULL)
 		*leafPtr=leafProxy;
 }
 
 
-static void treeProxySeekEnd(RouteTableTreeProxy *treeProxy, RouteTableTreeBranchProxy **branchPtr,  s16 *branchChildPtr, RouteTableTreeLeafProxy **leafPtr)
+static void treeProxySeekEnd(RouteTableTreeProxy *treeProxy, RouteTableTreeBranchProxy **branchPtr,  s16 *branchChildSibdexPtr, RouteTableTreeLeafProxy **leafPtr)
 {
 	RouteTableTreeBranchProxy *branchProxy=treeProxy->rootProxy;
 	RouteTableTreeLeafProxy *leafProxy=NULL;
-	s16 branchChild=-1;
+	s16 sibdex=-1;
 
-	s16 lastChildIndex=0;
+	s16 childNindex=0;
 
-	while(branchProxy->childCount>0 && lastChildIndex>=0)
+	while(branchProxy->childCount>0 && childNindex>=0)
 		{
-		lastChildIndex=branchProxy->dataBlock->childIndex[branchProxy->childCount-1];
+		childNindex=branchProxy->dataBlock->childNindex[branchProxy->childCount-1];
 
-		LOG(LOG_INFO,"Last Child Array Index %i found %i",branchProxy->childCount-1, lastChildIndex);
-
-		if(lastChildIndex>0)
+		if(childNindex>0)
 			{
-			branchChild=branchProxy->childCount-1;
-			branchProxy=getRouteTableTreeBranchProxy(treeProxy, lastChildIndex);
-
-			LOG(LOG_INFO,"End Seek now %i",branchProxy->index);
+			branchProxy=getRouteTableTreeBranchProxy(treeProxy, childNindex);
 			}
 		}
 
-	if(lastChildIndex<0)
+	if(childNindex<0)
 		{
-		leafProxy=getRouteTableTreeLeafProxy(treeProxy,1-lastChildIndex);
+		sibdex=branchProxy->childCount-1;
+		leafProxy=getRouteTableTreeLeafProxy(treeProxy,NINDEX_TO_LINDEX(childNindex));
+		}
+
+	if(leafProxy!=NULL)
+		{
+		LOG(LOG_INFO,"Branch %i Child %i Sibdex %i",branchProxy->brindex,leafProxy->lindex,sibdex);
+		}
+	else
+		{
+		LOG(LOG_INFO,"Branch %i Null Leaf",branchProxy->brindex);
 		}
 
 	if(branchPtr!=NULL)
 		*branchPtr=branchProxy;
 
-	if(branchChildPtr!=NULL)
-		*branchChildPtr=branchChild;
+	if(branchChildSibdexPtr!=NULL)
+		*branchChildSibdexPtr=sibdex;
 
 	if(leafPtr!=NULL)
 		*leafPtr=leafProxy;
@@ -573,12 +718,17 @@ void treeProxySplitRoot(RouteTableTreeProxy *treeProxy)
 
 	RouteTableTreeBranchProxy *root=treeProxy->rootProxy;
 
-	if(root->index!=BRANCH_INDEX_ROOT)
+	if(root->brindex!=BRANCH_NINDEX_ROOT)
 		{
 		LOG(LOG_CRITICAL,"Asked to root-split a non-root node");
 		}
 
-	LOG(LOG_INFO,"Root %i contains %i of %i",root->index, root->childCount, root->childAlloc);
+	LOG(LOG_INFO,"Root %i contains %i of %i",root->brindex, root->childCount, root->childAlloc);
+
+	for(int i=0;i<root->childCount;i++)
+		{
+		LOG(LOG_INFO,"Child %i is %i",i,root->dataBlock->childNindex[i]);
+		}
 
 	s32 halfChild=((1+root->childCount)/2);
 	s32 otherHalfChild=root->childCount-halfChild;
@@ -588,41 +738,41 @@ void treeProxySplitRoot(RouteTableTreeProxy *treeProxy)
 	RouteTableTreeBranchProxy *branch1=allocRouteTableTreeBranchProxy(treeProxy, halfChildAlloc);
 	RouteTableTreeBranchProxy *branch2=allocRouteTableTreeBranchProxy(treeProxy, halfChildAlloc);
 
-	s32 branchIndex1=branch1->index;
-	s32 branchIndex2=branch2->index;
+	s32 branchBrindex1=branch1->brindex;
+	s32 branchBrindex2=branch2->brindex;
 
-	LOG(LOG_INFO,"Split - new branches %i %i",branchIndex1, branchIndex2);
+	LOG(LOG_INFO,"Split - new branches %i %i",branchBrindex1, branchBrindex2);
 
 	for(int i=0;i<halfChild;i++)
 		{
 		LOG(LOG_INFO,"Index %i",i);
 
-		s32 childIndex=root->dataBlock->childIndex[i];
-		branch1->dataBlock->childIndex[i]=childIndex;
+		s32 childNindex=root->dataBlock->childNindex[i];
+		branch1->dataBlock->childNindex[i]=childNindex;
 
-		LOG(LOG_INFO,"Moving Child %i to %i",childIndex, branchIndex1);
+		LOG(LOG_INFO,"Moving Child %i to %i",childNindex, branchBrindex1);
 
-		if(childIndex<0)
+		if(childNindex<0)
 			{
-			RouteTableTreeLeafBlock *leafRaw=getRouteTableTreeLeafRaw(treeProxy, -childIndex-1);
+			RouteTableTreeLeafBlock *leafRaw=getRouteTableTreeLeafRaw(treeProxy, NINDEX_TO_LINDEX(childNindex));
 
 			if(leafRaw==NULL)
 				{
-				LOG(LOG_CRITICAL,"Failed to find leaf with index %i",childIndex);
+				LOG(LOG_CRITICAL,"Failed to find leaf with index %i",childNindex);
 				}
 
-			leafRaw->parentIndex=branchIndex1;
+			leafRaw->parentBrindex=branchBrindex1;
 			}
 		else
 			{
-			RouteTableTreeBranchBlock *branchRaw=getRouteTableTreeBranchRaw(treeProxy, childIndex);
+			RouteTableTreeBranchBlock *branchRaw=getRouteTableTreeBranchRaw(treeProxy, childNindex);
 
 			if(branchRaw==NULL)
 				{
-				LOG(LOG_CRITICAL,"Failed to find branch with index %i",childIndex);
+				LOG(LOG_CRITICAL,"Failed to find branch with index %i",childNindex);
 				}
 
-			branchRaw->parentIndex=branchIndex1;
+			branchRaw->parentBrindex=branchBrindex1;
 			}
 		}
 
@@ -632,32 +782,32 @@ void treeProxySplitRoot(RouteTableTreeProxy *treeProxy)
 		{
 		LOG(LOG_INFO,"Index %i",i);
 
-		s32 childIndex=root->dataBlock->childIndex[i+halfChild];
-		branch2->dataBlock->childIndex[i]=childIndex;
+		s32 childNindex=root->dataBlock->childNindex[i+halfChild];
+		branch2->dataBlock->childNindex[i]=childNindex;
 
-		LOG(LOG_INFO,"Moving Child %i to %i",childIndex, branchIndex2);
+		LOG(LOG_INFO,"Moving Child %i to %i",childNindex, branchBrindex2);
 
-		if(childIndex<0)
+		if(childNindex<0)
 			{
-			RouteTableTreeLeafBlock *leafRaw=getRouteTableTreeLeafRaw(treeProxy, -childIndex-1);
+			RouteTableTreeLeafBlock *leafRaw=getRouteTableTreeLeafRaw(treeProxy, NINDEX_TO_LINDEX(childNindex));
 
 			if(leafRaw==NULL)
 				{
-				LOG(LOG_CRITICAL,"Failed to find leaf with index %i",childIndex);
+				LOG(LOG_CRITICAL,"Failed to find leaf with index %i",childNindex);
 				}
 
-			leafRaw->parentIndex=branchIndex2;
+			leafRaw->parentBrindex=branchBrindex2;
 			}
 		else
 			{
-			RouteTableTreeBranchBlock *branchRaw=getRouteTableTreeBranchRaw(treeProxy, childIndex);
+			RouteTableTreeBranchBlock *branchRaw=getRouteTableTreeBranchRaw(treeProxy, childNindex);
 
 			if(branchRaw==NULL)
 				{
-				LOG(LOG_CRITICAL,"Failed to find branch with index %i",childIndex);
+				LOG(LOG_CRITICAL,"Failed to find branch with index %i",childNindex);
 				}
 
-			branchRaw->parentIndex=branchIndex2;
+			branchRaw->parentBrindex=branchBrindex2;
 			}
 		}
 
@@ -665,16 +815,20 @@ void treeProxySplitRoot(RouteTableTreeProxy *treeProxy)
 
 	LOG(LOG_INFO,"Children offloaded");
 
-	branch1->dataBlock->parentIndex=BRANCH_INDEX_ROOT;
-	branch2->dataBlock->parentIndex=BRANCH_INDEX_ROOT;
+	branch1->dataBlock->parentBrindex=BRANCH_NINDEX_ROOT;
+	branch2->dataBlock->parentBrindex=BRANCH_NINDEX_ROOT;
 
 	RouteTableTreeBranchBlock *newRoot=reallocRouteTableTreeBranchBlockEntries(NULL, treeProxy->disp, ROUTE_TABLE_TREE_BRANCH_CHILDREN_CHUNK);
 
 	LOG(LOG_INFO,"Got new root");
 
-	newRoot->parentIndex=BRANCH_INDEX_INVALID;
-	newRoot->childIndex[0]=branchIndex1;
-	newRoot->childIndex[1]=branchIndex2;
+	newRoot->parentBrindex=BRANCH_NINDEX_INVALID;
+	newRoot->childNindex[0]=branchBrindex1;
+	newRoot->childNindex[1]=branchBrindex2;
+
+	// Should not be needed
+	//for(int i=2;i<newRoot->childAlloc;i++)
+	//		newRoot->childNindex[i]=BRANCH_NINDEX_INVALID;
 
 	LOG(LOG_INFO,"Root Block was %p",root->dataBlock);
 
@@ -689,10 +843,28 @@ void treeProxySplitRoot(RouteTableTreeProxy *treeProxy)
 
 
 
+s16 treeProxySplitRoot_trackParentBySibdex(RouteTableTreeProxy *treeProxy, s32 sibdex)
+{
+	s32 trackChildNindex=treeProxy->rootProxy->dataBlock->childNindex[sibdex];
+	treeProxySplitRoot(treeProxy);
+
+	s32 newParentBrindex=0;
+
+	if(trackChildNindex>=0)
+		newParentBrindex=getRouteTableTreeBranchRaw(treeProxy, trackChildNindex)->parentBrindex;
+	else
+		newParentBrindex=getRouteTableTreeLeafRaw(treeProxy, NINDEX_TO_LINDEX(trackChildNindex))->parentBrindex;
+
+	return newParentBrindex;
+}
+
+
 // Split a branch, creating a new sibling which _MUST_ be attached by the caller
 
 RouteTableTreeBranchProxy *treeProxySplitBranch(RouteTableTreeProxy *treeProxy, RouteTableTreeBranchProxy *branch)
 {
+	LOG(LOG_INFO,"Non Root Branch Split: %i",branch->brindex);
+
 	s32 halfChild=((1+branch->childCount)/2);
 	s32 otherHalfChild=branch->childCount-halfChild;
 
@@ -700,39 +872,40 @@ RouteTableTreeBranchProxy *treeProxySplitBranch(RouteTableTreeProxy *treeProxy, 
 
 	RouteTableTreeBranchProxy *newBranch=allocRouteTableTreeBranchProxy(treeProxy, halfChildAlloc);
 
-	s32 newBranchIndex=newBranch->index;
+	s32 newBranchBrindex=newBranch->brindex;
 	branch->childCount=halfChild;
 
 	for(int i=0;i<otherHalfChild;i++)
 		{
 		LOG(LOG_INFO,"Index %i",i);
 
-		s32 childIndex=branch->dataBlock->childIndex[i+halfChild];
-		newBranch->dataBlock->childIndex[i]=childIndex;
+		s32 childNindex=branch->dataBlock->childNindex[i+halfChild];
+		newBranch->dataBlock->childNindex[i]=childNindex;
+		branch->dataBlock->childNindex[i+halfChild]=BRANCH_NINDEX_INVALID;
 
-		LOG(LOG_INFO,"Moving Child %i to %i",childIndex, newBranchIndex);
+		LOG(LOG_INFO,"Moving Child %i to %i",childNindex, newBranchBrindex);
 
-		if(childIndex<0)
+		if(childNindex<0)
 			{
-			RouteTableTreeLeafBlock *leafRaw=getRouteTableTreeLeafRaw(treeProxy, -childIndex-1);
+			RouteTableTreeLeafBlock *leafRaw=getRouteTableTreeLeafRaw(treeProxy, NINDEX_TO_LINDEX(childNindex));
 
 			if(leafRaw==NULL)
 				{
-				LOG(LOG_CRITICAL,"Failed to find leaf with index %i",childIndex);
+				LOG(LOG_CRITICAL,"Failed to find leaf with index %i",childNindex);
 				}
 
-			leafRaw->parentIndex=newBranchIndex;
+			leafRaw->parentBrindex=newBranchBrindex;
 			}
 		else
 			{
-			RouteTableTreeBranchBlock *branchRaw=getRouteTableTreeBranchRaw(treeProxy, childIndex);
+			RouteTableTreeBranchBlock *branchRaw=getRouteTableTreeBranchRaw(treeProxy, childNindex);
 
 			if(branchRaw==NULL)
 				{
-				LOG(LOG_CRITICAL,"Failed to find branch with index %i",childIndex);
+				LOG(LOG_CRITICAL,"Failed to find branch with index %i",childNindex);
 				}
 
-			branchRaw->parentIndex=newBranchIndex;
+			branchRaw->parentBrindex=newBranchBrindex;
 			}
 		}
 
@@ -748,18 +921,24 @@ RouteTableTreeBranchProxy *treeProxySplitBranch(RouteTableTreeProxy *treeProxy, 
 //static
 RouteTableTreeBranchProxy *treeProxyAppendBranchChild(RouteTableTreeProxy *treeProxy, RouteTableTreeBranchProxy *parent, RouteTableTreeBranchProxy *child)
 {
-	LOG(LOG_INFO,"Append Branch Child P: %i C: %i",parent->index, child->index);
+	LOG(LOG_INFO,"Append Branch Child P: %i C: %i",parent->brindex, child->brindex);
 
-	s16 parentIndex=parent->index;
-	s16 childIndex=child->index;
+	s16 parentBrindex=parent->brindex;
+	s16 childBrindex=child->brindex;
 
-	LOG(LOG_INFO,"Parent %i contains %i of %i",parent->index, parent->childCount, parent->childAlloc);
+	LOG(LOG_INFO,"Parent %i contains %i of %i",parent->brindex, parent->childCount, parent->childAlloc);
+
+	for(int i=0;i<parent->childCount;i++)
+		{
+		LOG(LOG_INFO,"Child %i is %i",i,parent->dataBlock->childNindex[i]);
+		}
+
 
 	if(parent->childCount>=parent->childAlloc) // No Space
 		{
 		if(parent->childAlloc<ROUTE_TABLE_TREE_BRANCH_CHILDREN) // Expand
 			{
-			LOG(LOG_INFO,"AppendBranch %i: Expand",parent->index);
+			LOG(LOG_INFO,"AppendBranch %i: Expand",parent->brindex);
 
 			s32 newAlloc=MIN(parent->childAlloc+ROUTE_TABLE_TREE_BRANCH_CHILDREN_CHUNK, ROUTE_TABLE_TREE_BRANCH_CHILDREN);
 
@@ -770,15 +949,15 @@ RouteTableTreeBranchProxy *treeProxyAppendBranchChild(RouteTableTreeProxy *treeP
 
 			flushRouteTableTreeBranchProxy(treeProxy, parent);
 			}
-		else if(parent->index!=BRANCH_INDEX_ROOT) // Add sibling
+		else if(parent->brindex!=BRANCH_NINDEX_ROOT) // Add sibling
 			{
-			LOG(LOG_INFO,"AppendBranch %i: Sibling",parent->index);
+			LOG(LOG_INFO,"AppendBranch %i: Sibling",parent->brindex);
 
 			RouteTableTreeBranchProxy *grandParent;
-			s32 grandParentIndex=parent->dataBlock->parentIndex;
+			s32 grandParentBrindex=parent->dataBlock->parentBrindex;
 
-			if(grandParentIndex!=BRANCH_INDEX_ROOT)
-				grandParent=getRouteTableTreeBranchProxy(treeProxy, grandParentIndex);
+			if(grandParentBrindex!=BRANCH_NINDEX_ROOT)
+				grandParent=getRouteTableTreeBranchProxy(treeProxy, grandParentBrindex);
 			else
 				grandParent=treeProxy->rootProxy;
 
@@ -790,11 +969,14 @@ RouteTableTreeBranchProxy *treeProxyAppendBranchChild(RouteTableTreeProxy *treeP
 			}
 		else	// Split root
 			{
-			LOG(LOG_INFO,"AppendBranch %i: Split Root",parent->index);
+			LOG(LOG_INFO,"AppendBranch %i: Split Root",parent->brindex);
 
-			treeProxySplitRoot(treeProxy);
+			//treeProxySplitRoot(treeProxy);
+			//parent=getRouteTableTreeBranchProxy(treeProxy, treeProxy->rootProxy->dataBlock->childNindex[1]);
 
-			parent=getRouteTableTreeBranchProxy(treeProxy, treeProxy->rootProxy->dataBlock->childIndex[1]);
+			parentBrindex=treeProxySplitRoot_trackParentBySibdex(treeProxy, parent->childCount-1);
+			parent=getRouteTableTreeBranchProxy(treeProxy, parentBrindex);
+
 
 //			treeProxySeekEnd(treeProxy, &parent, NULL);
 			}
@@ -803,13 +985,22 @@ RouteTableTreeBranchProxy *treeProxyAppendBranchChild(RouteTableTreeProxy *treeP
 
 	if(parent->childCount>=parent->childAlloc)
 		{
-		LOG(LOG_CRITICAL,"No space after split/sibling add in branch node %i", parent->index);
+		LOG(LOG_CRITICAL,"No space after split/sibling add in branch node %i", parent->brindex);
 		}
 
-	LOG(LOG_INFO,"Appended Branch %i",childIndex);
+	LOG(LOG_INFO,"Appended Branch %i",childBrindex);
 
-	parent->dataBlock->childIndex[parent->childCount++]=-1-childIndex;
-	child->dataBlock->parentIndex=parentIndex;
+	parent->dataBlock->childNindex[parent->childCount++]=childBrindex;
+	child->dataBlock->parentBrindex=parentBrindex;
+
+
+	LOG(LOG_INFO,"ParentNow %i contains %i of %i",parent->brindex, parent->childCount, parent->childAlloc);
+
+	for(int i=0;i<parent->childCount;i++)
+		{
+		LOG(LOG_INFO,"ChildNow %i is %i",i,parent->dataBlock->childNindex[i]);
+		}
+
 
 	return parent;
 }
@@ -820,10 +1011,10 @@ RouteTableTreeBranchProxy *treeProxyAppendBranchChild(RouteTableTreeProxy *treeP
 
 static RouteTableTreeBranchProxy *treeProxyAppendLeafChild(RouteTableTreeProxy *treeProxy, RouteTableTreeBranchProxy *parent, RouteTableTreeLeafProxy *child)
 {
-	LOG(LOG_INFO,"Append Leaf Child P: %i C: %i",parent->index, child->index);
+	LOG(LOG_INFO,"Append Leaf Child P: %i C: %i",parent->brindex, child->lindex);
 
-	s16 parentIndex=parent->index;
-	s16 childIndex=child->index;
+	s16 parentBrindex=parent->brindex;
+	s16 childLindex=child->lindex;
 
 	LOG(LOG_INFO,"Parent contains %i of %i",parent->childCount, parent->childAlloc);
 
@@ -840,22 +1031,19 @@ static RouteTableTreeBranchProxy *treeProxyAppendLeafChild(RouteTableTreeProxy *
 
 			flushRouteTableTreeBranchProxy(treeProxy, parent);
 			}
-		else if(parent->index!=BRANCH_INDEX_ROOT)
+		else if(parent->brindex!=BRANCH_NINDEX_ROOT)
 			{
 			RouteTableTreeBranchProxy *grandParent;
-			s32 grandParentIndex=parent->dataBlock->parentIndex;
+			s32 grandParentBrindex=parent->dataBlock->parentBrindex;
 
-			if(grandParentIndex!=BRANCH_INDEX_ROOT)
-				grandParent=getRouteTableTreeBranchProxy(treeProxy, grandParentIndex);
+			if(grandParentBrindex!=BRANCH_NINDEX_ROOT)
+				grandParent=getRouteTableTreeBranchProxy(treeProxy, grandParentBrindex);
 			else
 				grandParent=treeProxy->rootProxy;
 
 			RouteTableTreeBranchProxy *newParent=treeProxySplitBranch(treeProxy, parent);
-//			RouteTableTreeBranchProxy *newParent=allocRouteTableTreeBranchProxy(treeProxy, ROUTE_TABLE_TREE_BRANCH_CHILDREN_CHUNK);
 
-			treeProxyAppendBranchChild(treeProxy, grandParent, newParent);
-
-			LOG(LOG_INFO,"AppendLeaf %i -> AppendBranch %i",child->index,newParent->index);
+			LOG(LOG_INFO,"AppendLeaf %i -> AppendBranch %i",child->lindex,newParent->brindex);
 
 			treeProxyAppendBranchChild(treeProxy, grandParent, newParent);
 			parent=newParent;
@@ -864,7 +1052,7 @@ static RouteTableTreeBranchProxy *treeProxyAppendLeafChild(RouteTableTreeProxy *
 			{
 			treeProxySplitRoot(treeProxy);
 
-			parent=getRouteTableTreeBranchProxy(treeProxy, treeProxy->rootProxy->dataBlock->childIndex[1]);
+			parent=getRouteTableTreeBranchProxy(treeProxy, treeProxy->rootProxy->dataBlock->childNindex[1]);
 			}
 		}
 
@@ -873,22 +1061,114 @@ static RouteTableTreeBranchProxy *treeProxyAppendLeafChild(RouteTableTreeProxy *
 		LOG(LOG_CRITICAL,"No space after split/sibling add");
 		}
 
-	LOG(LOG_INFO,"Appended Leaf %i",childIndex);
+	LOG(LOG_INFO,"Appended Leaf %i as %i in %i",childLindex,LINDEX_TO_NINDEX(childLindex),parent->brindex);
 
-	parent->dataBlock->childIndex[parent->childCount++]=-1-childIndex;
-	child->dataBlock->parentIndex=parentIndex;
+	parent->dataBlock->childNindex[parent->childCount++]=LINDEX_TO_NINDEX(childLindex);
+	child->dataBlock->parentBrindex=parentBrindex;
 
 	return parent;
 }
 
 
 
-
-
-static void getNextLeafSibling(RouteTableTreeProxy *treeProxy, RouteTableTreeBranchProxy **branchPtr, s16 *branchChild, RouteTableTreeLeafProxy **leafPtr)
+static s32 getNextBranchSibling(RouteTableTreeProxy *treeProxy, RouteTableTreeBranchProxy **branchPtr)
 {
+	RouteTableTreeBranchProxy *branch=*branchPtr;
+
+	LOG(LOG_INFO,"getNextBranchSibling for %i",branch->brindex);
+
+	//LOG(LOG_CRITICAL,"FIXME - %i",branch->brindex);
+
+	if(branch->dataBlock->parentBrindex!=BRANCH_NINDEX_INVALID) // Should never happen
+		{
+		RouteTableTreeBranchProxy *parent=getRouteTableTreeBranchProxy(treeProxy, branch->dataBlock->parentBrindex);
+
+		LOG(LOG_INFO,"Branch is %i - Parent is %i",branch->brindex,parent->brindex);
+
+		s16 sibdex=getBranchChildSibdex_Branch(parent, branch);
+		sibdex++;
+
+		if(sibdex<parent->childCount) // Parent contains more
+			{
+			branch=getRouteTableTreeBranchProxy(treeProxy, parent->dataBlock->childNindex[sibdex]);
+			*branchPtr=branch;
+			return 1;
+			}
+		else if((branch->dataBlock->parentBrindex!=BRANCH_NINDEX_ROOT) && getNextBranchSibling(treeProxy, &parent))
+			{
+			if(parent->childCount>0)
+				{
+				if(parent->dataBlock->childNindex[0]<0)
+					LOG(LOG_CRITICAL,"Parent %i contains child %i",parent->brindex, parent->dataBlock->childNindex[0]);
+
+				branch=getRouteTableTreeBranchProxy(treeProxy, parent->dataBlock->childNindex[0]);
+				*branchPtr=branch;
+				return 1;
+				}
+			else
+				LOG(LOG_CRITICAL,"Moved to empty branch");
+			}
+		}
+
+	LOG(LOG_INFO,"getNextBranchSibling: end of tree");
+
+	return 0;
+}
 
 
+
+static s32 getNextLeafSibling(RouteTableTreeProxy *treeProxy, RouteTableTreeBranchProxy **branchPtr, s16 *branchChildSibdex, RouteTableTreeLeafProxy **leafPtr)
+{
+	LOG(LOG_INFO,"getNextLeafSibling");
+
+	RouteTableTreeBranchProxy *branch=*branchPtr;
+	RouteTableTreeLeafProxy *leaf=*leafPtr;
+
+	s16 sibdexEst=*branchChildSibdex;
+	s16 sibdex=getBranchChildSibdex_Leaf_withEstimate(branch, leaf, sibdexEst);
+
+	if(sibdexEst!=sibdex)
+		{
+		LOG(LOG_CRITICAL,"Sibdex did not match expected Est: %i Actual: %i",sibdexEst, sibdex);
+		}
+
+	sibdex++;
+	if(sibdex<branch->childCount)
+		{
+		LOG(LOG_INFO,"In branch %i, looking at sib %i giving %i",branch->brindex, sibdex, branch->dataBlock->childNindex[sibdex]);
+
+		*branchChildSibdex=sibdex;
+		*leafPtr=getRouteTableTreeLeafProxy(treeProxy, NINDEX_TO_LINDEX(branch->dataBlock->childNindex[sibdex]));
+		return 1;
+		}
+
+	if(getNextBranchSibling(treeProxy, &branch)) // Moved branch
+		{
+		*branchPtr=branch;
+		if(branch->childCount>0)
+			sibdex=0;
+		else
+			{
+			sibdex=-1;
+			LOG(LOG_CRITICAL,"Moved to empty branch");
+			}
+		}
+	else
+		sibdex=-1;
+
+
+	if(sibdex>=0)
+		{
+		LOG(LOG_INFO,"In branch %i, looking at sib %i giving %i",branch->brindex, sibdex, branch->dataBlock->childNindex[sibdex]);
+
+		*branchChildSibdex=sibdex;
+		*leafPtr=getRouteTableTreeLeafProxy(treeProxy, NINDEX_TO_LINDEX(branch->dataBlock->childNindex[sibdex]));
+		return 1;
+		}
+	else
+		{
+		return 0;
+		}
 
 }
 
@@ -900,7 +1180,7 @@ static void initTreeWalker(RouteTableTreeWalker *walker, RouteTableTreeProxy *tr
 	walker->treeProxy=treeProxy;
 
 	walker->branchProxy=treeProxy->rootProxy;
-	walker->branchChild=-1;
+	walker->branchChildSibdex=-1;
 
 	walker->leafProxy=NULL;
 	walker->leafEntry=-1;
@@ -910,16 +1190,19 @@ static void walkerSeekStart(RouteTableTreeWalker *walker)
 {
 	RouteTableTreeBranchProxy *branchProxy=NULL;
 	RouteTableTreeLeafProxy *leafProxy=NULL;
-	s16 branchChild=0;
+	s16 branchChildSibdex=0;
 
-	treeProxySeekStart(walker->treeProxy, &branchProxy, &branchChild, &leafProxy);
+	treeProxySeekStart(walker->treeProxy, &branchProxy, &branchChildSibdex, &leafProxy);
 
 	walker->branchProxy=branchProxy;
-	walker->branchChild=branchChild;
+	walker->branchChildSibdex=branchChildSibdex;
 	walker->leafProxy=leafProxy;
 
 	if(leafProxy!=NULL)
+		{
+		LOG(LOG_INFO,"First Leaf: %i %i",leafProxy->entryCount,leafProxy->entryAlloc);
 		walker->leafEntry=0;
+		}
 	else
 		walker->leafEntry=-1;
 }
@@ -928,12 +1211,12 @@ static void walkerSeekEnd(RouteTableTreeWalker *walker)
 {
 	RouteTableTreeBranchProxy *branchProxy=NULL;
 	RouteTableTreeLeafProxy *leafProxy=NULL;
-	s16 branchChild=0;
+	s16 branchChildSibdex=0;
 
-	treeProxySeekEnd(walker->treeProxy, &branchProxy, &branchChild, &leafProxy);
+	treeProxySeekEnd(walker->treeProxy, &branchProxy, &branchChildSibdex, &leafProxy);
 
 	walker->branchProxy=branchProxy;
-	walker->branchChild=branchChild;
+	walker->branchChildSibdex=branchChildSibdex;
 	walker->leafProxy=leafProxy;
 
 	if(leafProxy!=NULL)
@@ -965,14 +1248,19 @@ s32 walkerNextEntry(RouteTableTreeWalker *walker, s16 *upstream, RouteTableTreeL
 	if(walker->leafEntry==-1)
 		return 0;
 
+	walker->leafEntry++;
+
 	if(walker->leafEntry<walker->leafProxy->entryCount)
 		{
-		walker->leafEntry++;
+		return 1;
 		}
 	else
 		{
-		getNextLeafSibling(walker->treeProxy, &walker->branchProxy, &walker->branchChild, &walker->leafProxy);
 		walker->leafEntry=0;
+
+		LOG(LOG_INFO,"Next Sib");
+		s32 res=getNextLeafSibling(walker->treeProxy, &walker->branchProxy, &walker->branchChildSibdex, &walker->leafProxy);
+		return res;
 		}
 
 	return 1;
@@ -1007,7 +1295,7 @@ static void walkerAppendLeaf(RouteTableTreeWalker *walker, s16 upstream)
 	walker->branchProxy=treeProxyAppendLeafChild(walker->treeProxy, walker->branchProxy, leafProxy);
 	leafProxy->dataBlock->upstream=upstream;
 
-	walker->branchChild=-1;
+	walker->branchChildSibdex=-1;
 	walker->leafProxy=leafProxy;
 	walker->leafEntry=leafProxy->entryCount;
 }
@@ -1024,14 +1312,18 @@ static void walkerAppendPreorderedEntry(RouteTableTreeWalker *walker, RouteTable
 		walkerAppendLeaf(walker, upstream);
 		leafProxy=walker->leafProxy;
 		}
-	else if(leafProxy->entryAlloc<ROUTE_TABLE_TREE_LEAF_ENTRIES) // Expand
+	else if(leafProxy->entryCount>=leafProxy->entryAlloc) // Expand
 		{
 		s32 newAlloc=MIN(leafProxy->entryAlloc+ROUTE_TABLE_TREE_BRANCH_CHILDREN_CHUNK, ROUTE_TABLE_TREE_LEAF_ENTRIES);
+
+		LOG(LOG_INFO,"Expanding Leaf to %i",newAlloc);
 
 		RouteTableTreeLeafBlock *leafBlock=reallocRouteTableTreeLeafBlockEntries(leafProxy->dataBlock, walker->treeProxy->disp, newAlloc);
 
 		leafProxy->dataBlock=leafBlock;
 		leafProxy->entryAlloc=newAlloc;
+
+		LOG(LOG_INFO,"Flushing with %i %i %i",leafProxy->entryCount,leafProxy->entryAlloc,leafProxy->dataBlock->entryAlloc);
 
 		flushRouteTableTreeLeafProxy(walker->treeProxy, leafProxy);
 		}
@@ -1043,7 +1335,7 @@ static void walkerAppendPreorderedEntry(RouteTableTreeWalker *walker, RouteTable
 
 	walker->leafEntry=++leafProxy->entryCount;
 
-//	LOG(LOG_INFO,"Appended Leaf Entry");
+	LOG(LOG_INFO,"Appended Leaf Entry %i with down %i width %i",leafProxy->entryCount,downstream,entry->width);
 }
 
 
@@ -1122,30 +1414,159 @@ u8 *rttWriteRouteTableTreeBuilderPackedData(RouteTableTreeBuilder *builder, u8 *
 
 void mergeRoutes_ordered_forwardSingle(RouteTableTreeWalker *walker, RoutePatch *patch)
 {
-	int targetPrefix=patch->prefixIndex;
+	//s32 targetPrefix=patch->prefixIndex;
 	//int targetSuffix=patch->suffixIndex;
 	//int minEdgePosition=(*(patch->rdiPtr))->minEdgePosition;
 	//int maxEdgePosition=(*(patch->rdiPtr))->maxEdgePosition;
 
-	s16 currentUpstream=-1;
-	RouteTableTreeLeafEntry *currentEntry;
+	s16 upstream=-1;
+	RouteTableTreeLeafEntry *entry;
 
-	int res=walkerGetCurrentEntry(walker, &currentUpstream, &currentEntry);
-	while(res && currentUpstream < targetPrefix)
+	int res=walkerGetCurrentEntry(walker, &upstream, &entry);
+	while(res) 												// Skip lower upstream
 		{
+		LOG(LOG_INFO,"Currently at %i %i %i %i",walker->branchProxy->brindex, walker->branchChildSibdex, walker->leafProxy->lindex, walker->leafEntry);
 
-		res=walkerNextEntry(walker, &currentUpstream, &currentEntry);
+		walker->downstreamOffsets[entry->downstream]+=entry->width;
+		walker->upstreamOffsets[upstream]+=entry->width;
+
+		res=walkerNextEntry(walker, &upstream, &entry);
 		}
 
+
+	LOG(LOG_CRITICAL,"Done");
+
+/*
+	int res=walkerGetCurrentEntry(walker, &upstream, &entry);
+	while(res && upstream < targetPrefix) 												// Skip lower upstream
+		{
+		LOG(LOG_INFO,"Currently at %i %i %i",walker->branchProxy->brindex, walker->leafProxy->lindex, walker->leafEntry);
+
+		walker->downstreamOffsets[entry->downstream]+=entry->width;
+		walker->upstreamOffsets[upstream]+=entry->width;
+
+		res=walkerNextEntry(walker, &upstream, &entry);
+		}
+
+//	int upstreamEdgeOffset=walker->upstreamOffsets[targetPrefix];
+	//int downstreamEdgeOffset=0;
+
+	while(res && upstream == targetPrefix &&
+			((walker->upstreamOffsets[targetPrefix]+entry->width)<minEdgePosition ||
+			((walker->upstreamOffsets[targetPrefix]+entry->width)==minEdgePosition && entry->downstream!=targetSuffix))) // Skip earlier upstream
+		{
+		walker->downstreamOffsets[entry->downstream]+=entry->width;
+		walker->upstreamOffsets[targetPrefix]+=entry->width;
+
+		res=walkerNextEntry(walker, &upstream, &entry);
+		}
+
+	while(res && upstream == targetPrefix &&
+			(walker->upstreamOffsets[targetPrefix]+entry->width)<=maxEdgePosition && entry->downstream<targetSuffix) // Skip matching upstream with earlier downstream
+		{
+		walker->downstreamOffsets[entry->downstream]+=entry->width;
+		walker->upstreamOffsets[targetPrefix]+=entry->width;
+
+		res=walkerNextEntry(walker, &upstream, &entry);
+		}
+
+		LOG(LOG_INFO,"FwdDone: %i %i %i",walker->branchProxy->brindex,walker->branchChildSibdex,walker->leafEntry);
+
+	s32 upstreamEdgeOffset=walker->upstreamOffsets[targetPrefix];
+	s32 downstreamEdgeOffset=walker->downstreamOffsets[targetSuffix];
+
+	if(!res || upstream > targetPrefix || (entry->downstream!=targetSuffix && upstreamEdgeOffset>=minEdgePosition)) // No suitable existing entry, but can insert/append here
+		{
+		int minMargin=upstreamEdgeOffset-minEdgePosition; // Margin between current position and minimum position: Must be zero or positive
+		int maxMargin=maxEdgePosition-upstreamEdgeOffset; // Margin between current position and maximum position: Must be zero or positive
+
+		if(minMargin<0 || maxMargin<0)
+			{
+			LOG(LOG_INFO,"Failed to add forward route for prefix %i suffix %i",targetPrefix,targetSuffix);
+			LOG(LOG_INFO,"Current edge offset %i minEdgePosition %i maxEdgePosition %i",upstreamEdgeOffset,minEdgePosition,maxEdgePosition);
+			LOG(LOG_CRITICAL,"Negative gap detected in route insert - Min: %i Max: %i",minMargin,maxMargin);
+			}
+
+		// Map offsets to new entry
+		(*(patch->rdiPtr))->minEdgePosition=downstreamEdgeOffset;
+		(*(patch->rdiPtr))->maxEdgePosition=downstreamEdgeOffset;
+
+		LOG(LOG_CRITICAL,"Entry Insert"); // targetPrefix,targetSuffix,1
+		}
+	else if(upstream==targetPrefix && entry->downstream==targetSuffix) // Existing entry suitable, widen
+		{
+		int upstreamEdgeOffsetEnd=upstreamEdgeOffset+entry->width;
+
+		// Adjust offsets
+		if(minEdgePosition<upstreamEdgeOffset) // Trim upstream range to entry
+			minEdgePosition=upstreamEdgeOffset;
+
+		if(maxEdgePosition>upstreamEdgeOffsetEnd) // Trim upstream range to entry
+			maxEdgePosition=upstreamEdgeOffsetEnd;
+
+		int minOffset=minEdgePosition-upstreamEdgeOffset; // Offset of minimum position: zero or positive
+		int maxOffset=maxEdgePosition-upstreamEdgeOffset; // Offset of maximum position: zero or positive
+
+		if(minOffset<0 || maxOffset<0 || minOffset>maxOffset)
+			{
+			LOG(LOG_CRITICAL,"Invalid offsets or gap detected in route insert - Min: %i Max: %i",minOffset,maxOffset);
+			}
+
+		// Map offsets to new entry
+		(*(patch->rdiPtr))->minEdgePosition=downstreamEdgeOffset+minOffset;
+		(*(patch->rdiPtr))->maxEdgePosition=downstreamEdgeOffset+maxOffset;
+
+		LOG(LOG_CRITICAL,"Entry Widen"); // width ++
+		}
+	else // Existing entry unsuitable, split and insert
+		{
+		int targetEdgePosition=entry->downstream>targetSuffix?minEdgePosition:maxEdgePosition; // Early or late split
+
+		int splitWidth1=targetEdgePosition-upstreamEdgeOffset;
+		int splitWidth2=entry->width-splitWidth1;
+
+		if(splitWidth1<=0 || splitWidth2<=0)
+			{
+			LOG(LOG_CRITICAL,"Non-positive split width detected in route insert - Width1: %i Width2: %i from %i",splitWidth1, splitWidth2);
+			}
+
+		// Map offsets
+		(*(patch->rdiPtr))->minEdgePosition=downstreamEdgeOffset;
+		(*(patch->rdiPtr))->maxEdgePosition=downstreamEdgeOffset;
+
+		LOG(LOG_CRITICAL,"Entry Split"); // splitWidth1, (targetPrefix, targetSuffix, 1), splitWidth2
+
+
+//		newEntryPtr->prefix=oldEntryPtr->prefix;	// Insert first part of split
+//		newEntryPtr->suffix=oldEntryPtr->suffix;
+//		newEntryPtr->width=splitWidth1;
+//		newEntryPtr++;
+
+//		newEntryPtr->prefix=targetPrefix;			// Insert new
+//		newEntryPtr->suffix=targetSuffix;
+//		newEntryPtr->width=1;
+//		newEntryPtr++;
+
+//		newEntryPtr->prefix=oldEntryPtr->prefix;	// Insert second part of split
+//		newEntryPtr->suffix=oldEntryPtr->suffix;
+//		newEntryPtr->width=splitWidth2;
+//		newEntryPtr++;
+
+		}
+*/
 
 }
 
 
-void rttMergeRoutes(RouteTableTreeBuilder *builder,
-		RoutePatch *forwardRoutePatches, RoutePatch *reverseRoutePatches, s32 forwardRoutePatchCount, s32 reverseRoutePatchCount,
-		s32 maxNewPrefix, s32 maxNewSuffix, RoutingReadData **orderedDispatches, MemDispenser *disp)
+void mergeRoutes_ordered_reverseSingle(RouteTableTreeWalker *walker, RoutePatch *patch)
 {
-	LOG(LOG_INFO,"Entries: %i %i",forwardRoutePatchCount, reverseRoutePatchCount);
+
+	LOG(LOG_CRITICAL,"Reverse: Not Implemented");
+
+}
+
+
+/*	LOG(LOG_INFO,"Entries: %i %i",forwardRoutePatchCount, reverseRoutePatchCount);
 
 	for(int i=0;i<forwardRoutePatchCount;i++)
 		{
@@ -1162,6 +1583,18 @@ void rttMergeRoutes(RouteTableTreeBuilder *builder,
 			(*(reverseRoutePatches[i].rdiPtr))->minEdgePosition,
 			(*(reverseRoutePatches[i].rdiPtr))->maxEdgePosition);
 		}
+*/
+
+
+
+void rttMergeRoutes(RouteTableTreeBuilder *builder,
+		RoutePatch *forwardRoutePatches, RoutePatch *reverseRoutePatches, s32 forwardRoutePatchCount, s32 reverseRoutePatchCount,
+		s32 prefixCount, s32 suffixCount, RoutingReadData **orderedDispatches, MemDispenser *disp)
+{
+
+
+	prefixCount++; // Move from 1 based to 0 based
+	suffixCount++; // Move from 1 based to 0 based
 
 	// Forward Routes
 
@@ -1170,7 +1603,7 @@ void rttMergeRoutes(RouteTableTreeBuilder *builder,
 		RouteTableTreeWalker *walker=&(builder->forwardWalker);
 
 		walkerSeekStart(walker);
-		walkerInitOffsetArrays(walker, maxNewPrefix+1, maxNewSuffix+1);
+		walkerInitOffsetArrays(walker, prefixCount, suffixCount);
 
 		RoutePatch *patchPtr=forwardRoutePatches;
 		RoutePatch *patchEnd=patchPtr+forwardRoutePatchCount;
@@ -1209,7 +1642,7 @@ void rttMergeRoutes(RouteTableTreeBuilder *builder,
 		RouteTableTreeWalker *walker=&(builder->reverseWalker);
 
 		walkerSeekStart(walker);
-		walkerInitOffsetArrays(walker, maxNewSuffix+1, maxNewPrefix+1);
+		walkerInitOffsetArrays(walker, suffixCount, prefixCount);
 
 		RoutePatch *patchPtr=reverseRoutePatches;
 		RoutePatch *patchEnd=patchPtr+reverseRoutePatchCount;
@@ -1224,7 +1657,7 @@ void rttMergeRoutes(RouteTableTreeBuilder *builder,
 				{
 				while(patchPtr<patchEnd && patchPtr->suffixIndex==targetUpstream)
 					{
-					mergeRoutes_ordered_forwardSingle(walker, patchPtr);
+					mergeRoutes_ordered_reverseSingle(walker, patchPtr);
 
 					*(orderedDispatches++)=*(patchPtr->rdiPtr);
 					patchPtr++;
@@ -1232,7 +1665,7 @@ void rttMergeRoutes(RouteTableTreeBuilder *builder,
 				}
 			else
 				{
-				mergeRoutes_ordered_forwardSingle(walker, patchPtr);
+				mergeRoutes_ordered_reverseSingle(walker, patchPtr);
 
 				*(orderedDispatches++)=*(patchPtr->rdiPtr);
 				patchPtr++;
@@ -1241,7 +1674,10 @@ void rttMergeRoutes(RouteTableTreeBuilder *builder,
 
 		}
 
-	LOG(LOG_CRITICAL,"Not Implemented");
+
+	LOG(LOG_CRITICAL,"Post merge: Not Implemented");
+
+
 }
 
 

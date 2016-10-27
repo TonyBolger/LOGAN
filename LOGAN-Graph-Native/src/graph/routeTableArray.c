@@ -736,7 +736,7 @@ static RouteTableEntry *mergeRoutes_ordered_reverseSingle(RouteTableEntry *oldEn
 
 
 void rtaMergeRoutes(RouteTableArrayBuilder *builder, RoutePatch *forwardRoutePatches, RoutePatch *reverseRoutePatches, s32 forwardRoutePatchCount, s32 reverseRoutePatchCount,
-		s32 maxNewPrefix, s32 maxNewSuffix, RoutingReadData **orderedDispatches, MemDispenser *disp)
+		s32 prefixCount, s32 suffixCount, RoutingReadData **orderedDispatches, MemDispenser *disp)
 {
 	if(builder->newForwardEntryCount>0 || builder->newReverseEntryCount>0)
 		{
@@ -752,8 +752,8 @@ void rtaMergeRoutes(RouteTableArrayBuilder *builder, RoutePatch *forwardRoutePat
 	builder->newReverseEntryCount=maxReverseEntryCount;
 */
 
-	builder->maxPrefix=MAX(maxNewPrefix, builder->maxPrefix);
-	builder->maxSuffix=MAX(maxNewSuffix, builder->maxSuffix);
+	builder->maxPrefix=MAX(prefixCount, builder->maxPrefix);
+	builder->maxSuffix=MAX(suffixCount, builder->maxSuffix);
 
 	int maxWidth=MAX(1, builder->maxWidth);
 

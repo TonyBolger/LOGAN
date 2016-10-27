@@ -22,14 +22,14 @@
 
 //#define ROUTE_TABLE_TREE_BRANCH_CHILDREN 64
 //#define ROUTE_TABLE_TREE_BRANCH_CHILDREN_CHUNK 8
-#define ROUTE_TABLE_TREE_BRANCH_CHILDREN 8
+#define ROUTE_TABLE_TREE_BRANCH_CHILDREN 4
 #define ROUTE_TABLE_TREE_BRANCH_CHILDREN_CHUNK 4
 //#define ROUTE_TABLE_TREE_BRANCH_CHILDREN 2
 //#define ROUTE_TABLE_TREE_BRANCH_CHILDREN_CHUNK 2
 
 //#define ROUTE_TABLE_TREE_LEAF_ENTRIES 1024
 //#define ROUTE_TABLE_TREE_LEAF_ENTRIES_CHUNK 8
-#define ROUTE_TABLE_TREE_LEAF_ENTRIES 8
+#define ROUTE_TABLE_TREE_LEAF_ENTRIES 4
 #define ROUTE_TABLE_TREE_LEAF_ENTRIES_CHUNK 4
 //#define ROUTE_TABLE_TREE_LEAF_ENTRIES 2
 //#define ROUTE_TABLE_TREE_LEAF_ENTRIES_CHUNK 2
@@ -54,18 +54,29 @@ typedef struct rootTableTreeTopBlockStr
 
 #define ROUTE_TOPINDEX_MAX 8
 
-#define BRANCH_INDEX_ROOT 0
-#define BRANCH_INDEX_INVALID (-32768)
+// Tree-wide Indexes of nodes:
+// Brindex = Branch Index, positive, starting from 0 (root)
+// Lindex = Leaf Index, positive, starting from 0
+// Nindex = Node Index, positive for branches, 0 for root, negative for leaves, -32k for invalid
+//
+// Sibdex = Sibling Index, position within the parent branch
+
+#define BRANCH_NINDEX_ROOT 0
+#define BRANCH_NINDEX_INVALID (-32768)
+
+#define LINDEX_TO_NINDEX(LINDEX) (-(LINDEX)-1)
+#define NINDEX_TO_LINDEX(NINDEX) (-(NINDEX)-1)
+
 
 typedef struct routeTableTreeBranchBlockStr
 {
 	s16 childAlloc;
-	s16 parentIndex;
+	s16 parentBrindex;
 
 	s16 upstreamMin;
 	s16 upstreamMax;
 
-	s16 childIndex[]; // Max is ROUTE_TABLE_TREE_BRANCH_CHILDREN
+	s16 childNindex[]; // Max is ROUTE_TABLE_TREE_BRANCH_CHILDREN
 } __attribute__((packed)) RouteTableTreeBranchBlock;
 
 
@@ -78,7 +89,7 @@ typedef struct routeTableTreeLeafEntryStr
 typedef struct routeTableLeafBlockStr
 {
 	s16 entryAlloc;
-	s16 parentIndex;
+	s16 parentBrindex;
 
 	s16 upstream;
 	RouteTableTreeLeafEntry entries[]; // Max is ROUTE_TABLE_TREE_LEAF_ENTRIES
@@ -117,7 +128,7 @@ typedef struct routeTableTreeArrayBlockStr
 typedef struct routeTableTreeLeafProxyStr
 {
 	RouteTableTreeLeafBlock *dataBlock;
-	s32 index;
+	s16 lindex;
 
 	u16 entryAlloc;
 	u16 entryCount;
@@ -127,7 +138,7 @@ typedef struct routeTableTreeLeafProxyStr
 typedef struct routeTableTreeBranchProxyStr
 {
 	RouteTableTreeBranchBlock *dataBlock;
-	s32 index;
+	s16 brindex;
 
 	u16 childAlloc;
 	u16 childCount;
@@ -173,7 +184,7 @@ typedef struct routeTableTreeWalkerStr
 
 	// Current Position
 	RouteTableTreeBranchProxy *branchProxy;
-	s16 branchChild;
+	s16 branchChildSibdex;
 	RouteTableTreeLeafProxy *leafProxy;
 	s16 leafEntry;
 
@@ -226,7 +237,7 @@ u8 *rttWriteRouteTableTreeBuilderPackedData(RouteTableTreeBuilder *builder, u8 *
 
 void rttMergeRoutes(RouteTableTreeBuilder *builder,
 		RoutePatch *forwardRoutePatches, RoutePatch *reverseRoutePatches, s32 forwardRoutePatchCount, s32 reverseRoutePatchCount,
-		s32 maxNewPrefix, s32 maxNewSuffix, RoutingReadData **orderedDispatches, MemDispenser *disp);
+		s32 prefixCount, s32 suffixCount, RoutingReadData **orderedDispatches, MemDispenser *disp);
 
 void rttUnpackRouteTableForSmerLinked(SmerLinked *smerLinked, u8 *data, MemDispenser *disp);
 

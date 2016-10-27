@@ -1168,11 +1168,9 @@ static void writeBuildersAsIndirectData(RoutingComboBuilder *routingBuilder, s8 
 static void createRoutePatches(RoutingIndexedReadReferenceBlock *rdi, int entryCount,
 		SeqTailBuilder *prefixBuilder, SeqTailBuilder *suffixBuilder,
 		RoutePatch *forwardPatches, RoutePatch *reversePatches,
-		int *forwardCountPtr, int *reverseCountPtr, int *maxNewPrefixPtr, int *maxNewSuffixPtr)
+		int *forwardCountPtr, int *reverseCountPtr)
 {
 	int forwardCount=0, reverseCount=0;
-	int maxNewPrefix=0, maxNewSuffix=0;
-
 
 	for(int i=0;i<entryCount;i++)
 	{
@@ -1230,9 +1228,6 @@ static void createRoutePatches(RoutingIndexedReadReferenceBlock *rdi, int entryC
 				forwardPatches[forwardCount].prefixIndex=findOrCreateSeqTail(prefixBuilder, prefixSmer, prefixLength);
 				forwardPatches[forwardCount].suffixIndex=findOrCreateSeqTail(suffixBuilder, suffixSmer, suffixLength);
 
-				maxNewPrefix=MAX(maxNewPrefix,forwardPatches[forwardCount].prefixIndex);
-				maxNewSuffix=MAX(maxNewSuffix,forwardPatches[forwardCount].suffixIndex);
-
 
 				if(0)
 					{
@@ -1278,9 +1273,6 @@ static void createRoutePatches(RoutingIndexedReadReferenceBlock *rdi, int entryC
 				reversePatches[reverseCount].prefixIndex=findOrCreateSeqTail(prefixBuilder, prefixSmer, prefixLength);
 				reversePatches[reverseCount].suffixIndex=findOrCreateSeqTail(suffixBuilder, suffixSmer, suffixLength);
 
-				maxNewPrefix=MAX(maxNewPrefix,reversePatches[reverseCount].prefixIndex);
-				maxNewSuffix=MAX(maxNewSuffix,reversePatches[reverseCount].suffixIndex);
-
 				if(0)
 					{
 					char bufferP[SMER_BASES+1]={0};
@@ -1309,8 +1301,6 @@ static void createRoutePatches(RoutingIndexedReadReferenceBlock *rdi, int entryC
 
 	*forwardCountPtr=forwardCount;
 	*reverseCountPtr=reverseCount;
-	*maxNewPrefixPtr=maxNewPrefix;
-	*maxNewSuffixPtr=maxNewSuffix;
 
 }
 
@@ -1370,25 +1360,24 @@ int rtRouteReadsForSmer(RoutingIndexedReadReferenceBlock *rdi, SmerArraySlice *s
 	RoutePatch *forwardPatches=dAlloc(disp,sizeof(RoutePatch)*entryCount);
 	RoutePatch *reversePatches=dAlloc(disp,sizeof(RoutePatch)*entryCount);
 
-	s32 maxNewPrefix=0;
-	s32 maxNewSuffix=0;
+	createRoutePatches(rdi, entryCount, &(routingBuilder.prefixBuilder), &(routingBuilder.suffixBuilder),
+			forwardPatches, reversePatches, &forwardCount, &reverseCount);
 
-	createRoutePatches(rdi, entryCount,
-			&(routingBuilder.prefixBuilder), &(routingBuilder.suffixBuilder), forwardPatches, reversePatches,
-			&forwardCount, &reverseCount, &maxNewPrefix, &maxNewSuffix);
+	s32 prefixCount=getSeqTailTotalTailCount(&(routingBuilder.prefixBuilder));
+	s32 suffixCount=getSeqTailTotalTailCount(&(routingBuilder.suffixBuilder));
 
 	if(considerUpgradingToTree(&routingBuilder, forwardCount, reverseCount))
 		upgradeToTree(&routingBuilder);
 
 	if(routingBuilder.treeBuilder!=NULL)
 		{
-		rttMergeRoutes(routingBuilder.treeBuilder, forwardPatches, reversePatches, forwardCount, reverseCount, maxNewPrefix, maxNewSuffix, orderedDispatches, disp);
+		rttMergeRoutes(routingBuilder.treeBuilder, forwardPatches, reversePatches, forwardCount, reverseCount, prefixCount, suffixCount, orderedDispatches, disp);
 
 		writeBuildersAsIndirectData(&routingBuilder, sliceTag, sliceIndex,circHeap);
 		}
 	else
 		{
-		rtaMergeRoutes(routingBuilder.arrayBuilder, forwardPatches, reversePatches, forwardCount, reverseCount, maxNewPrefix, maxNewSuffix, orderedDispatches, disp);
+		rtaMergeRoutes(routingBuilder.arrayBuilder, forwardPatches, reversePatches, forwardCount, reverseCount, prefixCount, suffixCount, orderedDispatches, disp);
 
 		writeBuildersAsDirectData(&routingBuilder, sliceTag, sliceIndex, circHeap);
 
