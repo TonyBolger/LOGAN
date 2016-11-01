@@ -454,7 +454,7 @@ RouteTableTreeLeafProxy *getRouteTableTreeLeafProxy(RouteTableTreeProxy *treePro
 	proxy->dataBlock=(RouteTableTreeLeafBlock *)data;
 	proxy->lindex=lindex;
 
-	LOG(LOG_INFO,"GetRouteTableTreeLeaf : %i",lindex);
+//	LOG(LOG_INFO,"GetRouteTableTreeLeaf : %i",lindex);
 
 	getRouteTableTreeLeafProxy_scan(proxy->dataBlock, &proxy->entryAlloc, &proxy->entryCount);
 
@@ -1075,7 +1075,7 @@ static s32 getNextBranchSibling(RouteTableTreeProxy *treeProxy, RouteTableTreeBr
 {
 	RouteTableTreeBranchProxy *branch=*branchPtr;
 
-	LOG(LOG_INFO,"getNextBranchSibling for %i",branch->brindex);
+//	LOG(LOG_INFO,"getNextBranchSibling for %i",branch->brindex);
 
 	//LOG(LOG_CRITICAL,"FIXME - %i",branch->brindex);
 
@@ -1083,7 +1083,7 @@ static s32 getNextBranchSibling(RouteTableTreeProxy *treeProxy, RouteTableTreeBr
 		{
 		RouteTableTreeBranchProxy *parent=getRouteTableTreeBranchProxy(treeProxy, branch->dataBlock->parentBrindex);
 
-		LOG(LOG_INFO,"Branch is %i - Parent is %i",branch->brindex,parent->brindex);
+		//LOG(LOG_INFO,"Branch is %i - Parent is %i",branch->brindex,parent->brindex);
 
 		s16 sibdex=getBranchChildSibdex_Branch(parent, branch);
 		sibdex++;
@@ -1110,7 +1110,7 @@ static s32 getNextBranchSibling(RouteTableTreeProxy *treeProxy, RouteTableTreeBr
 			}
 		}
 
-	LOG(LOG_INFO,"getNextBranchSibling: end of tree");
+	//LOG(LOG_INFO,"getNextBranchSibling: end of tree");
 
 	return 0;
 }
@@ -1119,7 +1119,7 @@ static s32 getNextBranchSibling(RouteTableTreeProxy *treeProxy, RouteTableTreeBr
 
 static s32 getNextLeafSibling(RouteTableTreeProxy *treeProxy, RouteTableTreeBranchProxy **branchPtr, s16 *branchChildSibdex, RouteTableTreeLeafProxy **leafPtr)
 {
-	LOG(LOG_INFO,"getNextLeafSibling");
+//	LOG(LOG_INFO,"getNextLeafSibling");
 
 	RouteTableTreeBranchProxy *branch=*branchPtr;
 	RouteTableTreeLeafProxy *leaf=*leafPtr;
@@ -1135,7 +1135,7 @@ static s32 getNextLeafSibling(RouteTableTreeProxy *treeProxy, RouteTableTreeBran
 	sibdex++;
 	if(sibdex<branch->childCount)
 		{
-		LOG(LOG_INFO,"In branch %i, looking at sib %i giving %i",branch->brindex, sibdex, branch->dataBlock->childNindex[sibdex]);
+		//LOG(LOG_INFO,"In branch %i, looking at sib %i giving %i",branch->brindex, sibdex, branch->dataBlock->childNindex[sibdex]);
 
 		*branchChildSibdex=sibdex;
 		*leafPtr=getRouteTableTreeLeafProxy(treeProxy, NINDEX_TO_LINDEX(branch->dataBlock->childNindex[sibdex]));
@@ -1159,7 +1159,7 @@ static s32 getNextLeafSibling(RouteTableTreeProxy *treeProxy, RouteTableTreeBran
 
 	if(sibdex>=0)
 		{
-		LOG(LOG_INFO,"In branch %i, looking at sib %i giving %i",branch->brindex, sibdex, branch->dataBlock->childNindex[sibdex]);
+		//LOG(LOG_INFO,"In branch %i, looking at sib %i giving %i",branch->brindex, sibdex, branch->dataBlock->childNindex[sibdex]);
 
 		*branchChildSibdex=sibdex;
 		*leafPtr=getRouteTableTreeLeafProxy(treeProxy, NINDEX_TO_LINDEX(branch->dataBlock->childNindex[sibdex]));
@@ -1250,21 +1250,20 @@ s32 walkerNextEntry(RouteTableTreeWalker *walker, s16 *upstream, RouteTableTreeL
 
 	walker->leafEntry++;
 
-	if(walker->leafEntry<walker->leafProxy->entryCount)
-		{
-		return 1;
-		}
-	else
+	if(walker->leafEntry>=walker->leafProxy->entryCount)
 		{
 		walker->leafEntry=0;
 
-		LOG(LOG_INFO,"Next Sib");
-		s32 res=getNextLeafSibling(walker->treeProxy, &walker->branchProxy, &walker->branchChildSibdex, &walker->leafProxy);
-		return res;
+		//LOG(LOG_INFO,"Next Sib");
+
+		if(!getNextLeafSibling(walker->treeProxy, &walker->branchProxy, &walker->branchChildSibdex, &walker->leafProxy))
+			return 0;
 		}
 
-	return 1;
+	*upstream=walker->leafProxy->dataBlock->upstream;
+	*entry=walker->leafProxy->dataBlock->entries+walker->leafEntry;
 
+	return 1;
 }
 
 
@@ -1383,6 +1382,8 @@ void rttUpgradeToRouteTableTreeBuilder(RouteTableArrayBuilder *arrayBuilder,  Ro
 	initTreeWalker(&(treeBuilder->forwardWalker), &(treeBuilder->forwardProxy));
 	initTreeWalker(&(treeBuilder->reverseWalker), &(treeBuilder->reverseProxy));
 
+	LOG(LOG_INFO,"Adding %i %i to tree",arrayBuilder->oldForwardEntryCount, arrayBuilder->oldReverseEntryCount);
+
 	walkerAppendPreorderedEntries(&(treeBuilder->forwardWalker), arrayBuilder->oldForwardEntries, arrayBuilder->oldForwardEntryCount, ROUTING_TABLE_FORWARD);
 	walkerAppendPreorderedEntries(&(treeBuilder->reverseWalker), arrayBuilder->oldReverseEntries, arrayBuilder->oldReverseEntryCount, ROUTING_TABLE_REVERSE);
 
@@ -1412,16 +1413,35 @@ u8 *rttWriteRouteTableTreeBuilderPackedData(RouteTableTreeBuilder *builder, u8 *
 	return data;
 }
 
+
+static void mergeRoutes_insertEntry(RouteTableTreeWalker *walker, s32 upstream, s32 downstream)
+{
+	LOG(LOG_CRITICAL,"Entry Insert");
+}
+
+static void mergeRoutes_widen(RouteTableTreeWalker *walker)
+{
+	LOG(LOG_CRITICAL,"Entry Widen");
+}
+
+static void mergeRoutes_split(RouteTableTreeWalker *walker, s32 downstream, s32 width1, s32 width2)
+{
+	LOG(LOG_CRITICAL,"Entry Split");
+}
+
+
+
 void mergeRoutes_ordered_forwardSingle(RouteTableTreeWalker *walker, RoutePatch *patch)
 {
-	//s32 targetPrefix=patch->prefixIndex;
-	//int targetSuffix=patch->suffixIndex;
-	//int minEdgePosition=(*(patch->rdiPtr))->minEdgePosition;
-	//int maxEdgePosition=(*(patch->rdiPtr))->maxEdgePosition;
+	s32 targetPrefix=patch->prefixIndex;
+	s32 targetSuffix=patch->suffixIndex;
+	int minEdgePosition=(*(patch->rdiPtr))->minEdgePosition;
+	int maxEdgePosition=(*(patch->rdiPtr))->maxEdgePosition;
 
 	s16 upstream=-1;
-	RouteTableTreeLeafEntry *entry;
+	RouteTableTreeLeafEntry *entry=NULL;
 
+	/*
 	int res=walkerGetCurrentEntry(walker, &upstream, &entry);
 	while(res) 												// Skip lower upstream
 		{
@@ -1432,16 +1452,15 @@ void mergeRoutes_ordered_forwardSingle(RouteTableTreeWalker *walker, RoutePatch 
 
 		res=walkerNextEntry(walker, &upstream, &entry);
 		}
-
-
 	LOG(LOG_CRITICAL,"Done");
+*/
 
-/*
+
+	LOG(LOG_INFO,"Looking for P %i S %i Min %i Max %i", targetPrefix, targetSuffix, minEdgePosition, maxEdgePosition);
+
 	int res=walkerGetCurrentEntry(walker, &upstream, &entry);
 	while(res && upstream < targetPrefix) 												// Skip lower upstream
 		{
-		LOG(LOG_INFO,"Currently at %i %i %i",walker->branchProxy->brindex, walker->leafProxy->lindex, walker->leafEntry);
-
 		walker->downstreamOffsets[entry->downstream]+=entry->width;
 		walker->upstreamOffsets[upstream]+=entry->width;
 
@@ -1470,7 +1489,12 @@ void mergeRoutes_ordered_forwardSingle(RouteTableTreeWalker *walker, RoutePatch 
 		res=walkerNextEntry(walker, &upstream, &entry);
 		}
 
-		LOG(LOG_INFO,"FwdDone: %i %i %i",walker->branchProxy->brindex,walker->branchChildSibdex,walker->leafEntry);
+	LOG(LOG_INFO,"FwdDone: %i %i %i",walker->branchProxy->brindex,walker->branchChildSibdex,walker->leafEntry);
+
+	if(entry!=NULL)
+		{
+		LOG(LOG_INFO,"Currently at %i %i %i - %i %i %i",walker->branchProxy->brindex, walker->leafProxy->lindex, walker->leafEntry, upstream, entry->downstream, entry->width);
+		}
 
 	s32 upstreamEdgeOffset=walker->upstreamOffsets[targetPrefix];
 	s32 downstreamEdgeOffset=walker->downstreamOffsets[targetSuffix];
@@ -1491,7 +1515,7 @@ void mergeRoutes_ordered_forwardSingle(RouteTableTreeWalker *walker, RoutePatch 
 		(*(patch->rdiPtr))->minEdgePosition=downstreamEdgeOffset;
 		(*(patch->rdiPtr))->maxEdgePosition=downstreamEdgeOffset;
 
-		LOG(LOG_CRITICAL,"Entry Insert"); // targetPrefix,targetSuffix,1
+		mergeRoutes_insertEntry(walker, targetPrefix, targetSuffix); // targetPrefix,targetSuffix,1
 		}
 	else if(upstream==targetPrefix && entry->downstream==targetSuffix) // Existing entry suitable, widen
 		{
@@ -1516,7 +1540,7 @@ void mergeRoutes_ordered_forwardSingle(RouteTableTreeWalker *walker, RoutePatch 
 		(*(patch->rdiPtr))->minEdgePosition=downstreamEdgeOffset+minOffset;
 		(*(patch->rdiPtr))->maxEdgePosition=downstreamEdgeOffset+maxOffset;
 
-		LOG(LOG_CRITICAL,"Entry Widen"); // width ++
+		mergeRoutes_widen(walker); // width ++
 		}
 	else // Existing entry unsuitable, split and insert
 		{
@@ -1534,26 +1558,12 @@ void mergeRoutes_ordered_forwardSingle(RouteTableTreeWalker *walker, RoutePatch 
 		(*(patch->rdiPtr))->minEdgePosition=downstreamEdgeOffset;
 		(*(patch->rdiPtr))->maxEdgePosition=downstreamEdgeOffset;
 
-		LOG(LOG_CRITICAL,"Entry Split"); // splitWidth1, (targetPrefix, targetSuffix, 1), splitWidth2
+		mergeRoutes_split(walker, targetSuffix, splitWidth1, splitWidth2); // splitWidth1, (targetPrefix, targetSuffix, 1), splitWidth2
 
-
-//		newEntryPtr->prefix=oldEntryPtr->prefix;	// Insert first part of split
-//		newEntryPtr->suffix=oldEntryPtr->suffix;
-//		newEntryPtr->width=splitWidth1;
-//		newEntryPtr++;
-
-//		newEntryPtr->prefix=targetPrefix;			// Insert new
-//		newEntryPtr->suffix=targetSuffix;
-//		newEntryPtr->width=1;
-//		newEntryPtr++;
-
-//		newEntryPtr->prefix=oldEntryPtr->prefix;	// Insert second part of split
-//		newEntryPtr->suffix=oldEntryPtr->suffix;
-//		newEntryPtr->width=splitWidth2;
-//		newEntryPtr++;
-
+		//LOG(LOG_CRITICAL,"Entry Split"); // splitWidth1, (targetPrefix, targetSuffix, 1), splitWidth2
 		}
-*/
+
+	LOG(LOG_CRITICAL,"HMM"); // targetPrefix,targetSuffix,1
 
 }
 
