@@ -16,10 +16,12 @@
 #define LOG_INFO 3
 #define LOG_TRACE 4
 
-
 extern int logLevel;
-#define LOG(L,...) { if(L<=logLevel) _log(L,1,__FILE__, __LINE__, __VA_ARGS__); }
-#define LOGN(L,...) { if(L<=logLevel) _log(L,0,__FILE__, __LINE__, __VA_ARGS__); }
+
+// Much wow to fix syntax
+
+#define LOG(L,...) do { if(L<=logLevel) _log(L,1,__FILE__, __LINE__, __VA_ARGS__); } while(0)
+#define LOGN(L,...) do { if(L<=logLevel) _log(L,0,__FILE__, __LINE__, __VA_ARGS__); } while(0)
 
 void logInit();
 void _log(int level, int decorate, char *file, int line, const char *fmt, ...);
