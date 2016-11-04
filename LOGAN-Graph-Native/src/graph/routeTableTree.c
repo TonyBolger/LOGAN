@@ -1153,11 +1153,12 @@ static void treeProxyInsertLeafChild(RouteTableTreeProxy *treeProxy, RouteTableT
 }
 
 static void treeProxyAppendLeafChild(RouteTableTreeProxy *treeProxy, RouteTableTreeBranchProxy *parent, RouteTableTreeLeafProxy *child,
-		RouteTableTreeBranchProxy **newParentPtr)
+		RouteTableTreeBranchProxy **newParentPtr, s16 *childPositionPtr)
 {
 	s16 childPosition=parent->childCount;
 
 	treeProxyInsertLeafChild(treeProxy, parent, child, childPosition, newParentPtr, &childPosition);
+	*childPositionPtr=childPosition;
 }
 
 
@@ -1450,10 +1451,9 @@ static void walkerAppendNewLeaf(RouteTableTreeWalker *walker, s16 upstream)
 	LOG(LOG_INFO,"WalkerAppendLeaf");
 	RouteTableTreeLeafProxy *leafProxy=allocRouteTableTreeLeafProxy(walker->treeProxy, ROUTE_TABLE_TREE_LEAF_ENTRIES_CHUNK);
 
-	treeProxyAppendLeafChild(walker->treeProxy, walker->branchProxy, leafProxy, &walker->branchProxy);
+	treeProxyAppendLeafChild(walker->treeProxy, walker->branchProxy, leafProxy, &walker->branchProxy, &walker->branchChildSibdex);
 	leafProxy->dataBlock->upstream=upstream;
 
-	walker->branchChildSibdex=-1;
 	walker->leafProxy=leafProxy;
 	walker->leafEntry=leafProxy->entryCount;
 }
@@ -1571,7 +1571,14 @@ static void mergeRoutes_insertEntry(RouteTableTreeWalker *walker, s32 upstream, 
 
 	if(leafProxy==NULL)
 		{
-		LOG(LOG_CRITICAL,"Entry Insert: No current leaf - need new leaf append");
+		LOG(LOG_INFO,"Entry Insert: No current leaf - need new leaf append");
+
+		RouteTableTreeLeafProxy *leafProxy=allocRouteTableTreeLeafProxy(walker->treeProxy, ROUTE_TABLE_TREE_LEAF_ENTRIES_CHUNK);
+		treeProxyAppendLeafChild(walker->treeProxy, walker->branchProxy, leafProxy, &walker->branchProxy, &walker->branchChildSibdex);
+		leafProxy->dataBlock->upstream=upstream;
+
+		walker->leafProxy=leafProxy;
+		walker->leafEntry=leafProxy->entryCount;
 		}
 	else
 		{
@@ -1579,12 +1586,19 @@ static void mergeRoutes_insertEntry(RouteTableTreeWalker *walker, s32 upstream, 
 
 		if(upstream!=leafUpstream)
 			{
-			LOG(LOG_CRITICAL,"Entry Insert: Unmatched upstream - need new leaf insert");
+			LOG(LOG_INFO,"Entry Insert: Unmatched upstream - need new leaf insert");
+
+			RouteTableTreeLeafProxy *leafProxy=allocRouteTableTreeLeafProxy(walker->treeProxy, ROUTE_TABLE_TREE_LEAF_ENTRIES_CHUNK);
+			treeProxyInsertLeafChild(walker->treeProxy, walker->branchProxy, leafProxy,
+					walker->branchChildSibdex, &walker->branchProxy, &walker->branchChildSibdex);
+			leafProxy->dataBlock->upstream=upstream;
+
+			walker->leafProxy=leafProxy;
+			walker->leafEntry=leafProxy->entryCount;
 			}
 		else if(leafProxy->entryCount>=ROUTE_TABLE_TREE_LEAF_ENTRIES)
 			{
 			s16 leafEntry=walker->leafEntry;
-
 			LOG(LOG_INFO,"Entry Insert: Leaf size at maximum - need to split - pos %i",leafEntry);
 
 			RouteTableTreeBranchProxy *newBranchProxy=NULL;
@@ -1600,14 +1614,18 @@ static void mergeRoutes_insertEntry(RouteTableTreeWalker *walker, s32 upstream, 
 			walker->leafProxy=newLeafProxy;
 			walker->leafEntry=newLeafEntry;
 			}
-		else if(leafProxy->entryCount>=leafProxy->entryAlloc)
+		else
 			{
-			LOG(LOG_INFO,"Entry Insert: Expand");
-			expandRouteTableTreeLeafProxy(walker->treeProxy, leafProxy);
+			if(leafProxy->entryCount>=leafProxy->entryAlloc)
+				{
+				LOG(LOG_INFO,"Entry Insert: Expand");
+				expandRouteTableTreeLeafProxy(walker->treeProxy, leafProxy);
+				}
+			leafMakeEntryInsertSpace(leafProxy, walker->leafEntry, 1);
 			}
 		}
 
-	leafMakeEntryInsertSpace(leafProxy, walker->leafEntry, 1);
+	// Space already made - set entry data
 	leafProxy->dataBlock->entries[walker->leafEntry].downstream=downstream;
 	leafProxy->dataBlock->entries[walker->leafEntry].width=1;
 
@@ -1647,18 +1665,42 @@ static void mergeRoutes_split(RouteTableTreeWalker *walker, s32 downstream, s32 
 
 	if(newEntryCount>ROUTE_TABLE_TREE_LEAF_ENTRIES)
 		{
-		LOG(LOG_INFO,"Entry Split: Leaf size at maximum - need to split");
-		}
-	else if(newEntryCount>leafProxy->entryAlloc)
-		{
-		LOG(LOG_INFO,"Entry Split: Leaf full - need to expand");
+		s16 leafEntry=walker->leafEntry;
+		LOG(LOG_INFO,"Entry Split: Leaf size at maximum - need to split - pos %i",leafEntry);
+
+		RouteTableTreeBranchProxy *newBranchProxy=NULL;
+		s16 newBranchChildSibdex=-1;
+		RouteTableTreeLeafProxy *newLeafProxy=NULL;
+		s16 newLeafEntry=-1;
+
+		treeProxySplitLeafInsertChildEntrySpace(walker->treeProxy, walker->branchProxy, walker->branchChildSibdex, walker->leafProxy,
+				walker->leafEntry, 2, &newBranchProxy, &newBranchChildSibdex, &newLeafProxy, &newLeafEntry);
+
+		walker->branchProxy=newBranchProxy;
+		walker->branchChildSibdex=newBranchChildSibdex;
+		walker->leafProxy=newLeafProxy;
+		walker->leafEntry=newLeafEntry;
 		}
 	else
 		{
+		if(newEntryCount>leafProxy->entryAlloc)
+			{
+			LOG(LOG_INFO,"Entry Split: Leaf full - need to expand");
+			expandRouteTableTreeLeafProxy(walker->treeProxy, leafProxy);
+			}
 		LOG(LOG_INFO,"Entry Split: Easy case");
+		leafMakeEntryInsertSpace(leafProxy, walker->leafEntry, 1);
+
 		}
 
-	LOG(LOG_CRITICAL,"Entry Split");
+	leafProxy->dataBlock->entries[walker->leafEntry++].width=width1;
+
+	leafProxy->dataBlock->entries[walker->leafEntry].downstream=downstream;
+	leafProxy->dataBlock->entries[walker->leafEntry++].width=1;
+
+	leafProxy->dataBlock->entries[walker->leafEntry++].width=width2;
+
+	LOG(LOG_INFO,"Entry Split");
 }
 
 

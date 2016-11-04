@@ -68,6 +68,8 @@ typedef struct rootTableTreeTopBlockStr
 #define NINDEX_TO_LINDEX(NINDEX) (-(NINDEX)-1)
 
 
+// For now, all trees use the same size node indexes (s16), tail indexes (s16), width (s16)
+
 typedef struct routeTableTreeBranchBlockStr
 {
 	s16 childAlloc;
