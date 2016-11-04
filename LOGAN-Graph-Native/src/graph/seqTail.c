@@ -262,7 +262,7 @@ s32 findOrCreateSeqTail(SeqTailBuilder *builder, SmerId smer, s32 tailLength)
 		builder->newTailAlloc=newTailAlloc;
 		}
 
-//	LOG(LOG_INFO,"make new %li %i",smer,tailLength);
+	//LOG(LOG_INFO,"Make new tail %li %i",smer,tailLength);
 
 	builder->newTails[builder->newTailCount++]=tail;
 	builder->totalPackedSize+=(tailLength+7)>>2; // Round up plus size byte

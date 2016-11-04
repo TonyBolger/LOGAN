@@ -840,7 +840,8 @@ static void createBuildersFromDirectData(RoutingComboBuilder *builder)
 //static
 void createBuildersFromIndirectData(RoutingComboBuilder *builder)
 {
-	//LOG(LOG_INFO,"Creating from indirect data");
+
+
 /*
 	u8 *data=*(builder->rootPtr);
 
@@ -1003,6 +1004,24 @@ static void upgradeToTree(RoutingComboBuilder *builder)
 
 static void writeBuildersAsIndirectData(RoutingComboBuilder *routingBuilder, s8 sliceTag, s32 sliceIndex, MemCircHeap *circHeap)
 {
+	// May need to create:
+	//		top level block
+	// 		prefix/suffix blocks
+	// 		array blocks
+	// 		branch blocks
+	//		leaf blocks
+	//		offset blocks
+
+
+	LOG(LOG_INFO,"Creating from indirect data");
+
+	if(routingBuilder->topDataBlock->blockPtr==NULL)
+		{
+		LOG(LOG_INFO,"Need to create top data block");
+
+		}
+
+
 	LOG(LOG_CRITICAL,"Not implemented: writeBuildersAsIndirectData");
 
 	/*
@@ -1367,7 +1386,12 @@ int rtRouteReadsForSmer(RoutingIndexedReadReferenceBlock *rdi, SmerArraySlice *s
 	s32 suffixCount=getSeqTailTotalTailCount(&(routingBuilder.suffixBuilder));
 
 	if(considerUpgradingToTree(&routingBuilder, forwardCount, reverseCount))
+		{
+		//LOG(LOG_INFO,"Prefix Old %i New %i",routingBuilder.prefixBuilder.oldTailCount,routingBuilder.prefixBuilder.newTailCount);
+		//LOG(LOG_INFO,"Suffix Old %i New %i",routingBuilder.suffixBuilder.oldTailCount,routingBuilder.suffixBuilder.newTailCount);
+
 		upgradeToTree(&routingBuilder);
+		}
 
 	if(routingBuilder.treeBuilder!=NULL)
 		{

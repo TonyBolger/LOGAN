@@ -66,7 +66,7 @@ void runIptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 
 	SwqBuffer buffers[PT_INGRESS_BUFFERS];
 
-	for(int i=0;i<PT_INGRESS_BUFFERS;i++)
+	for(i=0;i<PT_INGRESS_BUFFERS;i++)
 		initIngressBuffer(buffers+i, FASTQ_BASES_PER_BATCH, FASTQ_RECORDS_PER_BATCH, FASTQ_MAX_READ_LENGTH);
 
 	u8 *ioBuffer=malloc(FASTQ_IO_RECYCLE_BUFFER+FASTQ_IO_PRIMARY_BUFFER);
@@ -96,7 +96,7 @@ void runIptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 	for(i=0;i<threadCount;i++)
 		pthread_join(threads[i], &status);
 
-	for(int i=0;i<PT_INGRESS_BUFFERS;i++)
+	for(i=0;i<PT_INGRESS_BUFFERS;i++)
 		freeIngressBuffer(buffers+i);
 
 	freeIndexingBuilder(ib);
@@ -152,7 +152,7 @@ void runRptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 
 	int bufSize=FASTQ_BASES_PER_BATCH;
 
-	for(int i=0;i<PT_INGRESS_BUFFERS;i++)
+	for(i=0;i<PT_INGRESS_BUFFERS;i++)
 		{
 		buffers[i].seqBuffer=malloc(bufSize);
 		buffers[i].qualBuffer=malloc(bufSize);
@@ -194,7 +194,7 @@ void runRptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 	for(i=0;i<threadCount;i++)
 		pthread_join(threads[i], &status);
 
-	for(int i=0;i<PT_INGRESS_BUFFERS;i++)
+	for(i=0;i<PT_INGRESS_BUFFERS;i++)
 		{
 		free(buffers[i].seqBuffer);
 		free(buffers[i].qualBuffer);
