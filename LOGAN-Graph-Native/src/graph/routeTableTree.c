@@ -123,19 +123,22 @@ RouteTableTreeArrayBlock *allocRouteTableTreeDataArrayBlock(MemDispenser *disp, 
 	for(int i=0;i<dataAlloc;i++)
 		block->data[i]=NULL;
 
-
 	return block;
 }
 
-RouteTableTreeArrayBlock *allocRouteTableTreePtrArrayBlock(MemDispenser *disp, s32 dataCount)
+RouteTableTreeArrayBlock *allocRouteTableTreePtrArrayBlock(MemDispenser *disp, s32 dataAlloc)
 {
-	if(dataCount>ROUTE_TABLE_TREE_PTR_ARRAY_ENTRIES)
+	if(dataAlloc>ROUTE_TABLE_TREE_PTR_ARRAY_ENTRIES)
 			{
-			LOG(LOG_CRITICAL,"Cannot allocate oversize data array with %i children",dataCount);
+			LOG(LOG_CRITICAL,"Cannot allocate oversize data array with %i children",dataAlloc);
 			}
 
-	RouteTableTreeArrayBlock *block=dAlloc(disp, sizeof(RouteTableTreeArrayBlock)+dataCount*sizeof(u8 *));
-	block->dataAlloc=dataCount;
+	RouteTableTreeArrayBlock *block=dAlloc(disp, sizeof(RouteTableTreeArrayBlock)+dataAlloc*sizeof(u8 *));
+	block->dataAlloc=dataAlloc;
+
+	for(int i=0;i<dataAlloc;i++)
+		block->data[i]=NULL;
+
 	return block;
 }
 
@@ -253,8 +256,9 @@ void ensureBlockArrayWritable(RouteTableTreeArrayProxy *arrayProxy, MemDispenser
 
 		u8 **newData=dAlloc(disp, sizeof(u8 *)*newAlloc);
 
-		if(newAlloc>arrayProxy->dataCount)
-			memset(newData+sizeof(u8 *)*arrayProxy->dataCount, 0, sizeof(u8 *)*newAlloc);
+		//if(newAlloc>arrayProxy->dataCount)
+
+		memset(newData, 0, sizeof(u8 *)*newAlloc);
 
 		arrayProxy->newData=newData;
 		arrayProxy->newDataAlloc=newAlloc;
@@ -299,7 +303,8 @@ s32 appendBlockArrayEntry(RouteTableTreeArrayProxy *arrayProxy, u8 *data, MemDis
 			}
 
 		u8 **newData=dAlloc(disp, sizeof(u8 *)*newAllocCount);
-		memcpy(newData,arrayProxy->newData, sizeof(u8 *)*newAllocCount);
+		memcpy(newData,arrayProxy->newData, sizeof(u8 *)*arrayProxy->newDataAlloc);
+		memset(newData+arrayProxy->newDataAlloc, 0, sizeof(u8 *)*(newAllocCount-arrayProxy->newDataAlloc));
 
 		arrayProxy->newData=newData;
 		arrayProxy->newDataAlloc=newAllocCount;
@@ -1535,24 +1540,29 @@ void rttUpgradeToRouteTableTreeBuilder(RouteTableArrayBuilder *arrayBuilder,  Ro
 	treeBuilder->topDataBlock=topDataBlock;
 
 	for(int i=0;i<ROUTE_TOPINDEX_MAX;i++)
-		treeBuilder->top.data[i]=NULL;
+		{
+		treeBuilder->dataBlocks[i].blockPtr=NULL;
+		treeBuilder->dataBlocks[i].headerSize=0;
+		treeBuilder->dataBlocks[i].dataSize=0;
+		}
 
-	treeBuilder->forwardLeafDataBlock.blockPtr=NULL;
-	treeBuilder->reverseLeafDataBlock.blockPtr=NULL;
-	treeBuilder->forwardBranchDataBlock.blockPtr=NULL;
-	treeBuilder->reverseBranchDataBlock.blockPtr=NULL;
-	treeBuilder->forwardOffsetDataBlock.blockPtr=NULL;
-	treeBuilder->reverseOffsetDataBlock.blockPtr=NULL;
+	initTreeProxy(&(treeBuilder->forwardProxy),
+			&(treeBuilder->dataBlocks[ROUTE_TOPINDEX_FORWARD_LEAF]),
+			&(treeBuilder->dataBlocks[ROUTE_TOPINDEX_FORWARD_BRANCH]),
+			&(treeBuilder->dataBlocks[ROUTE_TOPINDEX_FORWARD_OFFSET]), disp);
 
-	initTreeProxy(&(treeBuilder->forwardProxy), &(treeBuilder->forwardLeafDataBlock), &(treeBuilder->forwardBranchDataBlock), &(treeBuilder->forwardOffsetDataBlock), disp);
-	initTreeProxy(&(treeBuilder->reverseProxy), &(treeBuilder->reverseLeafDataBlock), &(treeBuilder->reverseBranchDataBlock), &(treeBuilder->reverseOffsetDataBlock), disp);
+	initTreeProxy(&(treeBuilder->reverseProxy),
+			&(treeBuilder->dataBlocks[ROUTE_TOPINDEX_REVERSE_LEAF]),
+			&(treeBuilder->dataBlocks[ROUTE_TOPINDEX_REVERSE_BRANCH]),
+			&(treeBuilder->dataBlocks[ROUTE_TOPINDEX_REVERSE_OFFSET]),disp);
 
 	initTreeWalker(&(treeBuilder->forwardWalker), &(treeBuilder->forwardProxy));
 	initTreeWalker(&(treeBuilder->reverseWalker), &(treeBuilder->reverseProxy));
 
-	LOG(LOG_INFO,"Adding %i %i to tree",arrayBuilder->oldForwardEntryCount, arrayBuilder->oldReverseEntryCount);
-
+	LOG(LOG_INFO,"Adding %i forward entries to tree",arrayBuilder->oldForwardEntryCount);
 	walkerAppendPreorderedEntries(&(treeBuilder->forwardWalker), arrayBuilder->oldForwardEntries, arrayBuilder->oldForwardEntryCount, ROUTING_TABLE_FORWARD);
+
+	LOG(LOG_INFO,"Adding %i reverse entries to tree",arrayBuilder->oldReverseEntryCount);
 	walkerAppendPreorderedEntries(&(treeBuilder->reverseWalker), arrayBuilder->oldReverseEntries, arrayBuilder->oldReverseEntryCount, ROUTING_TABLE_REVERSE);
 
 	treeBuilder->newEntryCount=arrayBuilder->oldForwardEntryCount+arrayBuilder->oldReverseEntryCount;
@@ -1564,22 +1574,64 @@ void rttDumpRoutingTable(RouteTableTreeBuilder *builder)
 	LOG(LOG_CRITICAL,"Not implemented: rttDumpRoutingTable");
 }
 
-s32 rttGetRouteTableTreeBuilderDirty(RouteTableTreeBuilder *builder)
+/*s32 rttGetRouteTableTreeBuilderDirty(RouteTableTreeBuilder *builder)
 {
 	return builder->newEntryCount>0;
 }
+*/
 
-s32 rttGetRouteTableTreeBuilderPackedSize(RouteTableTreeBuilder *builder)
+
+s32 rttGetTopArrayDirty(RouteTableTreeArrayProxy *arrayProxy)
 {
-	return sizeof(RouteTableTreeTopBlock);
+	return arrayProxy->newData!=NULL;
 }
 
-u8 *rttWriteRouteTableTreeBuilderPackedData(RouteTableTreeBuilder *builder, u8 *data)
-{
-	LOG(LOG_CRITICAL,"Not implemented: rttWriteRouteTableTreeBuilderPackedData");
 
-	return data;
+s32 rttGetTopArraySize(RouteTableTreeArrayProxy *arrayProxy)
+{
+	if(arrayProxy->ptrBlock!=NULL)
+		LOG(LOG_CRITICAL,"Multi-level arrays not yet implemented");
+
+	if(arrayProxy->newData!=NULL)
+		return sizeof(RouteTableTreeArrayBlock)+sizeof(u8 *)*arrayProxy->newDataAlloc;
+	else
+		return sizeof(RouteTableTreeArrayBlock)+sizeof(u8 *)*arrayProxy->dataAlloc;
+
 }
+
+
+
+
+
+RouteTableTreeArrayProxy *rttGetTopArrayByIndex(RouteTableTreeBuilder *builder, s32 topIndex)
+{
+	switch(topIndex)
+	{
+	case ROUTE_TOPINDEX_FORWARD_LEAF:
+		return &(builder->forwardProxy.leafArrayProxy);
+
+	case ROUTE_TOPINDEX_REVERSE_LEAF:
+		return &(builder->reverseProxy.leafArrayProxy);
+
+	case ROUTE_TOPINDEX_FORWARD_BRANCH:
+		return &(builder->forwardProxy.branchArrayProxy);
+
+	case ROUTE_TOPINDEX_REVERSE_BRANCH:
+		return &(builder->reverseProxy.branchArrayProxy);
+
+	case ROUTE_TOPINDEX_FORWARD_OFFSET:
+		return &(builder->forwardProxy.offsetArrayProxy);
+
+	case ROUTE_TOPINDEX_REVERSE_OFFSET:
+		return &(builder->reverseProxy.offsetArrayProxy);
+
+	}
+
+	LOG(LOG_CRITICAL,"rttGetTopArrayByIndex for invalid index %i",topIndex);
+
+	return 0;
+}
+
 
 
 static void mergeRoutes_insertEntry(RouteTableTreeWalker *walker, s32 upstream, s32 downstream)
@@ -1591,7 +1643,7 @@ static void mergeRoutes_insertEntry(RouteTableTreeWalker *walker, s32 upstream, 
 
 	if(leafProxy==NULL)
 		{
-		LOG(LOG_INFO,"Entry Insert: No current leaf - need new leaf append");
+		//LOG(LOG_INFO,"Entry Insert: No current leaf - need new leaf append");
 
 		leafProxy=allocRouteTableTreeLeafProxy(walker->treeProxy, ROUTE_TABLE_TREE_LEAF_ENTRIES_CHUNK);
 		treeProxyAppendLeafChild(walker->treeProxy, walker->branchProxy, leafProxy, &walker->branchProxy, &walker->branchChildSibdex);
@@ -1607,7 +1659,7 @@ static void mergeRoutes_insertEntry(RouteTableTreeWalker *walker, s32 upstream, 
 
 		if(upstream!=leafUpstream)
 			{
-			LOG(LOG_INFO,"Entry Insert: Unmatched upstream - need new leaf insert");
+			//LOG(LOG_INFO,"Entry Insert: Unmatched upstream - need new leaf insert");
 
 			leafProxy=allocRouteTableTreeLeafProxy(walker->treeProxy, ROUTE_TABLE_TREE_LEAF_ENTRIES_CHUNK);
 			treeProxyInsertLeafChild(walker->treeProxy, walker->branchProxy, leafProxy,
@@ -1619,12 +1671,12 @@ static void mergeRoutes_insertEntry(RouteTableTreeWalker *walker, s32 upstream, 
 			walker->leafProxy=leafProxy;
 			walker->leafEntry=0;
 
-			LOG(LOG_INFO,"Entry Insert: Need new leaf %i added to %i",walker->leafProxy->lindex, walker->branchProxy->brindex);
+			//LOG(LOG_INFO,"Entry Insert: Need new leaf %i added to %i",walker->leafProxy->lindex, walker->branchProxy->brindex);
 			}
 		else if(leafProxy->entryCount>=ROUTE_TABLE_TREE_LEAF_ENTRIES)
 			{
-			s16 leafEntry=walker->leafEntry;
-			LOG(LOG_INFO,"Entry Insert: Leaf size at maximum - need to split - pos %i",leafEntry);
+			//s16 leafEntry=walker->leafEntry;
+			//LOG(LOG_INFO,"Entry Insert: Leaf size at maximum - need to split - pos %i",leafEntry);
 
 			RouteTableTreeBranchProxy *newBranchProxy=NULL;
 			s16 newBranchChildSibdex=-1;
@@ -1654,7 +1706,7 @@ static void mergeRoutes_insertEntry(RouteTableTreeWalker *walker, s32 upstream, 
 	leafProxy->dataBlock->entries[walker->leafEntry].downstream=downstream;
 	leafProxy->dataBlock->entries[walker->leafEntry].width=1;
 
-	LOG(LOG_INFO,"Entry Insert: Entry: %i D: %i Width %i (U %i) with %i used of %i",walker->leafEntry, downstream, 1, walker->leafProxy->dataBlock->upstream,walker->leafProxy->entryCount,walker->leafProxy->entryAlloc);
+	//LOG(LOG_INFO,"Entry Insert: Entry: %i D: %i Width %i (U %i) with %i used of %i",walker->leafEntry, downstream, 1, walker->leafProxy->dataBlock->upstream,walker->leafProxy->entryCount,walker->leafProxy->entryAlloc);
 
 
 	//dumpLeafProxy(leafProxy);
@@ -1678,8 +1730,8 @@ static void mergeRoutes_widen(RouteTableTreeWalker *walker)
 
 	leafProxy->dataBlock->entries[walker->leafEntry].width++;
 
-	LOG(LOG_INFO,"Widened %i %i %i (%i %i) to %i",walker->branchProxy->brindex, walker->leafProxy->lindex, walker->leafEntry,
-			leafProxy->dataBlock->upstream, leafProxy->dataBlock->entries[walker->leafEntry].downstream, leafProxy->dataBlock->entries[walker->leafEntry].width);
+	//LOG(LOG_INFO,"Widened %i %i %i (%i %i) to %i",walker->branchProxy->brindex, walker->leafProxy->lindex, walker->leafEntry,
+			//leafProxy->dataBlock->upstream, leafProxy->dataBlock->entries[walker->leafEntry].downstream, leafProxy->dataBlock->entries[walker->leafEntry].width);
 
 }
 
@@ -1735,7 +1787,7 @@ static void mergeRoutes_split(RouteTableTreeWalker *walker, s32 downstream, s32 
 
 	leafProxy->dataBlock->entries[walker->leafEntry++].width=width2;
 
-	LOG(LOG_INFO,"Entry Split");
+//	LOG(LOG_INFO,"Entry Split");
 }
 
 
@@ -1764,9 +1816,9 @@ void mergeRoutes_ordered_forwardSingle(RouteTableTreeWalker *walker, RoutePatch 
 	LOG(LOG_CRITICAL,"Done");
 */
 
-	LOG(LOG_INFO,"*****************");
-	LOG(LOG_INFO,"Forward: Looking for P %i S %i Min %i Max %i", targetPrefix, targetSuffix, minEdgePosition, maxEdgePosition);
-	LOG(LOG_INFO,"*****************");
+//	LOG(LOG_INFO,"*****************");
+//	LOG(LOG_INFO,"Forward: Looking for P %i S %i Min %i Max %i", targetPrefix, targetSuffix, minEdgePosition, maxEdgePosition);
+	//LOG(LOG_INFO,"*****************");
 
 	int res=walkerGetCurrentEntry(walker, &upstream, &entry);
 	while(res && upstream < targetPrefix) 												// Skip lower upstream
@@ -1782,7 +1834,7 @@ void mergeRoutes_ordered_forwardSingle(RouteTableTreeWalker *walker, RoutePatch 
 
 //	int upstreamEdgeOffset=walker->upstreamOffsets[targetPrefix];
 	//int downstreamEdgeOffset=0;
-
+/*
 	LOG(LOG_INFO,"OffsetsNow U: %i D: %i",walker->upstreamOffsets[targetPrefix], walker->downstreamOffsets[targetSuffix]);
 
 	if(entry!=NULL)
@@ -1791,7 +1843,7 @@ void mergeRoutes_ordered_forwardSingle(RouteTableTreeWalker *walker, RoutePatch 
 		LOG(LOG_INFO,"Currently at Branch: %i Leaf: %i Entry: %i - Up: %i - NULL ENTRY",walker->branchProxy->brindex, walker->leafProxy->lindex, walker->leafEntry, upstream);
 	else
 		LOG(LOG_INFO,"Empty branch");
-
+*/
 	while(res && upstream == targetPrefix &&
 			((walker->upstreamOffsets[targetPrefix]+entry->width)<minEdgePosition ||
 			((walker->upstreamOffsets[targetPrefix]+entry->width)==minEdgePosition && entry->downstream!=targetSuffix))) // Skip earlier? upstream
@@ -1804,7 +1856,7 @@ void mergeRoutes_ordered_forwardSingle(RouteTableTreeWalker *walker, RoutePatch 
 
 		res=walkerNextEntry(walker, &upstream, &entry, 1);
 		}
-
+/*
 	LOG(LOG_INFO,"OffsetsNow U: %i D: %i",walker->upstreamOffsets[targetPrefix], walker->downstreamOffsets[targetSuffix]);
 
 	if(entry!=NULL)
@@ -1813,7 +1865,7 @@ void mergeRoutes_ordered_forwardSingle(RouteTableTreeWalker *walker, RoutePatch 
 		LOG(LOG_INFO,"Currently at Branch: %i Leaf: %i Entry: %i - Up: %i - NULL ENTRY",walker->branchProxy->brindex, walker->leafProxy->lindex, walker->leafEntry, upstream);
 	else
 		LOG(LOG_INFO,"Empty branch");
-
+*/
 	while(res && upstream == targetPrefix &&
 			(walker->upstreamOffsets[targetPrefix]+entry->width)<=maxEdgePosition && entry->downstream<targetSuffix) // Skip matching upstream with earlier downstream
 		{
@@ -1825,7 +1877,7 @@ void mergeRoutes_ordered_forwardSingle(RouteTableTreeWalker *walker, RoutePatch 
 
 		res=walkerNextEntry(walker, &upstream, &entry, 1);
 		}
-
+/*
 	LOG(LOG_INFO,"FwdDone: %i %i %i %i",walker->branchProxy->brindex,walker->branchChildSibdex,walker->leafEntry, res);
 
 	LOG(LOG_INFO,"OffsetsNow U: %i D: %i",walker->upstreamOffsets[targetPrefix], walker->downstreamOffsets[targetSuffix]);
@@ -1836,7 +1888,7 @@ void mergeRoutes_ordered_forwardSingle(RouteTableTreeWalker *walker, RoutePatch 
 		LOG(LOG_INFO,"Currently at Branch: %i Leaf: %i Entry: %i - Up: %i - NULL ENTRY",walker->branchProxy->brindex, walker->leafProxy->lindex, walker->leafEntry, upstream);
 	else
 		LOG(LOG_INFO,"Empty branch");
-
+*/
 	s32 upstreamEdgeOffset=walker->upstreamOffsets[targetPrefix];
 	s32 downstreamEdgeOffset=walker->downstreamOffsets[targetSuffix];
 
@@ -1905,9 +1957,9 @@ void mergeRoutes_ordered_forwardSingle(RouteTableTreeWalker *walker, RoutePatch 
 		//LOG(LOG_CRITICAL,"Entry Split"); // splitWidth1, (targetPrefix, targetSuffix, 1), splitWidth2
 		}
 
-	LOG(LOG_INFO,"*****************");
-	LOG(LOG_INFO,"mergeRoutes_ordered_forwardSingle done");
-	LOG(LOG_INFO,"*****************");
+//	LOG(LOG_INFO,"*****************");
+//	LOG(LOG_INFO,"mergeRoutes_ordered_forwardSingle done");
+//	LOG(LOG_INFO,"*****************");
 
 }
 
@@ -1936,9 +1988,9 @@ void mergeRoutes_ordered_reverseSingle(RouteTableTreeWalker *walker, RoutePatch 
 	LOG(LOG_CRITICAL,"Done");
 */
 
-	LOG(LOG_INFO,"*****************");
-	LOG(LOG_INFO,"Reverse: Looking for P %i S %i Min %i Max %i", targetPrefix, targetSuffix, minEdgePosition, maxEdgePosition);
-	LOG(LOG_INFO,"*****************");
+//	LOG(LOG_INFO,"*****************");
+//	LOG(LOG_INFO,"Reverse: Looking for P %i S %i Min %i Max %i", targetPrefix, targetSuffix, minEdgePosition, maxEdgePosition);
+//	LOG(LOG_INFO,"*****************");
 
 	int res=walkerGetCurrentEntry(walker, &upstream, &entry);
 	while(res && upstream < targetSuffix) 												// Skip lower upstream
@@ -1954,7 +2006,7 @@ void mergeRoutes_ordered_reverseSingle(RouteTableTreeWalker *walker, RoutePatch 
 
 //	int upstreamEdgeOffset=walker->upstreamOffsets[targetPrefix];
 	//int downstreamEdgeOffset=0;
-
+/*
 	LOG(LOG_INFO,"OffsetsNow U: %i D: %i",walker->upstreamOffsets[targetSuffix], walker->downstreamOffsets[targetPrefix]);
 
 	if(entry!=NULL)
@@ -1965,7 +2017,7 @@ void mergeRoutes_ordered_reverseSingle(RouteTableTreeWalker *walker, RoutePatch 
 		LOG(LOG_INFO,"Empty branch");
 
 	LOG(LOG_INFO,"Proxy is %p, Block is %p",walker->leafProxy, walker->leafProxy->dataBlock);
-
+*/
 	while(res && upstream == targetSuffix &&
 			((walker->upstreamOffsets[targetSuffix]+entry->width)<minEdgePosition ||
 			((walker->upstreamOffsets[targetSuffix]+entry->width)==minEdgePosition && entry->downstream!=targetPrefix))) // Skip earlier? upstream
@@ -1978,7 +2030,7 @@ void mergeRoutes_ordered_reverseSingle(RouteTableTreeWalker *walker, RoutePatch 
 
 		res=walkerNextEntry(walker, &upstream, &entry, 1);
 		}
-
+/*
 	LOG(LOG_INFO,"OffsetsNow U: %i D: %i",walker->upstreamOffsets[targetSuffix], walker->downstreamOffsets[targetPrefix]);
 
 	if(entry!=NULL)
@@ -1987,7 +2039,7 @@ void mergeRoutes_ordered_reverseSingle(RouteTableTreeWalker *walker, RoutePatch 
 		LOG(LOG_INFO,"Currently at Branch: %i Leaf: %i Entry: %i - Up: %i - NULL ENTRY",walker->branchProxy->brindex, walker->leafProxy->lindex, walker->leafEntry, upstream);
 	else
 		LOG(LOG_INFO,"Empty branch");
-
+*/
 	while(res && upstream == targetSuffix &&
 			(walker->upstreamOffsets[targetSuffix]+entry->width)<=maxEdgePosition && entry->downstream<targetPrefix) // Skip matching upstream with earlier downstream
 		{
@@ -1999,7 +2051,7 @@ void mergeRoutes_ordered_reverseSingle(RouteTableTreeWalker *walker, RoutePatch 
 
 		res=walkerNextEntry(walker, &upstream, &entry, 1);
 		}
-
+/*
 	LOG(LOG_INFO,"FwdDone: %i %i %i %i",walker->branchProxy->brindex,walker->branchChildSibdex,walker->leafEntry, res);
 
 	LOG(LOG_INFO,"OffsetsNow U: %i D: %i",walker->upstreamOffsets[targetSuffix], walker->downstreamOffsets[targetPrefix]);
@@ -2010,7 +2062,7 @@ void mergeRoutes_ordered_reverseSingle(RouteTableTreeWalker *walker, RoutePatch 
 		LOG(LOG_INFO,"Currently at Branch: %i Leaf: %i Entry: %i - Up: %i - NULL ENTRY",walker->branchProxy->brindex, walker->leafProxy->lindex, walker->leafEntry, upstream);
 	else
 		LOG(LOG_INFO,"Empty branch");
-
+*/
 
 	s32 upstreamEdgeOffset=walker->upstreamOffsets[targetSuffix];
 	s32 downstreamEdgeOffset=walker->downstreamOffsets[targetPrefix];
@@ -2079,9 +2131,9 @@ void mergeRoutes_ordered_reverseSingle(RouteTableTreeWalker *walker, RoutePatch 
 		//LOG(LOG_CRITICAL,"Entry Split"); // splitWidth1, (targetPrefix, targetSuffix, 1), splitWidth2
 		}
 
-	LOG(LOG_INFO,"*****************");
-	LOG(LOG_INFO,"mergeRoutes_ordered_reverseSingle done");
-	LOG(LOG_INFO,"*****************");
+//	LOG(LOG_INFO,"*****************");
+//	LOG(LOG_INFO,"mergeRoutes_ordered_reverseSingle done");
+//	LOG(LOG_INFO,"*****************");
 }
 
 

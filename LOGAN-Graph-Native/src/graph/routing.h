@@ -107,8 +107,7 @@ typedef struct routingComboBuilderStr
 	RouteTableTreeBuilder *treeBuilder;
 	HeapDataBlock topDataBlock;
 
-	HeapDataBlock prefixDataBlock;
-	HeapDataBlock suffixDataBlock;
+	//HeapDataBlock dataBlocks[8];
 
 	s32 upgradedToTree;
 } RoutingComboBuilder;
