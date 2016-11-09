@@ -3,7 +3,8 @@
 #CFLAGS=-std=gnu99 -pedantic -pedantic-errors -Wall -Werror -Wextra -Wshadow -O3 -g
 #CFLAGS=-std=gnu99 -pedantic -pedantic-errors -Wall -Werror -Wextra -Wshadow -O0 -g
 
-CFLAGS=-std=gnu99 -pedantic -pedantic-errors -Wall -Werror -Wshadow -O3 -g
+#CFLAGS=-std=gnu99 -pedantic -pedantic-errors -Wall -Werror -Wshadow -O3 -g
+CFLAGS=-std=gnu99 -pedantic -pedantic-errors -Wall -Werror -Wshadow -O0 -g
 
 CC=gcc
 

@@ -56,6 +56,12 @@ typedef union s32floatUnion {
 #define ROUTING_TABLE_FORWARD 0
 #define ROUTING_TABLE_REVERSE 1
 
+#define ARRAY_TYPE_SHALLOW_PTR 0
+#define ARRAY_TYPE_DEEP_PTR 1
+#define ARRAY_TYPE_SHALLOW_DATA 2
+#define ARRAY_TYPE_DEEP_DATA 3
+
+
 
 typedef struct routePatchMergeWideReadsetStr // Represents a set of reads with same upstream, flexible positions, but potentially varied downstream
 {
@@ -86,7 +92,7 @@ typedef struct heapDataBlockStr
 	//s32 subindexSize;
 	//s32 subindex;
 	s32 dataSize;
-	u8 *blockPtr; // Warning: Invalidated by (other) allocs
+	//u8 *blockPtr; // Warning: Invalidated by (other) allocs
 } HeapDataBlock;
 
 
@@ -103,9 +109,11 @@ typedef struct routingComboBuilderStr
 
 	RouteTableArrayBuilder *arrayBuilder;
 	HeapDataBlock combinedDataBlock;
+	u8 *combinedDataPtr;
 
 	RouteTableTreeBuilder *treeBuilder;
 	HeapDataBlock topDataBlock;
+	u8 *topDataPtr;
 
 	//HeapDataBlock dataBlocks[8];
 

@@ -2,11 +2,6 @@
 #include "common.h"
 
 
-#define ARRAY_TYPE_SHALLOW_PTR 0
-#define ARRAY_TYPE_DEEP_PTR 1
-#define ARRAY_TYPE_SHALLOW_DATA 2
-#define ARRAY_TYPE_DEEP_DATA 3
-
 
 RouteTableTreeLeafBlock *reallocRouteTableTreeLeafBlockEntries(RouteTableTreeLeafBlock *oldBlock, MemDispenser *disp, s32 entryAlloc)
 {
@@ -176,11 +171,9 @@ static void initBlockArrayProxy_scan(RouteTableTreeArrayBlock *arrayBlock, u16 *
 	*countPtr=count;
 }
 
-static void initBlockArrayProxy(RouteTableTreeProxy *treeProxy, RouteTableTreeArrayProxy *arrayProxy, HeapDataBlock *heapDataBlock, u32 arrayType)
+void rttBindBlockArrayProxy(RouteTableTreeArrayProxy *arrayProxy, u8 *heapDataPtr)
 {
-	arrayProxy->heapDataBlock=heapDataBlock;
-
-	switch(arrayType)
+	switch(arrayProxy->arrayType)
 		{
 		case ARRAY_TYPE_SHALLOW_PTR:
 			LOG(LOG_CRITICAL,"Not implemented");
@@ -192,8 +185,8 @@ static void initBlockArrayProxy(RouteTableTreeProxy *treeProxy, RouteTableTreeAr
 
 		case ARRAY_TYPE_SHALLOW_DATA:
 			arrayProxy->ptrBlock=NULL;
-			if(heapDataBlock->blockPtr!=NULL)
-				arrayProxy->dataBlock=(RouteTableTreeArrayBlock *)(heapDataBlock->blockPtr+heapDataBlock->headerSize);
+			if(heapDataPtr!=NULL)
+				arrayProxy->dataBlock=(RouteTableTreeArrayBlock *)(heapDataPtr);
 			else
 				arrayProxy->dataBlock=NULL;
 			break;
@@ -202,6 +195,14 @@ static void initBlockArrayProxy(RouteTableTreeProxy *treeProxy, RouteTableTreeAr
 			LOG(LOG_CRITICAL,"Invalid DeepData format for top-level block");
 			break;
 		}
+}
+
+static void initBlockArrayProxy(RouteTableTreeProxy *treeProxy, RouteTableTreeArrayProxy *arrayProxy, HeapDataBlock *heapDataBlock, u8 *heapDataPtr, u32 arrayType)
+{
+	arrayProxy->heapDataBlock=heapDataBlock;
+	arrayProxy->arrayType=arrayType;
+
+	rttBindBlockArrayProxy(arrayProxy, heapDataPtr+arrayProxy->heapDataBlock->headerSize);
 
 	initBlockArrayProxy_scan(arrayProxy->ptrBlock, &arrayProxy->ptrAlloc, &arrayProxy->ptrCount);
 	initBlockArrayProxy_scan(arrayProxy->dataBlock, &arrayProxy->dataAlloc, &arrayProxy->dataCount);
@@ -696,13 +697,17 @@ s32 getBranchChild(RouteTableTreeProxy *treeProxy, RouteTableTreeBranchProxy *pa
 }
 
 
-static void initTreeProxy(RouteTableTreeProxy *proxy, HeapDataBlock *leafBlock, HeapDataBlock *branchBlock, HeapDataBlock *offsetBlock, MemDispenser *disp)
+static void initTreeProxy(RouteTableTreeProxy *proxy,
+		HeapDataBlock *leafBlock, u8 *leafDataPtr,
+		HeapDataBlock *branchBlock, u8 *branchDataPtr,
+		HeapDataBlock *offsetBlock, u8 *offsetDataPtr,
+		MemDispenser *disp)
 {
 	proxy->disp=disp;
 
-	initBlockArrayProxy(proxy, &(proxy->leafArrayProxy), leafBlock, 2);
-	initBlockArrayProxy(proxy, &(proxy->branchArrayProxy), branchBlock, 2);
-	initBlockArrayProxy(proxy, &(proxy->offsetArrayProxy), offsetBlock, 2);
+	initBlockArrayProxy(proxy, &(proxy->leafArrayProxy), leafBlock, leafDataPtr, 2);
+	initBlockArrayProxy(proxy, &(proxy->branchArrayProxy), branchBlock, branchDataPtr, 2);
+	initBlockArrayProxy(proxy, &(proxy->offsetArrayProxy), offsetBlock, offsetDataPtr, 2);
 
 	if(getBlockArraySize(&(proxy->branchArrayProxy))>0)
 		proxy->rootProxy=getRouteTableTreeBranchProxy(proxy, BRANCH_NINDEX_ROOT);
@@ -1541,20 +1546,19 @@ void rttUpgradeToRouteTableTreeBuilder(RouteTableArrayBuilder *arrayBuilder,  Ro
 
 	for(int i=0;i<ROUTE_TOPINDEX_MAX;i++)
 		{
-		treeBuilder->dataBlocks[i].blockPtr=NULL;
 		treeBuilder->dataBlocks[i].headerSize=0;
 		treeBuilder->dataBlocks[i].dataSize=0;
 		}
 
 	initTreeProxy(&(treeBuilder->forwardProxy),
-			&(treeBuilder->dataBlocks[ROUTE_TOPINDEX_FORWARD_LEAF]),
-			&(treeBuilder->dataBlocks[ROUTE_TOPINDEX_FORWARD_BRANCH]),
-			&(treeBuilder->dataBlocks[ROUTE_TOPINDEX_FORWARD_OFFSET]), disp);
+			&(treeBuilder->dataBlocks[ROUTE_TOPINDEX_FORWARD_LEAF]),NULL,
+			&(treeBuilder->dataBlocks[ROUTE_TOPINDEX_FORWARD_BRANCH]),NULL,
+			&(treeBuilder->dataBlocks[ROUTE_TOPINDEX_FORWARD_OFFSET]),NULL, disp);
 
 	initTreeProxy(&(treeBuilder->reverseProxy),
-			&(treeBuilder->dataBlocks[ROUTE_TOPINDEX_REVERSE_LEAF]),
-			&(treeBuilder->dataBlocks[ROUTE_TOPINDEX_REVERSE_BRANCH]),
-			&(treeBuilder->dataBlocks[ROUTE_TOPINDEX_REVERSE_OFFSET]),disp);
+			&(treeBuilder->dataBlocks[ROUTE_TOPINDEX_REVERSE_LEAF]),NULL,
+			&(treeBuilder->dataBlocks[ROUTE_TOPINDEX_REVERSE_BRANCH]),NULL,
+			&(treeBuilder->dataBlocks[ROUTE_TOPINDEX_REVERSE_OFFSET]),NULL, disp);
 
 	initTreeWalker(&(treeBuilder->forwardWalker), &(treeBuilder->forwardProxy));
 	initTreeWalker(&(treeBuilder->reverseWalker), &(treeBuilder->reverseProxy));

@@ -163,6 +163,7 @@ typedef struct routeTableTreeArrayProxyStr
 	u16 newDataCount;
 
 	HeapDataBlock *heapDataBlock;
+	u32 arrayType;
 } RouteTableTreeArrayProxy;
 
 
@@ -224,6 +225,8 @@ void rttUpgradeToRouteTableTreeBuilder(RouteTableArrayBuilder *arrayBuilder,  Ro
 void rttDumpRoutingTable(RouteTableTreeBuilder *builder);
 
 //s32 rttGetRouteTableTreeBuilderDirty(RouteTableTreeBuilder *builder);
+
+void rttBindBlockArrayProxy(RouteTableTreeArrayProxy *arrayProxy, u8 *heapDataPtr);
 
 s32 rttGetTopArrayDirty(RouteTableTreeArrayProxy *arrayProxy);
 s32 rttGetTopArraySize(RouteTableTreeArrayProxy *arrayProxy);
