@@ -854,6 +854,11 @@ void createBuildersFromIndirectData(RoutingComboBuilder *builder)
 
 	RouteTableTreeBuilder *treeBuilder=builder->treeBuilder;
 
+	treeBuilder->disp=builder->disp;
+	treeBuilder->newEntryCount=0;
+
+	//treeBuilder->topDataBlock->dataSize=data;
+
 	RouteTableTreeTopBlock *top=(RouteTableTreeTopBlock *)(data+headerSize);
 
 	for(int i=0;i<ROUTE_TOPINDEX_MAX;i++)
@@ -885,7 +890,7 @@ void createBuildersFromIndirectData(RoutingComboBuilder *builder)
 	if(suffixBlockData!=NULL)
 		{
 		treeBuilder->dataBlocks[ROUTE_TOPINDEX_SUFFIX].headerSize=rtDecodeTailBlockHeader(suffixBlockData, NULL, NULL, NULL);
-		u8 *suffixData=prefixBlockData+headerSize;
+		u8 *suffixData=suffixBlockData+headerSize;
 		u8 *suffixDataEnd=initSeqTailBuilder(&(builder->suffixBuilder), suffixData, builder->disp);
 		treeBuilder->dataBlocks[ROUTE_TOPINDEX_SUFFIX].dataSize=suffixDataEnd-suffixData;
 		}
@@ -893,6 +898,31 @@ void createBuildersFromIndirectData(RoutingComboBuilder *builder)
 		{
 		LOG(LOG_INFO,"Null suffix");
 		}
+
+
+	//treeBuilder->forwardProxy
+
+	LOG(LOG_INFO,"Parse Indirect: Arrays");
+
+	for(int i=ROUTE_TOPINDEX_FORWARD_LEAF; i<ROUTE_TOPINDEX_FORWARD_OFFSET;i++)
+		{
+		u8 *arrayBlockData=top->data[i];
+
+		if(arrayBlockData!=NULL)
+			{
+			treeBuilder->dataBlocks[i].headerSize=rtDecodeArrayBlockHeader(arrayBlockData, NULL, NULL, NULL, NULL, NULL, NULL);
+			}
+		else
+			{
+			LOG(LOG_INFO,"Null array");
+			}
+		}
+
+	LOG(LOG_INFO,"Parse Indirect: Building");
+
+	rttInitRouteTableTreeBuilder(treeBuilder, top);
+
+	LOG(LOG_INFO,"Parse Indirect: Building complete");
 
 
 	/*
@@ -928,7 +958,6 @@ void createBuildersFromIndirectData(RoutingComboBuilder *builder)
 	builder->upgradedToTree=0;
 	*/
 
-	LOG(LOG_CRITICAL,"Parse Indirect: Not Implemented");
 }
 
 
@@ -1019,8 +1048,7 @@ static void upgradeToTree(RoutingComboBuilder *builder)
 	builder->topDataBlock.headerSize=0;
 	builder->topDataBlock.dataSize=0;
 
-	rttUpgradeToRouteTableTreeBuilder(builder->arrayBuilder,  builder->treeBuilder,
-			&builder->topDataBlock, builder->disp);
+	rttUpgradeToRouteTableTreeBuilder(builder->arrayBuilder,  builder->treeBuilder, builder->disp);
 
 	builder->upgradedToTree=1;
 }

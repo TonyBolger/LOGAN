@@ -204,7 +204,7 @@ struct routeTableTreeBuilderStr
 {
 	MemDispenser *disp;
 
-	HeapDataBlock *topDataBlock;
+	//HeapDataBlock *topDataBlock;
 
 	HeapDataBlock dataBlocks[8];
 
@@ -219,8 +219,8 @@ struct routeTableTreeBuilderStr
 
 
 
-void rttInitRouteTableTreeBuilder(RouteTableTreeBuilder *builder, HeapDataBlock *dataBlock, MemDispenser *disp);
-void rttUpgradeToRouteTableTreeBuilder(RouteTableArrayBuilder *arrayBuilder,  RouteTableTreeBuilder *treeBuilder, HeapDataBlock *topDataBlock, MemDispenser *disp);
+void rttInitRouteTableTreeBuilder(RouteTableTreeBuilder *builder, RouteTableTreeTopBlock *top);
+void rttUpgradeToRouteTableTreeBuilder(RouteTableArrayBuilder *arrayBuilder,  RouteTableTreeBuilder *treeBuilder, MemDispenser *disp);
 
 void rttDumpRoutingTable(RouteTableTreeBuilder *builder);
 
@@ -233,9 +233,7 @@ s32 rttGetTopArraySize(RouteTableTreeArrayProxy *arrayProxy);
 
 s32 rttMergeTopArrayUpdates_accumulateSize(RouteTableTreeArrayProxy *arrayProxy, u8 *dataBlock);
 
-
 RouteTableTreeArrayProxy *rttGetTopArrayByIndex(RouteTableTreeBuilder *builder, s32 topIndex);
-
 
 void rttMergeRoutes(RouteTableTreeBuilder *builder,
 		RoutePatch *forwardRoutePatches, RoutePatch *reverseRoutePatches, s32 forwardRoutePatchCount, s32 reverseRoutePatchCount,
