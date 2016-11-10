@@ -841,16 +841,24 @@ static void createBuildersFromDirectData(RoutingComboBuilder *builder)
 //static
 void createBuildersFromIndirectData(RoutingComboBuilder *builder)
 {
+	LOG(LOG_INFO,"Begin parse indirect");
 
 	u8 *data=*(builder->rootPtr);
 
 	s32 headerSize=getGapBlockHeaderSize();
 
+	builder->arrayBuilder=NULL;
+	builder->combinedDataBlock.headerSize=0;
+	builder->combinedDataBlock.dataSize=0;
+	builder->combinedDataPtr=NULL;
+
+	builder->treeBuilder=dAlloc(builder->disp, sizeof(RouteTableTreeBuilder));
 	builder->topDataBlock.headerSize=headerSize;
 	builder->topDataBlock.dataSize=sizeof(RouteTableTreeTopBlock);
+	builder->topDataPtr=data;
 
-	builder->arrayBuilder=NULL;
-	builder->treeBuilder=dAlloc(builder->disp, sizeof(RouteTableTreeBuilder));
+	builder->upgradedToTree=0;
+	//HeapDataBlock dataBlocks[8];
 
 	RouteTableTreeBuilder *treeBuilder=builder->treeBuilder;
 
@@ -922,7 +930,14 @@ void createBuildersFromIndirectData(RoutingComboBuilder *builder)
 
 	rttInitRouteTableTreeBuilder(treeBuilder, top);
 
-	LOG(LOG_INFO,"Parse Indirect: Building complete");
+	LOG(LOG_INFO,"Parse Indirect: Building complete %i %i %i %i",
+			treeBuilder->forwardProxy.leafArrayProxy.dataAlloc,
+			treeBuilder->forwardProxy.branchArrayProxy.dataAlloc,
+			treeBuilder->reverseProxy.leafArrayProxy.dataAlloc,
+			treeBuilder->reverseProxy.branchArrayProxy.dataAlloc);
+
+	for(int i=0;i<treeBuilder->forwardProxy.leafArrayProxy.dataCount;i++)
+		LOG(LOG_INFO,"Forward Leaf: DataPtr %p",treeBuilder->forwardProxy.leafArrayProxy.dataBlock->data[i]);
 
 
 	/*
@@ -1271,7 +1286,11 @@ static void writeBuildersAsIndirectData(RoutingComboBuilder *routingBuilder, s8 
 	for(int i=ROUTE_TOPINDEX_FORWARD_LEAF;i<ROUTE_TOPINDEX_FORWARD_OFFSET;i++)
 		{
 		neededBlocks[i].headerSize=rtGetArrayBlockHeaderSize(indexSize, 0);
-		neededBlocks[i].dataSize=rttGetTopArraySize(rttGetTopArrayByIndex(treeBuilder, i));
+
+		RouteTableTreeArrayProxy *arrayProxy=rttGetTopArrayByIndex(treeBuilder, i);
+		LOG(LOG_INFO,"Array %i had %i, now has %i",i,arrayProxy->dataCount,arrayProxy->newDataCount);
+
+		neededBlocks[i].dataSize=rttGetTopArraySize(arrayProxy);
 		}
 
 	int totalNeededSize=0;

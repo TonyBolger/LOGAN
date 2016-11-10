@@ -194,6 +194,10 @@ void rttBindBlockArrayProxy(RouteTableTreeArrayProxy *arrayProxy, u8 *heapDataPt
 		case ARRAY_TYPE_DEEP_DATA:
 			LOG(LOG_CRITICAL,"Invalid DeepData format for top-level block");
 			break;
+
+		default:
+			LOG(LOG_CRITICAL,"Invalid %i format for top-level block",arrayProxy->arrayType);
+			break;
 		}
 }
 
@@ -1542,14 +1546,14 @@ void rttInitRouteTableTreeBuilder(RouteTableTreeBuilder *treeBuilder, RouteTable
 		}
 */
 
-	LOG(LOG_INFO,"rttInitRouteTableTreeBuilder");
+	LOG(LOG_INFO,"rttInitRouteTableTreeBuilder: Forward %p %p %p",top->data[ROUTE_TOPINDEX_FORWARD_LEAF],top->data[ROUTE_TOPINDEX_FORWARD_LEAF],top->data[ROUTE_TOPINDEX_FORWARD_OFFSET]);
 	initTreeProxy(&(treeBuilder->forwardProxy),
 			&(treeBuilder->dataBlocks[ROUTE_TOPINDEX_FORWARD_LEAF]),top->data[ROUTE_TOPINDEX_FORWARD_LEAF],
 			&(treeBuilder->dataBlocks[ROUTE_TOPINDEX_FORWARD_BRANCH]),top->data[ROUTE_TOPINDEX_FORWARD_BRANCH],
 			&(treeBuilder->dataBlocks[ROUTE_TOPINDEX_FORWARD_OFFSET]),top->data[ROUTE_TOPINDEX_FORWARD_OFFSET],
 			treeBuilder->disp);
 
-	LOG(LOG_INFO,"rttInitRouteTableTreeBuilder");
+	LOG(LOG_INFO,"rttInitRouteTableTreeBuilder: Reverse %p %p %p",top->data[ROUTE_TOPINDEX_REVERSE_LEAF],top->data[ROUTE_TOPINDEX_REVERSE_LEAF],top->data[ROUTE_TOPINDEX_REVERSE_OFFSET]);
 	initTreeProxy(&(treeBuilder->reverseProxy),
 			&(treeBuilder->dataBlocks[ROUTE_TOPINDEX_REVERSE_LEAF]),top->data[ROUTE_TOPINDEX_REVERSE_LEAF],
 			&(treeBuilder->dataBlocks[ROUTE_TOPINDEX_REVERSE_BRANCH]),top->data[ROUTE_TOPINDEX_REVERSE_BRANCH],
