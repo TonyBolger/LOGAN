@@ -936,8 +936,13 @@ void createBuildersFromIndirectData(RoutingComboBuilder *builder)
 			treeBuilder->reverseProxy.leafArrayProxy.dataAlloc,
 			treeBuilder->reverseProxy.branchArrayProxy.dataAlloc);
 
-	for(int i=0;i<treeBuilder->forwardProxy.leafArrayProxy.dataCount;i++)
-		LOG(LOG_INFO,"Forward Leaf: DataPtr %p",treeBuilder->forwardProxy.leafArrayProxy.dataBlock->data[i]);
+
+	//for(int i=0;i<treeBuilder->forwardProxy.leafArrayProxy.dataCount;i++)
+//		LOG(LOG_INFO,"Forward Leaf: DataPtr %p",treeBuilder->forwardProxy.leafArrayProxy.dataBlock->data[i]);
+
+
+
+	rttDumpRoutingTable(treeBuilder);
 
 
 	/*
@@ -1136,12 +1141,14 @@ void mergeTopArrayUpdates_branch(RouteTableTreeArrayProxy *arrayProxy, int array
 
 				s32 dataSize=sizeof(RouteTableTreeBranchBlock)+sizeof(s16)*(newBranchData->childAlloc);
 				memcpy(newData, newBranchData, dataSize);
+				newData+=dataSize;
 				}
 			else
 				{
 				s32 headerSize=rtGetArrayBlockHeaderSize(indexSize,1);
 				s32 dataSize=sizeof(RouteTableTreeBranchBlock)+sizeof(s16)*(newBranchData->childAlloc);
 				memcpy(arrayProxy->dataBlock->data[i]+headerSize, newBranchData, dataSize);
+				newData+=dataSize;
 				}
 			}
 		}
@@ -1219,12 +1226,14 @@ void mergeTopArrayUpdates_leaf(RouteTableTreeArrayProxy *arrayProxy, int arrayNu
 
 				s32 dataSize=sizeof(RouteTableTreeLeafBlock)+sizeof(RouteTableTreeLeafEntry)*(newLeafData->entryAlloc);
 				memcpy(newData, newLeafData, dataSize);
+				newData+=dataSize;
 				}
 			else
 				{
 				s32 headerSize=rtGetArrayBlockHeaderSize(indexSize,1);
 				s32 dataSize=sizeof(RouteTableTreeLeafBlock)+sizeof(RouteTableTreeLeafEntry)*(newLeafData->entryAlloc);
 				memcpy(arrayProxy->dataBlock->data[i]+headerSize, newLeafData, dataSize);
+				newData+=dataSize;
 				}
 			}
 		}
@@ -1242,6 +1251,7 @@ static void writeBuildersAsIndirectData(RoutingComboBuilder *routingBuilder, s8 
 	//		leaf blocks
 	//		offset blocks
 
+	rttDumpRoutingTable(routingBuilder->treeBuilder);
 
 	s16 indexSize=varipackLength(sliceIndex);
 	RouteTableTreeBuilder *treeBuilder=routingBuilder->treeBuilder;

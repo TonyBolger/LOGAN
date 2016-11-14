@@ -1605,9 +1605,47 @@ void rttUpgradeToRouteTableTreeBuilder(RouteTableArrayBuilder *arrayBuilder,  Ro
 }
 
 
+void dumpRoutingTableTree_ArrayProxy(RouteTableTreeArrayProxy *arrayProxy, char *name)
+{
+	if(arrayProxy==NULL)
+	{
+		LOG(LOG_INFO,"Array %s is NULL",name);
+		return;
+	}
+
+	if(arrayProxy->dataBlock!=NULL)
+		LOG(LOG_INFO,"Array %s existing datablock %p contains %i of %i items",name,arrayProxy->dataBlock,arrayProxy->dataCount,arrayProxy->dataAlloc);
+	else
+		LOG(LOG_INFO,"Array %s existing datablock is NULL",name);
+
+	if(arrayProxy->newData!=NULL)
+		LOG(LOG_INFO,"Array %s new datablock %p contains %i of %i items",name,arrayProxy->newData,arrayProxy->newDataCount,arrayProxy->newDataAlloc);
+	else
+		LOG(LOG_INFO,"Array %s new datablock is NULL",name);
+
+}
+
+void dumpRoutingTableTree(RouteTableTreeProxy *treeProxy)
+{
+	RouteTableTreeArrayProxy *branchProxy=&(treeProxy->branchArrayProxy);
+	dumpRoutingTableTree_ArrayProxy(branchProxy, "BranchArray: ");
+
+	RouteTableTreeArrayProxy *leafProxy=&(treeProxy->leafArrayProxy);
+	dumpRoutingTableTree_ArrayProxy(leafProxy, "Leaf: ");
+
+
+
+}
+
 void rttDumpRoutingTable(RouteTableTreeBuilder *builder)
 {
-	LOG(LOG_CRITICAL,"Not implemented: rttDumpRoutingTable");
+	LOG(LOG_INFO,"Dumping Forward Tree");
+	dumpRoutingTableTree(&(builder->forwardProxy));
+
+	LOG(LOG_INFO,"Dumping Reverse Tree");
+	dumpRoutingTableTree(&(builder->reverseProxy));
+
+
 }
 
 /*s32 rttGetRouteTableTreeBuilderDirty(RouteTableTreeBuilder *builder)
