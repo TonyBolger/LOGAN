@@ -382,7 +382,7 @@ s32 rtEncodeTailBlockHeader(u32 prefixSuffix, u32 indexSize, u32 index, u8 *data
 
 	//ALLOC_HEADER_LIVE_TAIL
 
-	*data++=(prefixSuffix?ALLOC_HEADER_LIVE_SUFFIX:ALLOC_HEADER_LIVE_PREFIX)+indexSize;
+	*data++=(prefixSuffix?ALLOC_HEADER_LIVE_SUFFIX:ALLOC_HEADER_LIVE_PREFIX)+(indexSize-1);
 	varipackEncode(index, data);
 
 	return 1+indexSize;
@@ -403,11 +403,15 @@ s32 rtDecodeTailBlockHeader(u8 *data, s32 *prefixSuffix, s32 *indexSizePtr, s32 
 	if(indexPtr!=NULL)
 		*indexPtr=varipackDecode(indexSize, data);
 
+	LOG(LOG_INFO,"rtDecodeTailBlockHeader IndexSize: %i",indexSize);
+
 	return 1+indexSize;
 }
 
 s32 rtGetTailBlockHeaderSize(int indexSize)
 {
+	LOG(LOG_INFO,"rtGetTailBlockHeader IndexSize: %i",indexSize);
+
 	return 1+indexSize;
 }
 
@@ -416,7 +420,7 @@ s32 rtEncodeArrayBlockHeader(u32 arrayNum, u32 arrayType, u32 indexSize, u32 ind
 {
 	//LOG(LOG_INFO,"Encoding Leaf: %i Index: %i %i Subindex: %i %i", isLeaf, indexSize, index, subindexSize, subindex);
 
-	*data++=(ALLOC_HEADER_LIVE_ARRAY+(arrayNum<<4)+(arrayType<<2)+indexSize);
+	*data++=(ALLOC_HEADER_LIVE_ARRAY+(arrayNum<<4)+(arrayType<<2)+(indexSize-1));
 	varipackEncode(index, data);
 
 	switch(arrayType)
@@ -440,7 +444,7 @@ s32 rtDecodeArrayBlockHeader(u8 *data, u32 *arrayNumPtr, u32 *arrayTypePtr, u32 
 {
 	u8 header=(*data++)-ALLOC_HEADER_LIVE_ARRAY;
 
-	u32 indexSize=header&0x3;
+	u32 indexSize=1+(header&0x3);
 	u32 arrayType=(header>>2)&0x3;
 	u32 arrayNum=(header>>4)&0x7;
 
@@ -926,9 +930,15 @@ void createBuildersFromIndirectData(RoutingComboBuilder *builder)
 			}
 		}
 
+	treeBuilder->dataBlocks[ROUTE_TOPINDEX_FORWARD_OFFSET].headerSize=0;
+	treeBuilder->dataBlocks[ROUTE_TOPINDEX_FORWARD_OFFSET].dataSize=0;
+	treeBuilder->dataBlocks[ROUTE_TOPINDEX_REVERSE_OFFSET].headerSize=0;
+	treeBuilder->dataBlocks[ROUTE_TOPINDEX_REVERSE_OFFSET].dataSize=0;
+
 	LOG(LOG_INFO,"Parse Indirect: Building");
 
 	rttInitRouteTableTreeBuilder(treeBuilder, top);
+
 
 	LOG(LOG_INFO,"Parse Indirect: Building complete %i %i %i %i",
 			treeBuilder->forwardProxy.leafArrayProxy.dataAlloc,
@@ -1141,6 +1151,9 @@ void mergeTopArrayUpdates_branch(RouteTableTreeArrayProxy *arrayProxy, int array
 
 				s32 dataSize=sizeof(RouteTableTreeBranchBlock)+sizeof(s16)*(newBranchData->childAlloc);
 				memcpy(newData, newBranchData, dataSize);
+
+				LOG(LOG_INFO,"Copying %i bytes of branch data from %p to %p",dataSize,newBranchData,newData);
+
 				newData+=dataSize;
 				}
 			else
@@ -1256,7 +1269,7 @@ static void writeBuildersAsIndirectData(RoutingComboBuilder *routingBuilder, s8 
 	s16 indexSize=varipackLength(sliceIndex);
 	RouteTableTreeBuilder *treeBuilder=routingBuilder->treeBuilder;
 
-	LOG(LOG_INFO,"Creating from indirect data");
+	LOG(LOG_INFO,"Creating from indirect data (index size is %i)",indexSize);
 
 	RouteTableTreeTopBlock *topPtr=NULL;
 
