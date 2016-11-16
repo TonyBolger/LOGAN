@@ -214,11 +214,16 @@ void initBlockArrayProxy(RouteTableTreeProxy *treeProxy, RouteTableTreeArrayProx
 	initBlockArrayProxy_scan(arrayProxy->ptrBlock, &arrayProxy->ptrAlloc, &arrayProxy->ptrCount);
 	initBlockArrayProxy_scan(arrayProxy->dataBlock, &arrayProxy->dataAlloc, &arrayProxy->dataCount);
 
+	LOG(LOG_INFO,"Loaded array with %i of %i",arrayProxy->dataCount,arrayProxy->dataAlloc);
+
 	arrayProxy->newData=NULL;
 	arrayProxy->newDataAlloc=0;
 	arrayProxy->newDataCount=0;
 
-	heapDataBlock->dataSize=rttGetTopArraySize(arrayProxy);
+	if(heapDataPtr!=NULL)
+		heapDataBlock->dataSize=rttGetTopArraySize(arrayProxy);
+	else
+		heapDataBlock->dataSize=0;
 
 }
 
@@ -269,7 +274,7 @@ void ensureBlockArrayWritable(RouteTableTreeArrayProxy *arrayProxy, MemDispenser
 		int newAlloc=arrayProxy->dataAlloc;
 
 		if(arrayProxy->dataCount==newAlloc)
-			newAlloc+=ROUTE_TABLE_TREE_ARRAY_ENTRIES_CHUNK;
+			newAlloc=MIN(newAlloc+ROUTE_TABLE_TREE_ARRAY_ENTRIES_CHUNK, ROUTE_TABLE_TREE_DATA_ARRAY_ENTRIES);
 
 		u8 **newData=dAlloc(disp, sizeof(u8 *)*newAlloc);
 
@@ -329,6 +334,8 @@ s32 appendBlockArrayEntry(RouteTableTreeArrayProxy *arrayProxy, u8 *data, MemDis
 
 	s32 index=arrayProxy->newDataCount++;
 	arrayProxy->newData[index]=data;
+
+	LOG(LOG_INFO,"appendBlockArrayEntry: Allocating Leaf %i",index);
 
 	return index;
 }
@@ -476,7 +483,7 @@ RouteTableTreeLeafProxy *getRouteTableTreeLeafProxy(RouteTableTreeProxy *treePro
 	proxy->dataBlock=(RouteTableTreeLeafBlock *)data;
 	proxy->lindex=lindex;
 
-//	LOG(LOG_INFO,"GetRouteTableTreeLeaf : %i",lindex);
+	LOG(LOG_INFO,"GetRouteTableTreeLeaf : %i",lindex);
 
 	getRouteTableTreeLeafProxy_scan(proxy->dataBlock, &proxy->entryAlloc, &proxy->entryCount);
 
@@ -1240,11 +1247,21 @@ RouteTableTreeLeafProxy *treeProxySplitLeafInsertChildEntrySpace(RouteTableTreeP
 	LOG(LOG_INFO,"treeProxySplitLeafInsertChildEntrySpace: Old");
 	dumpLeafProxy(oldLeaf);
 
-	LOG(LOG_INFO,"treeProxySplitLeafInsertChildEntrySpace: Old");
+	LOG(LOG_INFO,"treeProxySplitLeafInsertChildEntrySpace: New");
 	dumpLeafProxy(newLeaf);
 
-
 	leafMakeEntryInsertSpace(child, insertEntryPosition, insertEntryCount);
+
+	LOG(LOG_INFO,"Post MakeEntryInsertSpace");
+
+	LOG(LOG_INFO,"treeProxySplitLeafInsertChildEntrySpace: Old");
+	dumpLeafProxy(oldLeaf);
+
+	LOG(LOG_INFO,"treeProxySplitLeafInsertChildEntrySpace: New");
+	dumpLeafProxy(newLeaf);
+
+	LOG(LOG_INFO,"treeProxySplitLeafInsertChildEntrySpace: Child with Space (%i)",insertEntryPosition);
+	dumpLeafProxy(child);
 
 	*newChildPtr=child;
 	*newEntryPositionPtr=insertEntryPosition;
@@ -1472,7 +1489,12 @@ s32 walkerNextEntry(RouteTableTreeWalker *walker, s16 *upstream, RouteTableTreeL
 			return 0;
 			}
 
-		if(holdUpstream && (leafProxy->dataBlock->upstream!=*upstream))
+		if(leafProxy->dataBlock==NULL)
+			{
+			LOG(LOG_CRITICAL,"Leaf Proxy without datablock %i (%i of %i)",leafProxy->lindex, leafProxy->entryCount, leafProxy->entryAlloc);
+			}
+
+		if(holdUpstream && leafProxy->dataBlock!=NULL && (leafProxy->dataBlock->upstream!=*upstream))
 			{
 //			LOG(LOG_INFO,"Hold upstream");
 
@@ -1607,8 +1629,8 @@ void rttInitRouteTableTreeBuilder(RouteTableTreeBuilder *treeBuilder, RouteTable
 	LOG(LOG_INFO,"rttInitRouteTableTreeBuilder");
 	initTreeWalker(&(treeBuilder->reverseWalker), &(treeBuilder->reverseProxy));
 
-	LOG(LOG_INFO,"Forward: %i Leaves, %i Branches", treeBuilder->reverseProxy.leafArrayProxy.dataCount, treeBuilder->reverseProxy.branchArrayProxy.dataCount);
-	LOG(LOG_INFO,"Reverse: %i Leaves, %i Branches", treeBuilder->forwardProxy.leafArrayProxy.dataCount, treeBuilder->forwardProxy.branchArrayProxy.dataCount);
+	LOG(LOG_INFO,"Forward: %i Leaves, %i Branches", treeBuilder->forwardProxy.leafArrayProxy.dataCount, treeBuilder->forwardProxy.branchArrayProxy.dataCount);
+	LOG(LOG_INFO,"Reverse: %i Leaves, %i Branches", treeBuilder->reverseProxy.leafArrayProxy.dataCount, treeBuilder->reverseProxy.branchArrayProxy.dataCount);
 
 
 
@@ -1854,18 +1876,28 @@ static void mergeRoutes_insertEntry(RouteTableTreeWalker *walker, s32 upstream, 
 			//s16 leafEntry=walker->leafEntry;
 			//LOG(LOG_INFO,"Entry Insert: Leaf size at maximum - need to split - pos %i",leafEntry);
 
-			RouteTableTreeBranchProxy *newBranchProxy=NULL;
-			s16 newBranchChildSibdex=-1;
-			RouteTableTreeLeafProxy *newLeafProxy=NULL;
-			s16 newLeafEntry=-1;
+			RouteTableTreeBranchProxy *targetBranchProxy=NULL;
+			s16 targetBranchChildSibdex=-1;
+			RouteTableTreeLeafProxy *targetLeafProxy=NULL;
+			s16 targetLeafEntry=-1;
 
-			treeProxySplitLeafInsertChildEntrySpace(walker->treeProxy, walker->branchProxy, walker->branchChildSibdex, walker->leafProxy,
-					walker->leafEntry, 1, &newBranchProxy, &newBranchChildSibdex, &newLeafProxy, &newLeafEntry);
+			RouteTableTreeLeafProxy *newLeafProxy=treeProxySplitLeafInsertChildEntrySpace(walker->treeProxy, walker->branchProxy, walker->branchChildSibdex, walker->leafProxy,
+					walker->leafEntry, 1, &targetBranchProxy, &targetBranchChildSibdex, &targetLeafProxy, &targetLeafEntry);
 
-			walker->branchProxy=newBranchProxy;
-			walker->branchChildSibdex=newBranchChildSibdex;
-			walker->leafProxy=newLeafProxy;
-			walker->leafEntry=newLeafEntry;
+			dumpLeafProxy(leafProxy);
+
+			LOG(LOG_INFO,"Post split: New");
+			dumpLeafProxy(newLeafProxy);
+
+			LOG(LOG_INFO,"Post split: Target");
+			dumpLeafProxy(targetLeafProxy);
+
+			walker->branchProxy=targetBranchProxy;
+			walker->branchChildSibdex=targetBranchChildSibdex;
+			walker->leafProxy=targetLeafProxy;
+			walker->leafEntry=targetLeafEntry;
+
+			leafProxy=targetLeafProxy;
 			}
 		else
 			{

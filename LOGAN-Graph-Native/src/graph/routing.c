@@ -13,10 +13,10 @@ Alloc Header:
 	0 x x x x x x x : Dead block (127 options)
 
 	Summary:
-    . 0 0 0 1 g g g: Direct
-    . 0 0 1 1 g g g: IndirectTop
-	. 0 0 0 0 x i i: Prefix, x=reserved, i=index size
-	. 0 0 1 0 x i i: Suffix, x=reserved, i=index size
+    . 0 0 0 0 g g g: Direct
+    . 0 0 1 0 g g g: IndirectTop
+	. 0 0 0 1 x i i: Prefix, x=reserved, i=index size
+	. 0 0 1 1 x i i: Suffix, x=reserved, i=index size
 
 	. 0 1 0 p s i i: Forward Leaf, p=pointer/data, s=shallow/deep
 	. 0 1 1 p s i i: Reverse Leaf, p=pointer/data, s=shallow/deep
@@ -38,10 +38,10 @@ Alloc Header:
 
 	28 live, 28 dead options
 
-    . 0 0 0 1 g g g: Direct
-    . 0 0 1 1 g g g: IndirectTop
-	. 0 0 0 0 x i i: Prefix, x=reserved, i=index size
-	. 0 0 1 0 x i i: Suffix, x=reserved, i=index size
+    . 0 0 0 0 g g g: Direct
+    . 0 0 1 0 g g g: IndirectTop
+	. 0 0 0 1 x i i: Prefix, x=reserved, i=index size
+	. 0 0 1 1 x i i: Suffix, x=reserved, i=index size
 
 	96 Live, 96 head options
 	. 0 1 0 p s i i: Forward Leaf, p=pointer/data, s=shallow/deep
@@ -55,12 +55,13 @@ Alloc Header:
 
     16 live, 16 dead options
 
-    . 0 0 0 0 0 i i: Prefix Tail block, standard
-    . 0 0 0 0 1 i i: Prefix Tail block, big or alternate?
-    . 0 0 1 0 0 i i: Suffix Tail block, standard
-    . 0 0 1 0 1 i i: Suffix Tail block, big or alternate?
+    . 0 0 0 1 0 i i: Prefix Tail block, standard
+    . 0 0 0 1 1 i i: Prefix Tail block, big or alternate?
+    . 0 0 1 1 0 i i: Suffix Tail block, standard
+    . 0 0 1 1 1 i i: Suffix Tail block, big or alternate?
 
 	32 live, 32 dead options
+
 
       0 1 0 0 0 i i: Forward Leaf Shallow Ptr					RouteTableTreeArrayBlock
       0 1 0 0 1 i i: Forward Leaf Deep Ptr (1 byte sub)			RouteTableTreeArrayBlock
@@ -142,28 +143,28 @@ Alloc Header:
 
 // Check Gap-coded											// . 0 0 -  0 g g g: g=gap exponent(1+)
 #define ALLOC_HEADER_GAP_MASK 0x68	 						// - ? ? -  ? - - -
-#define ALLOC_HEADER_GAP_VALUE 0x08							// - 0 0 -  1 - - -
+#define ALLOC_HEADER_GAP_VALUE 0x00							// - 0 0 -  0 - - -
 
 #define ALLOC_HEADER_GAP_ROOT_MASK 0x78	 					// - ? ? ?  ? - - -
-#define ALLOC_HEADER_GAP_ROOT_DIRECT_VALUE 0x08				// - 0 0 0  1 - - -
-#define ALLOC_HEADER_GAP_ROOT_TOP_VALUE 0x18				// - 0 0 1  1 - - -
+#define ALLOC_HEADER_GAP_ROOT_DIRECT_VALUE 0x00				// - 0 0 0  0 - - -
+#define ALLOC_HEADER_GAP_ROOT_TOP_VALUE 0x10				// - 0 0 1  0 - - -
 
 // Check Gap-coded & live
 #define ALLOC_HEADER_LIVE_GAP_MASK 0xE8						// ? ? ? -  ? - - -
-#define ALLOC_HEADER_LIVE_GAP_ROOT_VALUE 0x88				// 1 0 0 -  1 - - -
+#define ALLOC_HEADER_LIVE_GAP_ROOT_VALUE 0x80				// 1 0 0 -  0 - - -
 
 #define ALLOC_HEADER_LIVE_GAP_ROOT_MASK 0xF8	 			// ? ? ? ?  ? - - -
-#define ALLOC_HEADER_LIVE_GAP_ROOT_DIRECT_VALUE 0x88		// 1 0 0 0  1 - - -
-#define ALLOC_HEADER_LIVE_GAP_ROOT_TOP_VALUE 0x98			// 1 0 0 1  1 - - -
+#define ALLOC_HEADER_LIVE_GAP_ROOT_DIRECT_VALUE 0x80		// 1 0 0 0  0 - - -
+#define ALLOC_HEADER_LIVE_GAP_ROOT_TOP_VALUE 0x90			// 1 0 0 1  0 - - -
 
 
 // Check Block & live
 
 #define ALLOC_HEADER_BLOCK_MASK	0x60						// - ? ? -  - - - -
 #define ALLOC_HEADER_BLOCK_TAIL 0x00						// - 0 0 -  - - - -
-#define ALLOC_HEADER_BLOCK_LEAF 0x20						// - 0 0 -  - - - -
-#define ALLOC_HEADER_BLOCK_BRANCH 0x40						// - 0 0 -  - - - -
-#define ALLOC_HEADER_BLOCK_OFFSET 0x60						// - 0 0 -  - - - -
+#define ALLOC_HEADER_BLOCK_LEAF 0x20						// - 0 1 -  - - - -
+#define ALLOC_HEADER_BLOCK_BRANCH 0x40						// - 1 0 -  - - - -
+#define ALLOC_HEADER_BLOCK_OFFSET 0x60						// - 1 1 -  - - - -
 
 
 
@@ -203,12 +204,12 @@ Alloc Header:
 
 // Initialization values
 
-#define ALLOC_HEADER_LIVE_DIRECT_GAPSMALL 0x89				// 1 0 0 0  1 0 0 1
-#define ALLOC_HEADER_LIVE_TOP_GAPSMALL 0x99					// 1 0 0 1  1 0 0 1
+#define ALLOC_HEADER_LIVE_DIRECT_GAPSMALL 0x81				// 1 0 0 0  0 0 0 1
+#define ALLOC_HEADER_LIVE_TOP_GAPSMALL 0x91					// 1 0 0 1  0 0 0 1
 
-#define ALLOC_HEADER_LIVE_TAIL		   0x80					// 1 0 0 0  0 0 0 0
-#define ALLOC_HEADER_LIVE_PREFIX	   0x80					// 1 0 0 0  0 0 0 0
-#define ALLOC_HEADER_LIVE_SUFFIX	   0x90					// 1 0 0 1  0 0 0 0
+#define ALLOC_HEADER_LIVE_TAIL		   0x88					// 1 0 0 0  1 0 0 0
+#define ALLOC_HEADER_LIVE_PREFIX	   0x88					// 1 0 0 0  1 0 0 0
+#define ALLOC_HEADER_LIVE_SUFFIX	   0x98					// 1 0 0 1  1 0 0 0
 
 #define ALLOC_HEADER_LIVE_ARRAY		   0x80					// 1 0 0 0  0 0 0 0
 
@@ -378,7 +379,7 @@ s32 getGapBlockHeaderSize()
 
 s32 rtEncodeTailBlockHeader(u32 prefixSuffix, u32 indexSize, u32 index, u8 *data)
 {
-	//LOG(LOG_INFO,"Encoding Leaf: %i Index: %i %i Subindex: %i %i", isLeaf, indexSize, index, subindexSize, subindex);
+	LOG(LOG_INFO,"rtEncodeTailBlockHeader: %i Index: %i %i -> %p",prefixSuffix, indexSize, index,data);
 
 	//ALLOC_HEADER_LIVE_TAIL
 
@@ -388,22 +389,25 @@ s32 rtEncodeTailBlockHeader(u32 prefixSuffix, u32 indexSize, u32 index, u8 *data
 	return 1+indexSize;
 }
 
-s32 rtDecodeTailBlockHeader(u8 *data, s32 *prefixSuffix, s32 *indexSizePtr, s32 *indexPtr)
+s32 rtDecodeTailBlockHeader(u8 *data, u32 *prefixSuffixPtr, u32 *indexSizePtr, u32 *indexPtr)
 {
 	u8 header=*data++;
 
-	if(prefixSuffix!=NULL)
-		*prefixSuffix=ALLOC_HEADER_TAIL_MASK!=0;
+	u32 prefixSuffix=(header&ALLOC_HEADER_TAIL_MASK)!=0;
 
-	s32 indexSize=1+(header&0x3);
+	if(prefixSuffixPtr!=NULL)
+		*prefixSuffixPtr=prefixSuffix;
+
+	u32 indexSize=1+(header&0x3);
 
 	if(indexSizePtr!=NULL)
 		*indexSizePtr=indexSize;
 
+	u32 index=varipackDecode(indexSize, data);
 	if(indexPtr!=NULL)
-		*indexPtr=varipackDecode(indexSize, data);
+		*indexPtr=index;
 
-	LOG(LOG_INFO,"rtDecodeTailBlockHeader IndexSize: %i",indexSize);
+	LOG(LOG_INFO,"rtDecodeTailBlockHeader: %i Index: %i %i <- %p (%02x)",prefixSuffix, indexSize, index, (data-1), header);
 
 	return 1+indexSize;
 }
@@ -418,10 +422,13 @@ s32 rtGetTailBlockHeaderSize(int indexSize)
 
 s32 rtEncodeArrayBlockHeader(u32 arrayNum, u32 arrayType, u32 indexSize, u32 index, u32 subindex, u8 *data)
 {
+	if(subindex==256)
+		LOG(LOG_CRITICAL,"rtEncodeArrayBlockHeader with subindex 256");
+
 	//LOG(LOG_INFO,"Encoding Leaf: %i Index: %i %i Subindex: %i %i", isLeaf, indexSize, index, subindexSize, subindex);
 
 	*data++=(ALLOC_HEADER_LIVE_ARRAY+(arrayNum<<4)+(arrayType<<2)+(indexSize-1));
-	varipackEncode(index, data);
+	data+=varipackEncode(index, data);
 
 	switch(arrayType)
 	{
@@ -442,7 +449,7 @@ s32 rtEncodeArrayBlockHeader(u32 arrayNum, u32 arrayType, u32 indexSize, u32 ind
 // u32 arrayNum, u32 arrayType, u32 indexSize, u32 index, u32 subindex
 s32 rtDecodeArrayBlockHeader(u8 *data, u32 *arrayNumPtr, u32 *arrayTypePtr, u32 *indexSizePtr, u32 *indexPtr, u32 *subindexSizePtr, u32 *subindexPtr)
 {
-	u8 header=(*data++)-ALLOC_HEADER_LIVE_ARRAY;
+	u8 header=(*data++)&(~ALLOC_HEADER_LIVE_ARRAY);
 
 	u32 indexSize=1+(header&0x3);
 	u32 arrayType=(header>>2)&0x3;
@@ -457,7 +464,13 @@ s32 rtDecodeArrayBlockHeader(u8 *data, u32 *arrayNumPtr, u32 *arrayTypePtr, u32 
 	if(indexSizePtr!=NULL)
 		*indexSizePtr=indexSize;
 
-	u32 subindexSize=0, subindex=0;
+	u32 index=varipackDecode(indexSize, data);
+	if(indexPtr!=NULL)
+		*indexPtr=index;
+
+	data+=indexSize;
+
+	u32 subindexSize=0, subindex=-1;
 
 	switch(arrayType)
 		{
@@ -554,7 +567,7 @@ static MemCircHeapChunkIndex *allocOrExpandIndexer(MemCircHeapChunkIndex *oldInd
 
 MemCircHeapChunkIndex *rtReclaimIndexer(u8 *heapDataPtr, s64 targetAmount, u8 tag, u8 **tagData, s32 tagDataLength, s32 tagSearchOffset, MemDispenser *disp)
 {
-	//LOG(LOG_INFO,"Reclaim Index: %p %li %x %p",data,targetAmount,tag,disp);
+	LOG(LOG_INFO,"Reclaim Index: %p %li %x %p",heapDataPtr,targetAmount,tag,disp);
 
 	MemCircHeapChunkIndex *index=allocOrExpandIndexer(NULL, disp);
 
@@ -574,6 +587,7 @@ MemCircHeapChunkIndex *rtReclaimIndexer(u8 *heapDataPtr, s64 targetAmount, u8 ta
 	while(heapDataPtr<endOfData)
 		{
 		u8 header=*heapDataPtr;
+		LOG(LOG_INFO,"rtReclaimIndexer %p %02x",heapDataPtr,header);
 
 		if(header==CH_HEADER_CHUNK || header==CH_HEADER_INVALID)
 			{
@@ -589,7 +603,7 @@ MemCircHeapChunkIndex *rtReclaimIndexer(u8 *heapDataPtr, s64 targetAmount, u8 ta
 				decodeGapBlockHeader(heapDataPtr, &chunkTagOffsetDiff);
 
 				currentIndex+=chunkTagOffsetDiff;
-				u8 *scanPtr=heapDataPtr+2;
+				u8 *scanPtr=heapDataPtr+getGapBlockHeaderSize();
 
 				scanPtr=scanTails(scanPtr);
 				scanPtr=scanTails(scanPtr);
@@ -635,7 +649,49 @@ MemCircHeapChunkIndex *rtReclaimIndexer(u8 *heapDataPtr, s64 targetAmount, u8 ta
 				}
 			else // Top
 				{
-				LOG(LOG_CRITICAL,"Not implemented");
+				s32 chunkTagOffsetDiff=0;
+				decodeGapBlockHeader(heapDataPtr, &chunkTagOffsetDiff);
+
+				currentIndex+=chunkTagOffsetDiff;
+				s32 size=getGapBlockHeaderSize()+sizeof(RouteTableTreeTopBlock);
+
+				u8 *scanPtr=heapDataPtr+size;
+
+				if(header & ALLOC_HEADER_LIVE_MASK)
+					{
+					currentIndex=scanTagData(tagData, tagDataLength, currentIndex, heapDataPtr);
+
+					if(currentIndex==-1)
+						{
+						LOG(LOG_INFO,"Failed to find expected heap pointer %p in tag data",heapDataPtr);
+						dumpTagData(tagData,tagDataLength);
+						return NULL;
+						}
+
+					if(firstTagOffset==-1)
+						firstTagOffset=currentIndex;
+
+					if(entry==index->entryAlloc)
+						index=allocOrExpandIndexer(index, disp);
+
+					index->entries[entry].index=currentIndex;
+					index->entries[entry].topindex=ROUTE_TOPINDEX_TOP;
+					index->entries[entry].subindex=-1;
+					index->entries[entry].size=size;
+					entry++;
+
+					index->lastLiveTagOffset=currentIndex;
+
+					//LOG(LOG_INFO,"Live Item: %p %2x %i",heapDataPtr,header,size, currentIndex);
+					liveSize+=size;
+					}
+				else
+					{
+					deadSize+=size;
+					//LOG(LOG_INFO,"Dead Item: %p %2x %i",heapDataPtr,header,size);
+					}
+
+				heapDataPtr=scanPtr;
 				}
 			}
 		else // Indirect: Tail or Array
@@ -643,11 +699,113 @@ MemCircHeapChunkIndex *rtReclaimIndexer(u8 *heapDataPtr, s64 targetAmount, u8 ta
 
 			if((header & ALLOC_HEADER_BLOCK_MASK)==ALLOC_HEADER_BLOCK_TAIL) // Tail: Prefix or Suffix
 				{
-				LOG(LOG_CRITICAL,"Not implemented");
+				u32 prefixSuffix=0;
+				u32 smerIndex=0;
+
+				s32 headerSize=rtDecodeTailBlockHeader(heapDataPtr, &prefixSuffix, NULL, &smerIndex);
+				u8 *scanPtr=heapDataPtr+headerSize;
+
+				scanPtr=scanTails(scanPtr);
+				u32 size=scanPtr-heapDataPtr;
+
+				if(header & ALLOC_HEADER_LIVE_MASK)
+					{
+					if(entry==index->entryAlloc)
+						index=allocOrExpandIndexer(index, disp);
+
+					index->entries[entry].index=smerIndex;
+					index->entries[entry].topindex=prefixSuffix;
+					index->entries[entry].subindex=-1;
+					index->entries[entry].size=size;
+					entry++;
+
+					//LOG(LOG_INFO,"Live Item: %p %2x %i",heapDataPtr,header,size, currentIndex);
+					liveSize+=size;
+					}
+				else
+					{
+					deadSize+=size;
+					//LOG(LOG_INFO,"Dead Item: %p %2x %i",heapDataPtr,header,size);
+					}
+
+				heapDataPtr=scanPtr;
 				}
-			else // Array: Leaf, Branch or Offset
+			else // Array or Array Entry: Leaf, Branch or Offset
 				{
-				LOG(LOG_CRITICAL,"Not implemented");
+				u32 arrayNum=0,arrayType=0;
+				u32 smerIndex=0;
+				u32 subindex=-1;
+
+				s32 headerSize=rtDecodeArrayBlockHeader(heapDataPtr, &arrayNum, &arrayType, NULL, &smerIndex, NULL, &subindex);
+				u8 *scanPtr=heapDataPtr+headerSize;
+
+				LOG(LOG_INFO,"Decoded Array: %i %i %i %i",arrayNum,arrayType,smerIndex,subindex);
+
+				u32 dataSize=0;
+
+				switch(arrayType)
+					{
+					case ARRAY_TYPE_SHALLOW_PTR: // Shallow Ptr (no subindex)
+						dataSize=sizeof(RouteTableTreeArrayBlock)+sizeof(u8 *)*((RouteTableTreeArrayBlock *)scanPtr)->dataAlloc;
+
+						LOG(LOG_INFO,"Shallow Array %p %i",heapDataPtr, dataSize);
+						break;
+
+					case ARRAY_TYPE_DEEP_PTR: // Deep Ptr (1-byte subindex)
+						LOG(LOG_CRITICAL,"Deep Array: Not implemented");
+						break;
+
+					case ARRAY_TYPE_SHALLOW_DATA: // Shallow Data Ptr (1-byte subindex)
+						switch(arrayNum)
+							{
+							case ROUTE_TOPINDEX_FORWARD_LEAF:
+							case ROUTE_TOPINDEX_REVERSE_LEAF:
+								dataSize=sizeof(RouteTableTreeLeafBlock)+sizeof(RouteTableTreeLeafEntry)*((RouteTableTreeLeafBlock *)scanPtr)->entryAlloc;
+								LOG(LOG_INFO,"Shallow Leaf Data %p %i",heapDataPtr, dataSize);
+								break;
+
+							case ROUTE_TOPINDEX_FORWARD_BRANCH:
+							case ROUTE_TOPINDEX_REVERSE_BRANCH:
+								dataSize=sizeof(RouteTableTreeBranchBlock)+sizeof(s16)*((RouteTableTreeBranchBlock *)scanPtr)->childAlloc;
+								LOG(LOG_INFO,"Shallow Branch Data %p %i",heapDataPtr, dataSize);
+								break;
+
+							case ROUTE_TOPINDEX_FORWARD_OFFSET:
+							case ROUTE_TOPINDEX_REVERSE_OFFSET:
+							default:
+								LOG(LOG_CRITICAL,"ShallowData with ArrayNum %i: Not implemented",arrayNum);
+							}
+						break;
+
+					case ARRAY_TYPE_DEEP_DATA: // Deep Ptr (2-byte subindex)
+						LOG(LOG_CRITICAL,"Deep Data: Not implemented");
+						break;
+					}
+
+				scanPtr+=dataSize;
+				u32 size=scanPtr-heapDataPtr;
+
+				if(header & ALLOC_HEADER_LIVE_MASK)
+					{
+					if(entry==index->entryAlloc)
+						index=allocOrExpandIndexer(index, disp);
+
+					index->entries[entry].index=smerIndex;
+					index->entries[entry].topindex=arrayNum;
+					index->entries[entry].subindex=subindex;
+					index->entries[entry].size=size;
+					entry++;
+
+					//LOG(LOG_INFO,"Live Item: %p %2x %i",heapDataPtr,header,size, currentIndex);
+					liveSize+=size;
+					}
+				else
+					{
+					deadSize+=size;
+					//LOG(LOG_INFO,"Dead Item: %p %2x %i",heapDataPtr,header,size);
+					}
+
+				heapDataPtr=scanPtr;
 				}
 
 			}
@@ -709,41 +867,44 @@ void rtRelocater(MemCircHeapChunkIndex *index, u8 tag, u8 **tagData, s32 tagData
 			*primaryPtr=newChunk;
 			newChunk+=size;
 			}
-		else // Branch or Leaf, reachable
+		else // Tail, Leaf, Branch or Offset
 			{
 			//LOG(LOG_INFO,"Leaf/Branch %i %i %i",size,sindex,subindex);
 
 			//int headerSize=de
 
-			//RouteTableTreeTopBlock *topPtr=(RouteTableTreeTopBlock *)((*primaryPtr)+getIndirectRootBlockHeaderSize());
+			RouteTableTreeTopBlock *topPtr=(RouteTableTreeTopBlock *)((*primaryPtr)+getGapBlockHeaderSize());
 
-			u8 *dataPtr=NULL;
+			//u8 *dataPtr=NULL;
+			s32 subindex=index->entries[i].subindex;
 
-			LOG(LOG_CRITICAL,"Fix me");
-			/*
-			if(subindex==0)
+			if(subindex==-1)
 				{
-				dataPtr=rootPtr->prefixData;
-				rootPtr->prefixData=newChunk;
-				}
-			else if(subindex==1)
-				{
-				dataPtr=rootPtr->suffixData;
-				rootPtr->suffixData=newChunk;
+				LOG(LOG_INFO,"Transfer %i bytes from %p to %p",size,topPtr->data[topindex],newChunk);
+
+				memmove(newChunk,topPtr->data[topindex],size);
+				topPtr->data[topindex]=newChunk;
+				newChunk+=size;
 				}
 			else
 				{
-				dataPtr=rootPtr->forwardRouteData[0];
-				rootPtr->forwardRouteData[0]=newChunk;
+				u8 *arrayBlockPtr=topPtr->data[topindex];
+				s32 headerSize=rtDecodeArrayBlockHeader(arrayBlockPtr,NULL,NULL,NULL,NULL,NULL,NULL);
+				RouteTableTreeArrayBlock *array=(RouteTableTreeArrayBlock *)(arrayBlockPtr+headerSize);
+
+				LOG(LOG_INFO,"Transfer %i bytes from %p to %p",size,array->data[subindex],newChunk);
+
+				memmove(newChunk,array->data[subindex],size);
+				array->data[subindex]=newChunk;
+				newChunk+=size;
 				}
-*/
 
 //			LOG(LOG_INFO,"Moving indirect leaf to %p, ref by %p",newChunk,*primaryPtr);
 
 //			LOG(LOG_INFO,"Moving %i bytes from %p to %p",size,dataPtr,newChunk);
 
-			memmove(newChunk,dataPtr,size);
-			newChunk+=size;
+//			memmove(newChunk,dataPtr,size);
+//			newChunk+=size;
 			}
 		}
 
@@ -1097,7 +1258,7 @@ s32 mergeTopArrayUpdates_branch_accumulateSize(RouteTableTreeArrayProxy *arrayPr
 		{
 		int oldBranchChildAlloc=0;
 
-		if(arrayProxy->dataBlock!=NULL && i<arrayProxy->dataBlock->dataAlloc && arrayProxy->dataBlock->data[i]!=NULL)
+		if(arrayProxy->dataBlock!=NULL && i<arrayProxy->dataBlock->dataAlloc && arrayProxy->dataBlock->data[i]!=NULL) //FIXME (allow for header)
 			{
 			RouteTableTreeBranchBlock *oldBranchData=(RouteTableTreeBranchBlock *)(arrayProxy->dataBlock->data[i]);
 			oldBranchChildAlloc=oldBranchData->childAlloc;
@@ -1121,11 +1282,14 @@ void mergeTopArrayUpdates_branch(RouteTableTreeArrayProxy *arrayProxy, int array
 	if(arrayProxy->newData==NULL)
 		return ;
 
-	if(arrayProxy->dataBlock->dataAlloc==0)
-		{
-		LOG(LOG_INFO,"New Branch Array - setting array length to %i",arrayProxy->newDataAlloc);
+//	if(arrayProxy->dataBlock->dataAlloc==0)
+//		{
+//		LOG(LOG_INFO,"New Branch Array - setting array length to %i",arrayProxy->newDataAlloc);
 		arrayProxy->dataBlock->dataAlloc=arrayProxy->newDataAlloc;
-		}
+//		}
+
+
+
 
 	for(int i=0;i<arrayProxy->newDataAlloc;i++)
 		{
@@ -1155,6 +1319,8 @@ void mergeTopArrayUpdates_branch(RouteTableTreeArrayProxy *arrayProxy, int array
 				LOG(LOG_INFO,"Copying %i bytes of branch data from %p to %p",dataSize,newBranchData,newData);
 
 				newData+=dataSize;
+
+
 				}
 			else
 				{
@@ -1209,11 +1375,13 @@ void mergeTopArrayUpdates_leaf(RouteTableTreeArrayProxy *arrayProxy, int arrayNu
 	if(arrayProxy->newData==NULL)
 		return ;
 
-	if(arrayProxy->dataBlock->dataAlloc==0)
-		{
-		LOG(LOG_INFO,"New Leaf Array - setting array length to %i",arrayProxy->newDataAlloc);
-		arrayProxy->dataBlock->dataAlloc=arrayProxy->newDataAlloc;
-		}
+	//if(arrayProxy->dataBlock->dataAlloc==0)
+		//{
+		//LOG(LOG_INFO,"New Leaf Array - setting array length to %i",arrayProxy->newDataAlloc);
+
+	arrayProxy->dataBlock->dataAlloc=arrayProxy->newDataAlloc;
+
+		//}
 
 	for(int i=0;i<arrayProxy->newDataAlloc;i++)
 		{
@@ -1266,10 +1434,18 @@ static void writeBuildersAsIndirectData(RoutingComboBuilder *routingBuilder, s8 
 
 	rttDumpRoutingTable(routingBuilder->treeBuilder);
 
+	if(routingBuilder->upgradedToTree)
+		{
+		u8 *oldData=*(routingBuilder->rootPtr);
+
+		if(oldData!=NULL)
+			*oldData&=~ALLOC_HEADER_LIVE_MASK; // Mark array block as dead
+		}
+
 	s16 indexSize=varipackLength(sliceIndex);
 	RouteTableTreeBuilder *treeBuilder=routingBuilder->treeBuilder;
 
-	LOG(LOG_INFO,"Creating from indirect data (index size is %i)",indexSize);
+	LOG(LOG_INFO,"Writing as indirect data (index size is %i)",indexSize);
 
 	RouteTableTreeTopBlock *topPtr=NULL;
 
