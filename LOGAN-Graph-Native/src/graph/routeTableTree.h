@@ -154,11 +154,11 @@ typedef struct routeTableTreeArrayProxyStr
 	u16 ptrAlloc;
 	u16 ptrCount;
 
-	RouteTableTreeArrayBlock *dataBlock;
+	RouteTableTreeArrayBlock *dataBlock; // With Headers.
 	u16 dataAlloc;
 	u16 dataCount;
 
-	u8 **newData; // Temporary space for new stuff
+	u8 **newData; // Temporary space for new stuff (no headers)
 	u16 newDataAlloc;
 	u16 newDataCount;
 

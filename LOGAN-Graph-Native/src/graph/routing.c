@@ -739,7 +739,7 @@ MemCircHeapChunkIndex *rtReclaimIndexer(u8 *heapDataPtr, s64 targetAmount, u8 ta
 				s32 headerSize=rtDecodeArrayBlockHeader(heapDataPtr, &arrayNum, &arrayType, NULL, &smerIndex, NULL, &subindex);
 				u8 *scanPtr=heapDataPtr+headerSize;
 
-				LOG(LOG_INFO,"Decoded Array: %i %i %i %i",arrayNum,arrayType,smerIndex,subindex);
+				LOG(LOG_INFO,"Decoded Array: ArrayNum: %i ArrayType: %i SmerIndex: %i SubIndex: %i",arrayNum,arrayType,smerIndex,subindex);
 
 				u32 dataSize=0;
 
@@ -892,7 +892,7 @@ void rtRelocater(MemCircHeapChunkIndex *index, u8 tag, u8 **tagData, s32 tagData
 				s32 headerSize=rtDecodeArrayBlockHeader(arrayBlockPtr,NULL,NULL,NULL,NULL,NULL,NULL);
 				RouteTableTreeArrayBlock *array=(RouteTableTreeArrayBlock *)(arrayBlockPtr+headerSize);
 
-				LOG(LOG_INFO,"Transfer %i bytes from %p to %p",size,array->data[subindex],newChunk);
+				LOG(LOG_INFO,"Transfer %i bytes (sub %i) from %p to %p",size,subindex,array->data[subindex],newChunk);
 
 				memmove(newChunk,array->data[subindex],size);
 				array->data[subindex]=newChunk;
@@ -1260,7 +1260,8 @@ s32 mergeTopArrayUpdates_branch_accumulateSize(RouteTableTreeArrayProxy *arrayPr
 
 		if(arrayProxy->dataBlock!=NULL && i<arrayProxy->dataBlock->dataAlloc && arrayProxy->dataBlock->data[i]!=NULL) //FIXME (allow for header)
 			{
-			RouteTableTreeBranchBlock *oldBranchData=(RouteTableTreeBranchBlock *)(arrayProxy->dataBlock->data[i]);
+			u8 *oldBranchRawData=arrayProxy->dataBlock->data[i];
+			RouteTableTreeBranchBlock *oldBranchData=(RouteTableTreeBranchBlock *)(oldBranchRawData+rtGetArrayBlockHeaderSize(indexSize,1));
 			oldBranchChildAlloc=oldBranchData->childAlloc;
 			}
 
@@ -1282,6 +1283,8 @@ void mergeTopArrayUpdates_branch(RouteTableTreeArrayProxy *arrayProxy, int array
 	if(arrayProxy->newData==NULL)
 		return ;
 
+	u8 *endNewData=newData+newDataSize;
+
 //	if(arrayProxy->dataBlock->dataAlloc==0)
 //		{
 //		LOG(LOG_INFO,"New Branch Array - setting array length to %i",arrayProxy->newDataAlloc);
@@ -1289,16 +1292,16 @@ void mergeTopArrayUpdates_branch(RouteTableTreeArrayProxy *arrayProxy, int array
 //		}
 
 
-
-
 	for(int i=0;i<arrayProxy->newDataAlloc;i++)
 		{
+		u8 *oldBranchRawData=NULL;
 		RouteTableTreeBranchBlock *oldBranchData=NULL;
 		int oldBranchChildAlloc=0;
 
 		if(arrayProxy->dataBlock!=NULL && i<arrayProxy->dataBlock->dataAlloc && arrayProxy->dataBlock->data[i]!=NULL)
 			{
-			oldBranchData=(RouteTableTreeBranchBlock *)(arrayProxy->dataBlock->data[i]);
+			oldBranchRawData=arrayProxy->dataBlock->data[i];
+			oldBranchData=(RouteTableTreeBranchBlock *)(oldBranchRawData+rtGetArrayBlockHeaderSize(indexSize,1));
 			oldBranchChildAlloc=oldBranchData->childAlloc;
 			}
 
@@ -1320,17 +1323,22 @@ void mergeTopArrayUpdates_branch(RouteTableTreeArrayProxy *arrayProxy, int array
 
 				newData+=dataSize;
 
-
+				if(oldBranchRawData!=NULL)
+					*oldBranchRawData&=~ALLOC_HEADER_LIVE_MASK; // Mark old branch data as dead
 				}
 			else
 				{
 				s32 headerSize=rtGetArrayBlockHeaderSize(indexSize,1);
 				s32 dataSize=sizeof(RouteTableTreeBranchBlock)+sizeof(s16)*(newBranchData->childAlloc);
 				memcpy(arrayProxy->dataBlock->data[i]+headerSize, newBranchData, dataSize);
-				newData+=dataSize;
+
 				}
 			}
 		}
+
+	if(endNewData!=newData)
+		LOG(LOG_CRITICAL,"New Branch Data doesn't match expected: New: %p vs Expected: %p",newData,endNewData);
+
 }
 
 
@@ -1353,7 +1361,8 @@ s32 mergeTopArrayUpdates_leaf_accumulateSize(RouteTableTreeArrayProxy *arrayProx
 
 		if(arrayProxy->dataBlock!=NULL && i<arrayProxy->dataBlock->dataAlloc && arrayProxy->dataBlock->data[i]!=NULL)
 			{
-			RouteTableTreeLeafBlock *oldLeafData=(RouteTableTreeLeafBlock *)(arrayProxy->dataBlock->data[i]);
+			u8 *oldLeafRawData=arrayProxy->dataBlock->data[i];
+			RouteTableTreeLeafBlock *oldLeafData=(RouteTableTreeLeafBlock *)(oldLeafRawData+rtGetArrayBlockHeaderSize(indexSize,1));
 			oldLeafEntryAlloc=oldLeafData->entryAlloc;
 			}
 
@@ -1375,6 +1384,8 @@ void mergeTopArrayUpdates_leaf(RouteTableTreeArrayProxy *arrayProxy, int arrayNu
 	if(arrayProxy->newData==NULL)
 		return ;
 
+	u8 *endNewData=newData+newDataSize;
+
 	//if(arrayProxy->dataBlock->dataAlloc==0)
 		//{
 		//LOG(LOG_INFO,"New Leaf Array - setting array length to %i",arrayProxy->newDataAlloc);
@@ -1385,12 +1396,14 @@ void mergeTopArrayUpdates_leaf(RouteTableTreeArrayProxy *arrayProxy, int arrayNu
 
 	for(int i=0;i<arrayProxy->newDataAlloc;i++)
 		{
+		u8 *oldLeafRawData=NULL;
 		RouteTableTreeLeafBlock *oldLeafData=NULL;
 		int oldLeafEntryAlloc=0;
 
 		if(arrayProxy->dataBlock!=NULL && i<arrayProxy->dataBlock->dataAlloc && arrayProxy->dataBlock->data[i]!=NULL)
 			{
-			oldLeafData=(RouteTableTreeLeafBlock *)(arrayProxy->dataBlock->data[i]);
+			oldLeafRawData=(arrayProxy->dataBlock->data[i]);
+			oldLeafData=(RouteTableTreeLeafBlock *)(oldLeafRawData+rtGetArrayBlockHeaderSize(indexSize,1));
 			oldLeafEntryAlloc=oldLeafData->entryAlloc;
 			}
 
@@ -1408,16 +1421,22 @@ void mergeTopArrayUpdates_leaf(RouteTableTreeArrayProxy *arrayProxy, int arrayNu
 				s32 dataSize=sizeof(RouteTableTreeLeafBlock)+sizeof(RouteTableTreeLeafEntry)*(newLeafData->entryAlloc);
 				memcpy(newData, newLeafData, dataSize);
 				newData+=dataSize;
+
+				if(oldLeafRawData!=NULL)
+					*oldLeafRawData&=~ALLOC_HEADER_LIVE_MASK; // Mark old branch data as dead
 				}
 			else
 				{
 				s32 headerSize=rtGetArrayBlockHeaderSize(indexSize,1);
 				s32 dataSize=sizeof(RouteTableTreeLeafBlock)+sizeof(RouteTableTreeLeafEntry)*(newLeafData->entryAlloc);
 				memcpy(arrayProxy->dataBlock->data[i]+headerSize, newLeafData, dataSize);
-				newData+=dataSize;
 				}
 			}
 		}
+
+	if(endNewData!=newData)
+		LOG(LOG_CRITICAL,"New Leaf Data doesn't match expected: New: %p vs Expected: %p",newData,endNewData);
+
 }
 
 
@@ -1511,6 +1530,8 @@ static void writeBuildersAsIndirectData(RoutingComboBuilder *routingBuilder, s8 
 		u8 *newArrayData=circAlloc(circHeap, totalNeededSize, sliceTag, sliceIndex, NULL);
 		memset(newArrayData,0,totalNeededSize);
 
+		u8 *endArrayData=newArrayData+totalNeededSize;
+
 		topPtr=(RouteTableTreeTopBlock *)((*(routingBuilder->rootPtr))+getGapBlockHeaderSize()); // Rebind root after alloc
 
 		s32 existingSize=0;
@@ -1589,6 +1610,9 @@ static void writeBuildersAsIndirectData(RoutingComboBuilder *routingBuilder, s8 
 				if(existingSize>neededSize)
 					LOG(LOG_CRITICAL,"Unexpected reduction in size %i to %i",existingSize,neededSize);
 			}
+
+		if(endArrayData!=newArrayData)
+			LOG(LOG_CRITICAL,"Array end did not match expected: %p vs %p",newArrayData, endArrayData);
 		}
 
 

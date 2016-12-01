@@ -374,7 +374,7 @@ RouteTableTreeBranchBlock *getRouteTableTreeBranchRaw(RouteTableTreeProxy *treeP
 {
 	if(brindex<0)
 		{
-		LOG(LOG_CRITICAL,"Brindex must be positive");
+		LOG(LOG_CRITICAL,"Brindex must be positive: %i",brindex);
 		}
 
 	u8 *data=getBlockArrayEntry(&(treeProxy->branchArrayProxy), brindex);
@@ -387,7 +387,7 @@ RouteTableTreeBranchProxy *getRouteTableTreeBranchProxy(RouteTableTreeProxy *tre
 {
 	if(brindex<0)
 		{
-		LOG(LOG_CRITICAL,"Brindex must be positive");
+		LOG(LOG_CRITICAL,"Brindex must be positive: %i",brindex);
 		}
 
 	u8 *data=getBlockArrayEntry(&(treeProxy->branchArrayProxy), brindex);
@@ -460,7 +460,7 @@ RouteTableTreeLeafBlock *getRouteTableTreeLeafRaw(RouteTableTreeProxy *treeProxy
 {
 	if(lindex<0)
 		{
-		LOG(LOG_CRITICAL,"Lindex must be positive");
+		LOG(LOG_CRITICAL,"Lindex must be positive: %i",lindex);
 		}
 
 	u8 *data=getBlockArrayEntry(&(treeProxy->leafArrayProxy), lindex);
@@ -473,7 +473,7 @@ RouteTableTreeLeafProxy *getRouteTableTreeLeafProxy(RouteTableTreeProxy *treePro
 {
 	if(lindex<0)
 		{
-		LOG(LOG_CRITICAL,"Lindex must be positive");
+		LOG(LOG_CRITICAL,"Lindex must be positive: %i",lindex);
 		}
 
 	u8 *data=getBlockArrayEntry(&(treeProxy->leafArrayProxy), lindex);
@@ -589,10 +589,11 @@ void branchMakeChildInsertSpace(RouteTableTreeBranchProxy *branch, s16 childPosi
 void leafMakeEntryInsertSpace(RouteTableTreeLeafProxy *leaf, s16 entryPosition, s16 entryCount)
 {
 	if((leaf->entryCount+entryCount)>leaf->entryAlloc)
-			{
-			LOG(LOG_CRITICAL,"Insufficient space for branch child insert");
-			}
+		LOG(LOG_CRITICAL,"Insufficient space for branch child insert");
 
+
+	if(entryPosition<0)
+		LOG(LOG_CRITICAL,"Cannot make entry insert space with negative position %i",entryPosition);
 
 	if(entryPosition<leaf->entryCount)
 		{
@@ -1575,6 +1576,9 @@ static void walkerAppendPreorderedEntry(RouteTableTreeWalker *walker, RouteTable
 
 	u16 entryCount=leafProxy->entryCount;
 
+	if(downstream>32000 || entry->width>32000)
+		LOG(LOG_CRITICAL,"Cannot append entry with large downstream/width %i %i",downstream, entry->width);
+
 	leafProxy->dataBlock->entries[entryCount].downstream=downstream;
 	leafProxy->dataBlock->entries[entryCount].width=entry->width;
 
@@ -1855,6 +1859,8 @@ static void mergeRoutes_insertEntry(RouteTableTreeWalker *walker, s32 upstream, 
 		{
 		leafUpstream=leafProxy->dataBlock->upstream;
 
+		LOG(LOG_INFO,"InsertEntry: Leaf: %i Entry: %i",walker->leafProxy->lindex,walker->leafEntry);
+
 		if(upstream!=leafUpstream)
 			{
 			//LOG(LOG_INFO,"Entry Insert: Unmatched upstream - need new leaf insert");
@@ -1943,6 +1949,12 @@ static void mergeRoutes_widen(RouteTableTreeWalker *walker)
 		{
 		LOG(LOG_CRITICAL,"Entry Widen: Invalid downstream, should never happen");
 		}
+
+	if(leafProxy->dataBlock->entries[walker->leafEntry].width>32000)
+		{
+		LOG(LOG_CRITICAL,"Entry Widen: About to wrap width %i",leafProxy->dataBlock->entries[walker->leafEntry].width);
+		}
+
 
 
 	leafProxy->dataBlock->entries[walker->leafEntry].width++;
