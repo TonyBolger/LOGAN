@@ -151,16 +151,33 @@ static MemCircHeapBlock *allocBlock(s32 minSize, int minblockSizeIndex)
 	blockPtr->sizeIndex=sizeIndex;
 	blockPtr->needsExpanding=0;
 	blockPtr->allocPosition=0;
+	blockPtr->allocWrap=0;
 	blockPtr->reclaimPosition=0;
+
+//	LOG(LOG_INFO,"Alloc block %p : allocated",blockPtr->ptr);
 
 	return blockPtr;
 }
 
 static void freeBlock(MemCircHeapBlock *block)
 {
+//	LOG(LOG_INFO,"Alloc block %p : freed",block->ptr);
+
 	free(block->ptr);
 	free(block);
 }
+
+static void freeBlockSafe(MemCircHeapBlock *block)
+{
+//	LOG(LOG_INFO, "Free block %p size %li (alloc %li and reclaim %li)",
+//		block->ptr, block->size, block->allocPosition, block->reclaimPosition);
+
+	if(block->allocPosition!=block->reclaimPosition)
+		LOG(LOG_CRITICAL,"Attempt to free non-empty block");
+
+	freeBlock(block);
+}
+
 
 static s64 estimateSpaceInGeneration(MemCircGeneration *generation)
 {
@@ -198,10 +215,12 @@ void dumpCircHeap(MemCircHeap *circHeap)
 		double survivorRatio=live/(double)reclaimed;
 
 
-		LOG(LOG_INFO, "Gen %i: %li occupied / %li free with survivor ratio %lf. Alloc blocksize %li (alloc %li and reclaim %li) Reclaim blocksize %li (alloc %li and reclaim %li)",i,
-			occupied,space, survivorRatio,
-			circHeap->generations[i].allocBlock->size, circHeap->generations[i].allocBlock->allocPosition,	circHeap->generations[i].allocBlock->reclaimPosition,
-			circHeap->generations[i].reclaimBlock->size, circHeap->generations[i].reclaimBlock->allocPosition,circHeap->generations[i].reclaimBlock->reclaimPosition);
+		LOG(LOG_INFO, "Gen %i: %li occupied / %li free with survivor ratio %lf. Alloc block %p size %li (alloc %li and reclaim %li) Reclaim block %p size %li (alloc %li and reclaim %li)",
+			i,occupied,space,survivorRatio,
+			circHeap->generations[i].allocBlock->ptr, circHeap->generations[i].allocBlock->size,
+			circHeap->generations[i].allocBlock->allocPosition,circHeap->generations[i].allocBlock->reclaimPosition,
+			circHeap->generations[i].reclaimBlock->ptr, circHeap->generations[i].reclaimBlock->size,
+			circHeap->generations[i].reclaimBlock->allocPosition,circHeap->generations[i].reclaimBlock->reclaimPosition);
 		}
 }
 
@@ -330,6 +349,8 @@ static void *allocFromGeneration(MemCircGeneration *generation, size_t newAllocS
 		u8 *data=block->ptr+block->allocPosition;
 		*data=CH_HEADER_INVALID;
 
+		block->allocWrap=block->allocPosition;
+
 		data=block->ptr;
 
 		generation->allocCurrentChunkTag=tag;
@@ -380,8 +401,16 @@ static MemCircHeapChunkIndex *createReclaimIndex_single(MemCircHeap *circHeap, M
 				}
 			}
 
+		if(reclaimBlock->reclaimPosition != reclaimBlock->allocWrap)
+			{
+			LOG(LOG_INFO,"GC Heap Corruption detected at %p",reclaimBlock->ptr+reclaimBlock->reclaimPosition, data);
+			LOG(LOG_CRITICAL,"Attempt to wrap reclaimPosition %i before reaching allocWrap %i",reclaimBlock->reclaimPosition, reclaimBlock->allocWrap);
+			}
+
 		generation->prevReclaimSizeLive=generation->curReclaimSizeLive;
 		generation->prevReclaimSizeDead=generation->curReclaimSizeDead;
+
+		reclaimBlock->allocWrap=0;
 
 		generation->curReclaimSizeLive=0;
 		generation->curReclaimSizeDead=0;
@@ -406,7 +435,7 @@ static MemCircHeapChunkIndex *createReclaimIndex_single(MemCircHeap *circHeap, M
 	if((reclaimBlock->reclaimPosition < reclaimBlock->allocPosition) && (reclaimBlock->allocPosition-reclaimBlock->reclaimPosition < reclaimTargetAmount))
 		reclaimTargetAmount=reclaimBlock->allocPosition-reclaimBlock->reclaimPosition;
 
-	//LOG(LOG_INFO,"Reclaim in gen %i",generationNum);
+	//LOG(LOG_INFO,"Reclaim from ptr %p (RecPos: %i AllocPos: %i)",reclaimPtr,reclaimBlock->reclaimPosition, reclaimBlock->allocPosition);
 
 	u8 tag=generation->reclaimCurrentChunkTag;
 	MemCircHeapChunkIndex *indexedChunk=(circHeap->reclaimIndexer)(reclaimPtr, reclaimTargetAmount, tag,
@@ -426,6 +455,7 @@ static MemCircHeapChunkIndex *createReclaimIndex_single(MemCircHeap *circHeap, M
 	if(data==CH_HEADER_CHUNK)
 		indexedChunk->reclaimed+=2;
 
+	//LOG(LOG_INFO,"Post Reclaim from ptr %p (RecPos: %i AllocPos: %i)",reclaimPtr,reclaimBlock->reclaimPosition, reclaimBlock->allocPosition);
 //	LOG(LOG_INFO,"Creating Reclaim Index for tag %i moving reclaim position by %li to %i",tag, indexedChunk->reclaimed, reclaimBlock->reclaimPosition);
 
 
@@ -477,10 +507,16 @@ static MemCircHeapChunkIndex *moveIndexedHeap(MemCircHeap *circHeap, MemCircHeap
 				scan->lastLiveTagOffset=currentOffset;
 				}
 
+//			LOG(LOG_INFO,"MovedPreAlloc");
+//			dumpCircHeap(circHeap);
+
 			u8 *newChunk=allocFromGeneration(circHeap->generations+allocGeneration, scan->sizeLive,
 					scan->chunkTag, scan->firstLiveTagOffset, scan->lastLiveTagOffset, &(scan->newChunkOldTagOffset));
 
-//			LOG(LOG_INFO,"MovedAlloc: %p %li %i",newChunk,scan->sizeLive,scan->chunkTag);
+//			LOG(LOG_INFO,"MovedAlloc: %p Size: %li ChunkTag: %i Generation: %i",newChunk,scan->sizeLive,scan->chunkTag,allocGeneration);
+
+//			LOG(LOG_INFO,"MovedPostAlloc");
+//			dumpCircHeap(circHeap);
 
 			if(newChunk==NULL) // Shouldn't happen, but just in case
 				{
@@ -540,6 +576,7 @@ static void circHeapCompact(MemCircHeap *circHeap, int generation, s64 targetFre
 {
 	// This implementation can fail due to the 'compaction' slightly growing the memory block due to the need for chunk headers
 
+//	LOG(LOG_INFO,"CircHeapCompact");
 
 	//dumpCircHeap(circHeap);
 
@@ -556,8 +593,8 @@ static void circHeapCompact(MemCircHeap *circHeap, int generation, s64 targetFre
 			{
 			LOG(LOG_INFO,"GC heap compact failed");
 
-			LOG(LOG_INFO,"Unable to allocate %li in generation %i",remainingIndex->sizeLive,generation);
-			dumpCircHeap(circHeap);
+//			LOG(LOG_INFO,"Unable to allocate %li in generation %i",remainingIndex->sizeLive,generation);
+//			dumpCircHeap(circHeap);
 			}
 
 //		LOG(LOG_INFO,"Iter");
@@ -601,6 +638,9 @@ static void circHeapEnsureSpace_generation(MemCircHeap *circHeap, size_t support
 
 	if(generation<CIRCHEAP_LAST_GENERATION)
 		{
+//		LOG(LOG_INFO,"GC Promote for %i",generation);
+//		dumpCircHeap(circHeap);
+
 		int nextGeneration=generation+1;
 		s64 reclaimTarget=targetFree-spaceEstimate; // Allows for start/end split reclaims not creating enough space
 
@@ -641,6 +681,7 @@ static void circHeapEnsureSpace_generation(MemCircHeap *circHeap, size_t support
 		if(circHeap->generations[generation].reclaimBlock->needsExpanding)
 			{
 //			LOG(LOG_INFO,"Generation %i marked for expansion", generation);
+//			LOG(LOG_INFO,"Alloc block: %p - needs expansion", circHeap->generations[generation].allocBlock->ptr);
 
 			MemCircHeapBlock *newAllocBlock=allocBlock(supportedAllocSize, circHeap->generations[generation].reclaimBlock->sizeIndex+1);
 			circHeap->generations[generation].allocBlock=newAllocBlock;
@@ -654,12 +695,12 @@ static void circHeapEnsureSpace_generation(MemCircHeap *circHeap, size_t support
 				LOG(LOG_CRITICAL,"GC generation expansion failed");
 				}
 
-			freeBlock(circHeap->generations[generation].reclaimBlock);
+			freeBlockSafe(circHeap->generations[generation].reclaimBlock);
 			circHeap->generations[generation].reclaimBlock=newAllocBlock;
 			}
 
 
-//		LOG(LOG_INFO,"Reclaim completed for generation %i",generation);
+		//LOG(LOG_INFO,"GC completed for generation %i",generation);
 		}
 	else
 		{
@@ -673,6 +714,7 @@ static void circHeapEnsureSpace_generation(MemCircHeap *circHeap, size_t support
 		if(spaceEstimate<targetFree || circHeap->generations[generation].reclaimBlock->needsExpanding)
 			{
 //			LOG(LOG_INFO,"Generation %i marked for expansion", generation);
+//			LOG(LOG_INFO,"Alloc block: %p - needs expansion", circHeap->generations[generation].allocBlock->ptr);
 
 			MemCircHeapBlock *newAllocBlock=allocBlock(supportedAllocSize, circHeap->generations[generation].reclaimBlock->sizeIndex+1);
 			circHeap->generations[generation].allocBlock=newAllocBlock;
@@ -686,7 +728,7 @@ static void circHeapEnsureSpace_generation(MemCircHeap *circHeap, size_t support
 				LOG(LOG_CRITICAL,"GC generation expansion failed");
 				}
 
-			freeBlock(circHeap->generations[generation].reclaimBlock);
+			freeBlockSafe(circHeap->generations[generation].reclaimBlock);
 			circHeap->generations[generation].reclaimBlock=newAllocBlock;
 			}
 
@@ -719,7 +761,10 @@ void *circAlloc(MemCircHeap *circHeap, size_t size, u8 tag, s32 newTagOffset, s3
 	// Simple case - alloc from the current young block
 	void *usrPtr=allocFromGeneration(circHeap->generations, size, tag, newTagOffset, newTagOffset, oldTagOffset);
 	if(usrPtr!=NULL)
+		{
+		//LOG(LOG_INFO,"Alloc of %i to %p",size,usrPtr);
 		return usrPtr;
+		}
 
 	//LOG(LOG_INFO, "Initial fail to allocate %i bytes of CircHeap memory, GC begins",size);
 
@@ -727,13 +772,13 @@ void *circAlloc(MemCircHeap *circHeap, size_t size, u8 tag, s32 newTagOffset, s3
 
 	usrPtr=allocFromGeneration(circHeap->generations, size, tag, newTagOffset, newTagOffset, oldTagOffset);
 	if(usrPtr!=NULL)
+		{
+		//LOG(LOG_INFO,"Alloc of %i to %p",size,usrPtr);
 		return usrPtr;
+		}
 
 	LOG(LOG_INFO, "Failed to allocate %i bytes of CircHeap memory after trying really hard, honest",size);
-
-	for(int i=0;i<CIRCHEAP_MAX_GENERATIONS;i++)
-		LOG(LOG_INFO, "Generation %i has %li with alloc %li and reclaim %li",i, estimateSpaceInGeneration(circHeap->generations+i),
-				circHeap->generations[i].allocBlock->allocPosition, circHeap->generations[i].allocBlock->reclaimPosition);
+	dumpCircHeap(circHeap);
 
 	LOG(LOG_CRITICAL,"Bailing out");
 
@@ -741,5 +786,25 @@ void *circAlloc(MemCircHeap *circHeap, size_t size, u8 tag, s32 newTagOffset, s3
 }
 
 
+/*
+void *circAlloc(MemCircHeap *circHeap, size_t size, u8 tag, s32 newTagOffset, s32 *oldTagOffset)
+{
 
+	void *usrPtr=circAlloc_test(circHeap, size, tag, newTagOffset, oldTagOffset);
 
+	u8 *cmpPtr=(u8 *)usrPtr;
+
+	u8 *minPtr=(u8 *)0x7fff5cb93c00;
+	u8 *maxPtr=(u8 *)0x7fff5cb93d00;
+
+	u8 *testPtr=(u8 *)0x7fff5cb93c3a;
+
+	if(cmpPtr>=minPtr && cmpPtr<maxPtr)
+		{
+		LOG(LOG_INFO,"TestPTR: %p is %02x", testPtr, *testPtr);
+		}
+
+	return usrPtr;
+
+}
+*/

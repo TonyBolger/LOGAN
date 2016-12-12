@@ -379,7 +379,7 @@ s32 getGapBlockHeaderSize()
 
 s32 rtEncodeTailBlockHeader(u32 prefixSuffix, u32 indexSize, u32 index, u8 *data)
 {
-	LOG(LOG_INFO,"rtEncodeTailBlockHeader: %i Index: %i %i -> %p",prefixSuffix, indexSize, index,data);
+	//LOG(LOG_INFO,"rtEncodeTailBlockHeader: %i Index: %i %i -> %p",prefixSuffix, indexSize, index,data);
 
 	//ALLOC_HEADER_LIVE_TAIL
 
@@ -407,14 +407,14 @@ s32 rtDecodeTailBlockHeader(u8 *data, u32 *prefixSuffixPtr, u32 *indexSizePtr, u
 	if(indexPtr!=NULL)
 		*indexPtr=index;
 
-	LOG(LOG_INFO,"rtDecodeTailBlockHeader: %i Index: %i %i <- %p (%02x)",prefixSuffix, indexSize, index, (data-1), header);
+	//LOG(LOG_INFO,"rtDecodeTailBlockHeader: %i Index: %i %i <- %p (%02x)",prefixSuffix, indexSize, index, (data-1), header);
 
 	return 1+indexSize;
 }
 
 s32 rtGetTailBlockHeaderSize(int indexSize)
 {
-	LOG(LOG_INFO,"rtGetTailBlockHeader IndexSize: %i",indexSize);
+//	LOG(LOG_INFO,"rtGetTailBlockHeader IndexSize: %i",indexSize);
 
 	return 1+indexSize;
 }
@@ -565,9 +565,88 @@ static MemCircHeapChunkIndex *allocOrExpandIndexer(MemCircHeapChunkIndex *oldInd
 }
 
 
+void dumpRawArrayBlock(u8 *data)
+{
+	u32 arrayNum=0, arrayType=0, indexSize=0, index=0, subindexSize=0, subIndex=0;
+
+	int headerSize=rtDecodeArrayBlockHeader(data, &arrayNum, &arrayType, &indexSize, &index, &subindexSize, &subIndex);
+
+	RouteTableTreeArrayBlock *block=(RouteTableTreeArrayBlock *)(data+headerSize);
+
+	LOGS(LOG_INFO,"DumpArray %p (%2x header %i alloc):",data, *data, block->dataAlloc);
+
+	for(int i=0;i<block->dataAlloc;i++)
+		LOGS(LOG_INFO," %p",block->data[i]);
+
+	LOGN(LOG_INFO,"");
+
+}
+
+void dumpRawLeafBlock()
+{
+
+}
+
+void dumpRawBranchBlock()
+{
+
+}
+
+
+void validateReclaimIndexEntry(MemCircHeapChunkIndexEntry *indexEntry, u8 *heapPtr, u8 tag, u8 **tagData, s32 tagDataLength)
+{
+	s32 sindex=indexEntry->index;
+
+	u8 **primaryPtr=&tagData[sindex];
+
+	if((*primaryPtr)==NULL)
+		{
+		LOG(LOG_CRITICAL,"Attempt to validate entry indexing NULL data");
+		}
+
+
+	//s32 size=indexEntry->size;
+	s32 topindex=indexEntry->topindex;
+
+	if(topindex<0) // Gap encoded: tag offset needs updating
+		{
+		return;
+		}
+	else
+		{
+		//LOG(LOG_INFO,"Validate indexEntry: Index: %i Size: %i TopIndex: %i SubIndex: %i",indexEntry->index, indexEntry->size, indexEntry->topindex, indexEntry->subindex);
+
+		RouteTableTreeTopBlock *topPtr=(RouteTableTreeTopBlock *)((*primaryPtr)+getGapBlockHeaderSize());
+
+		//u8 *dataPtr=NULL;
+		s32 subindex=indexEntry->subindex;
+
+		if(subindex==-1)
+			{
+			if(topPtr->data[topindex]!=heapPtr)
+				LOG(LOG_CRITICAL,"Pointer mismatch in array during heap validation (%p vs %p) - Top: %p",topPtr->data[topindex],heapPtr, (*primaryPtr));
+
+			}
+		else
+			{
+			u8 *arrayBlockPtr=topPtr->data[topindex];
+			s32 headerSize=rtDecodeArrayBlockHeader(arrayBlockPtr,NULL,NULL,NULL,NULL,NULL,NULL);
+			RouteTableTreeArrayBlock *array=(RouteTableTreeArrayBlock *)(arrayBlockPtr+headerSize);
+
+			if(array->data[subindex]!=heapPtr)
+				LOG(LOG_CRITICAL,"Pointer mismatch in array entry during validation (%p vs %p) - Top: %p Array: %p",array->data[subindex],heapPtr,(*primaryPtr),array);
+			}
+
+		}
+}
+
+
+
+
+
 MemCircHeapChunkIndex *rtReclaimIndexer(u8 *heapDataPtr, s64 targetAmount, u8 tag, u8 **tagData, s32 tagDataLength, s32 tagSearchOffset, MemDispenser *disp)
 {
-	LOG(LOG_INFO,"Reclaim Index: %p %li %x %p",heapDataPtr,targetAmount,tag,disp);
+	//LOG(LOG_INFO,"Reclaim Index: HeapDataPtr %p TargetAmt %li Tag: %x Disp: %p",heapDataPtr,targetAmount,tag,disp);
 
 	MemCircHeapChunkIndex *index=allocOrExpandIndexer(NULL, disp);
 
@@ -587,7 +666,7 @@ MemCircHeapChunkIndex *rtReclaimIndexer(u8 *heapDataPtr, s64 targetAmount, u8 ta
 	while(heapDataPtr<endOfData)
 		{
 		u8 header=*heapDataPtr;
-		LOG(LOG_INFO,"rtReclaimIndexer %p %02x",heapDataPtr,header);
+		//LOG(LOG_INFO,"rtReclaimIndexer %p %02x",heapDataPtr,header);
 
 		if(header==CH_HEADER_CHUNK || header==CH_HEADER_INVALID)
 			{
@@ -617,7 +696,7 @@ MemCircHeapChunkIndex *rtReclaimIndexer(u8 *heapDataPtr, s64 targetAmount, u8 ta
 
 					if(currentIndex==-1)
 						{
-						LOG(LOG_INFO,"Failed to find expected heap pointer %p in tag data",heapDataPtr);
+						LOG(LOG_INFO,"Failed to find expected direct heap pointer %p in tag data",heapDataPtr);
 						dumpTagData(tagData,tagDataLength);
 						return NULL;
 						}
@@ -632,6 +711,9 @@ MemCircHeapChunkIndex *rtReclaimIndexer(u8 *heapDataPtr, s64 targetAmount, u8 ta
 					index->entries[entry].topindex=ROUTE_TOPINDEX_DIRECT;
 					index->entries[entry].subindex=-1;
 					index->entries[entry].size=size;
+
+					//validateReclaimIndexEntry(index->entries+entry, heapDataPtr, tag, tagData, tagDataLength);
+
 					entry++;
 
 					index->lastLiveTagOffset=currentIndex;
@@ -663,7 +745,7 @@ MemCircHeapChunkIndex *rtReclaimIndexer(u8 *heapDataPtr, s64 targetAmount, u8 ta
 
 					if(currentIndex==-1)
 						{
-						LOG(LOG_INFO,"Failed to find expected heap pointer %p in tag data",heapDataPtr);
+						LOG(LOG_INFO,"Failed to find expected top heap pointer %p in tag data",heapDataPtr);
 						dumpTagData(tagData,tagDataLength);
 						return NULL;
 						}
@@ -678,6 +760,9 @@ MemCircHeapChunkIndex *rtReclaimIndexer(u8 *heapDataPtr, s64 targetAmount, u8 ta
 					index->entries[entry].topindex=ROUTE_TOPINDEX_TOP;
 					index->entries[entry].subindex=-1;
 					index->entries[entry].size=size;
+
+					//validateReclaimIndexEntry(index->entries+entry, heapDataPtr, tag, tagData, tagDataLength);
+
 					entry++;
 
 					index->lastLiveTagOffset=currentIndex;
@@ -717,6 +802,9 @@ MemCircHeapChunkIndex *rtReclaimIndexer(u8 *heapDataPtr, s64 targetAmount, u8 ta
 					index->entries[entry].topindex=prefixSuffix;
 					index->entries[entry].subindex=-1;
 					index->entries[entry].size=size;
+
+					validateReclaimIndexEntry(index->entries+entry, heapDataPtr, tag, tagData, tagDataLength);
+
 					entry++;
 
 					//LOG(LOG_INFO,"Live Item: %p %2x %i",heapDataPtr,header,size, currentIndex);
@@ -739,20 +827,29 @@ MemCircHeapChunkIndex *rtReclaimIndexer(u8 *heapDataPtr, s64 targetAmount, u8 ta
 				s32 headerSize=rtDecodeArrayBlockHeader(heapDataPtr, &arrayNum, &arrayType, NULL, &smerIndex, NULL, &subindex);
 				u8 *scanPtr=heapDataPtr+headerSize;
 
-				LOG(LOG_INFO,"Decoded Array: ArrayNum: %i ArrayType: %i SmerIndex: %i SubIndex: %i",arrayNum,arrayType,smerIndex,subindex);
+//				LOG(LOG_INFO,"Decoded Array: ArrayNum: %i ArrayType: %i SmerIndex: %i SubIndex: %i",arrayNum,arrayType,smerIndex,subindex);
 
+				/*
+				char *status="Dead";
+				if(header & ALLOC_HEADER_LIVE_MASK)
+					status="Alive";
+*/
 				u32 dataSize=0;
+				u16 alloc=0;
 
 				switch(arrayType)
 					{
 					case ARRAY_TYPE_SHALLOW_PTR: // Shallow Ptr (no subindex)
-						dataSize=sizeof(RouteTableTreeArrayBlock)+sizeof(u8 *)*((RouteTableTreeArrayBlock *)scanPtr)->dataAlloc;
 
-						LOG(LOG_INFO,"Shallow Array %p %i",heapDataPtr, dataSize);
+						alloc=((RouteTableTreeArrayBlock *)scanPtr)->dataAlloc;
+						dataSize=sizeof(RouteTableTreeArrayBlock)+sizeof(u8 *)*alloc;
+						//LOGS(LOG_INFO,"Indexing %s Shallow Array %p %i (%i alloc):",status, heapDataPtr, dataSize, alloc);
+						//dumpRawArrayBlock(heapDataPtr);
+
 						break;
 
 					case ARRAY_TYPE_DEEP_PTR: // Deep Ptr (1-byte subindex)
-						LOG(LOG_CRITICAL,"Deep Array: Not implemented");
+//						LOG(LOG_CRITICAL,"Deep Array: Not implemented");
 						break;
 
 					case ARRAY_TYPE_SHALLOW_DATA: // Shallow Data Ptr (1-byte subindex)
@@ -760,14 +857,16 @@ MemCircHeapChunkIndex *rtReclaimIndexer(u8 *heapDataPtr, s64 targetAmount, u8 ta
 							{
 							case ROUTE_TOPINDEX_FORWARD_LEAF:
 							case ROUTE_TOPINDEX_REVERSE_LEAF:
-								dataSize=sizeof(RouteTableTreeLeafBlock)+sizeof(RouteTableTreeLeafEntry)*((RouteTableTreeLeafBlock *)scanPtr)->entryAlloc;
-								LOG(LOG_INFO,"Shallow Leaf Data %p %i",heapDataPtr, dataSize);
+								alloc=((RouteTableTreeLeafBlock *)scanPtr)->entryAlloc;
+								dataSize=sizeof(RouteTableTreeLeafBlock)+sizeof(RouteTableTreeLeafEntry)*alloc;
+							//	LOG(LOG_INFO,"Indexing %s Shallow Leaf Data %p %i (%i alloc)",status, heapDataPtr, dataSize, alloc);
 								break;
 
 							case ROUTE_TOPINDEX_FORWARD_BRANCH:
 							case ROUTE_TOPINDEX_REVERSE_BRANCH:
-								dataSize=sizeof(RouteTableTreeBranchBlock)+sizeof(s16)*((RouteTableTreeBranchBlock *)scanPtr)->childAlloc;
-								LOG(LOG_INFO,"Shallow Branch Data %p %i",heapDataPtr, dataSize);
+								alloc=((RouteTableTreeBranchBlock *)scanPtr)->childAlloc;
+								dataSize=sizeof(RouteTableTreeBranchBlock)+sizeof(s16)*alloc;
+								//LOG(LOG_INFO,"Indexing %s Shallow Branch Data %p %i (%i alloc)",status, heapDataPtr, dataSize, alloc);
 								break;
 
 							case ROUTE_TOPINDEX_FORWARD_OFFSET:
@@ -778,7 +877,7 @@ MemCircHeapChunkIndex *rtReclaimIndexer(u8 *heapDataPtr, s64 targetAmount, u8 ta
 						break;
 
 					case ARRAY_TYPE_DEEP_DATA: // Deep Ptr (2-byte subindex)
-						LOG(LOG_CRITICAL,"Deep Data: Not implemented");
+						//LOG(LOG_CRITICAL,"Deep Data: Not implemented");
 						break;
 					}
 
@@ -794,6 +893,9 @@ MemCircHeapChunkIndex *rtReclaimIndexer(u8 *heapDataPtr, s64 targetAmount, u8 ta
 					index->entries[entry].topindex=arrayNum;
 					index->entries[entry].subindex=subindex;
 					index->entries[entry].size=size;
+
+					validateReclaimIndexEntry(index->entries+entry, heapDataPtr, tag, tagData, tagDataLength);
+
 					entry++;
 
 					//LOG(LOG_INFO,"Live Item: %p %2x %i",heapDataPtr,header,size, currentIndex);
@@ -824,9 +926,14 @@ MemCircHeapChunkIndex *rtReclaimIndexer(u8 *heapDataPtr, s64 targetAmount, u8 ta
 	return index;
 }
 
+
+
+
+
 void rtRelocater(MemCircHeapChunkIndex *index, u8 tag, u8 **tagData, s32 tagDataLength)
 {
 	u8 *newChunk=index->newChunk;
+	u8 *endPtr=newChunk+index->sizeLive;
 
 	s32 prevOffset=index->newChunkOldTagOffset;
 
@@ -848,13 +955,18 @@ void rtRelocater(MemCircHeapChunkIndex *index, u8 tag, u8 **tagData, s32 tagData
 			{
 			int blockHeaderSize=0;
 
+			//LOG(LOG_INFO,"Transfer tag-enc %i bytes from %p to %p",size,(*primaryPtr),newChunk);
+
 			s32 diff=sindex-prevOffset;
 			blockHeaderSize=getGapBlockHeaderSize();
 
 			if(topindex==ROUTE_TOPINDEX_DIRECT) // Direct
 				encodeGapDirectBlockHeader(diff, newChunk);
 			else	// Top
+				{
+//				LOG(LOG_INFO,"Transfer top %i bytes from %p to %p",size,(*primaryPtr),newChunk);
 				encodeGapTopBlockHeader(diff, newChunk);
+				}
 
 			if(size<blockHeaderSize)
 				{
@@ -880,7 +992,11 @@ void rtRelocater(MemCircHeapChunkIndex *index, u8 tag, u8 **tagData, s32 tagData
 
 			if(subindex==-1)
 				{
-				LOG(LOG_INFO,"Transfer %i bytes from %p to %p",size,topPtr->data[topindex],newChunk);
+				//LOG(LOG_INFO,"Transfer array %i bytes (topIdx %i) from %p (top %p) to %p",
+						//size,topindex,topPtr->data[topindex],(*primaryPtr),newChunk);
+
+//				if(topindex>=ROUTE_TOPINDEX_FORWARD_LEAF && topindex<=ROUTE_TOPINDEX_REVERSE_BRANCH)
+//					dumpRawArrayBlock(topPtr->data[topindex]);
 
 				memmove(newChunk,topPtr->data[topindex],size);
 				topPtr->data[topindex]=newChunk;
@@ -892,7 +1008,8 @@ void rtRelocater(MemCircHeapChunkIndex *index, u8 tag, u8 **tagData, s32 tagData
 				s32 headerSize=rtDecodeArrayBlockHeader(arrayBlockPtr,NULL,NULL,NULL,NULL,NULL,NULL);
 				RouteTableTreeArrayBlock *array=(RouteTableTreeArrayBlock *)(arrayBlockPtr+headerSize);
 
-				LOG(LOG_INFO,"Transfer %i bytes (sub %i) from %p to %p",size,subindex,array->data[subindex],newChunk);
+				//LOG(LOG_INFO,"Transfer data %i bytes (topIdx %i subIdx %i) from %p (top %p array %p) to %p",
+					//	size,topindex,subindex,array->data[subindex],(*primaryPtr), arrayBlockPtr,newChunk);
 
 				memmove(newChunk,array->data[subindex],size);
 				array->data[subindex]=newChunk;
@@ -908,6 +1025,10 @@ void rtRelocater(MemCircHeapChunkIndex *index, u8 tag, u8 **tagData, s32 tagData
 			}
 		}
 
+	if(newChunk!=endPtr)
+		{
+		LOG(LOG_CRITICAL,"Mismatch %p vs %p after relocate",newChunk,endPtr);
+		}
 
 //	LOG(LOG_INFO,"Relocated for %p with data %p",index,index->newChunk);
 }
@@ -1006,7 +1127,7 @@ static void createBuildersFromDirectData(RoutingComboBuilder *builder)
 //static
 void createBuildersFromIndirectData(RoutingComboBuilder *builder)
 {
-	LOG(LOG_INFO,"Begin parse indirect");
+	//LOG(LOG_INFO,"Begin parse indirect from top: %p",*(builder->rootPtr));
 
 	u8 *data=*(builder->rootPtr);
 
@@ -1042,11 +1163,13 @@ void createBuildersFromIndirectData(RoutingComboBuilder *builder)
 			}
 		}
 
-	LOG(LOG_INFO,"Parse Indirect: Prefix");
+//	LOG(LOG_INFO,"Parse Indirect: Prefix");
 	u8 *prefixBlockData=top->data[ROUTE_TOPINDEX_PREFIX];
 
 	if(prefixBlockData!=NULL)
 		{
+//		LOG(LOG_INFO,"Begin parse indirect prefix from %p",prefixBlockData);
+
 		treeBuilder->dataBlocks[ROUTE_TOPINDEX_PREFIX].headerSize=rtDecodeTailBlockHeader(prefixBlockData, NULL, NULL, NULL);
 		u8 *prefixData=prefixBlockData+headerSize;
 		u8 *prefixDataEnd=initSeqTailBuilder(&(builder->prefixBuilder), prefixData, builder->disp);
@@ -1054,14 +1177,16 @@ void createBuildersFromIndirectData(RoutingComboBuilder *builder)
 		}
 	else
 		{
-		LOG(LOG_INFO,"Null prefix");
+//		LOG(LOG_INFO,"Null prefix");
 		}
 
-	LOG(LOG_INFO,"Parse Indirect: Suffix");
+//	LOG(LOG_INFO,"Parse Indirect: Suffix");
 	u8 *suffixBlockData=top->data[ROUTE_TOPINDEX_SUFFIX];
 
 	if(suffixBlockData!=NULL)
 		{
+//		LOG(LOG_INFO,"Begin parse indirect suffix from %p",suffixBlockData);
+
 		treeBuilder->dataBlocks[ROUTE_TOPINDEX_SUFFIX].headerSize=rtDecodeTailBlockHeader(suffixBlockData, NULL, NULL, NULL);
 		u8 *suffixData=suffixBlockData+headerSize;
 		u8 *suffixDataEnd=initSeqTailBuilder(&(builder->suffixBuilder), suffixData, builder->disp);
@@ -1069,17 +1194,19 @@ void createBuildersFromIndirectData(RoutingComboBuilder *builder)
 		}
 	else
 		{
-		LOG(LOG_INFO,"Null suffix");
+//		LOG(LOG_INFO,"Null suffix");
 		}
 
 
 	//treeBuilder->forwardProxy
 
-	LOG(LOG_INFO,"Parse Indirect: Arrays");
+//	LOG(LOG_INFO,"Parse Indirect: Arrays");
 
 	for(int i=ROUTE_TOPINDEX_FORWARD_LEAF; i<ROUTE_TOPINDEX_FORWARD_OFFSET;i++)
 		{
 		u8 *arrayBlockData=top->data[i];
+
+//		LOG(LOG_INFO,"Begin parse indirect array %i from %p",i,arrayBlockData);
 
 		if(arrayBlockData!=NULL)
 			{
@@ -1087,7 +1214,7 @@ void createBuildersFromIndirectData(RoutingComboBuilder *builder)
 			}
 		else
 			{
-			LOG(LOG_INFO,"Null array");
+			//LOG(LOG_INFO,"Null array");
 			}
 		}
 
@@ -1096,24 +1223,24 @@ void createBuildersFromIndirectData(RoutingComboBuilder *builder)
 	treeBuilder->dataBlocks[ROUTE_TOPINDEX_REVERSE_OFFSET].headerSize=0;
 	treeBuilder->dataBlocks[ROUTE_TOPINDEX_REVERSE_OFFSET].dataSize=0;
 
-	LOG(LOG_INFO,"Parse Indirect: Building");
+//	LOG(LOG_INFO,"Parse Indirect: Building");
 
 	rttInitRouteTableTreeBuilder(treeBuilder, top);
 
-
+/*
 	LOG(LOG_INFO,"Parse Indirect: Building complete %i %i %i %i",
 			treeBuilder->forwardProxy.leafArrayProxy.dataAlloc,
 			treeBuilder->forwardProxy.branchArrayProxy.dataAlloc,
 			treeBuilder->reverseProxy.leafArrayProxy.dataAlloc,
 			treeBuilder->reverseProxy.branchArrayProxy.dataAlloc);
-
+*/
 
 	//for(int i=0;i<treeBuilder->forwardProxy.leafArrayProxy.dataCount;i++)
 //		LOG(LOG_INFO,"Forward Leaf: DataPtr %p",treeBuilder->forwardProxy.leafArrayProxy.dataBlock->data[i]);
 
 
 
-	rttDumpRoutingTable(treeBuilder);
+	//rttDumpRoutingTable(treeBuilder);
 
 
 	/*
@@ -1191,6 +1318,7 @@ static void writeBuildersAsDirectData(RoutingComboBuilder *builder, s8 sliceTag,
 		*oldData&=~ALLOC_HEADER_LIVE_MASK;
 
 	s32 oldTagOffset=0;
+//	LOG(LOG_INFO,"CircAlloc %i",totalSize);
 	newData=circAlloc(circHeap, totalSize, sliceTag, sliceIndex, &oldTagOffset);
 
 	//LOG(LOG_INFO,"Offset Diff: %i for %i",offsetDiff,sliceIndex);
@@ -1285,12 +1413,8 @@ void mergeTopArrayUpdates_branch(RouteTableTreeArrayProxy *arrayProxy, int array
 
 	u8 *endNewData=newData+newDataSize;
 
-//	if(arrayProxy->dataBlock->dataAlloc==0)
-//		{
-//		LOG(LOG_INFO,"New Branch Array - setting array length to %i",arrayProxy->newDataAlloc);
-		arrayProxy->dataBlock->dataAlloc=arrayProxy->newDataAlloc;
-//		}
-
+//	if(arrayProxy->newData!=NULL)
+//		arrayProxy->dataBlock->dataAlloc=arrayProxy->newDataAlloc;
 
 	for(int i=0;i<arrayProxy->newDataAlloc;i++)
 		{
@@ -1311,6 +1435,8 @@ void mergeTopArrayUpdates_branch(RouteTableTreeArrayProxy *arrayProxy, int array
 
 			if(newBranchData->childAlloc!=oldBranchChildAlloc)
 				{
+//				LOG(LOG_INFO,"Branch Move/Expand write to %p (%i %i)",newData, newBranchData->childAlloc,oldBranchChildAlloc);
+
 				arrayProxy->dataBlock->data[i]=newData;
 
 				s32 headerSize=rtEncodeArrayBlockHeader(arrayNum, ARRAY_TYPE_SHALLOW_DATA, indexSize, index, i, newData);
@@ -1319,7 +1445,7 @@ void mergeTopArrayUpdates_branch(RouteTableTreeArrayProxy *arrayProxy, int array
 				s32 dataSize=sizeof(RouteTableTreeBranchBlock)+sizeof(s16)*(newBranchData->childAlloc);
 				memcpy(newData, newBranchData, dataSize);
 
-				LOG(LOG_INFO,"Copying %i bytes of branch data from %p to %p",dataSize,newBranchData,newData);
+				//LOG(LOG_INFO,"Copying %i bytes of branch data from %p to %p",dataSize,newBranchData,newData);
 
 				newData+=dataSize;
 
@@ -1328,6 +1454,8 @@ void mergeTopArrayUpdates_branch(RouteTableTreeArrayProxy *arrayProxy, int array
 				}
 			else
 				{
+//				LOG(LOG_INFO,"Branch rewrite to %p (%i %i)",arrayProxy->dataBlock->data[i], newBranchData->childAlloc,oldBranchChildAlloc);
+
 				s32 headerSize=rtGetArrayBlockHeaderSize(indexSize,1);
 				s32 dataSize=sizeof(RouteTableTreeBranchBlock)+sizeof(s16)*(newBranchData->childAlloc);
 				memcpy(arrayProxy->dataBlock->data[i]+headerSize, newBranchData, dataSize);
@@ -1353,7 +1481,7 @@ s32 mergeTopArrayUpdates_leaf_accumulateSize(RouteTableTreeArrayProxy *arrayProx
 
 	s32 totalSize=0;
 
-	LOG(LOG_INFO,"New data Alloc %i",arrayProxy->newDataAlloc);
+	//LOG(LOG_INFO,"New data Alloc %i",arrayProxy->newDataAlloc);
 
 	for(int i=0;i<arrayProxy->newDataAlloc;i++)
 		{
@@ -1390,7 +1518,8 @@ void mergeTopArrayUpdates_leaf(RouteTableTreeArrayProxy *arrayProxy, int arrayNu
 		//{
 		//LOG(LOG_INFO,"New Leaf Array - setting array length to %i",arrayProxy->newDataAlloc);
 
-	arrayProxy->dataBlock->dataAlloc=arrayProxy->newDataAlloc;
+//	if(arrayProxy->newData!=NULL)
+//		arrayProxy->dataBlock->dataAlloc=arrayProxy->newDataAlloc;
 
 		//}
 
@@ -1413,6 +1542,7 @@ void mergeTopArrayUpdates_leaf(RouteTableTreeArrayProxy *arrayProxy, int arrayNu
 
 			if(newLeafData->entryAlloc!=oldLeafEntryAlloc)
 				{
+//				LOG(LOG_INFO,"Leaf Move/Expand write to %p (%i %i)",newData, newLeafData->entryAlloc,oldLeafEntryAlloc);
 				arrayProxy->dataBlock->data[i]=newData;
 
 				s32 headerSize=rtEncodeArrayBlockHeader(arrayNum, ARRAY_TYPE_SHALLOW_DATA, indexSize, index, i, newData);
@@ -1427,6 +1557,8 @@ void mergeTopArrayUpdates_leaf(RouteTableTreeArrayProxy *arrayProxy, int arrayNu
 				}
 			else
 				{
+//				LOG(LOG_INFO,"Leaf rewrite to %p (%i %i)",arrayProxy->dataBlock->data[i], newLeafData->entryAlloc,oldLeafEntryAlloc);
+
 				s32 headerSize=rtGetArrayBlockHeaderSize(indexSize,1);
 				s32 dataSize=sizeof(RouteTableTreeLeafBlock)+sizeof(RouteTableTreeLeafEntry)*(newLeafData->entryAlloc);
 				memcpy(arrayProxy->dataBlock->data[i]+headerSize, newLeafData, dataSize);
@@ -1451,7 +1583,7 @@ static void writeBuildersAsIndirectData(RoutingComboBuilder *routingBuilder, s8 
 	//		leaf blocks
 	//		offset blocks
 
-	rttDumpRoutingTable(routingBuilder->treeBuilder);
+//	rttDumpRoutingTable(routingBuilder->treeBuilder);
 
 	if(routingBuilder->upgradedToTree)
 		{
@@ -1464,7 +1596,7 @@ static void writeBuildersAsIndirectData(RoutingComboBuilder *routingBuilder, s8 
 	s16 indexSize=varipackLength(sliceIndex);
 	RouteTableTreeBuilder *treeBuilder=routingBuilder->treeBuilder;
 
-	LOG(LOG_INFO,"Writing as indirect data (index size is %i)",indexSize);
+//	LOG(LOG_INFO,"Writing as indirect data (index size is %i)",indexSize);
 
 	RouteTableTreeTopBlock *topPtr=NULL;
 
@@ -1476,7 +1608,9 @@ static void writeBuildersAsIndirectData(RoutingComboBuilder *routingBuilder, s8 
 		s32 totalSize=routingBuilder->topDataBlock.dataSize+routingBuilder->topDataBlock.headerSize;
 
 		s32 oldTagOffset=0;
+//		LOG(LOG_INFO,"CircAlloc %i",totalSize);
 		u8 *newTopData=circAlloc(circHeap, totalSize, sliceTag, sliceIndex, &oldTagOffset);
+//		LOG(LOG_INFO,"Alloc top level at %p",newTopData);
 
 		s32 diff=sliceIndex-oldTagOffset;
 
@@ -1506,7 +1640,7 @@ static void writeBuildersAsIndirectData(RoutingComboBuilder *routingBuilder, s8 
 		neededBlocks[i].headerSize=rtGetArrayBlockHeaderSize(indexSize, 0);
 
 		RouteTableTreeArrayProxy *arrayProxy=rttGetTopArrayByIndex(treeBuilder, i);
-		LOG(LOG_INFO,"Array %i had %i, now has %i",i,arrayProxy->dataCount,arrayProxy->newDataCount);
+		//LOG(LOG_INFO,"Array %i had %i, now has %i",i,arrayProxy->dataCount,arrayProxy->newDataCount);
 
 		neededBlocks[i].dataSize=rttGetTopArraySize(arrayProxy);
 		}
@@ -1521,18 +1655,21 @@ static void writeBuildersAsIndirectData(RoutingComboBuilder *routingBuilder, s8 
 		if(existingSize!=neededSize)
 			totalNeededSize+=neededSize;
 
-		LOG(LOG_INFO,"Array %i has %i %i, needs %i %i",i,
-				treeBuilder->dataBlocks[i].headerSize,treeBuilder->dataBlocks[i].dataSize, neededBlocks[i].headerSize,neededBlocks[i].dataSize);
+//		LOG(LOG_INFO,"Array %i has %i %i, needs %i %i",i,
+//				treeBuilder->dataBlocks[i].headerSize,treeBuilder->dataBlocks[i].dataSize, neededBlocks[i].headerSize,neededBlocks[i].dataSize);
 		}
 
 	if(totalNeededSize>0)
 		{
+//		LOG(LOG_INFO,"CircAlloc %i",totalNeededSize);
 		u8 *newArrayData=circAlloc(circHeap, totalNeededSize, sliceTag, sliceIndex, NULL);
+//		LOG(LOG_INFO,"Alloc array level at %p",newArrayData);
+
 		memset(newArrayData,0,totalNeededSize);
 
 		u8 *endArrayData=newArrayData+totalNeededSize;
 
-		topPtr=(RouteTableTreeTopBlock *)((*(routingBuilder->rootPtr))+getGapBlockHeaderSize()); // Rebind root after alloc
+		topPtr=(RouteTableTreeTopBlock *)((*(routingBuilder->rootPtr))+routingBuilder->topDataBlock.headerSize); // Rebind root after alloc
 
 		s32 existingSize=0;
 		s32 neededSize=0;
@@ -1548,13 +1685,20 @@ static void writeBuildersAsIndirectData(RoutingComboBuilder *routingBuilder, s8 
 			u8 *oldData=topPtr->data[ROUTE_TOPINDEX_PREFIX];
 
 			topPtr->data[ROUTE_TOPINDEX_PREFIX]=newArrayData;
+
+//			LOG(LOG_INFO,"Prefix Move/Expand %p to %p",oldData,newArrayData);
 			newArrayData+=neededBlocks[ROUTE_TOPINDEX_PREFIX].headerSize+neededBlocks[ROUTE_TOPINDEX_PREFIX].dataSize;
 
 			if(oldData!=NULL)
 				*oldData&=~ALLOC_HEADER_LIVE_MASK; // Mark old block as dead
 			}
-		else if(existingSize>neededSize)
-			LOG(LOG_CRITICAL,"Unexpected reduction in size %i to %i",existingSize,neededSize);
+		else
+			{
+			if(existingSize>neededSize)
+				LOG(LOG_CRITICAL,"Unexpected reduction in size %i to %i",existingSize,neededSize);
+
+//			LOG(LOG_INFO,"Prefix Rewrite in place %p",topPtr->data[ROUTE_TOPINDEX_PREFIX]);
+			}
 
 		// Handle Suffix Resize
 
@@ -1566,14 +1710,20 @@ static void writeBuildersAsIndirectData(RoutingComboBuilder *routingBuilder, s8 
 			rtEncodeTailBlockHeader(1, indexSize, sliceIndex, newArrayData);
 			u8 *oldData=topPtr->data[ROUTE_TOPINDEX_SUFFIX];
 
+//			LOG(LOG_INFO,"Suffix Move/Expand %p to %p",oldData,newArrayData);
 			topPtr->data[ROUTE_TOPINDEX_SUFFIX]=newArrayData;
 			newArrayData+=neededBlocks[ROUTE_TOPINDEX_SUFFIX].headerSize+neededBlocks[ROUTE_TOPINDEX_SUFFIX].dataSize;
 
 			if(oldData!=NULL)
 				*oldData&=~ALLOC_HEADER_LIVE_MASK; // Mark old block as dead
 			}
-		else if(existingSize>neededSize)
+		else
+			{
+			if(existingSize>neededSize)
 				LOG(LOG_CRITICAL,"Unexpected reduction in size %i to %i",existingSize,neededSize);
+
+//			LOG(LOG_INFO,"Suffix Rewrite in place %p",topPtr->data[ROUTE_TOPINDEX_SUFFIX]);
+			}
 
 		// Handle Leaf/Branch Arrays
 
@@ -1586,29 +1736,51 @@ static void writeBuildersAsIndirectData(RoutingComboBuilder *routingBuilder, s8 
 
 			if(sizeDiff>0)
 				{
-				rtEncodeArrayBlockHeader(i,0, indexSize, sliceIndex, 0, newArrayData);
+//				u8 *endPtr=newArrayData+neededBlocks[i].headerSize+neededBlocks[i].dataSize;
+//				LOG(LOG_INFO,"Next array (if any) at %p with %02x",endPtr, *endPtr);
+
+				rtEncodeArrayBlockHeader(i,ARRAY_TYPE_SHALLOW_PTR, indexSize, sliceIndex, 0, newArrayData);
 				u8 *oldData=topPtr->data[i];
+
+//				LOG(LOG_INFO,"Array %i Move/Expand %p to %p",i,oldData,newArrayData);
 
 				topPtr->data[i]=newArrayData;
 				newArrayData+=neededBlocks[i].headerSize;
 
-				if(oldData!=NULL)
+				if(oldData!=NULL) // Clear extended region only
 					{
 					memcpy(newArrayData, oldData+treeBuilder->dataBlocks[i].headerSize, treeBuilder->dataBlocks[i].dataSize);
-					memset(newArrayData+existingSize, 0, sizeDiff);
+					memset(newArrayData+treeBuilder->dataBlocks[i].dataSize, 0, neededBlocks[i].dataSize-treeBuilder->dataBlocks[i].dataSize);
 					*oldData&=~ALLOC_HEADER_LIVE_MASK; // Mark old block as dead
 					}
-				else
+				else // Clear full region
 					{
-					LOG(LOG_INFO,"Setting %i from %p to zero",neededBlocks[i].dataSize, newArrayData);
+					//LOG(LOG_INFO,"Setting %i from %p to zero",neededBlocks[i].dataSize, newArrayData);
 					memset(newArrayData, 0, neededBlocks[i].dataSize);
 					}
 
+				RouteTableTreeArrayProxy *arrayProxy=rttGetTopArrayByIndex(treeBuilder, i);
+				rttBindBlockArrayProxy(arrayProxy, topPtr->data[i], neededBlocks[i].headerSize);
+				if(arrayProxy->newDataAlloc!=0)
+					{
+					RouteTableTreeArrayBlock *arrayBlock=(RouteTableTreeArrayBlock *)newArrayData;
+					arrayBlock->dataAlloc=arrayProxy->newDataAlloc;
+
+		//			LOG(LOG_INFO,"Set arrayBlock %p dataAlloc to %i",arrayBlock,arrayBlock->dataAlloc);
+					}
+
 				newArrayData+=neededBlocks[i].dataSize;
+//				LOG(LOG_INFO,"Next array (if any) at %p with %02x",newArrayData, *newArrayData);
+
 				}
 			else
+				{
 				if(existingSize>neededSize)
 					LOG(LOG_CRITICAL,"Unexpected reduction in size %i to %i",existingSize,neededSize);
+
+//				LOG(LOG_INFO,"Array %i Rewrite in place %p",i, topPtr->data[i]);
+
+				}
 			}
 
 		if(endArrayData!=newArrayData)
@@ -1616,18 +1788,17 @@ static void writeBuildersAsIndirectData(RoutingComboBuilder *routingBuilder, s8 
 		}
 
 
-	LOG(LOG_INFO,"Tails");
+	topPtr=(RouteTableTreeTopBlock *)((*(routingBuilder->rootPtr))+routingBuilder->topDataBlock.headerSize); // Rebind root after alloc
+
+//	LOG(LOG_INFO,"Tails");
 
 	if((routingBuilder->upgradedToTree) || getSeqTailBuilderDirty(&(routingBuilder->prefixBuilder)))
-		{
-		LOG(LOG_INFO,"Prefix to %p %p",topPtr->data[ROUTE_TOPINDEX_PREFIX],topPtr->data[ROUTE_TOPINDEX_PREFIX]+neededBlocks[ROUTE_TOPINDEX_PREFIX].headerSize);
 		writeSeqTailBuilderPackedData(&(routingBuilder->prefixBuilder), topPtr->data[ROUTE_TOPINDEX_PREFIX]+neededBlocks[ROUTE_TOPINDEX_PREFIX].headerSize);
-		}
 
 	if((routingBuilder->upgradedToTree) || getSeqTailBuilderDirty(&(routingBuilder->suffixBuilder)))
 		writeSeqTailBuilderPackedData(&(routingBuilder->suffixBuilder), topPtr->data[ROUTE_TOPINDEX_SUFFIX]+neededBlocks[ROUTE_TOPINDEX_SUFFIX].headerSize);
 
-	LOG(LOG_INFO,"Leaves");
+//	LOG(LOG_INFO,"Leaves");
 
 	for(int i=ROUTE_TOPINDEX_FORWARD_LEAF; i<ROUTE_TOPINDEX_FORWARD_BRANCH;i++)
 		{
@@ -1635,21 +1806,26 @@ static void writeBuildersAsIndirectData(RoutingComboBuilder *routingBuilder, s8 
 
 		if((routingBuilder->upgradedToTree) || rttGetTopArrayDirty(arrayProxy))
 			{
-			LOG(LOG_INFO,"Calc space");
+//			LOG(LOG_INFO,"Calc space");
+
+			topPtr=(RouteTableTreeTopBlock *)((*(routingBuilder->rootPtr))+routingBuilder->topDataBlock.headerSize); // Rebind root after alloc
+			rttBindBlockArrayProxy(arrayProxy, topPtr->data[i], neededBlocks[i].headerSize);
 
 			s32 size=mergeTopArrayUpdates_leaf_accumulateSize(arrayProxy, indexSize);
-			LOG(LOG_INFO,"Need to allocate %i to write leaf array %i",size, i);
+	//		LOG(LOG_INFO,"Need to allocate %i to write leaf array %i",size, i);
 
+//			LOG(LOG_INFO,"CircAlloc %i",size);
 			u8 *newLeafData=circAlloc(circHeap, size, sliceTag, sliceIndex, NULL);
+//			LOG(LOG_INFO,"Alloc leaf level at %p",newLeafData);
 
-			LOG(LOG_INFO,"Allocating");
+//			LOG(LOG_INFO,"Allocating");
 
-			topPtr=(RouteTableTreeTopBlock *)((*(routingBuilder->rootPtr))+getGapBlockHeaderSize()); // Rebind top/array data in case it moved
+//			LOG(LOG_INFO,"Binding to %p",topPtr->data[i]+neededBlocks[i].headerSize);
 
-			LOG(LOG_INFO,"Binding to %p",topPtr->data[i]+neededBlocks[i].headerSize);
-			rttBindBlockArrayProxy(arrayProxy, topPtr->data[i]+neededBlocks[i].headerSize);
+			topPtr=(RouteTableTreeTopBlock *)((*(routingBuilder->rootPtr))+routingBuilder->topDataBlock.headerSize); // Rebind root after alloc
+			rttBindBlockArrayProxy(arrayProxy, topPtr->data[i], neededBlocks[i].headerSize);
 
-			LOG(LOG_INFO,"Merging - alloc %i",arrayProxy->dataBlock->dataAlloc);
+			//LOG(LOG_INFO,"Merging - alloc %i",arrayProxy->dataBlock->dataAlloc);
 
 
 			//void mergeTopArrayUpdates_leaf(RouteTableTreeArrayProxy *arrayProxy, int arrayNum, int indexSize, int index, u8 *newData, s32 newDataSize)
@@ -1659,7 +1835,7 @@ static void writeBuildersAsIndirectData(RoutingComboBuilder *routingBuilder, s8 
 			}
 		}
 
-	LOG(LOG_INFO,"Branches");
+	//LOG(LOG_INFO,"Branches");
 
 	for(int i=ROUTE_TOPINDEX_FORWARD_BRANCH; i<ROUTE_TOPINDEX_FORWARD_OFFSET;i++)
 		{
@@ -1667,21 +1843,26 @@ static void writeBuildersAsIndirectData(RoutingComboBuilder *routingBuilder, s8 
 
 		if((routingBuilder->upgradedToTree)|| rttGetTopArrayDirty(arrayProxy))
 			{
-			LOG(LOG_INFO,"Calc space");
+		//	LOG(LOG_INFO,"Calc space");
+
+			topPtr=(RouteTableTreeTopBlock *)((*(routingBuilder->rootPtr))+routingBuilder->topDataBlock.headerSize); // Rebind root after alloc
+			rttBindBlockArrayProxy(arrayProxy, topPtr->data[i], neededBlocks[i].headerSize);
 
 			s32 size=mergeTopArrayUpdates_branch_accumulateSize(arrayProxy, indexSize);
-			LOG(LOG_INFO,"Need to allocate %i to write branch array %i",size, i);
+			//LOG(LOG_INFO,"Need to allocate %i to write branch array %i",size, i);
 
+//			LOG(LOG_INFO,"CircAlloc %i",size);
 			u8 *newBranchData=circAlloc(circHeap, size, sliceTag, sliceIndex, NULL);
+//			LOG(LOG_INFO,"Alloc branch level at %p",newBranchData);
 
-			LOG(LOG_INFO,"Allocating");
+			//LOG(LOG_INFO,"Allocating");
 
-			topPtr=(RouteTableTreeTopBlock *)((*(routingBuilder->rootPtr))+getGapBlockHeaderSize()); // Rebind top/array data in case it moved
+//			LOG(LOG_INFO,"Binding to %p",topPtr->data[i]+neededBlocks[i].headerSize);
 
-			LOG(LOG_INFO,"Binding to %p",topPtr->data[i]+neededBlocks[i].headerSize);
-			rttBindBlockArrayProxy(arrayProxy, topPtr->data[i]+neededBlocks[i].headerSize);
+			topPtr=(RouteTableTreeTopBlock *)((*(routingBuilder->rootPtr))+routingBuilder->topDataBlock.headerSize); // Rebind root after alloc
+			rttBindBlockArrayProxy(arrayProxy, topPtr->data[i], neededBlocks[i].headerSize);
 
-			LOG(LOG_INFO,"Merging - alloc %i",arrayProxy->dataBlock->dataAlloc);
+			//LOG(LOG_INFO,"Merging - alloc %i",arrayProxy->dataBlock->dataAlloc);
 
 
 			//void mergeTopArrayUpdates_leaf(RouteTableTreeArrayProxy *arrayProxy, int arrayNum, int indexSize, int index, u8 *newData, s32 newDataSize)

@@ -211,6 +211,8 @@ void *dAlloc(MemDispenser *disp, size_t size)
 	block->allocated+=allocSize;
 	disp->allocated+=allocSize;
 
+	//memset(usrPtr,0,allocSize);
+
 //	LOG(LOG_INFO,"Alloced %i at %p",allocSize,usrPtr);
 
 	return usrPtr;

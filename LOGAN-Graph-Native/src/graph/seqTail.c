@@ -186,7 +186,13 @@ u8 *writeSeqTailBuilderPackedData(SeqTailBuilder *builder, u8 *data)
 
 	if(size!=builder->totalPackedSize)
 	{
+		LOG(LOG_INFO,"Problem writing seqTails");
+
+		dumpSeqTailBuilder(builder);
+
 		LOG(LOG_CRITICAL,"Size %i did not match expected size %i",size,builder->totalPackedSize);
+
+
 	}
 
 	return data;

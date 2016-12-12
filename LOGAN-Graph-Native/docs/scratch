@@ -2755,5 +2755,245 @@ void walkerAppendPreorderedEntries(RouteTableTreeWalker *walker, RouteTableEntry
 
 */
 
+LOGAN INFO src/graph/routeTableTree.c(1742) 431.896612: Leaf 6 (0x7f3c18b147eb): Parent 0, Upstream 4, Entry Alloc 24
+Entries: D:1 W:61  D:0 W:1  D:1 W:6  D:3 W:1  D:1 W:45  D:3 W:1  D:1 W:7  D:0 W:1  D:1 W:12  D:3 W:1  D:1 W:8  D:3 W:1  D:1 W:19  D:0 W:1  D:1 W:25  D:3 W:1  D:1 W:20  D:3 W:1  D:1 W:24  D:-1 W:0  D:-1 W:0  D:-1 W:0  D:-1 W:0  D:-1 W:0
+--
+LOGAN INFO src/graph/routeTableTree.c(1742) 431.898675: Leaf 6 (0x7f3c18b147eb): Parent 3, Upstream 1, Entry Alloc 24
+Entries: D:0 W:4  D:1 W:61  D:0 W:1  D:1 W:6  D:3 W:1  D:1 W:45  D:3 W:1  D:1 W:7  D:0 W:1  D:1 W:12  D:3 W:1  D:1 W:8  D:3 W:1  D:1 W:19  D:0 W:1  D:1 W:25  D:3 W:1  D:1 W:20  D:3 W:1  D:1 W:24  D:-1 W:0  D:-1 W:0  D:-1 W:0  D:-1 W:0
+
+
+Entries:
+D:0 W:4
+D:1 W:61
+D:0 W:1
+D:1 W:6
+D:3 W:1
+D:1 W:45
+D:3 W:1
+D:1 W:7
+D:0 W:1
+D:1 W:12  D:3 W:1  D:1 W:8  D:3 W:1  D:1 W:19  D:0 W:1  D:1 W:25  D:3 W:1  D:1 W:20  D:3 W:1  D:1 W:24  D:-1
+W:0  D:-1 W:0  D:-1 W:0  D:-1 W:0
+
+
+
+LOGAN INFO src/graph/routeTableTree.c(1488) 113.863028: Next Sib failed
+LOGAN INFO src/graph/routeTableTree.c(1494) 113.863030: leafEntry -1
+LOGAN INFO src/graph/routeTableTree.c(2352) 113.863033: Handoff 3 3
+LOGAN INFO src/graph/routeTableTree.c(1872) 113.863036: InsertEntry: Leaf: 5 Entry: -1
+LOGAN INFO src/graph/routeTableTree.c(338) 113.863039: appendBlockArrayEntry: Allocating Leaf 6
+LOGAN INFO src/graph/routeTableTree.c(1223) 113.863042: leafEntry(childPosition) 5
+LOGAN INFO src/graph/routeTableTree.c(1533) 113.863045: Walker Offset Reset 9 5
+
+
+
+LOGAN INFO src/graph/routeTableTree.c(1488) 426.860018: Next Sib failed
+LOGAN INFO src/graph/routeTableTree.c(1494) 426.860020: leafEntry -1
+LOGAN INFO src/graph/routeTableTree.c(2169) 426.860023: Handoff 215 215
+LOGAN INFO src/graph/routeTableTree.c(1872) 426.860026: InsertEntry: Leaf: 6 Entry: -1
+LOGAN CRITICAL src/graph/routeTableTree.c(596) 426.860029: Cannot make entry insert space with negative position -1
+
+
+
+LOGAN INFO src/graph/routeTableTree.c(2359) 15.691506: Failed to add forward route for prefix 1 suffix 2
+LOGAN INFO src/graph/routeTableTree.c(2360) 15.691541: Current edge offset 0 minEdgePosition 8 maxEdgePosition 8
+LOGAN CRITICAL src/graph/routeTableTree.c(2361) 15.691548: Negative gap detected in route insert - Min: -8 Max: 8
+
+
+LOGAN INFO src/graph/routeTableTree.c(2359) 15.704812: Failed to add forward route for prefix 1 suffix 2
+LOGAN INFO src/graph/routeTableTree.c(2360) 15.704848: Current edge offset 0 minEdgePosition 8 maxEdgePosition 8
+LOGAN CRITICAL src/graph/routeTableTree.c(2361) 15.704856: Negative gap detected in route insert - Min: -8 Max: 8
+
+
+LOGAN INFO src/graph/routeTableTree.c(2359) 18.020846: Failed to add forward route for prefix 6 suffix 2
+LOGAN INFO src/graph/routeTableTree.c(2360) 18.020870: Current edge offset 0 minEdgePosition 8 maxEdgePosition 8
+LOGAN CRITICAL src/graph/routeTableTree.c(2361) 18.020880: Negative gap detected in route insert - Min: -8 Max: 8
+
+
+
+
+
+First entry is compacted here:
+
+LOGAN INFO src/graph/routing.c(939) 624.011994: Transfer data 41 bytes (topIdx 3 subIdx 0) from 0x7fff6c3d81ba (top 0x7fff75d2f153 array 0x7fff75d2f1bf) to 0x7fff75d2f254
+
+Array seems correct before compaction move:
+
+LOGAN INFO src/graph/routing.c(923) 697.566574: Transfer array 68 bytes (topIdx 3) from 0x7fff754351f6 (top 0x7fff75d2f153) to 0x7fff5cbb310f
+DumpArray 0x7fff754351f6 (8 alloc): 0x7fff75d2f254 0x7fff75d2f27d 0x7fff75d2f2a6 0x7fff75d2f2cf 0x7fff7543523a 0x7fff75435263 0x7fff7543b413 (nil)
+
+
+Old array entry is dead:
+Indexing Dead Shallow Array 0x7fff75d2f1bf 34 (4 alloc):DumpArray 0x7fff75d2f1bf (4 alloc): 0x7fff75d2f254 0x7fff75d2f27d 0x7fff75d2f2a6 0x7fff75d2f2cf
+
+
+
+
+
+Also during indexing:
+
+LOGAN INFO src/graph/routing.c(770) 748.559721: Decoded Array: ArrayNum: 3 ArrayType: 2 SmerIndex: 28 SubIndex: 0
+LOGAN INFO src/graph/routing.c(801) 748.559724: Indexing Alive Shallow Leaf Data 0x7fff75d2f254 38 (8 alloc)
+
+
+
+But corrupt by compaction:
+
+LOGAN INFO src/graph/routing.c(943) 748.566550: Transfer data 41 bytes (topIdx 3 subIdx 0) from 0xffff0000ffff0000 (top 0x7fff980d38c9 array 0x7fff5cbb310f) to 0x7fff980d39a6
+
+
+
+
+
+
+
+
+
+
+
+
+
+DumpArray 0x7fff8d6c2055 (4 alloc): 0x7fff8d6c2141 (nil) (nil) (nil)
+LOGAN INFO src/graph/routing.c(991) 634.123191: Transfer array 36 bytes (topIdx 5) from 0x7fff8d6c2079 (top 0x7fff8d6c08a9) to 0x7fff8d6c0968
+DumpArray 0x7fff8d6c2079 (4 alloc): 0x7fff8d6c215c (nil) (nil) (nil)
+--
+LOGAN INFO src/graph/routing.c(1007) 634.123214: Transfer data 27 bytes (topIdx 4 subIdx 0) from 0x7fff8d6c2141 (top 0x7fff8d6c08a9 array 0x7fff8d6c0944) to 0x7fff8d6c0a30
+LOGAN INFO src/graph/routing.c(1007) 634.123217: Transfer data 27 bytes (topIdx 5 subIdx 0) from 0x7fff8d6c215c (top 0x7fff8d6c08a9 array 0x7fff8d6c0968) to 0x7fff8d6c0a4b
+LOGAN INFO src/graph/routing.c(962) 634.123220: Transfer top 66 bytes from 0x7fff8d6c2179 to 0x7fff8d6c0a68
+--
+LOGAN INFO src/graph/routing.c(827) 634.339993: Decoded Array: ArrayNum: 5 ArrayType: 0 SmerIndex: 59 SubIndex: -1
+Indexing Alive Shallow Array 0x7fff8d6c0968 34 (4 alloc):DumpArray 0x7fff8d6c0968 (4 alloc): 0x7fff8d6c0a4b (nil) (nil) (nil)
+LOGAN INFO src/graph/routing.c(827) 634.340001: Decoded Array: ArrayNum: 2 ArrayType: 2 SmerIndex: 59 SubIndex: 0
+--
+DumpArray 0x7fff8d6c0944 (4 alloc): 0x7fff8d6c0a30 (nil) (nil) (nil)
+LOGAN INFO src/graph/routing.c(991) 634.363233: Transfer array 36 bytes (topIdx 5) from 0x7fff8d6c0968 (top 0x7fff774a05f5) to 0x7fff774a06b4
+DumpArray 0x7fff8d6c0968 (4 alloc): 0x7fff8d6c0a4b (nil) (nil) (nil)
+LOGAN INFO src/graph/routing.c(1007) 634.363241: Transfer data 41 bytes (topIdx 2 subIdx 0) from 0x7fff8d6c098c (top 0x7fff774a05f5 array 0x7fff774a0648) to 0x7fff774a06d8
+--
+LOGAN INFO src/graph/routing.c(1007) 731.215815: Transfer data 27 bytes (topIdx 5 subIdx 0) from 0x7fff5cb9184a (top 0x7fff8d6c07cc array 0x7fff8d6c0891) to 0x7fff8d6c094b
+LOGAN INFO src/graph/routing.c(991) 731.215818: Transfer array 17 bytes (topIdx 0) from 0x7fff5cb91867 (top 0x7fff5cbb1986) to 0x7fff8d6c0968
+LOGAN INFO src/graph/routing.c(991) 731.215821: Transfer array 15 bytes (topIdx 0) from 0x7fff5cb9187a (top 0x7fff5cb52e33) to 0x7fff8d6c097b
+--
+LOGAN INFO src/mem/memCircHeap.c(432) 742.109356: Post Reclaim from ptr 0x7fff8d6c07cc (RecPos: 2406 AllocPos: 34321)
+LOGAN INFO src/mem/memCircHeap.c(412) 742.109358: Reclaim from ptr 0x7fff8d6c0968 (RecPos: 2408 AllocPos: 34321)
+LOGAN INFO src/graph/routing.c(646) 742.109361: Reclaim Index: HeapDataPtr 0x7fff8d6c0968 TargetAmt 31913 Tag: 4f Disp: 0x7fff8e3c30c0
+LOGAN CRITICAL src/graph/routing.c(624) 742.109365: Pointer mismatch in array during heap validation (0x1000100000008 vs 0x7fff8d6c0968)
+
+
+
+
+
+
+
+LOGAN INFO src/mem/memCircHeap.c(406) 1572.008576: GC Heap Corruption detected at 0x7fff5cb93c3a
+LOGAN CRITICAL src/mem/memCircHeap.c(407) 1572.008579: Attempt to wrap reclaimPosition 15418 before reaching allocWrap 245742
+
+
+
+
+
+Copied Here:
+
+LOGAN INFO src/graph/routing.c(1011) 1534.860684: Transfer data 41 bytes (topIdx 2 subIdx 0) from 0x7fff754145da (top 0x7fff5cb93b5a array 0x7fff5cb93baa) to 0x7fff5cb93c3a
+
+
+
+Referenced Here:
+
+LOGAN INFO src/graph/routing.c(617) 1562.836847: Validate indexEntry: Index: 102 Size: 8 TopIndex: 1 SubIndex: -1
+LOGAN INFO src/graph/routing.c(669) 1562.836850: rtReclaimIndexer 0x7fff5cb93baa a0
+LOGAN INFO src/graph/routing.c(830) 1562.836853: Decoded Array: ArrayNum: 2 ArrayType: 0 SmerIndex: 102 SubIndex: -1
+Indexing Alive Shallow Array 0x7fff5cb93baa 34 (4 alloc):DumpArray 0x7fff5cb93baa (4 alloc): 0x7fff5cb93c3a (nil) (nil) (nil)
+LOGAN INFO src/graph/routing.c(617) 1562.836862: Validate indexEntry: Index: 102 Size: 36 TopIndex: 2 SubIndex: -1
+LOGAN INFO src/graph/routing.c(669) 1562.836865: rtReclaimIndexer 0x7fff5cb93bce b0
+LOGAN INFO src/graph/routing.c(830) 1562.836868: Decoded Array: ArrayNum: 3 ArrayType: 0 SmerIndex: 102 SubIndex: -1
+
+
+Indexing Alive Shallow Array 0x7fff5cb93bce 34 (4 alloc):DumpArray 0x7fff5cb93bce (4 alloc): 0x7fff5cb93c63 0x7fff5cb93c8c (nil) (nil)
+LOGAN INFO src/graph/routing.c(617) 1562.836876: Validate indexEntry: Index: 102 Size: 36 TopIndex: 3 SubIndex: -1
+LOGAN INFO src/graph/routing.c(669) 1562.836879: rtReclaimIndexer 0x7fff5cb93bf2 c0
+LOGAN INFO src/graph/routing.c(830) 1562.836882: Decoded Array: ArrayNum: 4 ArrayType: 0 SmerIndex: 102 SubIndex: -1
+Indexing Alive Shallow Array 0x7fff5cb93bf2 34 (4 alloc):DumpArray 0x7fff5cb93bf2 (4 alloc): 0x7fff5cb93cb5 (nil) (nil) (nil)
+LOGAN INFO src/graph/routing.c(617) 1562.836891: Validate indexEntry: Index: 102 Size: 36 TopIndex: 4 SubIndex: -1
+LOGAN INFO src/graph/routing.c(669) 1562.836893: rtReclaimIndexer 0x7fff5cb93c16 d0
+LOGAN INFO src/graph/routing.c(830) 1562.836896: Decoded Array: ArrayNum: 5 ArrayType: 0 SmerIndex: 102 SubIndex: -1
+Indexing Alive Shallow Array 0x7fff5cb93c16 34 (4 alloc):DumpArray 0x7fff5cb93c16 (4 alloc): 0x7fff5cb93cd0 (nil) (nil) (nil)
+LOGAN INFO src/graph/routing.c(617) 1562.836905: Validate indexEntry: Index: 102 Size: 36 TopIndex: 5 SubIndex: -1
+LOGAN INFO src/mem/memCircHeap.c(458) 1562.836908: Post Reclaim from ptr 0x7fff5cb93aed (RecPos: 15418 AllocPos: 7675)
+LOGAN INFO src/mem/memCircHeap.c(643) 1562.836911: GC Promote for 1
+--
+
+Referenced Here:
+
+LOGAN INFO src/graph/routing.c(995) 1562.954635: Transfer array 6 bytes (topIdx 0) from 0x7fff5cb93b9c (top 0x7fff8de4d872) to 0x7fff8de4d8b4
+LOGAN INFO src/graph/routing.c(995) 1562.954638: Transfer array 8 bytes (topIdx 1) from 0x7fff5cb93ba2 (top 0x7fff8de4d872) to 0x7fff8de4d8ba
+LOGAN INFO src/graph/routing.c(995) 1562.954641: Transfer array 36 bytes (topIdx 2) from 0x7fff5cb93baa (top 0x7fff8de4d872) to 0x7fff8de4d8c2
+DumpArray 0x7fff5cb93baa (4 alloc): 0x7fff5cb93c3a (nil) (nil) (nil)
+LOGAN INFO src/graph/routing.c(995) 1562.954648: Transfer array 36 bytes (topIdx 3) from 0x7fff5cb93bce (top 0x7fff8de4d872) to 0x7fff8de4d8e6
+DumpArray 0x7fff5cb93bce (4 alloc): 0x7fff5cb93c63 0x7fff5cb93c8c (nil) (nil)
+LOGAN INFO src/graph/routing.c(995) 1562.954656: Transfer array 36 bytes (topIdx 4) from 0x7fff5cb93bf2 (top 0x7fff8de4d872) to 0x7fff8de4d90a
+DumpArray 0x7fff5cb93bf2 (4 alloc): 0x7fff5cb93cb5 (nil) (nil) (nil)
+LOGAN INFO src/graph/routing.c(995) 1562.954663: Transfer array 36 bytes (topIdx 5) from 0x7fff5cb93c16 (top 0x7fff8de4d872) to 0x7fff8de4d92e
+DumpArray 0x7fff5cb93c16 (4 alloc): 0x7fff5cb93cd0 (nil) (nil) (nil)
+LOGAN INFO src/mem/memCircHeap.c(706) 1562.954671: GC completed for generation 0
+LOGAN INFO src/mem/memCircHeap.c(779) 1562.954675: Alloc of 41 to 0x7fff5cb91dfb
+LOGAN INFO src/graph/routing.c(1813) 1562.954678: Alloc leaf level at 0x7fff5cb91dfb
+--
+LOGAN INFO src/mem/memCircHeap.c(223) 1572.008564: Gen 5: 126950 occupied / 4122 free with survivor ratio 0.979859. Alloc block 0x7fff980c0000 size 131072 (alloc 77484 and reclaim 81609) Reclaim block 0x7fff980c0000 size 131072 (alloc 77484 and reclaim 81609)
+LOGAN INFO src/mem/memCircHeap.c(223) 1572.008569: Gen 6: 118780 occupied / 4100 free with survivor ratio 0.983530. Alloc block 0x7fff72950000 size 122880 (alloc 64806 and reclaim 68909) Reclaim block 0x7fff72950000 size 122880 (alloc 64806 and reclaim 68909)
+LOGAN INFO src/mem/memCircHeap.c(223) 1572.008572: Gen 7: 680731 occupied / 40165 free with survivor ratio 0.997743. Alloc block 0x7fff5cad0000 size 720896 (alloc 680729 and reclaim 0) Reclaim block 0x7fff5cad0000 size 720896 (alloc 680729 and reclaim 0)
+LOGAN INFO src/mem/memCircHeap.c(406) 1572.008576: GC Heap Corruption detected at 0x7fff5cb93c3a
+LOGAN CRITICAL src/mem/memCircHeap.c(407) 1572.008579: Attempt to wrap reclaimPosition 15418 before reaching allocWrap 245742
+
+
+
+
+
+
+LOGAN INFO src/graph/routing.c(995) 1534.860677: Transfer array 36 bytes (topIdx 5) from 0x7fff754145b6 (top 0x7fff5cb93b5a) to 0x7fff5cb93c16									XXX
+LOGAN INFO src/graph/routing.c(1011) 1534.860684: Transfer data 41 bytes (topIdx 2 subIdx 0) from 0x7fff754145da (top 0x7fff5cb93b5a array 0x7fff5cb93baa) to 0x7fff5cb93c3a 	XXX
+LOGAN INFO src/graph/routing.c(1011) 1534.860687: Transfer data 41 bytes (topIdx 3 subIdx 0) from 0x7fff75414603 (top 0x7fff5cb93b5a array 0x7fff5cb93bce) to 0x7fff5cb93c63
+LOGAN INFO src/graph/routing.c(1011) 1534.860690: Transfer data 41 bytes (topIdx 3 subIdx 1) from 0x7fff7541462c (top 0x7fff5cb93b5a array 0x7fff5cb93bce) to 0x7fff5cb93c8c
+LOGAN INFO src/graph/routing.c(1011) 1534.860693: Transfer data 27 bytes (topIdx 4 subIdx 0) from 0x7fff75414655 (top 0x7fff5cb93b5a array 0x7fff5cb93bf2) to 0x7fff5cb93cb5
+LOGAN INFO src/graph/routing.c(1011) 1534.860696: Transfer data 27 bytes (topIdx 5 subIdx 0) from 0x7fff75414670 (top 0x7fff5cb93b5a array 0x7fff5cb93c16) to 0x7fff5cb93cd0
+LOGAN INFO src/mem/memCircHeap.c(518) 1534.860733: MovedAlloc: 0x7fff5cb93ced Size: 15 ChunkTag: 240 Generation: 0
+LOGAN INFO src/mem/memCircHeap.c(518) 1534.860802: MovedAlloc: 0x7fff5cb93cfe Size: 103 ChunkTag: 241 Generation: 0
+Indexing Alive Shallow Array 0x7fff5cb93baa 34 (4 alloc):DumpArray 0x7fff5cb93baa (4 alloc): 0x7fff5cb93c3a (nil) (nil) (nil)													XXX
+Indexing Alive Shallow Array 0x7fff5cb93bce 34 (4 alloc):DumpArray 0x7fff5cb93bce (4 alloc): 0x7fff5cb93c63 0x7fff5cb93c8c (nil) (nil)
+Indexing Alive Shallow Array 0x7fff5cb93bf2 34 (4 alloc):DumpArray 0x7fff5cb93bf2 (4 alloc): 0x7fff5cb93cb5 (nil) (nil) (nil)
+LOGAN INFO src/graph/routing.c(669) 1562.836893: rtReclaimIndexer 0x7fff5cb93c16 d0
+Indexing Alive Shallow Array 0x7fff5cb93c16 34 (4 alloc):DumpArray 0x7fff5cb93c16 (4 alloc): 0x7fff5cb93cd0 (nil) (nil) (nil)
+DumpArray 0x7fff5cb93baa (4 alloc): 0x7fff5cb93c3a (nil) (nil) (nil)
+DumpArray 0x7fff5cb93bce (4 alloc): 0x7fff5cb93c63 0x7fff5cb93c8c (nil) (nil)
+DumpArray 0x7fff5cb93bf2 (4 alloc): 0x7fff5cb93cb5 (nil) (nil) (nil)
+LOGAN INFO src/graph/routing.c(995) 1562.954663: Transfer array 36 bytes (topIdx 5) from 0x7fff5cb93c16 (top 0x7fff8de4d872) to 0x7fff8de4d92e 									XXX
+DumpArray 0x7fff5cb93c16 (4 alloc): 0x7fff5cb93cd0 (nil) (nil) (nil)
+LOGAN INFO src/mem/memCircHeap.c(406) 1572.008576: GC Heap Corruption detected at 0x7fff5cb93c3a
+
+
+
+7214307-LOGAN INFO src/graph/routing.c(617) 1582.766283: Validate indexEntry: Index: 102 Size: 8 TopIndex: 1 SubIndex: -1
+7214308-LOGAN INFO src/graph/routing.c(669) 1582.766286: rtReclaimIndexer 0x7fff5cb93baa a0
+7214309-LOGAN INFO src/graph/routing.c(830) 1582.766289: Decoded Array: ArrayNum: 2 ArrayType: 0 SmerIndex: 102 SubIndex: -1
+7214310:Indexing Alive Shallow Array 0x7fff5cb93baa 34 (4 alloc):DumpArray 0x7fff5cb93baa (a0 header 4 alloc): 0x7fff5cb93c3a (nil) (nil) (nil)
+7214311-LOGAN INFO src/graph/routing.c(617) 1582.766297: Validate indexEntry: Index: 102 Size: 36 TopIndex: 2 SubIndex: -1
+7214312-LOGAN INFO src/graph/routing.c(669) 1582.766300: rtReclaimIndexer 0x7fff5cb93bce b0
+7214313-LOGAN INFO src/graph/routing.c(830) 1582.766303: Decoded Array: ArrayNum: 3 ArrayType: 0 SmerIndex: 102 SubIndex: -1
+--
+7249562-LOGAN INFO src/graph/routing.c(995) 1582.884468: Transfer array 6 bytes (topIdx 0) from 0x7fff5cb93b9c (top 0x7fff8de4d872) to 0x7fff8de4d8b4
+7249563-LOGAN INFO src/graph/routing.c(995) 1582.884471: Transfer array 8 bytes (topIdx 1) from 0x7fff5cb93ba2 (top 0x7fff8de4d872) to 0x7fff8de4d8ba
+7249564-LOGAN INFO src/graph/routing.c(995) 1582.884474: Transfer array 36 bytes (topIdx 2) from 0x7fff5cb93baa (top 0x7fff8de4d872) to 0x7fff8de4d8c2
+7249565:DumpArray 0x7fff5cb93baa (a0 header 4 alloc): 0x7fff5cb93c3a (nil) (nil) (nil)
+7249566-LOGAN INFO src/graph/routing.c(995) 1582.884482: Transfer array 36 bytes (topIdx 3) from 0x7fff5cb93bce (top 0x7fff8de4d872) to 0x7fff8de4d8e6
+7249567-DumpArray 0x7fff5cb93bce (b0 header 4 alloc): 0x7fff5cb93c63 0x7fff5cb93c8c (nil) (nil)
+7249568-LOGAN INFO src/graph/routing.c(995) 1582.884489: Transfer array 36 bytes (topIdx 4) from 0x7fff5cb93bf2 (top 0x7fff8de4d872) to 0x7fff8de4d90a
+--
+9999996-LOGAN INFO src/mem/memCircHeap.c(223) 1591.978422: Gen 5: 126950 occupied / 4122 free with survivor ratio 0.979859. Alloc block 0x7fff980c0000 size 131072 (alloc 77484 and reclaim 81609) Reclaim block 0x7fff980c0000 size 131072 (alloc 77484 and reclaim 81609)
+9999997-LOGAN INFO src/mem/memCircHeap.c(223) 1591.978426: Gen 6: 118780 occupied / 4100 free with survivor ratio 0.983530. Alloc block 0x7fff72950000 size 122880 (alloc 64806 and reclaim 68909) Reclaim block 0x7fff72950000 size 122880 (alloc 64806 and reclaim 68909)
+9999998-LOGAN INFO src/mem/memCircHeap.c(223) 1591.978429: Gen 7: 680731 occupied / 40165 free with survivor ratio 0.997743. Alloc block 0x7fff5cad0000 size 720896 (alloc 680729 and reclaim 0) Reclaim block 0x7fff5cad0000 size 720896 (alloc 680729 and reclaim 0)
+9999999:LOGAN INFO src/mem/memCircHeap.c(406) 1591.978432: GC Heap Corruption detected at 0x7fff5cb93c3a
+10000000-LOGAN CRITICAL src/mem/memCircHeap.c(407) 1591.978435: Attempt to wrap reclaimPosition 15418 before reaching allocWrap 245742
+
+
 
 

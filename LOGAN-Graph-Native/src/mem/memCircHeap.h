@@ -46,6 +46,7 @@ typedef struct memCircHeapBlockStr
 	s32 sizeIndex;		 // Index of total size
 	s32 needsExpanding;  // Flag
 	s64 allocPosition; 	 // Current position for alloc
+	s64 allocWrap;       // Top Limit of alloc when wrapped
 	s64 reclaimPosition; // Current position for reclaim
 } MemCircHeapBlock;
 

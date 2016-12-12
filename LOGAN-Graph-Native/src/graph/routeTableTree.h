@@ -226,7 +226,7 @@ void rttDumpRoutingTable(RouteTableTreeBuilder *builder);
 
 //s32 rttGetRouteTableTreeBuilderDirty(RouteTableTreeBuilder *builder);
 
-void rttBindBlockArrayProxy(RouteTableTreeArrayProxy *arrayProxy, u8 *heapDataPtr);
+void rttBindBlockArrayProxy(RouteTableTreeArrayProxy *arrayProxy, u8 *heapDataPtr, u32 headerSize);
 
 s32 rttGetTopArrayDirty(RouteTableTreeArrayProxy *arrayProxy);
 s32 rttGetTopArraySize(RouteTableTreeArrayProxy *arrayProxy);

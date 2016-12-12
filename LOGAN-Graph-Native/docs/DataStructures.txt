@@ -373,6 +373,8 @@ Memory Usage:
 valgrind --tool=massif --pages-as-heap=yes --massif-out-file=massif.out ./LOGAN-Graph-Native/bin/LOGAN data/Ecoli-1_Q20.fq 1 1
 grep mem_heap_B massif.out | sed -e 's/mem_heap_B=\(.*\)/\1/' | sort -g | tail -n 1
 
+valgrind --tool=memcheck ./LOGAN-Graph-Native/bin/LOGAN data/Ecoli-1_Q20.fq 1 1
+
 /usr/bin/time -v ./LOGAN-Graph-Native/bin/LOGAN data/Ecoli-1_Q20.fq 1 1
 
 
@@ -380,6 +382,12 @@ grep mem_heap_B massif.out | sed -e 's/mem_heap_B=\(.*\)/\1/' | sort -g | tail -
 Leak detection:
 
 valgrind --leak-check=full --show-reachable=yes ./LOGAN-Graph-Native/bin/LOGAN data/Ecoli-1_Q20.fq 1 1
+
+
+Debugging:
+
+setarch `uname -m` -R /bin/bash
+ulimit -c unlimited
 
 
 
