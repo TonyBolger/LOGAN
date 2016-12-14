@@ -666,7 +666,7 @@ MemCircHeapChunkIndex *rtReclaimIndexer(u8 *heapDataPtr, s64 targetAmount, u8 ta
 	while(heapDataPtr<endOfData)
 		{
 		u8 header=*heapDataPtr;
-		//LOG(LOG_INFO,"rtReclaimIndexer %p %02x",heapDataPtr,header);
+//		LOG(LOG_INFO,"rtReclaimIndexer %p %02x",heapDataPtr,header);
 
 		if(header==CH_HEADER_CHUNK || header==CH_HEADER_INVALID)
 			{
@@ -992,8 +992,8 @@ void rtRelocater(MemCircHeapChunkIndex *index, u8 tag, u8 **tagData, s32 tagData
 
 			if(subindex==-1)
 				{
-				//LOG(LOG_INFO,"Transfer array %i bytes (topIdx %i) from %p (top %p) to %p",
-						//size,topindex,topPtr->data[topindex],(*primaryPtr),newChunk);
+//				LOG(LOG_INFO,"Transfer array %i bytes (topIdx %i) from %p (top %p) to %p",
+//						size,topindex,topPtr->data[topindex],(*primaryPtr),newChunk);
 
 //				if(topindex>=ROUTE_TOPINDEX_FORWARD_LEAF && topindex<=ROUTE_TOPINDEX_REVERSE_BRANCH)
 //					dumpRawArrayBlock(topPtr->data[topindex]);
@@ -1008,8 +1008,8 @@ void rtRelocater(MemCircHeapChunkIndex *index, u8 tag, u8 **tagData, s32 tagData
 				s32 headerSize=rtDecodeArrayBlockHeader(arrayBlockPtr,NULL,NULL,NULL,NULL,NULL,NULL);
 				RouteTableTreeArrayBlock *array=(RouteTableTreeArrayBlock *)(arrayBlockPtr+headerSize);
 
-				//LOG(LOG_INFO,"Transfer data %i bytes (topIdx %i subIdx %i) from %p (top %p array %p) to %p",
-					//	size,topindex,subindex,array->data[subindex],(*primaryPtr), arrayBlockPtr,newChunk);
+//				LOG(LOG_INFO,"Transfer data %i bytes (topIdx %i subIdx %i) from %p (top %p array %p) to %p",
+//						size,topindex,subindex,array->data[subindex],(*primaryPtr), arrayBlockPtr,newChunk);
 
 				memmove(newChunk,array->data[subindex],size);
 				array->data[subindex]=newChunk;
@@ -1131,7 +1131,7 @@ void createBuildersFromIndirectData(RoutingComboBuilder *builder)
 
 	u8 *data=*(builder->rootPtr);
 
-	s32 headerSize=getGapBlockHeaderSize();
+	s32 topHeaderSize=getGapBlockHeaderSize();
 
 	builder->arrayBuilder=NULL;
 	builder->combinedDataBlock.headerSize=0;
@@ -1139,7 +1139,7 @@ void createBuildersFromIndirectData(RoutingComboBuilder *builder)
 	builder->combinedDataPtr=NULL;
 
 	builder->treeBuilder=dAlloc(builder->disp, sizeof(RouteTableTreeBuilder));
-	builder->topDataBlock.headerSize=headerSize;
+	builder->topDataBlock.headerSize=topHeaderSize;
 	builder->topDataBlock.dataSize=sizeof(RouteTableTreeTopBlock);
 	builder->topDataPtr=data;
 
@@ -1153,7 +1153,7 @@ void createBuildersFromIndirectData(RoutingComboBuilder *builder)
 
 	//treeBuilder->topDataBlock->dataSize=data;
 
-	RouteTableTreeTopBlock *top=(RouteTableTreeTopBlock *)(data+headerSize);
+	RouteTableTreeTopBlock *top=(RouteTableTreeTopBlock *)(data+topHeaderSize);
 
 	for(int i=0;i<ROUTE_TOPINDEX_MAX;i++)
 		{
@@ -1168,10 +1168,11 @@ void createBuildersFromIndirectData(RoutingComboBuilder *builder)
 
 	if(prefixBlockData!=NULL)
 		{
-//		LOG(LOG_INFO,"Begin parse indirect prefix from %p",prefixBlockData);
+//		LOG(LOG_INFO,"Begin parse Indirect prefix from %p",prefixBlockData);
 
-		treeBuilder->dataBlocks[ROUTE_TOPINDEX_PREFIX].headerSize=rtDecodeTailBlockHeader(prefixBlockData, NULL, NULL, NULL);
-		u8 *prefixData=prefixBlockData+headerSize;
+		s32 tailHeaderSize=rtDecodeTailBlockHeader(prefixBlockData, NULL, NULL, NULL);
+		treeBuilder->dataBlocks[ROUTE_TOPINDEX_PREFIX].headerSize=tailHeaderSize;
+		u8 *prefixData=prefixBlockData+tailHeaderSize;
 		u8 *prefixDataEnd=initSeqTailBuilder(&(builder->prefixBuilder), prefixData, builder->disp);
 		treeBuilder->dataBlocks[ROUTE_TOPINDEX_PREFIX].dataSize=prefixDataEnd-prefixData;
 		}
@@ -1185,10 +1186,11 @@ void createBuildersFromIndirectData(RoutingComboBuilder *builder)
 
 	if(suffixBlockData!=NULL)
 		{
-//		LOG(LOG_INFO,"Begin parse indirect suffix from %p",suffixBlockData);
+//		LOG(LOG_INFO,"Begin parse Indirect suffix from %p",suffixBlockData);
 
-		treeBuilder->dataBlocks[ROUTE_TOPINDEX_SUFFIX].headerSize=rtDecodeTailBlockHeader(suffixBlockData, NULL, NULL, NULL);
-		u8 *suffixData=suffixBlockData+headerSize;
+		s32 tailHeaderSize=rtDecodeTailBlockHeader(suffixBlockData, NULL, NULL, NULL);
+		treeBuilder->dataBlocks[ROUTE_TOPINDEX_SUFFIX].headerSize=tailHeaderSize;
+		u8 *suffixData=suffixBlockData+tailHeaderSize;
 		u8 *suffixDataEnd=initSeqTailBuilder(&(builder->suffixBuilder), suffixData, builder->disp);
 		treeBuilder->dataBlocks[ROUTE_TOPINDEX_SUFFIX].dataSize=suffixDataEnd-suffixData;
 		}
@@ -1337,8 +1339,14 @@ static void writeBuildersAsDirectData(RoutingComboBuilder *builder, s8 sliceTag,
 	encodeGapDirectBlockHeader(diff, newData);
 
 	newData+=getGapBlockHeaderSize();
+
+	//LOG(LOG_INFO,"Write Direct Prefix: %p",newData);
 	newData=writeSeqTailBuilderPackedData(&(builder->prefixBuilder), newData);
+
+	//LOG(LOG_INFO,"Write Direct Suffix: %p",newData);
 	newData=writeSeqTailBuilderPackedData(&(builder->suffixBuilder), newData);
+
+	//LOG(LOG_INFO,"Write Direct Routes: %p",newData);
 	newData=rtaWriteRouteTableArrayBuilderPackedData(builder->arrayBuilder, newData);
 
 }
@@ -1793,10 +1801,16 @@ static void writeBuildersAsIndirectData(RoutingComboBuilder *routingBuilder, s8 
 //	LOG(LOG_INFO,"Tails");
 
 	if((routingBuilder->upgradedToTree) || getSeqTailBuilderDirty(&(routingBuilder->prefixBuilder)))
+		{
+//		LOG(LOG_INFO,"Write Indirect Prefix %p %i",topPtr->data[ROUTE_TOPINDEX_PREFIX],neededBlocks[ROUTE_TOPINDEX_PREFIX].headerSize);
 		writeSeqTailBuilderPackedData(&(routingBuilder->prefixBuilder), topPtr->data[ROUTE_TOPINDEX_PREFIX]+neededBlocks[ROUTE_TOPINDEX_PREFIX].headerSize);
+		}
 
 	if((routingBuilder->upgradedToTree) || getSeqTailBuilderDirty(&(routingBuilder->suffixBuilder)))
+		{
+//		LOG(LOG_INFO,"Write Indirect Suffix %p %i",topPtr->data[ROUTE_TOPINDEX_SUFFIX],neededBlocks[ROUTE_TOPINDEX_SUFFIX].headerSize);
 		writeSeqTailBuilderPackedData(&(routingBuilder->suffixBuilder), topPtr->data[ROUTE_TOPINDEX_SUFFIX]+neededBlocks[ROUTE_TOPINDEX_SUFFIX].headerSize);
+		}
 
 //	LOG(LOG_INFO,"Leaves");
 

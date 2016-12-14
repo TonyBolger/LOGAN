@@ -749,7 +749,7 @@ static void circHeapEnsureSpace(MemCircHeap *circHeap, size_t newAllocSize)
 }
 
 
-void *circAlloc(MemCircHeap *circHeap, size_t size, u8 tag, s32 newTagOffset, s32 *oldTagOffset)
+void *circAlloc_nobumper(MemCircHeap *circHeap, size_t size, u8 tag, s32 newTagOffset, s32 *oldTagOffset)
 {
 	if(size>CIRCHEAP_MAX_ALLOC)
 		{
@@ -786,25 +786,32 @@ void *circAlloc(MemCircHeap *circHeap, size_t size, u8 tag, s32 newTagOffset, s3
 }
 
 
-/*
 void *circAlloc(MemCircHeap *circHeap, size_t size, u8 tag, s32 newTagOffset, s32 *oldTagOffset)
 {
+	return circAlloc_nobumper(circHeap, size, tag, newTagOffset, oldTagOffset);
+}
 
-	void *usrPtr=circAlloc_test(circHeap, size, tag, newTagOffset, oldTagOffset);
+/*
+ * Later: Need a way to add bumpers to multiple allocations
+ *
+void *circAlloc(MemCircHeap *circHeap, size_t size, u8 tag, s32 newTagOffset, s32 *oldTagOffset)
+{
+#ifdef CH_BUMPER
+	int allocSize=size+1;
+#else
+	int allocSize=size;
+#endif
 
-	u8 *cmpPtr=(u8 *)usrPtr;
+	void *usrPtr=circAlloc_test(circHeap, allocSize, tag, newTagOffset, oldTagOffset);
 
-	u8 *minPtr=(u8 *)0x7fff5cb93c00;
-	u8 *maxPtr=(u8 *)0x7fff5cb93d00;
-
-	u8 *testPtr=(u8 *)0x7fff5cb93c3a;
-
-	if(cmpPtr>=minPtr && cmpPtr<maxPtr)
+#ifdef CH_BUMPER
+	if(usrPtr!=NULL)
 		{
-		LOG(LOG_INFO,"TestPTR: %p is %02x", testPtr, *testPtr);
+		u8 *dataPtr=(u8 *)usrPtr;
+		dataPtr[size]=CH_BUMPER;
 		}
+#endif
 
 	return usrPtr;
-
 }
 */

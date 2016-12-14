@@ -36,6 +36,8 @@
 #define CH_HEADER_INVALID	0x00
 #define CH_HEADER_CHUNK 0x80
 
+// Comment out to disable bumpers
+//#define CH_BUMPER 0x42
 
 typedef struct memCircHeapBlockStr
 {

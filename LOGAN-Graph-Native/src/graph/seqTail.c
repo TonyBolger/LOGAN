@@ -46,7 +46,9 @@ static u8 *readSeqTailBuilderPackedData(SeqTailBuilder *builder, u8 *data)
 		u16 *countPtr=(u16 *)data;
 		oldCount=*countPtr;
 		data+=2;
-		//LOG(LOG_INFO,"Loading %i tails from %p",oldCount,(data-1));
+
+//		if(oldCount>20)
+//			LOG(LOG_INFO,"Loading %i tails from %p",oldCount,(data-2));
 		}
 
 	if(oldCount>0)
@@ -157,7 +159,7 @@ u8 *writeSeqTailBuilderPackedData(SeqTailBuilder *builder, u8 *data)
 	int oldCount=builder->oldTailCount;
 	int newCount=builder->newTailCount;
 
-	//if(oldCount+newCount>4)
+//	if(oldCount+newCount>20)
 //		LOG(LOG_INFO,"Writing %i %i tails to %p",oldCount,newCount,data);
 
 	u16 *countPtr=(u16 *)data;
@@ -187,12 +189,8 @@ u8 *writeSeqTailBuilderPackedData(SeqTailBuilder *builder, u8 *data)
 	if(size!=builder->totalPackedSize)
 	{
 		LOG(LOG_INFO,"Problem writing seqTails");
-
 		dumpSeqTailBuilder(builder);
-
 		LOG(LOG_CRITICAL,"Size %i did not match expected size %i",size,builder->totalPackedSize);
-
-
 	}
 
 	return data;
