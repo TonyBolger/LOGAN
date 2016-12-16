@@ -1120,7 +1120,42 @@ void rtaUnpackRouteTableArrayForSmerLinked(SmerLinked *smerLinked, u8 *data, Mem
 		smerLinked->forwardRouteCount=0;
 		smerLinked->reverseRouteCount=0;
 		}
+}
 
+void rtaGetStats(RouteTableArrayBuilder *builder,
+		s64 *routeTableForwardRouteEntriesPtr, s64 *routeTableForwardRoutesPtr, s64 *routeTableReverseRouteEntriesPtr, s64 *routeTableReverseRoutesPtr,
+		s64 *routeTableArrayBytesPtr)
+{
+	s64 forwardCount=0;
+	s64 reverseCount=0;
+
+	if(routeTableForwardRouteEntriesPtr!=NULL)
+		*routeTableForwardRouteEntriesPtr=builder->oldForwardEntryCount;
+
+	if(routeTableReverseRouteEntriesPtr!=NULL)
+		*routeTableReverseRouteEntriesPtr=builder->oldReverseEntryCount;
+
+	if(routeTableForwardRoutesPtr!=NULL)
+		{
+		for(int i=0;i<builder->oldForwardEntryCount;i++)
+			forwardCount+=builder->oldForwardEntries[i].width+1;
+
+		*routeTableForwardRoutesPtr=forwardCount;
+		}
+
+	if(routeTableReverseRoutesPtr!=NULL)
+		{
+		for(int i=0;i<builder->oldReverseEntryCount;i++)
+			reverseCount+=builder->oldReverseEntries[i].width+1;
+
+		*routeTableReverseRoutesPtr=reverseCount;
+		}
+
+	if(routeTableArrayBytesPtr!=NULL)
+		{
+		*routeTableArrayBytesPtr=rtaGetRouteTableArrayBuilderPackedSize(builder);
+		}
 
 }
+
 

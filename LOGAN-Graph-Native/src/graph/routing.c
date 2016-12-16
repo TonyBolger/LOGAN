@@ -432,12 +432,12 @@ s32 rtEncodeArrayBlockHeader(u32 arrayNum, u32 arrayType, u32 indexSize, u32 ind
 
 	switch(arrayType)
 	{
-		case 1:
-		case 2:
+		case ARRAY_TYPE_DEEP_PTR:
+		case ARRAY_TYPE_SHALLOW_DATA:
 			*data=subindex;
 			return 2+indexSize;
 
-		case 3:
+		case ARRAY_TYPE_DEEP_DATA:
 			*((u16 *)data)=subindex;
 			return 3+indexSize;
 	}
@@ -1651,6 +1651,13 @@ static void writeBuildersAsIndirectData(RoutingComboBuilder *routingBuilder, s8 
 		//LOG(LOG_INFO,"Array %i had %i, now has %i",i,arrayProxy->dataCount,arrayProxy->newDataCount);
 
 		neededBlocks[i].dataSize=rttGetTopArraySize(arrayProxy);
+
+		if(arrayProxy->newDataCount>255)
+			{
+			LOG(LOG_INFO,"Array %i oversize",i);
+			rttDumpRoutingTable(routingBuilder->treeBuilder);
+			LOG(LOG_CRITICAL,"Bailing out");
+			}
 		}
 
 	int totalNeededSize=0;
@@ -2205,6 +2212,92 @@ SmerLinked *rtGetLinkedSmer(SmerArray *smerArray, SmerId rootSmerId, MemDispense
 }
 
 
+
+
+
+
+SmerRoutingStats *rtGetRoutingStats(SmerArraySlice *smerArraySlice, u32 sliceNum, MemDispenser *disp)
+{
+	int smerCount=smerArraySlice->smerCount;
+
+	SmerRoutingStats *stats=dAlloc(disp, sizeof(SmerRoutingStats)*smerCount);
+	memset(stats,0,sizeof(SmerRoutingStats)*smerCount);
+
+	for(int i=0;i<smerCount;i++)
+		{
+		SmerEntry entry=smerArraySlice->smerIT[i];
+
+		SmerId smerId=recoverSmerId(sliceNum, entry);
+		stats[i].smerId=smerId;
+
+		unpackSmer(smerId, stats[i].smerStr);
+
+		u8 *smerData=smerArraySlice->smerData[i];
+
+		if(smerData!=NULL)
+			{
+			RoutingComboBuilder routingBuilder;
+
+			routingBuilder.disp=disp;
+			routingBuilder.rootPtr=smerArraySlice->smerData+i;
+
+			u8 header=*smerData;
+
+			if((header&ALLOC_HEADER_LIVE_GAP_ROOT_MASK)==ALLOC_HEADER_LIVE_GAP_ROOT_DIRECT_VALUE)
+				{
+				stats[i].routeTableFormat=1;
+				createBuildersFromDirectData(&routingBuilder);
+
+				stats[i].prefixBytes=routingBuilder.prefixBuilder.oldDataSize;
+				stats[i].prefixTails=routingBuilder.prefixBuilder.oldTailCount;
+
+				stats[i].suffixBytes=routingBuilder.suffixBuilder.oldDataSize;
+				stats[i].suffixTails=routingBuilder.suffixBuilder.oldTailCount;
+
+				RouteTableArrayBuilder *arrayBuilder=routingBuilder.arrayBuilder;
+				rtaGetStats(arrayBuilder,
+						&(stats[i].routeTableForwardRouteEntries), &(stats[i].routeTableForwardRoutes),
+						&(stats[i].routeTableReverseRouteEntries), &(stats[i].routeTableReverseRoutes),
+						&(stats[i].routeTableArrayBytes));
+				}
+			else if((header&ALLOC_HEADER_LIVE_GAP_ROOT_MASK)==ALLOC_HEADER_LIVE_GAP_ROOT_TOP_VALUE)
+				{
+				stats[i].routeTableFormat=2;
+				createBuildersFromIndirectData(&routingBuilder);
+
+				stats[i].prefixBytes=routingBuilder.prefixBuilder.oldDataSize;
+				stats[i].prefixTails=routingBuilder.prefixBuilder.oldTailCount;
+
+				stats[i].suffixBytes=routingBuilder.suffixBuilder.oldDataSize;
+				stats[i].suffixTails=routingBuilder.suffixBuilder.oldTailCount;
+
+				RouteTableTreeBuilder *treeBuilder=routingBuilder.treeBuilder;
+
+				rttGetStats(treeBuilder,
+						&(stats[i].routeTableForwardRouteEntries), &(stats[i].routeTableForwardRoutes),
+						&(stats[i].routeTableReverseRouteEntries), &(stats[i].routeTableReverseRoutes),
+						&(stats[i].routeTableTreeTopBytes), &(stats[i].routeTableTreeArrayBytes),
+						&(stats[i].routeTableTreeLeafBytes), &(stats[i].routeTableTreeBranchBytes));
+				}
+			else
+				{
+				LOG(LOG_INFO,"Null routing table for Smer: %s",stats[i].smerStr);
+				}
+
+
+			stats[i].routeTableTotalBytes=stats[i].routeTableArrayBytes+
+					stats[i].routeTableTreeArrayBytes+stats[i].routeTableTreeBranchBytes+
+					stats[i].routeTableTreeLeafBytes+stats[i].routeTableTreeTopBytes;
+
+			stats[i].smerTotalBytes=sizeof(SmerEntry)+sizeof(u8 *)+stats[i].prefixBytes+stats[i].suffixBytes+stats[i].routeTableTotalBytes;
+			}
+
+		}
+
+
+
+	return stats;
+}
 
 
 

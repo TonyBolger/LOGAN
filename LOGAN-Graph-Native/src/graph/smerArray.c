@@ -65,18 +65,59 @@ s32 saInitSmerArray(SmerArray *smerArray, SmerMap *smerMap) {
 	return total;
 }
 
+/*
+s32 prefixTails;
+s32 prefixBytes;
+
+s32 suffixTails;
+s32 suffixBytes;
+
+s32 routeTableFormat; // 0 - null, 1 - array, 2 - tree
+
+s64 routeTableForwardRouteEntries;
+s64 routeTableForwardRoutes;
+
+s64 routeTableReverseRouteEntries;
+s64 routeTableReverseRoutes;
+
+s64 routeTableArrayBytes;
+
+s64 routeTableTreeTopBytes;
+s64 routeTableTreeArrayBytes;
+s64 routeTableTreeLeafBytes;
+s64 routeTableTreeBranchBytes;
+
+s64 routeTableTotalBytes;
+s64 smerTotalBytes;
+*/
+
 void saCleanupSmerArray(SmerArray *smerArray) {
 
 	int i = 0;
 
-	for(i=0;i<SMER_DISPATCH_GROUPS;i++)
-		//colHeapFree(smerArray->heaps[i]);
-		circHeapFree(smerArray->heaps[i]);
+	                   //012345678901234567890123
+	LOGN(LOG_INFO,"STAT: SmerBases               \tPtail\tPbyte\tStail\tSbyte\tRFmt\tRFe\tRFr\tRRe\tRRr\tRAbyte\tRTTopB\tRTAryB\tRTlB\tRTbB\tRTByte\tByte");
+
+	MemDispenser *disp=dispenserAlloc("Stats",DISPENSER_BLOCKSIZE_MEDIUM);
 
 	for (i = 0; i < SMER_SLICES; i++)
 		{
 		if (smerArray->slice[i].smerIT != NULL)
 			{
+			SmerRoutingStats *stats=rtGetRoutingStats(smerArray->slice+i, i, disp);
+			int smerCount=smerArray->slice[i].smerCount;
+
+			for(int j=0;j<smerCount;j++)
+				{
+				LOGN(LOG_INFO,"SMER: %s\t%i\t%i\t%i\t%i\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li",
+						stats[j].smerStr, stats[j].prefixTails, stats[j].prefixBytes, stats[j].suffixTails, stats[j].suffixBytes, stats[j].routeTableFormat,
+						stats[j].routeTableForwardRouteEntries, stats[j].routeTableForwardRoutes, stats[j].routeTableReverseRouteEntries, stats[j].routeTableReverseRoutes,
+						stats[j].routeTableArrayBytes, stats[j].routeTableTreeTopBytes, stats[j].routeTableTreeArrayBytes, stats[j].routeTableTreeLeafBytes, stats[j].routeTableTreeBranchBytes,
+						stats[j].routeTableTotalBytes, stats[j].smerTotalBytes);
+				}
+
+			dispenserReset(disp);
+
 			smSmerEntryArrayFree(smerArray->slice[i].smerIT);
 			smSmerDataArrayFree(smerArray->slice[i].smerData);
 			}
@@ -94,6 +135,12 @@ void saCleanupSmerArray(SmerArray *smerArray) {
 
 		//packStackFree(smerArray->slice[i].slicePackStack);
 		}
+
+	dispenserFree(disp);
+
+	for(i=0;i<SMER_DISPATCH_GROUPS;i++)
+		//colHeapFree(smerArray->heaps[i]);
+		circHeapFree(smerArray->heaps[i]);
 
 	memset(smerArray, 0, sizeof(SmerArray));
 }

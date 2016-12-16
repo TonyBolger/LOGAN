@@ -27,8 +27,8 @@
 //#define ROUTE_TABLE_TREE_BRANCH_CHILDREN 2
 //#define ROUTE_TABLE_TREE_BRANCH_CHILDREN_CHUNK 2
 
-#define ROUTE_TABLE_TREE_LEAF_ENTRIES 120
-#define ROUTE_TABLE_TREE_LEAF_ENTRIES_CHUNK 8
+#define ROUTE_TABLE_TREE_LEAF_ENTRIES 1024
+#define ROUTE_TABLE_TREE_LEAF_ENTRIES_CHUNK 16
 //#define ROUTE_TABLE_TREE_LEAF_ENTRIES 4
 //#define ROUTE_TABLE_TREE_LEAF_ENTRIES_CHUNK 4
 //#define ROUTE_TABLE_TREE_LEAF_ENTRIES 2
@@ -241,7 +241,9 @@ void rttMergeRoutes(RouteTableTreeBuilder *builder,
 
 void rttUnpackRouteTableForSmerLinked(SmerLinked *smerLinked, u8 *data, MemDispenser *disp);
 
-
+void rttGetStats(RouteTableTreeBuilder *builder,
+		s64 *routeTableForwardRouteEntriesPtr, s64 *routeTableForwardRoutesPtr, s64 *routeTableReverseRouteEntriesPtr, s64 *routeTableReverseRoutesPtr,
+		s64 *routeTableTreeTopBytesPtr, s64 *routeTableTreeArrayBytesPtr, s64 *routeTableTreeLeafBytes, s64 *routeTableTreeBranchBytes);
 
 
 #endif

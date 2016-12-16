@@ -2565,3 +2565,90 @@ void rttUnpackRouteTableForSmerLinked(SmerLinked *smerLinked, u8 *data, MemDispe
 	LOG(LOG_CRITICAL,"Not implemented: rttUnpackRouteTableForSmerLinked");
 }
 
+
+
+void rttGetStats(RouteTableTreeBuilder *builder,
+		s64 *routeTableForwardRouteEntriesPtr, s64 *routeTableForwardRoutesPtr, s64 *routeTableReverseRouteEntriesPtr, s64 *routeTableReverseRoutesPtr,
+		s64 *routeTableTreeTopBytesPtr, s64 *routeTableTreeArrayBytesPtr, s64 *routeTableTreeLeafBytes, s64 *routeTableTreeBranchBytes)
+{
+	s64 routeEntries[]={0,0};
+	s64 routes[]={0,0};
+
+	s64 arrayBytes=0;
+	s64 leafBytes=0;
+	s64 branchBytes=0;
+
+	RouteTableTreeProxy *treeProxies[2];
+
+	treeProxies[0]=&(builder->forwardProxy);
+	treeProxies[1]=&(builder->reverseProxy);
+
+	for(int p=0;p<2;p++)
+		{
+		// Process leaves: Assume Direct
+
+		int arrayAlloc=treeProxies[p]->leafArrayProxy.dataAlloc;
+		arrayBytes+=sizeof(RouteTableTreeArrayBlock)+arrayAlloc*sizeof(u8 *);
+
+		int leafCount=treeProxies[p]->leafArrayProxy.dataCount;
+		for(int i=0;i<leafCount;i++)
+			{
+			RouteTableTreeLeafProxy *leafProxy=getRouteTableTreeLeafProxy(treeProxies[p], i);
+
+			int leafAlloc=leafProxy->entryAlloc;
+			leafBytes+=sizeof(RouteTableTreeLeafBlock)+leafAlloc*sizeof(RouteTableTreeLeafEntry);
+
+			s32 routesTmp=0;
+			int leafElements=leafProxy->entryCount;
+			for(int j=0;j<leafElements;j++)
+				routesTmp+=leafProxy->dataBlock->entries[j].width;
+
+			routeEntries[p]+=leafElements;
+			routes[p]+=routesTmp;
+			}
+
+		// Process branches: Assume Direct
+		arrayAlloc=treeProxies[p]->branchArrayProxy.dataAlloc;
+		arrayBytes+=sizeof(RouteTableTreeArrayBlock)+arrayAlloc*sizeof(u8 *);
+
+		int branchCount=treeProxies[p]->branchArrayProxy.dataCount;
+		for(int i=0;i<branchCount;i++)
+			{
+			RouteTableTreeBranchProxy *branchProxy=getRouteTableTreeBranchProxy(treeProxies[p], i);
+
+			int branchAlloc=branchProxy->childAlloc;
+			branchBytes+=sizeof(RouteTableTreeBranchBlock)+branchAlloc*sizeof(s16);
+			}
+
+		}
+
+	if(routeTableForwardRouteEntriesPtr!=NULL)
+		*routeTableForwardRouteEntriesPtr=routeEntries[0];
+
+	if(routeTableForwardRoutesPtr!=NULL)
+		*routeTableForwardRoutesPtr=routes[0];
+
+	if(routeTableReverseRouteEntriesPtr!=NULL)
+		*routeTableReverseRouteEntriesPtr=routeEntries[1];
+
+	if(routeTableReverseRoutesPtr!=NULL)
+		*routeTableReverseRoutesPtr=routes[1];
+
+	if(routeTableTreeTopBytesPtr!=NULL)
+		*routeTableTreeTopBytesPtr=sizeof(RouteTableTreeTopBlock);
+
+	if(routeTableTreeArrayBytesPtr!=NULL)
+		*routeTableTreeArrayBytesPtr=arrayBytes;
+
+	if(routeTableTreeLeafBytes!=NULL)
+		*routeTableTreeLeafBytes=leafBytes;
+
+	if(routeTableTreeBranchBytes!=NULL)
+		*routeTableTreeBranchBytes=branchBytes;
+
+
+}
+
+
+
+
