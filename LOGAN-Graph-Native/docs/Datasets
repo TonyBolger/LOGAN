@@ -253,6 +253,13 @@ for q in 10 15 20; do for d in 1P 2P 1U 2U; do cat data/Pen-1_Q${q}_${d}.fq.gz d
 for i in Arabi-1 Ecoli-1 Ecoli-2 Lyrata-1 Pen-1 Pen-2 Pen-3 Pen-4; do for q in 10 15 20; do cat ${i}_Q${q}_[12][PU].fq.gz | gunzip > ${i}_Q${q}.fq; done; done
 
 
+
+for i in Arabi-1 Ecoli-1 Ecoli-2 Lyrata-1 Pen-3; do for q in 20; do cat ${i}_Q${q}_[12][PU].fq.gz | gunzip > ${i}_Q${q}.fq & done; done
+
+for i in Ecoli-1 Ecoli-2; do for q in 10 15; do cat ${i}_Q${q}_[12][PU].fq.gz | gunzip > ${i}_Q${q}.fq & done; done
+
+
+
 for i in Pen-1 Pen-2 Pen-3 Pen-4; do for q in 10 15 20; do cat ${i}_Q${q}_[12][PU].fq.gz | gunzip > ${i}_Q${q}.fq; done; done
 
 
