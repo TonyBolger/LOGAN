@@ -1988,7 +1988,7 @@ static void mergeRoutes_widen(RouteTableTreeWalker *walker)
 		LOG(LOG_CRITICAL,"Entry Widen: Invalid downstream, should never happen");
 		}
 
-	if(leafProxy->dataBlock->entries[walker->leafEntry].width>32000)
+	if(leafProxy->dataBlock->entries[walker->leafEntry].width>2000000000)
 		{
 		LOG(LOG_CRITICAL,"Entry Widen: About to wrap width %i",leafProxy->dataBlock->entries[walker->leafEntry].width);
 		}

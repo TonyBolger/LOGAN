@@ -85,7 +85,7 @@ typedef struct routeTableTreeBranchBlockStr
 typedef struct routeTableTreeLeafEntryStr
 {
 	s16 downstream;
-	s16 width;
+	s32 width;
 } __attribute__((packed)) RouteTableTreeLeafEntry;
 
 typedef struct routeTableLeafBlockStr
