@@ -95,10 +95,10 @@ void saCleanupSmerArray(SmerArray *smerArray) {
 
 	int i = 0;
 
-	                   //012345678901234567890123
-	LOGN(LOG_INFO,"STAT: SmerBases               \tPtail\tPbyte\tStail\tSbyte\tRFmt\tRFe\tRFr\tRRe\tRRr\tRe\tRr\tRAbyte\tRTTopB\tRTAryB\tRTlB\tRTbB\tRTByte\tByte");
+	                   //012345678901  01234567890123456789012
+	LOGN(LOG_INFO,"STAT: SmerID      \tSmerBases              \tPtail\tPbyte\tStail\tSbyte\tRFmt\tRFe\tRFr\tRRe\tRRr\tRe\tRr\tRAbyte\tRTTopB\tRTAryB\tRTlB\tRTbB\tRTByte\tByte");
 
-	MemDispenser *disp=dispenserAlloc("Stats",DISPENSER_BLOCKSIZE_LARGE);
+	MemDispenser *disp=dispenserAlloc("Stats",DISPENSER_BLOCKSIZE_HUGE);
 
 	for (i = 0; i < SMER_SLICES; i++)
 		{
@@ -112,8 +112,9 @@ void saCleanupSmerArray(SmerArray *smerArray) {
 				s64 frEntries=stats[j].routeTableForwardRouteEntries+stats[j].routeTableReverseRouteEntries;
 				s64 frRoutes=stats[j].routeTableForwardRoutes+stats[j].routeTableReverseRoutes;
 
-				LOGN(LOG_INFO,"SMER: %s\t%i\t%i\t%i\t%i\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li",
-						stats[j].smerStr, stats[j].prefixTails, stats[j].prefixBytes, stats[j].suffixTails, stats[j].suffixBytes, stats[j].routeTableFormat,
+				LOGN(LOG_INFO,"SMER: $012x\t%s\t%i\t%i\t%i\t%i\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li",
+						stats[j].smerId, stats[j].smerStr,
+						stats[j].prefixTails, stats[j].prefixBytes, stats[j].suffixTails, stats[j].suffixBytes, stats[j].routeTableFormat,
 						stats[j].routeTableForwardRouteEntries, stats[j].routeTableForwardRoutes, stats[j].routeTableReverseRouteEntries, stats[j].routeTableReverseRoutes,
 						frEntries, frRoutes,
 						stats[j].routeTableArrayBytes, stats[j].routeTableTreeTopBytes, stats[j].routeTableTreeArrayBytes, stats[j].routeTableTreeLeafBytes, stats[j].routeTableTreeBranchBytes,
@@ -127,17 +128,6 @@ void saCleanupSmerArray(SmerArray *smerArray) {
 			}
 
 		freeBloom(&(smerArray->slice[i].bloom));
-
-		/*
-		LOG(LOG_INFO,"Slice %i has %i smers with %li alloc (%i %i %i) and %li realloc",i,smerArray->slice[i].smerCount,
-				smerArray->slice[i].totalAlloc,
-				smerArray->slice[i].totalAllocPrefix,
-				smerArray->slice[i].totalAllocSuffix,
-				smerArray->slice[i].totalAllocRoutes,
-				smerArray->slice[i].totalRealloc)
-*/
-
-		//packStackFree(smerArray->slice[i].slicePackStack);
 		}
 
 	dispenserFree(disp);
