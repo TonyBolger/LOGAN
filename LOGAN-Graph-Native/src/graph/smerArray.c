@@ -112,7 +112,7 @@ void saCleanupSmerArray(SmerArray *smerArray) {
 				s64 frEntries=stats[j].routeTableForwardRouteEntries+stats[j].routeTableReverseRouteEntries;
 				s64 frRoutes=stats[j].routeTableForwardRoutes+stats[j].routeTableReverseRoutes;
 
-				LOGN(LOG_INFO,"SMER: $012x\t%s\t%i\t%i\t%i\t%i\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li",
+				LOGN(LOG_INFO,"SMER: %012x\t%s\t%i\t%i\t%i\t%i\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li",
 						stats[j].smerId, stats[j].smerStr,
 						stats[j].prefixTails, stats[j].prefixBytes, stats[j].suffixTails, stats[j].suffixBytes, stats[j].routeTableFormat,
 						stats[j].routeTableForwardRouteEntries, stats[j].routeTableForwardRoutes, stats[j].routeTableReverseRouteEntries, stats[j].routeTableReverseRoutes,

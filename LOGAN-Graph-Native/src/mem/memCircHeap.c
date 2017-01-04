@@ -574,7 +574,7 @@ static s64 calcHeapReclaimStats(MemCircHeapChunkIndex *index, MemCircGeneration 
 
 static void circHeapCompact(MemCircHeap *circHeap, int generation, s64 targetFree, MemDispenser *disp)
 {
-	// This implementation can fail due to the 'compaction' slightly growing the memory block due to the need for chunk headers
+	// This implementation can fail due to the 'compaction' slightly growing the memory block due to the need for chunk headers, or if alloc catches reclaim (100% retained)
 
 //	LOG(LOG_INFO,"CircHeapCompact");
 
@@ -591,10 +591,10 @@ static void circHeapCompact(MemCircHeap *circHeap, int generation, s64 targetFre
 		MemCircHeapChunkIndex *remainingIndex=moveIndexedHeap(circHeap, index, generation);
 		if(remainingIndex!=NULL)
 			{
-			LOG(LOG_CRITICAL,"GC heap compact failed");
+			LOG(LOG_INFO,"Unable to allocate %li in generation %i",remainingIndex->sizeLive,generation);
+			dumpCircHeap(circHeap);
 
-//			LOG(LOG_INFO,"Unable to allocate %li in generation %i",remainingIndex->sizeLive,generation);
-//			dumpCircHeap(circHeap);
+			LOG(LOG_CRITICAL,"GC heap compact failed");
 			}
 
 //		LOG(LOG_INFO,"Iter");
@@ -688,6 +688,7 @@ static void circHeapEnsureSpace_generation(MemCircHeap *circHeap, size_t support
 
 			circHeap->generations[generation].allocCurrentChunkPtr=NULL;
 
+			//LOG(LOG_INFO,"Reclaim via compaction for expanded generation %i, to free %li",generation, targetFree);
 			circHeapCompact(circHeap, generation, newAllocBlock->size, disp);
 
 			if(circHeap->generations[generation].reclaimBlock->allocPosition!=circHeap->generations[generation].reclaimBlock->reclaimPosition)
@@ -704,9 +705,15 @@ static void circHeapEnsureSpace_generation(MemCircHeap *circHeap, size_t support
 		}
 	else
 		{
-//		LOG(LOG_INFO,"Reclaim via compaction for generation %i, to free %li",generation, targetFree);
+		spaceEstimate=estimateSpaceInGeneration(circHeap->generations+generation);
+		spaceEstimate=MAX(0,spaceEstimate-CIRCHEAP_BLOCK_OVERHEAD);
 
-		circHeapCompact(circHeap, generation, targetFree, disp);
+		if(spaceEstimate>0)
+			{
+			LOG(LOG_INFO,"Reclaim via compaction for generation %i, to free %li, currently space %i",generation, targetFree, spaceEstimate);
+			circHeapCompact(circHeap, generation, targetFree, disp);
+			LOG(LOG_INFO,"Reclaim via compaction ok");
+			}
 
 		spaceEstimate=estimateSpaceInGeneration(circHeap->generations+generation);
 		spaceEstimate=MAX(0,spaceEstimate-CIRCHEAP_BLOCK_OVERHEAD);
@@ -721,7 +728,9 @@ static void circHeapEnsureSpace_generation(MemCircHeap *circHeap, size_t support
 
 			circHeap->generations[generation].allocCurrentChunkPtr=NULL;
 
+			LOG(LOG_INFO,"Reclaim via compaction for expanded generation %i, to free %li",generation, targetFree);
 			circHeapCompact(circHeap, generation, newAllocBlock->size, disp);
+			LOG(LOG_INFO,"Reclaim via compaction ok");
 
 			if(circHeap->generations[generation].reclaimBlock->allocPosition!=circHeap->generations[generation].reclaimBlock->reclaimPosition)
 				{
@@ -731,7 +740,6 @@ static void circHeapEnsureSpace_generation(MemCircHeap *circHeap, size_t support
 			freeBlockSafe(circHeap->generations[generation].reclaimBlock);
 			circHeap->generations[generation].reclaimBlock=newAllocBlock;
 			}
-
 
 		}
 
