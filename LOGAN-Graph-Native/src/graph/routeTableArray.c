@@ -1138,7 +1138,7 @@ void rtaGetStats(RouteTableArrayBuilder *builder,
 	if(routeTableForwardRoutesPtr!=NULL)
 		{
 		for(int i=0;i<builder->oldForwardEntryCount;i++)
-			forwardCount+=builder->oldForwardEntries[i].width+1;
+			forwardCount+=builder->oldForwardEntries[i].width;
 
 		*routeTableForwardRoutesPtr=forwardCount;
 		}
@@ -1146,7 +1146,7 @@ void rtaGetStats(RouteTableArrayBuilder *builder,
 	if(routeTableReverseRoutesPtr!=NULL)
 		{
 		for(int i=0;i<builder->oldReverseEntryCount;i++)
-			reverseCount+=builder->oldReverseEntries[i].width+1;
+			reverseCount+=builder->oldReverseEntries[i].width;
 
 		*routeTableReverseRoutesPtr=reverseCount;
 		}

@@ -539,6 +539,14 @@ static s32 scanTagData(u8 **tagData, s32 tagDataLength, s32 startIndex, u8 *want
 	return -1;
 }
 
+//static
+s32 scanTagDataNested(u8 **tagData, s32 smerIndex, s32 arrayNum, s32 subIndex) // TODO
+{
+
+	return 0;
+}
+
+
 
 static MemCircHeapChunkIndex *allocOrExpandIndexer(MemCircHeapChunkIndex *oldIndex, MemDispenser *disp)
 {
@@ -1406,7 +1414,7 @@ s32 mergeTopArrayUpdates_branch_accumulateSize(RouteTableTreeArrayProxy *arrayPr
 			RouteTableTreeBranchBlock *newBranchData=(RouteTableTreeBranchBlock *)(arrayProxy->newData[i]);
 
 			if(newBranchData->childAlloc!=oldBranchChildAlloc)
-				totalSize+=rtGetArrayBlockHeaderSize(indexSize,1)+sizeof(RouteTableTreeBranchBlock)+sizeof(s16)*newBranchData->childAlloc;
+				totalSize+=rtGetArrayBlockHeaderSize(indexSize,1)+sizeof(RouteTableTreeBranchBlock)+sizeof(s16)*((s32)(newBranchData->childAlloc));
 			}
 		}
 
@@ -1507,7 +1515,7 @@ s32 mergeTopArrayUpdates_leaf_accumulateSize(RouteTableTreeArrayProxy *arrayProx
 			RouteTableTreeLeafBlock *newLeafData=(RouteTableTreeLeafBlock *)(arrayProxy->newData[i]);
 
 			if(newLeafData->entryAlloc!=oldLeafEntryAlloc)
-				totalSize+=rtGetArrayBlockHeaderSize(indexSize,1)+sizeof(RouteTableTreeLeafBlock)+sizeof(RouteTableTreeLeafEntry)*newLeafData->entryAlloc;
+				totalSize+=rtGetArrayBlockHeaderSize(indexSize,1)+sizeof(RouteTableTreeLeafBlock)+sizeof(RouteTableTreeLeafEntry)*((s32)(newLeafData->entryAlloc));
 			}
 		}
 
@@ -1833,7 +1841,7 @@ static void writeBuildersAsIndirectData(RoutingComboBuilder *routingBuilder, s8 
 			rttBindBlockArrayProxy(arrayProxy, topPtr->data[i], neededBlocks[i].headerSize);
 
 			s32 size=mergeTopArrayUpdates_leaf_accumulateSize(arrayProxy, indexSize);
-	//		LOG(LOG_INFO,"Need to allocate %i to write leaf array %i",size, i);
+//			LOG(LOG_INFO,"Need to allocate %i to write leaf array %i",size, i);
 
 //			LOG(LOG_INFO,"CircAlloc %i",size);
 			u8 *newLeafData=circAlloc(circHeap, size, sliceTag, sliceIndex, NULL);

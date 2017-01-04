@@ -54,6 +54,7 @@ Q20.fq.gz:   7562003 543744341	117.19
 
 Dataset 2: Ecoli 2
 
+SRX131029/SRX131033/SRX131038/SRX131053
 
 SRX131029: Whole Genome Sequencing and Assembly
 4 ILLUMINA (Illumina HiSeq 2000) runs: 44.1M spots, 9.3G bases, 5.3Gb downloads
@@ -131,6 +132,8 @@ Unfiltered:  	283766708       28660437508		6177.25
  
 
 
+
+
 Dataset 3: Arabidopsis Col-0
 
 DS=Arabi-1
@@ -140,6 +143,7 @@ for i in SRR519624; do for q in 10 15 20; do
 done; done
 
 
+SRX158512:
 
 SRX158512: Illumina sequencing of Col-0 genomic fragment library
 1 ILLUMINA (Illumina HiSeq 2000) run: 17.3M spots, 3.5G bases, 2.6Gb downloads
@@ -203,6 +207,43 @@ cat Pen-1_Q10*.gz | gunzip | grep -F "AGCGGTTCAGCAGGAATGCCGAGACCGATCTCGTATGC" | 
 Pen-1: 283
 Pen-2: 4349
 Pen-3: 113212
+
+
+
+
+
+Dataset Ecoli PB:
+
+Experiment SRX255228
+
+SRR797943	207.7M	81.7k	
+SRR801638	172.2M	81.7k	
+SRR801639	124.8M	81.7k	
+SRR801640	217.1M	81.7k	
+SRR801641	185.1M	81.7k	
+SRR801642	166.4M	81.7k	
+SRR801643	184.4M	81.7k	
+SRR801644	169.7M	81.7k	
+SRR801645	197.6M	81.7k	
+SRR801646	188.6M	81.7k	
+SRR801647	169.0M	81.7k	
+SRR801648	193.3M	81.7k	
+SRR801649	150.4M	81.7k	
+SRR801650	219.3M	81.7k	
+SRR801651	147.9M	81.7k	
+SRR801652	161.0M	81.7k	
+SRR801653	178.1M	81.7k	
+
+
+Dataset PB 2:
+
+SRX1058890 
+
+SRR2063111	1.5G	1.4M	
+
+
+
+
 
 
 Dataset merge:
@@ -273,6 +314,10 @@ for d in Arabi-1 Ecoli-1 Ecoli-2 Lyrata-1 Pen-1 Pen-2 Pen-3; do for q in 10 15 2
 
 
 
+./LOGAN data/Pen-4_Q20.fq 1 16 16 > out/Pen-4_Q20_t16.out 2>&1
+
+
+
 Jellyfish:
 
 jellyfish count -m 23 -C -s 10000000 -t 4 data/data.fq -o jf/data.jf
@@ -284,6 +329,9 @@ for i in Arabi-1 Ecoli-1 Ecoli-2 Lyrata-1 Pen-1 Pen-2 Pen-3 Pen-4; do for q in 1
 for i in Pen-1; do for q in 10 15 20; do ~/unarc/jellyfish-2.2.5/bin/jellyfish dump -c -t -o ${i}_Q${q}.jf23.count ${i}_Q${q}.jf23; done; done
 
 for i in Pen-4; do for q in 10 15 20; do cat ${i}_Q${q}_[12][PU].fq.gz | gunzip > ${i}_Q${q}.fq & done; done
+
+cat Pen-4_Q20_[12][PU].fq.gz | gunzip > Pen-4_Q20.fq &
+
 
 for i in Pen-1 Pen-2 Pen-3 Pen-4; do for q in 20; do cat ${i}_Q${q}_[12][PU].fq.gz | gunzip > ${i}_Q${q}.fq ;done; done
 
@@ -863,7 +911,7 @@ Occurrence Power Series:
 
 
 
-Ecoli-2 (Q20): Seq: 21,8470,883 Bp: 19,642,012,929
+Ecoli-2 (Q20): Seq: 218,470,883 Bp: 19,642,012,929
 
 Kmers: 142829714 with 14835653375 occurrences
 

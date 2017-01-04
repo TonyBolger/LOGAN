@@ -96,9 +96,9 @@ void saCleanupSmerArray(SmerArray *smerArray) {
 	int i = 0;
 
 	                   //012345678901234567890123
-	LOGN(LOG_INFO,"STAT: SmerBases               \tPtail\tPbyte\tStail\tSbyte\tRFmt\tRFe\tRFr\tRRe\tRRr\tRAbyte\tRTTopB\tRTAryB\tRTlB\tRTbB\tRTByte\tByte");
+	LOGN(LOG_INFO,"STAT: SmerBases               \tPtail\tPbyte\tStail\tSbyte\tRFmt\tRFe\tRFr\tRRe\tRRr\tRe\tRr\tRAbyte\tRTTopB\tRTAryB\tRTlB\tRTbB\tRTByte\tByte");
 
-	MemDispenser *disp=dispenserAlloc("Stats",DISPENSER_BLOCKSIZE_MEDIUM);
+	MemDispenser *disp=dispenserAlloc("Stats",DISPENSER_BLOCKSIZE_LARGE);
 
 	for (i = 0; i < SMER_SLICES; i++)
 		{
@@ -109,9 +109,13 @@ void saCleanupSmerArray(SmerArray *smerArray) {
 
 			for(int j=0;j<smerCount;j++)
 				{
-				LOGN(LOG_INFO,"SMER: %s\t%i\t%i\t%i\t%i\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li",
+				s64 frEntries=stats[j].routeTableForwardRouteEntries+stats[j].routeTableReverseRouteEntries;
+				s64 frRoutes=stats[j].routeTableForwardRoutes+stats[j].routeTableReverseRoutes;
+
+				LOGN(LOG_INFO,"SMER: %s\t%i\t%i\t%i\t%i\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li",
 						stats[j].smerStr, stats[j].prefixTails, stats[j].prefixBytes, stats[j].suffixTails, stats[j].suffixBytes, stats[j].routeTableFormat,
 						stats[j].routeTableForwardRouteEntries, stats[j].routeTableForwardRoutes, stats[j].routeTableReverseRouteEntries, stats[j].routeTableReverseRoutes,
+						frEntries, frRoutes,
 						stats[j].routeTableArrayBytes, stats[j].routeTableTreeTopBytes, stats[j].routeTableTreeArrayBytes, stats[j].routeTableTreeLeafBytes, stats[j].routeTableTreeBranchBytes,
 						stats[j].routeTableTotalBytes, stats[j].smerTotalBytes);
 				}

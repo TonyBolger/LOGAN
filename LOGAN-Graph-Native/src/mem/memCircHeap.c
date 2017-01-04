@@ -591,7 +591,7 @@ static void circHeapCompact(MemCircHeap *circHeap, int generation, s64 targetFre
 		MemCircHeapChunkIndex *remainingIndex=moveIndexedHeap(circHeap, index, generation);
 		if(remainingIndex!=NULL)
 			{
-			LOG(LOG_INFO,"GC heap compact failed");
+			LOG(LOG_CRITICAL,"GC heap compact failed");
 
 //			LOG(LOG_INFO,"Unable to allocate %li in generation %i",remainingIndex->sizeLive,generation);
 //			dumpCircHeap(circHeap);
@@ -656,7 +656,7 @@ static void circHeapEnsureSpace_generation(MemCircHeap *circHeap, size_t support
 
 			if(remainingIndex!=NULL)
 				{
-				LOG(LOG_CRITICAL,"GC generation promotion failed - retrying");
+				LOG(LOG_INFO,"GC generation promotion failed - retrying");
 
 				circHeapEnsureSpace_generation(circHeap,totalLive,nextGeneration,disp);
 				MemCircHeapChunkIndex *remainingIndex2=moveIndexedHeap(circHeap, index, nextGeneration);

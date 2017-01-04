@@ -352,7 +352,7 @@ static void unreserveReadLookupBlock(RoutingBuilder *rb)
 void queueReadsForSmerLookup(SwqBuffer *rec, int ingressPosition, int ingressSize, int nodeSize, RoutingBuilder *rb)
 {
 
-	MemDispenser *disp=dispenserAlloc("RoutingLookup", DISPENSER_BLOCKSIZE_MEDIUM);
+	MemDispenser *disp=dispenserAlloc("RoutingLookup", DISPENSER_BLOCKSIZE_LARGE);
 
 	RoutingReadLookupBlock *readBlock=allocateReadLookupBlock(rb);
 	readBlock->disp=disp;
