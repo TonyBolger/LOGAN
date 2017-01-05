@@ -10,19 +10,71 @@
 
 #define CIRCHEAP_MAX_TAGS 256
 
+#define CIRCHEAP_BLOCKSIZE_INCREMENT_SHIFT 5
+#define CIRCHEAP_BLOCKSIZE_INCREMENT_STEPS (1<<CIRCHEAP_BLOCKSIZE_INCREMENT_SHIFT)
+#define CIRCHEAP_BLOCKSIZE_INCREMENT_MASK (CIRCHEAP_BLOCKSIZE_INCREMENT_STEPS-1)
 
-#define CIRCHEAP_DEFAULT_BLOCKSIZE_INCREMENT 0x2000L // blocksize is * 8
-
-//#define CIRCHEAP_DEFAULT_BLOCKSIZE 0x10000L // 64K per gen
-
-//#define CIRCHEAP_DEFAULT_BLOCKSIZE 0x4A000L // 256+80?K * 6 * 64
-
-#define CIRCHEAP_DEFAULT_BLOCKSIZE 0x100000L
+#define CIRCHEAP_BLOCKSIZE_BASE_INCREMENT 0x1000L // Increment is 4K - blocksize is Increment * CIRCHEAP_BLOCKSIZE_INCREMENT_STEPS
 
 #define CIRCHEAP_MAX_BLOCKSIZE 0x100000000L // 4GB per gen
 
-#define CIRCHEAP_BLOCK_OVERHEAD 0x1000L
-//#define CIRCHEAP_BLOCK_OVERHEAD 0x10L
+
+// For CIRCHEAP_BLOCKSIZE_INCREMENT_SHIFT = 3, 8 steps per doubling
+
+// 0 -> 32K
+// 1 -> 36K
+// 2 -> 40K
+// 3 -> 44K
+// 4 -> 48K
+// 5 -> 52K
+// 6 -> 56K
+// 7 -> 60K
+// 8 -> 64K
+// 16 -> 128K
+// 24 -> 256K
+// 32 -> 512K
+// 40 -> 1024K
+// 48 -> 2048K
+// 56 -> 4096K
+// 64 -> 8192K
+
+// For CIRCHEAP_BLOCKSIZE_INCREMENT_SHIFT = 4, 16 steps per doubling
+
+// 0 -> 64K
+// 1 -> 68K
+// 2 -> 72K
+// 3 -> 76K
+// 4 -> 80K
+// 5 -> 84K
+// 6 -> 88K
+// 7 -> 92K
+// 8 -> 96K
+// 9 -> 100K
+// 10 -> 104K
+// 11 -> 108K
+// 12 -> 112K
+// 13 -> 116K
+// 14 -> 120K
+// 15 -> 124K
+// 16 -> 128K
+
+// 32 -> 256K
+// 48 -> 512K
+// 64 -> 1024K
+// 80 -> 2048K
+// 96 -> 4096K
+// 112 -> 8192K
+
+// For CIRCHEAP_BLOCKSIZE_INCREMENT_SHIFT = 5, 32 steps per doubling
+
+
+
+
+
+// Allocation margin for GC - should be zero if all is good
+//#define CIRCHEAP_BLOCK_OVERHEAD 0x1000L
+#define CIRCHEAP_BLOCK_OVERHEAD 0x0L
+
 #define CIRCHEAP_BLOCK_TAG_OVERHEAD 2
 
 #define CIRCHEAP_RECLAIM_SPLIT 64
@@ -49,8 +101,12 @@ typedef struct memCircHeapBlockStr
 	s32 sizeIndex;		 // Index of total size
 	s32 needsExpanding;  // Flag
 	s64 allocPosition; 	 // Current position for alloc
-	s64 allocWrap;       // Top Limit of alloc when wrapped
+	s64 reclaimLimit;    // Top Limit of reclaim. Set when alloc is wrapped, cleared when reclaim is wrapped
 	s64 reclaimPosition; // Current position for reclaim
+
+	s64 reclaimSizeLive;		// Total size of live data reclaimed
+	s64 reclaimSizeDead;		// Total size of dead data reclaimed
+
 } MemCircHeapBlock;
 
 
@@ -65,9 +121,6 @@ typedef struct memCircHeapGenerationStr
 
 	u8 reclaimCurrentChunkTag;	      // Current reclaim tag
 	s32 reclaimCurrentChunkTagOffset; // Current offset in tag data
-
-	s64 curReclaimSizeLive;		// Total size of live data reclaimed
-	s64 curReclaimSizeDead;		// Total size of dead data reclaimed
 
 	s64 prevReclaimSizeLive;		// Total size of live data reclaimed
 	s64 prevReclaimSizeDead;		// Total size of dead data reclaimed
