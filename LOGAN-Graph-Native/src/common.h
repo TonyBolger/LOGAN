@@ -190,9 +190,10 @@ typedef struct swqBufferStr {
 
 #include "graph/smer.h"
 #include "graph/seqTail.h"
-#include "graph/routing.h"
+#include "graph/routeTable.h"
 #include "graph/routeTableArray.h"
 #include "graph/routeTableTree.h"
+#include "graph/routing.h"
 #include "graph/graph.h"
 
 #include "task/taskIndexing.h"

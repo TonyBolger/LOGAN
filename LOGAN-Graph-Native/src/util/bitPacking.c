@@ -217,4 +217,13 @@ u32 unpackBits(BitUnpacker *unpacker, int count)
 }
 
 
+u32 bitsRequired(u32 value)
+{
+	if(value==0)
+		return 1;
+
+	return 32-__builtin_clz(value);
+}
+
+
 

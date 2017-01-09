@@ -28,4 +28,6 @@ void initUnpacker(BitUnpacker *unpacker, u8 *ptr, int position);
 void seekUnpacker(BitUnpacker *unpacker, int position);
 u32 unpackBits(BitUnpacker *unpacker, int count);
 
+u32 bitsRequired(u32 value);
+
 #endif

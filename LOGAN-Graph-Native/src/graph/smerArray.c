@@ -96,14 +96,15 @@ void saCleanupSmerArray(SmerArray *smerArray) {
 	int i = 0;
 
 	                   //012345678901  01234567890123456789012
-	LOGN(LOG_INFO,"STAT: SmerID      \tSmerBases              \tPtail\tPbyte\tStail\tSbyte\tRFmt\tRFe\tRFr\tRRe\tRRr\tRe\tRr\tRAbyte\tRTTopB\tRTAryB\tRTlB\tRTbB\tRTByte\tByte");
+	//LOGN(LOG_INFO,"STAT: SmerID      \tSmerBases              \tPtail\tPbyte\tStail\tSbyte\tRFmt\tRFe\tRFr\tRRe\tRRr\tRe\tRr\tRAbyte\tRTTopB\tRTAryB\tRTlB\tRTbB\tRTByte\tByte");
 
-	MemDispenser *disp=dispenserAlloc("Stats",DISPENSER_BLOCKSIZE_HUGE);
+	//MemDispenser *disp=dispenserAlloc("Stats",DISPENSER_BLOCKSIZE_HUGE);
 
 	for (i = 0; i < SMER_SLICES; i++)
 		{
 		if (smerArray->slice[i].smerIT != NULL)
 			{
+			/*
 			SmerRoutingStats *stats=rtGetRoutingStats(smerArray->slice+i, i, disp);
 			int smerCount=smerArray->slice[i].smerCount;
 
@@ -122,7 +123,7 @@ void saCleanupSmerArray(SmerArray *smerArray) {
 				}
 
 			dispenserReset(disp);
-
+*/
 			smSmerEntryArrayFree(smerArray->slice[i].smerIT);
 			smSmerDataArrayFree(smerArray->slice[i].smerData);
 			}
@@ -130,7 +131,7 @@ void saCleanupSmerArray(SmerArray *smerArray) {
 		freeBloom(&(smerArray->slice[i].bloom));
 		}
 
-	dispenserFree(disp);
+//	dispenserFree(disp);
 
 	for(i=0;i<SMER_DISPATCH_GROUPS;i++)
 		//colHeapFree(smerArray->heaps[i]);

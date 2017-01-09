@@ -17,9 +17,10 @@ CLI_LIBS = -lrt -lpthread -lprofiler
 
 CLI_OBJS += \
 ./bin/cli/common/graph/graph.o \
-./bin/cli/common/graph/routing.o \
+./bin/cli/common/graph/routeTable.o \
 ./bin/cli/common/graph/routeTableArray.o \
 ./bin/cli/common/graph/routeTableTree.o \
+./bin/cli/common/graph/routing.o \
 ./bin/cli/common/graph/seqTail.o \
 ./bin/cli/common/graph/smer.o \
 ./bin/cli/common/graph/smerArray.o \
@@ -48,9 +49,10 @@ CLI_DEPS := $(CLI_OBJS:.o=.d)
 
 JNI_OBJS += \
 ./bin/jni/common/graph/graph.o \
-./bin/jni/common/graph/routing.o \
+./bin/jni/common/graph/routeTable.o \
 ./bin/jni/common/graph/routeTableArray.o \
 ./bin/jni/common/graph/routeTableTree.o \
+./bin/jni/common/graph/routing.o \
 ./bin/jni/common/graph/seqTail.o \
 ./bin/jni/common/graph/smer.o \
 ./bin/jni/common/graph/smerArray.o \
