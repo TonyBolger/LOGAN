@@ -29,6 +29,8 @@
 //#define ROUTE_TABLE_TREE_BRANCH_CHILDREN 2
 //#define ROUTE_TABLE_TREE_BRANCH_CHILDREN_CHUNK 2
 
+#define ROUTE_TABLE_TREE_LEAF_OFFSETS 0
+
 //#define ROUTE_TABLE_TREE_LEAF_ENTRIES 16384
 //#define ROUTE_TABLE_TREE_LEAF_ENTRIES_CHUNK 16
 #define ROUTE_TABLE_TREE_LEAF_ENTRIES 4096
@@ -74,6 +76,8 @@ typedef struct rootTableTreeTopBlockStr
 
 // For now, all trees use the same size tail indexes (s16), width (s32). Longer term, this should be per-node
 
+typedef s32 RouteTableTreeLeafOffset;
+
 typedef struct routeTableTreeBranchBlockStr
 {
 	s16 childAlloc;
@@ -94,14 +98,20 @@ typedef struct routeTableTreeLeafEntryStr
 
 typedef struct routeTableLeafBlockStr
 {
+	s16 offsetAlloc;
 	s16 entryAlloc;
+
 	s16 parentBrindex;
 
 	s16 upstream;
-	RouteTableTreeLeafEntry entries[]; // Max is ROUTE_TABLE_TREE_LEAF_ENTRIES
+
+	u8 extraData[];
+	//RouteTableTreeLeafOffset offsets[offsetAlloc]
+	//RouteTableTreeLeafEntry entries[entryAlloc]; // Max is ROUTE_TABLE_TREE_LEAF_ENTRIES
+
 } __attribute__((packed)) RouteTableTreeLeafBlock;
 
-
+/*
 typedef struct routeTableTreeOffsetBlockStr
 {
 	s16 entryAlloc;
@@ -113,7 +123,7 @@ typedef struct routeTableTreeOffsetBlockStr
 
 	s32 offsets[];
 } __attribute__((packed)) RouteTableTreeOffsetBlock;
-
+*/
 
 
 typedef struct routeTableTreeArrayBlockStr
@@ -135,6 +145,8 @@ typedef struct routeTableTreeLeafProxyStr
 {
 	RouteTableTreeLeafBlock *dataBlock;
 	s16 lindex;
+
+	u16 offsetAlloc;
 
 	u16 entryAlloc;
 	u16 entryCount;
