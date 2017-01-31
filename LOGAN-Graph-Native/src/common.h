@@ -22,6 +22,11 @@
 #include <limits.h>
 #include <stdint.h>
 
+
+#define FEATURE_ENABLE_SMER_STATS
+//#define FEATURE_ENABLE_HEAP_STATS
+
+
 #define PAD_1BITLENGTH_BYTE(L) (((L)+7)>>3)
 #define PAD_2BITLENGTH_BYTE(L) (((L)+3)>>2)
 #define PAD_4BITLENGTH_BYTE(L) (((L)+1)>>1)
@@ -195,6 +200,8 @@ typedef struct swqBufferStr {
 #include "graph/routeTableTreeArray.h"
 #include "graph/routeTableTreeBranch.h"
 #include "graph/routeTableTreeLeaf.h"
+#include "graph/routeTableTreeProxy.h"
+#include "graph/routeTableTreeWalker.h"
 #include "graph/routeTableTree.h"
 #include "graph/routing.h"
 #include "graph/graph.h"

@@ -122,6 +122,7 @@ typedef struct routingComboBuilderStr
 } RoutingComboBuilder;
 
 
+/* Structs wrapping the heap-format tree, allowing nicer manipulation: The details are defined in the corresponding headers */
 
 typedef struct routeTableTreeArrayProxyStr RouteTableTreeArrayProxy;
 typedef struct routeTableTreeBranchProxyStr RouteTableTreeBranchProxy;

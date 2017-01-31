@@ -29,7 +29,7 @@
 //#define ROUTE_TABLE_TREE_BRANCH_CHILDREN 2
 //#define ROUTE_TABLE_TREE_BRANCH_CHILDREN_CHUNK 2
 
-#define ROUTE_TABLE_TREE_LEAF_OFFSETS 3
+//#define ROUTE_TABLE_TREE_LEAF_OFFSETS 3
 
 //#define ROUTE_TABLE_TREE_LEAF_ENTRIES 16384
 //#define ROUTE_TABLE_TREE_LEAF_ENTRIES_CHUNK 16
@@ -94,39 +94,6 @@ typedef struct routeTableTreeOffsetBlockStr
 */
 
 
-/* Structs wrapping the heap-format tree, allowing nicer manipulation */
-
-
-struct routeTableTreeProxyStr
-{
-	MemDispenser *disp;
-
-	RouteTableTreeArrayProxy leafArrayProxy;
-	RouteTableTreeArrayProxy branchArrayProxy;
-	RouteTableTreeArrayProxy offsetArrayProxy;
-
-	RouteTableTreeBranchProxy *rootProxy;
-
-};
-
-typedef struct routeTableTreeWalkerStr
-{
-	RouteTableTreeProxy *treeProxy;
-
-	// Current Position
-	RouteTableTreeBranchProxy *branchProxy;
-	s16 branchChildSibdex;
-	RouteTableTreeLeafProxy *leafProxy;
-	s16 leafEntry;
-
-	s32 upstreamOffsetCount;
-	s32 downstreamOffsetCount;
-	s32 *upstreamOffsets;
-	s32 *downstreamOffsets;
-
-
-} RouteTableTreeWalker;
-
 
 struct routeTableTreeBuilderStr
 {
@@ -148,7 +115,7 @@ struct routeTableTreeBuilderStr
 
 
 void rttInitRouteTableTreeBuilder(RouteTableTreeBuilder *builder, RouteTableTreeTopBlock *top);
-void rttUpgradeToRouteTableTreeBuilder(RouteTableArrayBuilder *arrayBuilder,  RouteTableTreeBuilder *treeBuilder, MemDispenser *disp);
+void rttUpgradeToRouteTableTreeBuilder(RouteTableArrayBuilder *arrayBuilder,  RouteTableTreeBuilder *treeBuilder, s32 prefixCount, s32 suffixCount, MemDispenser *disp);
 
 void rttDumpRoutingTable(RouteTableTreeBuilder *builder);
 

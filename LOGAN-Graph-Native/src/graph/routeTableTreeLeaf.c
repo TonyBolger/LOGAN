@@ -31,16 +31,16 @@ static RouteTableTreeLeafBlock *reallocRouteTableTreeLeafBlockEntries(RouteTable
 		LOG(LOG_CRITICAL,"Cannot allocate oversize leaf with %i children",entryAlloc);
 		}
 
-	RouteTableTreeLeafBlock *block=dAlloc(disp, getRouteTableTreeLeafSize_Expected(offsetAlloc, entryAlloc));
+	RouteTableTreeLeafBlock *newBlock=dAlloc(disp, getRouteTableTreeLeafSize_Expected(offsetAlloc, entryAlloc));
 
-	block->offsetAlloc=offsetAlloc;
-	block->entryAlloc=entryAlloc;
+	newBlock->offsetAlloc=offsetAlloc;
+	newBlock->entryAlloc=entryAlloc;
 
 	s32 oldBlockOffsetAlloc=0;
 	s32 oldBlockEntryAlloc=0;
 
-	RouteTableTreeLeafOffset *newOffsetPtr=getRouteTableTreeLeaf_OffsetPtr(block);
-	RouteTableTreeLeafEntry *newEntryPtr=getRouteTableTreeLeaf_EntryPtr(block);
+	RouteTableTreeLeafOffset *newOffsetPtr=getRouteTableTreeLeaf_OffsetPtr(newBlock);
+	RouteTableTreeLeafEntry *newEntryPtr=getRouteTableTreeLeaf_EntryPtr(newBlock);
 
 	if(oldBlock!=NULL)
 		{
@@ -50,18 +50,27 @@ static RouteTableTreeLeafBlock *reallocRouteTableTreeLeafBlockEntries(RouteTable
 		s32 toKeepOffsets=MIN(oldBlockOffsetAlloc, offsetAlloc);
 		s32 toKeepEntries=MIN(oldBlockEntryAlloc, entryAlloc);
 
-		memcpy(block,oldBlock, getRouteTableTreeLeafSize_Expected(toKeepOffsets,0)); // Copy core + offsets
+//		LOG(LOG_INFO,"Up: %i (%p -> %p): Keeping %i (%i %i) %i (%i %i)",oldBlock->upstream, oldBlock,newBlock,
+//				toKeepOffsets, oldBlockOffsetAlloc, offsetAlloc, toKeepEntries, oldBlockEntryAlloc, entryAlloc);
 
-		block->offsetAlloc=offsetAlloc;
-		block->entryAlloc=entryAlloc;
+		if(oldBlockOffsetAlloc<0 || oldBlockEntryAlloc<0)
+			{
+			LOG(LOG_CRITICAL,"Negative array sizes are invalid: Offset: %i Entry: %i",oldBlockOffsetAlloc, oldBlockEntryAlloc);
+			}
+
+		if(oldBlockOffsetAlloc > offsetAlloc)
+			{
+			LOG(LOG_CRITICAL,"Dubious Offset array shrinkage: Was: %i Now: %i",oldBlockOffsetAlloc, offsetAlloc);
+			}
+
+
+		memcpy(newBlock,oldBlock, getRouteTableTreeLeafSize_Expected(toKeepOffsets,0)); // Copy core + offsets
+
+		newBlock->offsetAlloc=offsetAlloc; // Fixup after copy
+		newBlock->entryAlloc=entryAlloc;
 
 		RouteTableTreeLeafEntry *oldEntryPtr=getRouteTableTreeLeaf_EntryPtr(oldBlock);
 		memcpy(newEntryPtr, oldEntryPtr, toKeepEntries*sizeof(RouteTableTreeLeafEntry)); // Copy entries
-		}
-	else
-		{
-		block->offsetAlloc=offsetAlloc;
-		block->entryAlloc=entryAlloc;
 		}
 
 	for(int i=oldBlockOffsetAlloc;i<offsetAlloc;i++)
@@ -75,7 +84,7 @@ static RouteTableTreeLeafBlock *reallocRouteTableTreeLeafBlockEntries(RouteTable
 		newEntryPtr[i].width=0;
 		}
 
-	return block;
+	return newBlock;
 }
 
 
@@ -117,7 +126,7 @@ static RouteTableTreeLeafBlock *allocRouteTableTreeLeafBlock(MemDispenser *disp,
 
 
 
-static void getRouteTableTreeLeafProxy_scan(RouteTableTreeLeafBlock *leafBlock, u16 *offsetAllocPtr, u16 *entryAllocPtr, u16 *entryCountPtr)
+static void getRouteTableTreeLeafProxy_scan(RouteTableTreeLeafBlock *leafBlock, u16 *entryAllocPtr, u16 *entryCountPtr)
 {
 	if(leafBlock==NULL)
 		{
@@ -126,7 +135,6 @@ static void getRouteTableTreeLeafProxy_scan(RouteTableTreeLeafBlock *leafBlock, 
 		return;
 		}
 
-	*offsetAllocPtr=leafBlock->offsetAlloc;
 	u16 entryAlloc=leafBlock->entryAlloc;
 	*entryAllocPtr=entryAlloc;
 
@@ -177,7 +185,7 @@ RouteTableTreeLeafProxy *getRouteTableTreeLeafProxy(RouteTableTreeProxy *treePro
 
 //	LOG(LOG_INFO,"GetRouteTableTreeLeaf : %i",lindex);
 
-	getRouteTableTreeLeafProxy_scan(proxy->dataBlock, &proxy->offsetAlloc, &proxy->entryAlloc, &proxy->entryCount);
+	getRouteTableTreeLeafProxy_scan(proxy->dataBlock, &proxy->entryAlloc, &proxy->entryCount);
 
 	return proxy;
 }
@@ -205,7 +213,6 @@ RouteTableTreeLeafProxy *allocRouteTableTreeLeafProxy(RouteTableTreeProxy *treeP
 
 //	LOG(LOG_INFO,"AllocRouteTableTreeLeaf : %i",lindex);
 
-	proxy->offsetAlloc=offsetAlloc;
 	proxy->entryAlloc=entryAlloc;
 	proxy->entryCount=0;
 
@@ -213,13 +220,22 @@ RouteTableTreeLeafProxy *allocRouteTableTreeLeafProxy(RouteTableTreeProxy *treeP
 }
 
 
+void ensureRouteTableTreeLeafOffsetCapacity(RouteTableTreeProxy *treeProxy, RouteTableTreeLeafProxy *leafProxy, s32 offsetAlloc)
+{
+	if(leafProxy->dataBlock->offsetAlloc>=offsetAlloc)
+		return;
 
+	//LOG(LOG_INFO,"Resizing offset to %i from %i",offsetAlloc, leafProxy->dataBlock->offsetAlloc);
 
-void expandRouteTableTreeLeafProxy(RouteTableTreeProxy *treeProxy, RouteTableTreeLeafProxy *leafProxy)
+	leafProxy->dataBlock=reallocRouteTableTreeLeafBlockEntries(leafProxy->dataBlock, treeProxy->disp, offsetAlloc, leafProxy->dataBlock->entryAlloc);
+	flushRouteTableTreeLeafProxy(treeProxy, leafProxy);
+}
+
+void expandRouteTableTreeLeafProxy(RouteTableTreeProxy *treeProxy, RouteTableTreeLeafProxy *leafProxy, s32 offsetAlloc)
 {
 	s16 newEntryAlloc=MIN(leafProxy->entryAlloc+ROUTE_TABLE_TREE_LEAF_ENTRIES_CHUNK, ROUTE_TABLE_TREE_LEAF_ENTRIES);
 
-	RouteTableTreeLeafBlock *leafBlock=reallocRouteTableTreeLeafBlockEntries(leafProxy->dataBlock, treeProxy->disp, ROUTE_TABLE_TREE_LEAF_OFFSETS, newEntryAlloc);
+	RouteTableTreeLeafBlock *leafBlock=reallocRouteTableTreeLeafBlockEntries(leafProxy->dataBlock, treeProxy->disp, offsetAlloc, newEntryAlloc);
 
 	leafProxy->dataBlock=leafBlock;
 	leafProxy->entryAlloc=newEntryAlloc;

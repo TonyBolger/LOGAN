@@ -298,3 +298,17 @@ s32 getBranchChild(RouteTableTreeProxy *treeProxy, RouteTableTreeBranchProxy *pa
 
 }
 
+
+RouteTableTreeBranchProxy *getBranchParent(RouteTableTreeProxy *treeProxy, RouteTableTreeBranchProxy *childBranchProxy)
+{
+	return getRouteTableTreeBranchProxy(treeProxy, childBranchProxy->dataBlock->parentBrindex);
+}
+
+
+RouteTableTreeBranchProxy *getLeafParent(RouteTableTreeProxy *treeProxy, RouteTableTreeLeafProxy *childLeafProxy)
+{
+	return getRouteTableTreeBranchProxy(treeProxy, childLeafProxy->dataBlock->parentBrindex);
+}
+
+
+

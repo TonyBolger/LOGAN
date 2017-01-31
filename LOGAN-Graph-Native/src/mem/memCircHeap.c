@@ -299,7 +299,9 @@ MemCircHeap *circHeapAlloc(MemCircHeapChunkIndex *(*reclaimIndexer)(u8 *data, s6
 
 void circHeapFree(MemCircHeap *circHeap)
 {
-	//dumpCircHeap(circHeap);
+#ifdef FEATURE_ENABLE_HEAP_STATS
+	dumpCircHeap(circHeap);
+#endif
 
 	for(int i=0;i<CIRCHEAP_MAX_GENERATIONS;i++)
 		{

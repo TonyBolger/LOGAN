@@ -331,7 +331,7 @@ static int considerUpgradingToTree(RoutingComboBuilder *builder, int newForwardR
 }
 
 
-static void upgradeToTree(RoutingComboBuilder *builder)
+static void upgradeToTree(RoutingComboBuilder *builder, s32 prefixCount, s32 suffixCount)
 {
 	RouteTableTreeBuilder *treeBuilder=dAlloc(builder->disp, sizeof(RouteTableTreeBuilder));
 	builder->treeBuilder=treeBuilder;
@@ -340,7 +340,7 @@ static void upgradeToTree(RoutingComboBuilder *builder)
 	builder->topDataBlock.headerSize=0;
 	builder->topDataBlock.dataSize=0;
 
-	rttUpgradeToRouteTableTreeBuilder(builder->arrayBuilder,  builder->treeBuilder, builder->disp);
+	rttUpgradeToRouteTableTreeBuilder(builder->arrayBuilder,  builder->treeBuilder, prefixCount, suffixCount, builder->disp);
 
 	builder->upgradedToTree=1;
 }
@@ -457,21 +457,22 @@ s32 mergeTopArrayUpdates_leaf_accumulateSize(RouteTableTreeArrayProxy *leafArray
 
 	for(int i=0;i<leafArrayProxy->newDataAlloc;i++)
 		{
-		int oldLeafEntryAlloc=0;
+		int oldLeafSize=0;
 
 		if(leafArrayProxy->dataBlock!=NULL && i<leafArrayProxy->dataBlock->dataAlloc && leafArrayProxy->dataBlock->data[i]!=NULL)
 			{
 			u8 *oldLeafRawData=leafArrayProxy->dataBlock->data[i];
 			RouteTableTreeLeafBlock *oldLeafData=(RouteTableTreeLeafBlock *)(oldLeafRawData+rtGetArrayBlockHeaderSize(indexSize,1));
-			oldLeafEntryAlloc=oldLeafData->entryAlloc;
+			oldLeafSize=getRouteTableTreeLeafSize_Existing(oldLeafData);
 			}
 
 		if(leafArrayProxy->newData[i]!=NULL)
 			{
 			RouteTableTreeLeafBlock *newLeafData=(RouteTableTreeLeafBlock *)(leafArrayProxy->newData[i]);
+			int newLeafSize=getRouteTableTreeLeafSize_Existing(newLeafData);
 
-			if(newLeafData->entryAlloc!=oldLeafEntryAlloc)
-				totalSize+=rtGetArrayBlockHeaderSize(indexSize,1)+getRouteTableTreeLeafSize_Existing(newLeafData);
+			if(newLeafSize!=oldLeafSize)
+				totalSize+=rtGetArrayBlockHeaderSize(indexSize,1)+newLeafSize;
 			}
 		}
 
@@ -499,20 +500,21 @@ void mergeTopArrayUpdates_leaf(RouteTableTreeArrayProxy *leafArrayProxy, int arr
 		{
 		u8 *oldLeafRawData=NULL;
 		RouteTableTreeLeafBlock *oldLeafData=NULL;
-		int oldLeafEntryAlloc=0;
+		int oldLeafSize=0;
 
 		if(leafArrayProxy->dataBlock!=NULL && i<leafArrayProxy->dataBlock->dataAlloc && leafArrayProxy->dataBlock->data[i]!=NULL)
 			{
 			oldLeafRawData=(leafArrayProxy->dataBlock->data[i]);
 			oldLeafData=(RouteTableTreeLeafBlock *)(oldLeafRawData+rtGetArrayBlockHeaderSize(indexSize,1));
-			oldLeafEntryAlloc=oldLeafData->entryAlloc;
+			oldLeafSize=getRouteTableTreeLeafSize_Existing(oldLeafData);
 			}
 
 		if(leafArrayProxy->newData[i]!=NULL)
 			{
 			RouteTableTreeLeafBlock *newLeafData=(RouteTableTreeLeafBlock *)(leafArrayProxy->newData[i]);
+			int newLeafSize=getRouteTableTreeLeafSize_Existing(newLeafData);
 
-			if(newLeafData->entryAlloc!=oldLeafEntryAlloc)
+			if(newLeafSize!=oldLeafSize)
 				{
 //				LOG(LOG_INFO,"Leaf Move/Expand write to %p (%i %i)",newData, newLeafData->entryAlloc,oldLeafEntryAlloc);
 				leafArrayProxy->dataBlock->data[i]=newData;
@@ -531,8 +533,7 @@ void mergeTopArrayUpdates_leaf(RouteTableTreeArrayProxy *leafArrayProxy, int arr
 //				LOG(LOG_INFO,"Leaf rewrite to %p (%i %i)",arrayProxy->dataBlock->data[i], newLeafData->entryAlloc,oldLeafEntryAlloc);
 
 				s32 headerSize=rtGetArrayBlockHeaderSize(indexSize,1);
-				s32 dataSize=getRouteTableTreeLeafSize_Existing(newLeafData);
-				memcpy(leafArrayProxy->dataBlock->data[i]+headerSize, newLeafData, dataSize);
+				memcpy(leafArrayProxy->dataBlock->data[i]+headerSize, newLeafData, newLeafSize);
 				}
 			}
 		}
@@ -1061,15 +1062,15 @@ int rtRouteReadsForSmer(RoutingIndexedReadReferenceBlock *rdi, SmerArraySlice *s
 	createRoutePatches(rdi, entryCount, &(routingBuilder.prefixBuilder), &(routingBuilder.suffixBuilder),
 			forwardPatches, reversePatches, &forwardCount, &reverseCount);
 
-	s32 prefixCount=getSeqTailTotalTailCount(&(routingBuilder.prefixBuilder));
-	s32 suffixCount=getSeqTailTotalTailCount(&(routingBuilder.suffixBuilder));
+	s32 prefixCount=getSeqTailTotalTailCount(&(routingBuilder.prefixBuilder))+1;
+	s32 suffixCount=getSeqTailTotalTailCount(&(routingBuilder.suffixBuilder))+1;
 
 	if(considerUpgradingToTree(&routingBuilder, forwardCount, reverseCount))
 		{
 		//LOG(LOG_INFO,"Prefix Old %i New %i",routingBuilder.prefixBuilder.oldTailCount,routingBuilder.prefixBuilder.newTailCount);
 		//LOG(LOG_INFO,"Suffix Old %i New %i",routingBuilder.suffixBuilder.oldTailCount,routingBuilder.suffixBuilder.newTailCount);
 
-		upgradeToTree(&routingBuilder);
+		upgradeToTree(&routingBuilder, prefixCount, suffixCount);
 		}
 
 	if(routingBuilder.treeBuilder!=NULL)
