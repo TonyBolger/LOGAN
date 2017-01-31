@@ -346,29 +346,29 @@ static void upgradeToTree(RoutingComboBuilder *builder)
 }
 
 
-s32 mergeTopArrayUpdates_branch_accumulateSize(RouteTableTreeArrayProxy *arrayProxy, int indexSize)
+s32 mergeTopArrayUpdates_branch_accumulateSize(RouteTableTreeArrayProxy *branchArrayProxy, int indexSize)
 {
-	if(arrayProxy->newData==NULL)
+	if(branchArrayProxy->newData==NULL)
 		{
 		return 0;
 		}
 
 	s32 totalSize=0;
 
-	for(int i=0;i<arrayProxy->newDataAlloc;i++)
+	for(int i=0;i<branchArrayProxy->newDataAlloc;i++)
 		{
 		int oldBranchChildAlloc=0;
 
-		if(arrayProxy->dataBlock!=NULL && i<arrayProxy->dataBlock->dataAlloc && arrayProxy->dataBlock->data[i]!=NULL) //FIXME (allow for header)
+		if(branchArrayProxy->dataBlock!=NULL && i<branchArrayProxy->dataBlock->dataAlloc && branchArrayProxy->dataBlock->data[i]!=NULL) //FIXME (allow for header)
 			{
-			u8 *oldBranchRawData=arrayProxy->dataBlock->data[i];
+			u8 *oldBranchRawData=branchArrayProxy->dataBlock->data[i];
 			RouteTableTreeBranchBlock *oldBranchData=(RouteTableTreeBranchBlock *)(oldBranchRawData+rtGetArrayBlockHeaderSize(indexSize,1));
 			oldBranchChildAlloc=oldBranchData->childAlloc;
 			}
 
-		if(arrayProxy->newData[i]!=NULL)
+		if(branchArrayProxy->newData[i]!=NULL)
 			{
-			RouteTableTreeBranchBlock *newBranchData=(RouteTableTreeBranchBlock *)(arrayProxy->newData[i]);
+			RouteTableTreeBranchBlock *newBranchData=(RouteTableTreeBranchBlock *)(branchArrayProxy->newData[i]);
 
 			if(newBranchData->childAlloc!=oldBranchChildAlloc)
 				totalSize+=rtGetArrayBlockHeaderSize(indexSize,1)+getRouteTableTreeBranchSize_Existing(newBranchData);
@@ -379,38 +379,38 @@ s32 mergeTopArrayUpdates_branch_accumulateSize(RouteTableTreeArrayProxy *arrayPr
 }
 
 
-void mergeTopArrayUpdates_branch(RouteTableTreeArrayProxy *arrayProxy, int arrayNum, int indexSize, int index, u8 *newData, s32 newDataSize)
+void mergeTopArrayUpdates_branch(RouteTableTreeArrayProxy *branchArrayProxy, int arrayNum, int indexSize, int index, u8 *newData, s32 newDataSize)
 {
-	if(arrayProxy->newData==NULL)
+	if(branchArrayProxy->newData==NULL)
 		return ;
 
 	u8 *endNewData=newData+newDataSize;
 
 //	if(arrayProxy->newData!=NULL)
-//		arrayProxy->dataBlock->dataAlloc=arrayProxy->newDataAlloc;
+//		branchArrayProxy->dataBlock->dataAlloc=branchArrayProxy->newDataAlloc;
 
-	for(int i=0;i<arrayProxy->newDataAlloc;i++)
+	for(int i=0;i<branchArrayProxy->newDataAlloc;i++)
 		{
 		u8 *oldBranchRawData=NULL;
 		RouteTableTreeBranchBlock *oldBranchData=NULL;
 		int oldBranchChildAlloc=0;
 
-		if(arrayProxy->dataBlock!=NULL && i<arrayProxy->dataBlock->dataAlloc && arrayProxy->dataBlock->data[i]!=NULL)
+		if(branchArrayProxy->dataBlock!=NULL && i<branchArrayProxy->dataBlock->dataAlloc && branchArrayProxy->dataBlock->data[i]!=NULL)
 			{
-			oldBranchRawData=arrayProxy->dataBlock->data[i];
+			oldBranchRawData=branchArrayProxy->dataBlock->data[i];
 			oldBranchData=(RouteTableTreeBranchBlock *)(oldBranchRawData+rtGetArrayBlockHeaderSize(indexSize,1));
 			oldBranchChildAlloc=oldBranchData->childAlloc;
 			}
 
-		if(arrayProxy->newData[i]!=NULL)
+		if(branchArrayProxy->newData[i]!=NULL)
 			{
-			RouteTableTreeBranchBlock *newBranchData=(RouteTableTreeBranchBlock *)(arrayProxy->newData[i]);
+			RouteTableTreeBranchBlock *newBranchData=(RouteTableTreeBranchBlock *)(branchArrayProxy->newData[i]);
 
 			if(newBranchData->childAlloc!=oldBranchChildAlloc)
 				{
 //				LOG(LOG_INFO,"Branch Move/Expand write to %p (%i %i)",newData, newBranchData->childAlloc,oldBranchChildAlloc);
 
-				arrayProxy->dataBlock->data[i]=newData;
+				branchArrayProxy->dataBlock->data[i]=newData;
 
 				s32 headerSize=rtEncodeArrayBlockHeader(arrayNum, ARRAY_TYPE_SHALLOW_DATA, indexSize, index, i, newData);
 				newData+=headerSize;
@@ -430,7 +430,7 @@ void mergeTopArrayUpdates_branch(RouteTableTreeArrayProxy *arrayProxy, int array
 
 				s32 headerSize=rtGetArrayBlockHeaderSize(indexSize,1);
 				s32 dataSize=getRouteTableTreeBranchSize_Existing(newBranchData);
-				memcpy(arrayProxy->dataBlock->data[i]+headerSize, newBranchData, dataSize);
+				memcpy(branchArrayProxy->dataBlock->data[i]+headerSize, newBranchData, dataSize);
 
 				}
 			}
@@ -444,31 +444,31 @@ void mergeTopArrayUpdates_branch(RouteTableTreeArrayProxy *arrayProxy, int array
 
 
 
-s32 mergeTopArrayUpdates_leaf_accumulateSize(RouteTableTreeArrayProxy *arrayProxy, int indexSize)
+s32 mergeTopArrayUpdates_leaf_accumulateSize(RouteTableTreeArrayProxy *leafArrayProxy, int indexSize)
 {
-	if(arrayProxy->newData==NULL)
+	if(leafArrayProxy->newData==NULL)
 		{
 		return 0;
 		}
 
 	s32 totalSize=0;
 
-	//LOG(LOG_INFO,"New data Alloc %i",arrayProxy->newDataAlloc);
+	//LOG(LOG_INFO,"New data Alloc %i",leafArrayProxy->newDataAlloc);
 
-	for(int i=0;i<arrayProxy->newDataAlloc;i++)
+	for(int i=0;i<leafArrayProxy->newDataAlloc;i++)
 		{
 		int oldLeafEntryAlloc=0;
 
-		if(arrayProxy->dataBlock!=NULL && i<arrayProxy->dataBlock->dataAlloc && arrayProxy->dataBlock->data[i]!=NULL)
+		if(leafArrayProxy->dataBlock!=NULL && i<leafArrayProxy->dataBlock->dataAlloc && leafArrayProxy->dataBlock->data[i]!=NULL)
 			{
-			u8 *oldLeafRawData=arrayProxy->dataBlock->data[i];
+			u8 *oldLeafRawData=leafArrayProxy->dataBlock->data[i];
 			RouteTableTreeLeafBlock *oldLeafData=(RouteTableTreeLeafBlock *)(oldLeafRawData+rtGetArrayBlockHeaderSize(indexSize,1));
 			oldLeafEntryAlloc=oldLeafData->entryAlloc;
 			}
 
-		if(arrayProxy->newData[i]!=NULL)
+		if(leafArrayProxy->newData[i]!=NULL)
 			{
-			RouteTableTreeLeafBlock *newLeafData=(RouteTableTreeLeafBlock *)(arrayProxy->newData[i]);
+			RouteTableTreeLeafBlock *newLeafData=(RouteTableTreeLeafBlock *)(leafArrayProxy->newData[i]);
 
 			if(newLeafData->entryAlloc!=oldLeafEntryAlloc)
 				totalSize+=rtGetArrayBlockHeaderSize(indexSize,1)+getRouteTableTreeLeafSize_Existing(newLeafData);
@@ -479,9 +479,9 @@ s32 mergeTopArrayUpdates_leaf_accumulateSize(RouteTableTreeArrayProxy *arrayProx
 }
 
 
-void mergeTopArrayUpdates_leaf(RouteTableTreeArrayProxy *arrayProxy, int arrayNum, int indexSize, int index, u8 *newData, s32 newDataSize)
+void mergeTopArrayUpdates_leaf(RouteTableTreeArrayProxy *leafArrayProxy, int arrayNum, int indexSize, int index, u8 *newData, s32 newDataSize)
 {
-	if(arrayProxy->newData==NULL)
+	if(leafArrayProxy->newData==NULL)
 		return ;
 
 	u8 *endNewData=newData+newDataSize;
@@ -495,27 +495,27 @@ void mergeTopArrayUpdates_leaf(RouteTableTreeArrayProxy *arrayProxy, int arrayNu
 
 		//}
 
-	for(int i=0;i<arrayProxy->newDataAlloc;i++)
+	for(int i=0;i<leafArrayProxy->newDataAlloc;i++)
 		{
 		u8 *oldLeafRawData=NULL;
 		RouteTableTreeLeafBlock *oldLeafData=NULL;
 		int oldLeafEntryAlloc=0;
 
-		if(arrayProxy->dataBlock!=NULL && i<arrayProxy->dataBlock->dataAlloc && arrayProxy->dataBlock->data[i]!=NULL)
+		if(leafArrayProxy->dataBlock!=NULL && i<leafArrayProxy->dataBlock->dataAlloc && leafArrayProxy->dataBlock->data[i]!=NULL)
 			{
-			oldLeafRawData=(arrayProxy->dataBlock->data[i]);
+			oldLeafRawData=(leafArrayProxy->dataBlock->data[i]);
 			oldLeafData=(RouteTableTreeLeafBlock *)(oldLeafRawData+rtGetArrayBlockHeaderSize(indexSize,1));
 			oldLeafEntryAlloc=oldLeafData->entryAlloc;
 			}
 
-		if(arrayProxy->newData[i]!=NULL)
+		if(leafArrayProxy->newData[i]!=NULL)
 			{
-			RouteTableTreeLeafBlock *newLeafData=(RouteTableTreeLeafBlock *)(arrayProxy->newData[i]);
+			RouteTableTreeLeafBlock *newLeafData=(RouteTableTreeLeafBlock *)(leafArrayProxy->newData[i]);
 
 			if(newLeafData->entryAlloc!=oldLeafEntryAlloc)
 				{
 //				LOG(LOG_INFO,"Leaf Move/Expand write to %p (%i %i)",newData, newLeafData->entryAlloc,oldLeafEntryAlloc);
-				arrayProxy->dataBlock->data[i]=newData;
+				leafArrayProxy->dataBlock->data[i]=newData;
 
 				s32 headerSize=rtEncodeArrayBlockHeader(arrayNum, ARRAY_TYPE_SHALLOW_DATA, indexSize, index, i, newData);
 				newData+=headerSize;
@@ -532,7 +532,7 @@ void mergeTopArrayUpdates_leaf(RouteTableTreeArrayProxy *arrayProxy, int arrayNu
 
 				s32 headerSize=rtGetArrayBlockHeaderSize(indexSize,1);
 				s32 dataSize=getRouteTableTreeLeafSize_Existing(newLeafData);
-				memcpy(arrayProxy->dataBlock->data[i]+headerSize, newLeafData, dataSize);
+				memcpy(leafArrayProxy->dataBlock->data[i]+headerSize, newLeafData, dataSize);
 				}
 			}
 		}
