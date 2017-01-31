@@ -77,13 +77,13 @@
  * Block must be at least minSize and at least the index, if not NULL
  */
 
-//const double MAX_SURVIVOR[CIRCHEAP_MAX_GENERATIONS]={0.70, 0.75, 0.80, 0.85, 0.90, 0.92, 0.94, 0.96};
+const double MAX_SURVIVOR[CIRCHEAP_MAX_GENERATIONS]={0.70, 0.75, 0.80, 0.85, 0.90, 0.92, 0.94, 0.96};
+
 //const double MAX_SURVIVOR[CIRCHEAP_MAX_GENERATIONS]={0.50, 0.60, 0.70, 0.70, 0.70, 0.70, 0.70, 0.90};
 //const double MAX_SURVIVOR[CIRCHEAP_MAX_GENERATIONS]={0.50, 0.80, 0.90, 0.90, 0.90, 0.90, 0.90, 0.95};
 //const double MAX_SURVIVOR[CIRCHEAP_MAX_GENERATIONS]={0.80, 0.85, 0.90, 0.92, 0.94, 0.96, 0.97, 0.98};
 //const double MAX_SURVIVOR[CIRCHEAP_MAX_GENERATIONS]={0.90, 0.91, 0.92, 0.93, 0.94, 0.96, 0.97, 0.98};
-
-const double MAX_SURVIVOR[CIRCHEAP_MAX_GENERATIONS]={0.90, 0.91, 0.92, 0.93, 0.94, 0.95, 0.96, 0.97};
+//const double MAX_SURVIVOR[CIRCHEAP_MAX_GENERATIONS]={0.90, 0.91, 0.92, 0.93, 0.94, 0.95, 0.96, 0.97};
 
 //const int MIN_BLOCKSIZEINDEX[CIRCHEAP_MAX_GENERATIONS]={64, 32, 16, 8 ,4, 2, 1 ,0};
 
@@ -299,7 +299,7 @@ MemCircHeap *circHeapAlloc(MemCircHeapChunkIndex *(*reclaimIndexer)(u8 *data, s6
 
 void circHeapFree(MemCircHeap *circHeap)
 {
-	dumpCircHeap(circHeap);
+	//dumpCircHeap(circHeap);
 
 	for(int i=0;i<CIRCHEAP_MAX_GENERATIONS;i++)
 		{
@@ -375,8 +375,10 @@ static void *allocFromGeneration(MemCircGeneration *generation, size_t newAllocS
 		block->allocPosition=positionAfterAlloc;
 
 		if(oldTagOffset!=NULL)
+			{
 			*oldTagOffset=generation->allocCurrentChunkTagOffset;
-		generation->allocCurrentChunkTagOffset=lastTagOffset;
+			generation->allocCurrentChunkTagOffset=lastTagOffset;
+			}
 
 		return data;
 		}
@@ -406,8 +408,10 @@ static void *allocFromGeneration(MemCircGeneration *generation, size_t newAllocS
 		block->allocPosition=newAllocSize;
 
 		if(oldTagOffset!=NULL)
+			{
 			*oldTagOffset=generation->allocCurrentChunkTagOffset;
-		generation->allocCurrentChunkTagOffset=lastTagOffset;
+			generation->allocCurrentChunkTagOffset=lastTagOffset;
+			}
 
 		return data;
 		}
@@ -492,6 +496,8 @@ static MemCircHeapChunkIndex *createReclaimIndex_single(MemCircHeap *circHeap, M
 		LOG(LOG_CRITICAL,"Trouble in tag %i",tag);
 		}
 
+//	LOG(LOG_INFO,"Got an indexedChunk with %i %i",indexedChunk->firstLiveTagOffset, indexedChunk->lastLiveTagOffset);
+
 	generation->reclaimCurrentChunkTagOffset=indexedChunk->lastScannedTagOffset;
 	indexedChunk->chunkTag=generation->reclaimCurrentChunkTag;
 
@@ -570,17 +576,25 @@ static MemCircHeapChunkIndex *moveIndexedHeap(MemCircHeap *circHeap, MemCircHeap
 		{
 		if(scan->sizeLive>0)
 			{
+			/*
 			if(scan->firstLiveTagOffset==-1)
 				{
 				int currentOffset=circHeap->generations[allocGeneration].allocCurrentChunkTagOffset;
 				scan->firstLiveTagOffset=currentOffset;
 				scan->lastLiveTagOffset=currentOffset;
 				}
+*/
 
 //			LOG(LOG_INFO,"MovedPreAlloc");
 //			dumpCircHeap(circHeap);
 
-			u8 *newChunk=allocFromGeneration(circHeap->generations+allocGeneration, scan->sizeLive,
+			u8 *newChunk=NULL;
+
+			if(scan->firstLiveTagOffset==-1)
+				newChunk=allocFromGeneration(circHeap->generations+allocGeneration, scan->sizeLive,
+									scan->chunkTag, 0, 0, NULL);
+			else
+				newChunk=allocFromGeneration(circHeap->generations+allocGeneration, scan->sizeLive,
 					scan->chunkTag, scan->firstLiveTagOffset, scan->lastLiveTagOffset, &(scan->newChunkOldTagOffset));
 
 //			LOG(LOG_INFO,"moveIndexedHeap Alloc: %p Size: %li ChunkTag: %i Generation: %i",newChunk,scan->sizeLive,scan->chunkTag,allocGeneration);
@@ -826,13 +840,13 @@ void *circAlloc_nobumper(MemCircHeap *circHeap, size_t size, u8 tag, s32 newTagO
 		LOG(LOG_CRITICAL, "Request to allocate %i bytes of ColHeap memory refused since it is above the max allocation size %i",size,CIRCHEAP_MAX_ALLOC);
 		}
 
-	//LOG(LOG_INFO,"circAlloc_nobumper: Allocating %i",size);
+	//LOG(LOG_INFO,"circAlloc_nobumper: Requesting %i with tag %i offset %i",size);
 
 	// Simple case - alloc from the current young block
 	void *usrPtr=allocFromGeneration(circHeap->generations, size, tag, newTagOffset, newTagOffset, oldTagOffset);
 	if(usrPtr!=NULL)
 		{
-	//	LOG(LOG_INFO,"circAlloc_nobumper: Alloc of %i to %p (to %p)",size,usrPtr,((u8 *)usrPtr)+size-1);
+//		LOG(LOG_INFO,"circAlloc_nobumper: Alloc of %i to %p (to %p) with tag %i newTagOffset %i",size,usrPtr,((u8 *)usrPtr)+size-1,tag,newTagOffset);
 		return usrPtr;
 		}
 
@@ -843,7 +857,7 @@ void *circAlloc_nobumper(MemCircHeap *circHeap, size_t size, u8 tag, s32 newTagO
 	usrPtr=allocFromGeneration(circHeap->generations, size, tag, newTagOffset, newTagOffset, oldTagOffset);
 	if(usrPtr!=NULL)
 		{
-//		LOG(LOG_INFO,"circAlloc_nobumper: Alloc of %i to %p (to %p)",size,usrPtr,((u8 *)usrPtr)+size-1);
+//		LOG(LOG_INFO,"circAlloc_nobumper: Alloc of %i to %p (to %p) with tag %i newTagOffset %i",size,usrPtr,((u8 *)usrPtr)+size-1,tag,newTagOffset);
 		return usrPtr;
 		}
 

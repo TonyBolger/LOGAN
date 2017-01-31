@@ -536,17 +536,17 @@ static s32 scanTagDataNoStart(u8 **tagData, s32 tagDataLength,u8 *wanted)
 
 static s32 scanTagData(u8 **tagData, s32 tagDataLength, s32 startIndex, u8 *wanted)
 {
-//	int scanCount=0;
+	int scanCount=0;
 	for(int i=startIndex;i<tagDataLength;i++)
 		{
 		if(tagData[i]==wanted)
 			{
-//			if(scanCount>10)
-//				LOG(LOG_INFO,"Scan count of %i from %i",scanCount,startIndex);
+			if(scanCount>10)
+				LOG(LOG_INFO,"Scan count of %i from %i of %i to find %p",scanCount,startIndex,tagDataLength,wanted);
 
 			return i;
 			}
-//		scanCount++;
+		scanCount++;
 		}
 /*
 	for(int i=0;i<startIndex;i++)
@@ -629,7 +629,7 @@ void validateReclaimIndexEntry(MemCircHeapChunkIndexEntry *indexEntry, u8 *heapP
 
 	if((*primaryPtr)==NULL)
 		{
-		LOG(LOG_CRITICAL,"Attempt to validate entry indexing NULL data");
+		LOG(LOG_CRITICAL,"Attempt to validate entry %i indexing NULL data",sindex);
 		}
 
 
@@ -686,6 +686,8 @@ MemCircHeapChunkIndex *rtReclaimIndexer(u8 *heapDataPtr, s64 targetAmount, u8 ta
 
 	s32 currentIndex=tagSearchOffset;
 	s32 firstTagOffset=-1;
+
+	index->lastLiveTagOffset=-1;
 
 	int entry=0;
 
@@ -855,9 +857,9 @@ MemCircHeapChunkIndex *rtReclaimIndexer(u8 *heapDataPtr, s64 targetAmount, u8 ta
 				s32 headerSize=rtDecodeArrayBlockHeader(heapDataPtr, &arrayNum, &arrayType, NULL, &smerIndex, NULL, &subindex);
 				u8 *scanPtr=heapDataPtr+headerSize;
 
-//				LOG(LOG_INFO,"Decoded Array: ArrayNum: %i ArrayType: %i SmerIndex: %i SubIndex: %i",arrayNum,arrayType,smerIndex,subindex);
+//				LOG(LOG_INFO,"Decoded Array at %p: ArrayNum: %i ArrayType: %i SmerIndex: %i SubIndex: %i",heapDataPtr,arrayNum,arrayType,smerIndex,subindex);
 
-				/*
+/*
 				char *status="Dead";
 				if(header & ALLOC_HEADER_LIVE_MASK)
 					status="Alive";
@@ -871,7 +873,7 @@ MemCircHeapChunkIndex *rtReclaimIndexer(u8 *heapDataPtr, s64 targetAmount, u8 ta
 
 						alloc=((RouteTableTreeArrayBlock *)scanPtr)->dataAlloc;
 						dataSize=sizeof(RouteTableTreeArrayBlock)+sizeof(u8 *)*alloc;
-						//LOGS(LOG_INFO,"Indexing %s Shallow Array %p %i (%i alloc):",status, heapDataPtr, dataSize, alloc);
+//						LOGS(LOG_INFO,"Indexing %s Shallow Array %p %i (%i alloc):",status, heapDataPtr, dataSize, alloc);
 						//dumpRawArrayBlock(heapDataPtr);
 
 						break;
@@ -887,7 +889,7 @@ MemCircHeapChunkIndex *rtReclaimIndexer(u8 *heapDataPtr, s64 targetAmount, u8 ta
 							case ROUTE_TOPINDEX_REVERSE_LEAF:
 								alloc=((RouteTableTreeLeafBlock *)scanPtr)->entryAlloc;
 								dataSize=sizeof(RouteTableTreeLeafBlock)+sizeof(RouteTableTreeLeafEntry)*alloc;
-							//	LOG(LOG_INFO,"Indexing %s Shallow Leaf Data %p %i (%i alloc)",status, heapDataPtr, dataSize, alloc);
+//								LOG(LOG_INFO,"Indexing %s Shallow Leaf Data %p %i (%i alloc)",status, heapDataPtr, dataSize, alloc);
 								break;
 
 							case ROUTE_TOPINDEX_FORWARD_BRANCH:
@@ -983,7 +985,7 @@ void rtRelocater(MemCircHeapChunkIndex *index, u8 tag, u8 **tagData, s32 tagData
 			{
 			int blockHeaderSize=0;
 
-			//LOG(LOG_INFO,"Transfer tag-enc %i bytes from %p to %p",size,(*primaryPtr),newChunk);
+			//LOG(LOG_INFO,"Transfer tag-enc (%i) %i bytes from %p to %p",topindex, size,(*primaryPtr),newChunk);
 
 			s32 diff=sindex-prevOffset;
 			blockHeaderSize=rtGetGapBlockHeaderSize();

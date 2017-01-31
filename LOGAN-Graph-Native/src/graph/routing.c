@@ -638,8 +638,8 @@ static void writeBuildersAsIndirectData(RoutingComboBuilder *routingBuilder, s8 
 
 	if(totalNeededSize>0)
 		{
-//		LOG(LOG_INFO,"CircAlloc %i",totalNeededSize);
-		u8 *newArrayData=circAlloc(circHeap, totalNeededSize, sliceTag, sliceIndex, NULL);
+//		LOG(LOG_INFO,"CircAlloc Array %i",totalNeededSize);
+		u8 *newArrayData=circAlloc(circHeap, totalNeededSize, sliceTag, 0, NULL);
 //		LOG(LOG_INFO,"Alloc array level at %p",newArrayData);
 
 		memset(newArrayData,0,totalNeededSize);
@@ -796,8 +796,8 @@ static void writeBuildersAsIndirectData(RoutingComboBuilder *routingBuilder, s8 
 			s32 size=mergeTopArrayUpdates_leaf_accumulateSize(arrayProxy, indexSize);
 //			LOG(LOG_INFO,"Need to allocate %i to write leaf array %i",size, i);
 
-//			LOG(LOG_INFO,"CircAlloc %i",size);
-			u8 *newLeafData=circAlloc(circHeap, size, sliceTag, sliceIndex, NULL);
+//			LOG(LOG_INFO,"CircAlloc Leaf %i",size);
+			u8 *newLeafData=circAlloc(circHeap, size, sliceTag, 0, NULL);
 //			LOG(LOG_INFO,"Alloc leaf level at %p",newLeafData);
 
 //			LOG(LOG_INFO,"Allocating");
@@ -833,8 +833,8 @@ static void writeBuildersAsIndirectData(RoutingComboBuilder *routingBuilder, s8 
 			s32 size=mergeTopArrayUpdates_branch_accumulateSize(arrayProxy, indexSize);
 			//LOG(LOG_INFO,"Need to allocate %i to write branch array %i",size, i);
 
-//			LOG(LOG_INFO,"CircAlloc %i",size);
-			u8 *newBranchData=circAlloc(circHeap, size, sliceTag, sliceIndex, NULL);
+//			LOG(LOG_INFO,"CircAlloc Branch %i",size);
+			u8 *newBranchData=circAlloc(circHeap, size, sliceTag, 0, NULL);
 //			LOG(LOG_INFO,"Alloc branch level at %p",newBranchData);
 
 			//LOG(LOG_INFO,"Allocating");

@@ -1852,7 +1852,7 @@ RouteTableTreeArrayProxy *rttGetTopArrayByIndex(RouteTableTreeBuilder *builder, 
 
 
 
-static void mergeRoutes_insertEntry(RouteTableTreeWalker *walker, s32 upstream, s32 downstream)
+static void rttMergeRoutes_insertEntry(RouteTableTreeWalker *walker, s32 upstream, s32 downstream)
 {
 	// New entry, with given up/down and width=1. May require leaf split if full or new leaf if not matching
 
@@ -1967,7 +1967,7 @@ static void mergeRoutes_insertEntry(RouteTableTreeWalker *walker, s32 upstream, 
 	//dumpLeafProxy(leafProxy);
 }
 
-static void mergeRoutes_widen(RouteTableTreeWalker *walker)
+static void rttMergeRoutes_widen(RouteTableTreeWalker *walker)
 {
 	// Add one to the current entry width. Hopefully width doesn't wrap
 
@@ -2002,7 +2002,7 @@ static void mergeRoutes_widen(RouteTableTreeWalker *walker)
 
 }
 
-static void mergeRoutes_split(RouteTableTreeWalker *walker, s32 downstream, s32 width1, s32 width2)
+static void rttMergeRoutes_split(RouteTableTreeWalker *walker, s32 downstream, s32 width1, s32 width2)
 {
 	// Add split existing route into two, and insert a new route between
 
@@ -2083,7 +2083,7 @@ static void mergeRoutes_split(RouteTableTreeWalker *walker, s32 downstream, s32 
 
 
 
-void mergeRoutes_ordered_forwardSingle(RouteTableTreeWalker *walker, RoutePatch *patch)
+static void rttMergeRoutes_ordered_forwardSingle(RouteTableTreeWalker *walker, RoutePatch *patch)
 {
 	s32 targetPrefix=patch->prefixIndex;
 	s32 targetSuffix=patch->suffixIndex;
@@ -2202,7 +2202,7 @@ void mergeRoutes_ordered_forwardSingle(RouteTableTreeWalker *walker, RoutePatch 
 		(*(patch->rdiPtr))->minEdgePosition=downstreamEdgeOffset;
 		(*(patch->rdiPtr))->maxEdgePosition=downstreamEdgeOffset;
 
-		mergeRoutes_insertEntry(walker, targetPrefix, targetSuffix); // targetPrefix,targetSuffix,1
+		rttMergeRoutes_insertEntry(walker, targetPrefix, targetSuffix); // targetPrefix,targetSuffix,1
 		}
 	else if(upstream==targetPrefix && entry->downstream==targetSuffix) // Existing entry suitable, widen
 		{
@@ -2233,7 +2233,7 @@ void mergeRoutes_ordered_forwardSingle(RouteTableTreeWalker *walker, RoutePatch 
 		(*(patch->rdiPtr))->minEdgePosition=downstreamEdgeOffset+minOffset;
 		(*(patch->rdiPtr))->maxEdgePosition=downstreamEdgeOffset+maxOffset;
 
-		mergeRoutes_widen(walker); // width ++
+		rttMergeRoutes_widen(walker); // width ++
 		}
 	else // Existing entry unsuitable, split and insert
 		{
@@ -2253,7 +2253,7 @@ void mergeRoutes_ordered_forwardSingle(RouteTableTreeWalker *walker, RoutePatch 
 		(*(patch->rdiPtr))->minEdgePosition=downstreamEdgeOffset;
 		(*(patch->rdiPtr))->maxEdgePosition=downstreamEdgeOffset;
 
-		mergeRoutes_split(walker, targetSuffix, splitWidth1, splitWidth2); // splitWidth1, (targetPrefix, targetSuffix, 1), splitWidth2
+		rttMergeRoutes_split(walker, targetSuffix, splitWidth1, splitWidth2); // splitWidth1, (targetPrefix, targetSuffix, 1), splitWidth2
 
 		//LOG(LOG_CRITICAL,"Entry Split"); // splitWidth1, (targetPrefix, targetSuffix, 1), splitWidth2
 		}
@@ -2265,7 +2265,7 @@ void mergeRoutes_ordered_forwardSingle(RouteTableTreeWalker *walker, RoutePatch 
 }
 
 
-void mergeRoutes_ordered_reverseSingle(RouteTableTreeWalker *walker, RoutePatch *patch)
+static void rttMergeRoutes_ordered_reverseSingle(RouteTableTreeWalker *walker, RoutePatch *patch)
 {
 	s32 targetPrefix=patch->prefixIndex;
 	s32 targetSuffix=patch->suffixIndex;
@@ -2385,7 +2385,7 @@ void mergeRoutes_ordered_reverseSingle(RouteTableTreeWalker *walker, RoutePatch 
 		(*(patch->rdiPtr))->minEdgePosition=downstreamEdgeOffset;
 		(*(patch->rdiPtr))->maxEdgePosition=downstreamEdgeOffset;
 
-		mergeRoutes_insertEntry(walker, targetSuffix, targetPrefix); // targetPrefix,targetSuffix,1
+		rttMergeRoutes_insertEntry(walker, targetSuffix, targetPrefix); // targetPrefix,targetSuffix,1
 		}
 	else if(upstream==targetSuffix && entry->downstream==targetPrefix) // Existing entry suitable, widen
 		{
@@ -2412,7 +2412,7 @@ void mergeRoutes_ordered_reverseSingle(RouteTableTreeWalker *walker, RoutePatch 
 		(*(patch->rdiPtr))->minEdgePosition=downstreamEdgeOffset+minOffset;
 		(*(patch->rdiPtr))->maxEdgePosition=downstreamEdgeOffset+maxOffset;
 
-		mergeRoutes_widen(walker); // width ++
+		rttMergeRoutes_widen(walker); // width ++
 		}
 	else // Existing entry unsuitable, split and insert
 		{
@@ -2431,7 +2431,7 @@ void mergeRoutes_ordered_reverseSingle(RouteTableTreeWalker *walker, RoutePatch 
 		(*(patch->rdiPtr))->minEdgePosition=downstreamEdgeOffset;
 		(*(patch->rdiPtr))->maxEdgePosition=downstreamEdgeOffset;
 
-		mergeRoutes_split(walker, targetPrefix, splitWidth1, splitWidth2); // splitWidth1, (targetPrefix, targetSuffix, 1), splitWidth2
+		rttMergeRoutes_split(walker, targetPrefix, splitWidth1, splitWidth2); // splitWidth1, (targetPrefix, targetSuffix, 1), splitWidth2
 
 		//LOG(LOG_CRITICAL,"Entry Split"); // splitWidth1, (targetPrefix, targetSuffix, 1), splitWidth2
 		}
@@ -2494,7 +2494,7 @@ void rttMergeRoutes(RouteTableTreeBuilder *builder,
 				while(patchPtr<patchEnd && patchPtr->prefixIndex==targetUpstream)
 					{
 					walkerSeekStart(walker);
-					mergeRoutes_ordered_forwardSingle(walker, patchPtr);
+					rttMergeRoutes_ordered_forwardSingle(walker, patchPtr);
 					walkerResetOffsetArrays(walker);
 
 					*(orderedDispatches++)=*(patchPtr->rdiPtr);
@@ -2504,7 +2504,7 @@ void rttMergeRoutes(RouteTableTreeBuilder *builder,
 			else
 				{
 				walkerSeekStart(walker);
-				mergeRoutes_ordered_forwardSingle(walker, patchPtr);
+				rttMergeRoutes_ordered_forwardSingle(walker, patchPtr);
 				walkerResetOffsetArrays(walker);
 
 				*(orderedDispatches++)=*(patchPtr->rdiPtr);
@@ -2536,7 +2536,7 @@ void rttMergeRoutes(RouteTableTreeBuilder *builder,
 				while(patchPtr<patchEnd && patchPtr->suffixIndex==targetUpstream)
 					{
 					walkerSeekStart(walker);
-					mergeRoutes_ordered_reverseSingle(walker, patchPtr);
+					rttMergeRoutes_ordered_reverseSingle(walker, patchPtr);
 					walkerResetOffsetArrays(walker);
 
 					*(orderedDispatches++)=*(patchPtr->rdiPtr);
@@ -2546,7 +2546,7 @@ void rttMergeRoutes(RouteTableTreeBuilder *builder,
 			else
 				{
 				walkerSeekStart(walker);
-				mergeRoutes_ordered_reverseSingle(walker, patchPtr);
+				rttMergeRoutes_ordered_reverseSingle(walker, patchPtr);
 				walkerResetOffsetArrays(walker);
 
 				*(orderedDispatches++)=*(patchPtr->rdiPtr);

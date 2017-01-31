@@ -185,7 +185,7 @@ static int decodeHeader(u8 *packedData, u32 *prefixBits, u32 *suffixBits, u32 *w
 }
 
 
-static void unpackRoutes(u8 *data, int prefixBits, int suffixBits, int widthBits,
+static void rtaUnpackRoutes(u8 *data, int prefixBits, int suffixBits, int widthBits,
 		RouteTableEntry *forwardEntries, RouteTableEntry *reverseEntries, u32 forwardEntryCount, u32 reverseEntryCount,
 		int *maxPrefixPtr, int *maxSuffixPtr, int *maxWidthPtr)
 {
@@ -262,7 +262,7 @@ static u8 *readRouteTableBuilderPackedData(RouteTableArrayBuilder *builder, u8 *
 		builder->oldForwardEntryCount=forwardEntryCount;
 		builder->oldReverseEntryCount=reverseEntryCount;
 
-		unpackRoutes(data, prefixBits, suffixBits, widthBits,
+		rtaUnpackRoutes(data, prefixBits, suffixBits, widthBits,
 				builder->oldForwardEntries,builder->oldReverseEntries,forwardEntryCount,reverseEntryCount,
 				&maxPrefix, &maxSuffix, &maxWidth);
 		}
@@ -440,7 +440,7 @@ u8 *rtaWriteRouteTableArrayBuilderPackedData(RouteTableArrayBuilder *builder, u8
 
 
 
-static RouteTableEntry *mergeRoutes_ordered_forwardSingle(RouteTableArrayBuilder *builder,
+static RouteTableEntry *rtaMergeRoutes_ordered_forwardSingle(RouteTableArrayBuilder *builder,
 		RouteTableEntry *oldEntryPtr, RouteTableEntry *oldEntryEnd, RouteTableEntry *newEntryPtr, RoutePatch *patch, int *maxWidth)
 {
 	int targetPrefix=patch->prefixIndex;
@@ -579,7 +579,7 @@ static RouteTableEntry *mergeRoutes_ordered_forwardSingle(RouteTableArrayBuilder
 
 
 
-static RouteTableEntry *mergeRoutes_ordered_reverseSingle(RouteTableEntry *oldEntryPtr, RouteTableEntry *oldEntryEnd, RouteTableEntry *newEntryPtr, RoutePatch *patch, int *maxWidth)
+static RouteTableEntry *rtaMergeRoutes_ordered_reverseSingle(RouteTableEntry *oldEntryPtr, RouteTableEntry *oldEntryEnd, RouteTableEntry *newEntryPtr, RoutePatch *patch, int *maxWidth)
 {
 	int targetPrefix=patch->prefixIndex;
 	int targetSuffix=patch->suffixIndex;
@@ -795,7 +795,7 @@ void rtaMergeRoutes(RouteTableArrayBuilder *builder, RoutePatch *forwardRoutePat
 
 				while(patchPtr<patchEnd && patchPtr->prefixIndex==targetUpstream)
 					{
-					destBufferEnd=mergeRoutes_ordered_forwardSingle(builder, srcBuffer, srcBufferEnd, destBuffer, patchPtr, &maxWidth);
+					destBufferEnd=rtaMergeRoutes_ordered_forwardSingle(builder, srcBuffer, srcBufferEnd, destBuffer, patchPtr, &maxWidth);
 
 					srcBuffer=destBuffer;
 					srcBufferEnd=destBufferEnd;
@@ -811,7 +811,7 @@ void rtaMergeRoutes(RouteTableArrayBuilder *builder, RoutePatch *forwardRoutePat
 			// Medium case: Single patch in prefix (patchPtr)
 //				LOG(LOG_INFO,"MERGE: Scenario 1");
 
-				destBufferEnd=mergeRoutes_ordered_forwardSingle(builder, srcBuffer, srcBufferEnd, destBuffer, patchPtr, &maxWidth);
+				destBufferEnd=rtaMergeRoutes_ordered_forwardSingle(builder, srcBuffer, srcBufferEnd, destBuffer, patchPtr, &maxWidth);
 
 				srcBuffer=destBuffer;
 				srcBufferEnd=destBufferEnd;
@@ -863,7 +863,7 @@ void rtaMergeRoutes(RouteTableArrayBuilder *builder, RoutePatch *forwardRoutePat
 
 				while(patchPtr<patchEnd && patchPtr->suffixIndex==targetUpstream)
 					{
-					destBufferEnd=mergeRoutes_ordered_reverseSingle(srcBuffer, srcBufferEnd, destBuffer, patchPtr, &maxWidth);
+					destBufferEnd=rtaMergeRoutes_ordered_reverseSingle(srcBuffer, srcBufferEnd, destBuffer, patchPtr, &maxWidth);
 
 					srcBuffer=destBuffer;
 					srcBufferEnd=destBufferEnd;
@@ -879,7 +879,7 @@ void rtaMergeRoutes(RouteTableArrayBuilder *builder, RoutePatch *forwardRoutePat
 				// Medium case: Single patch in prefix (patchPtr)
 //				LOG(LOG_INFO,"MERGE: Scenario 1");
 
-				destBufferEnd=mergeRoutes_ordered_reverseSingle(srcBuffer, srcBufferEnd, destBuffer, patchPtr, &maxWidth);
+				destBufferEnd=rtaMergeRoutes_ordered_reverseSingle(srcBuffer, srcBufferEnd, destBuffer, patchPtr, &maxWidth);
 
 				srcBuffer=destBuffer;
 				srcBufferEnd=destBufferEnd;
@@ -934,7 +934,7 @@ void rtaUnpackRouteTableArrayForSmerLinked(SmerLinked *smerLinked, u8 *data, Mem
 		smerLinked->forwardRouteCount=forwardEntryCount;
 		smerLinked->reverseRouteCount=reverseEntryCount;
 
-		unpackRoutes(data, prefixBits, suffixBits, widthBits,
+		rtaUnpackRoutes(data, prefixBits, suffixBits, widthBits,
 				smerLinked->forwardRouteEntries, smerLinked->reverseRouteEntries, forwardEntryCount, reverseEntryCount,
 				NULL,NULL,NULL);
 		}
