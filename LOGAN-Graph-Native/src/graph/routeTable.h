@@ -123,6 +123,10 @@ typedef struct routingComboBuilderStr
 
 
 
+typedef struct routeTableTreeArrayProxyStr RouteTableTreeArrayProxy;
+typedef struct routeTableTreeBranchProxyStr RouteTableTreeBranchProxy;
+typedef struct routeTableTreeLeafProxyStr  RouteTableTreeLeafProxy;
+typedef struct routeTableTreeProxyStr RouteTableTreeProxy;
 
 
 

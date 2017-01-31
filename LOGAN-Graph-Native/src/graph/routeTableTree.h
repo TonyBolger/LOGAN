@@ -78,40 +78,6 @@ typedef struct rootTableTreeTopBlockStr
 
 // For now, all trees use the same size tail indexes (s16), width (s32). Longer term, this should be per-node
 
-typedef s32 RouteTableTreeLeafOffset;
-
-typedef struct routeTableTreeBranchBlockStr
-{
-	s16 childAlloc;
-	s16 parentBrindex;
-
-	//s16 upstreamMin;
-	//s16 upstreamMax;
-
-	s16 childNindex[]; // Max is ROUTE_TABLE_TREE_BRANCH_CHILDREN
-} __attribute__((packed)) RouteTableTreeBranchBlock;
-
-
-typedef struct routeTableTreeLeafEntryStr
-{
-	s16 downstream;
-	s32 width;
-} __attribute__((packed)) RouteTableTreeLeafEntry;
-
-typedef struct routeTableLeafBlockStr
-{
-	s16 offsetAlloc;
-	s16 entryAlloc;
-
-	s16 parentBrindex;
-
-	s16 upstream;
-
-	u8 extraData[];
-	//RouteTableTreeLeafOffset offsets[offsetAlloc]
-	//RouteTableTreeLeafEntry entries[entryAlloc]; // Max is ROUTE_TABLE_TREE_LEAF_ENTRIES
-
-} __attribute__((packed)) RouteTableTreeLeafBlock;
 
 /*
 typedef struct routeTableTreeOffsetBlockStr
@@ -128,66 +94,10 @@ typedef struct routeTableTreeOffsetBlockStr
 */
 
 
-typedef struct routeTableTreeArrayBlockStr
-{
-	u16 dataAlloc;
-	u8 *data[];
-} __attribute__((packed)) RouteTableTreeArrayBlock;
-
-
-
 /* Structs wrapping the heap-format tree, allowing nicer manipulation */
 
-// Possible Array Formats:
-// 		Single Level: Shallow Ptr -> Shallow Data (1B sub) [1024]
-//      Two Level: Shallow Ptr-> Deep Ptr (1B sub) [256] -> Deep Data (2B sub) [1024]
 
-
-typedef struct routeTableTreeLeafProxyStr
-{
-	RouteTableTreeLeafBlock *dataBlock;
-	s16 lindex;
-
-	u16 offsetAlloc;
-
-	u16 entryAlloc;
-	u16 entryCount;
-
-} RouteTableTreeLeafProxy;
-
-typedef struct routeTableTreeBranchProxyStr
-{
-	RouteTableTreeBranchBlock *dataBlock;
-	s16 brindex;
-
-	u16 childAlloc;
-	u16 childCount;
-
-} RouteTableTreeBranchProxy;
-
-
-typedef struct routeTableTreeArrayProxyStr
-{
-	RouteTableTreeArrayBlock *ptrBlock; // If using two levels
-	u16 ptrAlloc;
-	u16 ptrCount;
-
-	RouteTableTreeArrayBlock *dataBlock; // With Headers.
-	u16 dataAlloc;
-	u16 dataCount;
-
-	u8 **newData; // Temporary space for new stuff (no headers)
-	u16 newDataAlloc;
-	u16 newDataCount;
-
-	HeapDataBlock *heapDataBlock;
-	u32 arrayType;
-} RouteTableTreeArrayProxy;
-
-
-
-
-typedef struct routeTableTreeProxyStr
+struct routeTableTreeProxyStr
 {
 	MemDispenser *disp;
 
@@ -197,7 +107,7 @@ typedef struct routeTableTreeProxyStr
 
 	RouteTableTreeBranchProxy *rootProxy;
 
-} RouteTableTreeProxy;
+};
 
 typedef struct routeTableTreeWalkerStr
 {

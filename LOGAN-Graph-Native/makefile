@@ -20,6 +20,9 @@ CLI_OBJS += \
 ./bin/cli/common/graph/routeTable.o \
 ./bin/cli/common/graph/routeTableArray.o \
 ./bin/cli/common/graph/routeTableTree.o \
+./bin/cli/common/graph/routeTableTreeArray.o \
+./bin/cli/common/graph/routeTableTreeBranch.o \
+./bin/cli/common/graph/routeTableTreeLeaf.o \
 ./bin/cli/common/graph/routing.o \
 ./bin/cli/common/graph/seqTail.o \
 ./bin/cli/common/graph/smer.o \
@@ -52,6 +55,9 @@ JNI_OBJS += \
 ./bin/jni/common/graph/routeTable.o \
 ./bin/jni/common/graph/routeTableArray.o \
 ./bin/jni/common/graph/routeTableTree.o \
+./bin/jni/common/graph/routeTableTreeArray.o \
+./bin/jni/common/graph/routeTableTreeBranch.o \
+./bin/jni/common/graph/routeTableTreeLeaf.o \
 ./bin/jni/common/graph/routing.o \
 ./bin/jni/common/graph/seqTail.o \
 ./bin/jni/common/graph/smer.o \

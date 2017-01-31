@@ -887,15 +887,13 @@ MemCircHeapChunkIndex *rtReclaimIndexer(u8 *heapDataPtr, s64 targetAmount, u8 ta
 							{
 							case ROUTE_TOPINDEX_FORWARD_LEAF:
 							case ROUTE_TOPINDEX_REVERSE_LEAF:
-								alloc=((RouteTableTreeLeafBlock *)scanPtr)->entryAlloc;
-								dataSize=sizeof(RouteTableTreeLeafBlock)+sizeof(RouteTableTreeLeafEntry)*alloc;
+								dataSize=getRouteTableTreeLeafSize_Existing((RouteTableTreeLeafBlock *)scanPtr);
 //								LOG(LOG_INFO,"Indexing %s Shallow Leaf Data %p %i (%i alloc)",status, heapDataPtr, dataSize, alloc);
 								break;
 
 							case ROUTE_TOPINDEX_FORWARD_BRANCH:
 							case ROUTE_TOPINDEX_REVERSE_BRANCH:
-								alloc=((RouteTableTreeBranchBlock *)scanPtr)->childAlloc;
-								dataSize=sizeof(RouteTableTreeBranchBlock)+sizeof(s16)*alloc;
+								dataSize=getRouteTableTreeBranchSize_Existing((RouteTableTreeBranchBlock *)scanPtr);
 								//LOG(LOG_INFO,"Indexing %s Shallow Branch Data %p %i (%i alloc)",status, heapDataPtr, dataSize, alloc);
 								break;
 

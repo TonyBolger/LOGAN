@@ -371,7 +371,7 @@ s32 mergeTopArrayUpdates_branch_accumulateSize(RouteTableTreeArrayProxy *arrayPr
 			RouteTableTreeBranchBlock *newBranchData=(RouteTableTreeBranchBlock *)(arrayProxy->newData[i]);
 
 			if(newBranchData->childAlloc!=oldBranchChildAlloc)
-				totalSize+=rtGetArrayBlockHeaderSize(indexSize,1)+sizeof(RouteTableTreeBranchBlock)+sizeof(s16)*((s32)(newBranchData->childAlloc));
+				totalSize+=rtGetArrayBlockHeaderSize(indexSize,1)+getRouteTableTreeBranchSize_Existing(newBranchData);
 			}
 		}
 
@@ -415,7 +415,7 @@ void mergeTopArrayUpdates_branch(RouteTableTreeArrayProxy *arrayProxy, int array
 				s32 headerSize=rtEncodeArrayBlockHeader(arrayNum, ARRAY_TYPE_SHALLOW_DATA, indexSize, index, i, newData);
 				newData+=headerSize;
 
-				s32 dataSize=sizeof(RouteTableTreeBranchBlock)+sizeof(s16)*(newBranchData->childAlloc);
+				s32 dataSize=getRouteTableTreeBranchSize_Existing(newBranchData);
 				memcpy(newData, newBranchData, dataSize);
 
 				//LOG(LOG_INFO,"Copying %i bytes of branch data from %p to %p",dataSize,newBranchData,newData);
@@ -429,7 +429,7 @@ void mergeTopArrayUpdates_branch(RouteTableTreeArrayProxy *arrayProxy, int array
 //				LOG(LOG_INFO,"Branch rewrite to %p (%i %i)",arrayProxy->dataBlock->data[i], newBranchData->childAlloc,oldBranchChildAlloc);
 
 				s32 headerSize=rtGetArrayBlockHeaderSize(indexSize,1);
-				s32 dataSize=sizeof(RouteTableTreeBranchBlock)+sizeof(s16)*(newBranchData->childAlloc);
+				s32 dataSize=getRouteTableTreeBranchSize_Existing(newBranchData);
 				memcpy(arrayProxy->dataBlock->data[i]+headerSize, newBranchData, dataSize);
 
 				}
@@ -471,7 +471,7 @@ s32 mergeTopArrayUpdates_leaf_accumulateSize(RouteTableTreeArrayProxy *arrayProx
 			RouteTableTreeLeafBlock *newLeafData=(RouteTableTreeLeafBlock *)(arrayProxy->newData[i]);
 
 			if(newLeafData->entryAlloc!=oldLeafEntryAlloc)
-				totalSize+=rtGetArrayBlockHeaderSize(indexSize,1)+sizeof(RouteTableTreeLeafBlock)+sizeof(RouteTableTreeLeafEntry)*((s32)(newLeafData->entryAlloc));
+				totalSize+=rtGetArrayBlockHeaderSize(indexSize,1)+getRouteTableTreeLeafSize_Existing(newLeafData);
 			}
 		}
 
@@ -520,7 +520,7 @@ void mergeTopArrayUpdates_leaf(RouteTableTreeArrayProxy *arrayProxy, int arrayNu
 				s32 headerSize=rtEncodeArrayBlockHeader(arrayNum, ARRAY_TYPE_SHALLOW_DATA, indexSize, index, i, newData);
 				newData+=headerSize;
 
-				s32 dataSize=sizeof(RouteTableTreeLeafBlock)+sizeof(RouteTableTreeLeafEntry)*(newLeafData->entryAlloc);
+				s32 dataSize=getRouteTableTreeLeafSize_Existing(newLeafData);
 				memcpy(newData, newLeafData, dataSize);
 				newData+=dataSize;
 
@@ -531,7 +531,7 @@ void mergeTopArrayUpdates_leaf(RouteTableTreeArrayProxy *arrayProxy, int arrayNu
 //				LOG(LOG_INFO,"Leaf rewrite to %p (%i %i)",arrayProxy->dataBlock->data[i], newLeafData->entryAlloc,oldLeafEntryAlloc);
 
 				s32 headerSize=rtGetArrayBlockHeaderSize(indexSize,1);
-				s32 dataSize=sizeof(RouteTableTreeLeafBlock)+sizeof(RouteTableTreeLeafEntry)*(newLeafData->entryAlloc);
+				s32 dataSize=getRouteTableTreeLeafSize_Existing(newLeafData);
 				memcpy(arrayProxy->dataBlock->data[i]+headerSize, newLeafData, dataSize);
 				}
 			}
