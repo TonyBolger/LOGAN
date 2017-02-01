@@ -4,7 +4,6 @@
 
 typedef s32 RouteTableTreeLeafOffset;
 
-
 typedef struct routeTableTreeLeafEntryStr
 {
 	s16 downstream;

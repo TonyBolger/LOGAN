@@ -138,7 +138,9 @@ void rttUnpackRouteTableForSmerLinked(SmerLinked *smerLinked, u8 *data, MemDispe
 
 void rttGetStats(RouteTableTreeBuilder *builder,
 		s64 *routeTableForwardRouteEntriesPtr, s64 *routeTableForwardRoutesPtr, s64 *routeTableReverseRouteEntriesPtr, s64 *routeTableReverseRoutesPtr,
-		s64 *routeTableTreeTopBytesPtr, s64 *routeTableTreeArrayBytesPtr, s64 *routeTableTreeLeafBytes, s64 *routeTableTreeBranchBytes);
+		s64 *routeTableTreeTopBytesPtr, s64 *routeTableTreeArrayBytesPtr,
+		s64 *routeTableTreeLeafBytes, s64 *routeTableTreeLeafOffsetBytes, s64 *routeTableTreeLeafEntryBytes,
+		s64 *routeTableTreeBranchBytes, s64 *routeTableTreeBranchOffsetBytes, s64 *routeTableTreeBranchChildBytes);
 
 
 #endif

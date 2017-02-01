@@ -1,6 +1,8 @@
 #ifndef __ROUTE_TABLE_TREE_BRANCH_H
 #define __ROUTE_TABLE_TREE_BRANCH_H
 
+typedef s16 RouteTableTreeBranchChild;
+
 typedef struct routeTableTreeBranchBlockStr
 {
 	s16 childAlloc;

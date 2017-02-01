@@ -4,13 +4,13 @@
 
 s32 getRouteTableTreeBranchSize_Expected(s16 childAlloc)
 {
-	return sizeof(RouteTableTreeBranchBlock)+((s32)childAlloc)*sizeof(s16);
+	return sizeof(RouteTableTreeBranchBlock)+((s32)childAlloc)*sizeof(RouteTableTreeBranchChild);
 }
 
 
 s32 getRouteTableTreeBranchSize_Existing(RouteTableTreeBranchBlock *branchBlock)
 {
-	return sizeof(RouteTableTreeBranchBlock)+((s32)branchBlock->childAlloc)*sizeof(s16);
+	return sizeof(RouteTableTreeBranchBlock)+((s32)branchBlock->childAlloc)*sizeof(RouteTableTreeBranchChild);
 }
 
 

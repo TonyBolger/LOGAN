@@ -983,14 +983,20 @@ void rttUnpackRouteTableForSmerLinked(SmerLinked *smerLinked, u8 *data, MemDispe
 
 void rttGetStats(RouteTableTreeBuilder *builder,
 		s64 *routeTableForwardRouteEntriesPtr, s64 *routeTableForwardRoutesPtr, s64 *routeTableReverseRouteEntriesPtr, s64 *routeTableReverseRoutesPtr,
-		s64 *routeTableTreeTopBytesPtr, s64 *routeTableTreeArrayBytesPtr, s64 *routeTableTreeLeafBytes, s64 *routeTableTreeBranchBytes)
+		s64 *routeTableTreeTopBytesPtr, s64 *routeTableTreeArrayBytesPtr,
+		s64 *routeTableTreeLeafBytes, s64 *routeTableTreeLeafOffsetBytes, s64 *routeTableTreeLeafEntryBytes,
+		s64 *routeTableTreeBranchBytes, s64 *routeTableTreeBranchOffsetBytes, s64 *routeTableTreeBranchChildBytes)
 {
 	s64 routeEntries[]={0,0};
 	s64 routes[]={0,0};
 
 	s64 arrayBytes=0;
 	s64 leafBytes=0;
+	s64 leafOffsetBytes=0;
+	s64 leafEntryBytes=0;
 	s64 branchBytes=0;
+	s64 branchOffsetBytes=0;
+	s64 branchChildBytes=0;
 
 	RouteTableTreeProxy *treeProxies[2];
 
@@ -1010,6 +1016,8 @@ void rttGetStats(RouteTableTreeBuilder *builder,
 			RouteTableTreeLeafProxy *leafProxy=getRouteTableTreeLeafProxy(treeProxies[p], i);
 
 			leafBytes+=getRouteTableTreeLeafSize_Existing(leafProxy->dataBlock);
+			leafOffsetBytes+=((s32)leafProxy->dataBlock->offsetAlloc)*sizeof(RouteTableTreeLeafOffset);
+			leafEntryBytes+=((s32)leafProxy->dataBlock->entryAlloc)*sizeof(RouteTableTreeLeafEntry);
 
 			s32 routesTmp=0;
 			int leafElements=leafProxy->entryCount;
@@ -1031,7 +1039,10 @@ void rttGetStats(RouteTableTreeBuilder *builder,
 		for(int i=0;i<branchCount;i++)
 			{
 			RouteTableTreeBranchProxy *branchProxy=getRouteTableTreeBranchProxy(treeProxies[p], i);
+
 			branchBytes+=getRouteTableTreeBranchSize_Existing(branchProxy->dataBlock);
+			//branchOffsetBytes+=;
+			branchChildBytes+=((s32)branchProxy->dataBlock->childAlloc)*sizeof(RouteTableTreeBranchChild);
 			}
 
 		}
@@ -1057,8 +1068,20 @@ void rttGetStats(RouteTableTreeBuilder *builder,
 	if(routeTableTreeLeafBytes!=NULL)
 		*routeTableTreeLeafBytes=leafBytes;
 
+	if(routeTableTreeLeafOffsetBytes!=NULL)
+			*routeTableTreeLeafOffsetBytes=leafOffsetBytes;
+
+	if(routeTableTreeLeafEntryBytes!=NULL)
+			*routeTableTreeLeafEntryBytes=leafEntryBytes;
+
 	if(routeTableTreeBranchBytes!=NULL)
 		*routeTableTreeBranchBytes=branchBytes;
+
+	if(routeTableTreeBranchOffsetBytes!=NULL)
+		*routeTableTreeBranchOffsetBytes=branchOffsetBytes;
+
+	if(routeTableTreeBranchChildBytes!=NULL)
+		*routeTableTreeBranchChildBytes=branchChildBytes;
 
 
 }

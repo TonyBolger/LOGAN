@@ -27,8 +27,14 @@ typedef struct smerRoutingStatsStr
 
 	s64 routeTableTreeTopBytes;
 	s64 routeTableTreeArrayBytes;
+
 	s64 routeTableTreeLeafBytes;
+	s64 routeTableTreeLeafOffsetBytes;
+	s64 routeTableTreeLeafEntryBytes;
+
 	s64 routeTableTreeBranchBytes;
+	s64 routeTableTreeBranchOffsetBytes;
+	s64 routeTableTreeBranchChildBytes;
 
 	s64 routeTableTotalBytes;
 	s64 smerTotalBytes;

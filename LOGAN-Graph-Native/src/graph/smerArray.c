@@ -97,7 +97,13 @@ void saCleanupSmerArray(SmerArray *smerArray) {
 
 #ifdef FEATURE_ENABLE_SMER_STATS
 	                   //012345678901  01234567890123456789012
-	LOGN(LOG_INFO,"STAT: SmerID      \tSmerBases              \tPtail\tPbyte\tStail\tSbyte\tRFmt\tRFe\tRFr\tRRe\tRRr\tRe\tRr\tRAbyte\tRTTopB\tRTAryB\tRTlB\tRTbB\tRTByte\tByte");
+	LOGN(LOG_INFO,"STAT: SmerID      \tSmerBases              \tPtail\tPbyte\tStail\tSbyte\t"
+			"RFmt\tRFe\tRFr\tRRe\tRRr\tRe\tRr\t"
+			"RAbyte\t"
+			"RTTopB\tRTAryB\t"
+			"RTlB\tRTloB\tRTleB\t"
+			"RTbB\tRTboB\tRTbcB\t"
+			"RTByte\tByte");
 	MemDispenser *disp=dispenserAlloc("Stats",DISPENSER_BLOCKSIZE_HUGE);
 #endif
 	for (i = 0; i < SMER_SLICES; i++)
@@ -113,12 +119,14 @@ void saCleanupSmerArray(SmerArray *smerArray) {
 				s64 frEntries=stats[j].routeTableForwardRouteEntries+stats[j].routeTableReverseRouteEntries;
 				s64 frRoutes=stats[j].routeTableForwardRoutes+stats[j].routeTableReverseRoutes;
 
-				LOGN(LOG_INFO,"SMER: %012x\t%s\t%i\t%i\t%i\t%i\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li",
+				LOGN(LOG_INFO,"SMER: %012x\t%s\t%i\t%i\t%i\t%i\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li\t%li",
 						stats[j].smerId, stats[j].smerStr,
 						stats[j].prefixTails, stats[j].prefixBytes, stats[j].suffixTails, stats[j].suffixBytes, stats[j].routeTableFormat,
 						stats[j].routeTableForwardRouteEntries, stats[j].routeTableForwardRoutes, stats[j].routeTableReverseRouteEntries, stats[j].routeTableReverseRoutes,
 						frEntries, frRoutes,
-						stats[j].routeTableArrayBytes, stats[j].routeTableTreeTopBytes, stats[j].routeTableTreeArrayBytes, stats[j].routeTableTreeLeafBytes, stats[j].routeTableTreeBranchBytes,
+						stats[j].routeTableArrayBytes, stats[j].routeTableTreeTopBytes, stats[j].routeTableTreeArrayBytes,
+						stats[j].routeTableTreeLeafBytes, stats[j].routeTableTreeLeafOffsetBytes, stats[j].routeTableTreeLeafEntryBytes,
+						stats[j].routeTableTreeBranchBytes, stats[j].routeTableTreeBranchOffsetBytes, stats[j].routeTableTreeBranchChildBytes,
 						stats[j].routeTableTotalBytes, stats[j].smerTotalBytes);
 				}
 

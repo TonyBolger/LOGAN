@@ -1239,7 +1239,8 @@ SmerRoutingStats *rtGetRoutingStats(SmerArraySlice *smerArraySlice, u32 sliceNum
 						&(stats[i].routeTableForwardRouteEntries), &(stats[i].routeTableForwardRoutes),
 						&(stats[i].routeTableReverseRouteEntries), &(stats[i].routeTableReverseRoutes),
 						&(stats[i].routeTableTreeTopBytes), &(stats[i].routeTableTreeArrayBytes),
-						&(stats[i].routeTableTreeLeafBytes), &(stats[i].routeTableTreeBranchBytes));
+						&(stats[i].routeTableTreeLeafBytes), &(stats[i].routeTableTreeLeafOffsetBytes), &(stats[i].routeTableTreeLeafEntryBytes),
+						&(stats[i].routeTableTreeBranchBytes), &(stats[i].routeTableTreeBranchOffsetBytes), &(stats[i].routeTableTreeBranchChildBytes));
 				}
 			else
 				{
