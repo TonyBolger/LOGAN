@@ -39,6 +39,8 @@ RouteTableTreeBranchProxy *allocRouteTableTreeBranchProxy(RouteTableTreeProxy *t
 
 void expandRouteTableTreeBranchProxy(RouteTableTreeProxy *treeProxy, RouteTableTreeBranchProxy *branchProxy);
 
+void dumpBranchBlock(RouteTableTreeBranchBlock *branchBlock);
+
 void branchMakeChildInsertSpace(RouteTableTreeBranchProxy *branchProxy, s16 childPosition, s16 childCount);
 
 s16 getBranchChildSibdex_Branch_withEstimate(RouteTableTreeBranchProxy *parentBranchProxy, RouteTableTreeBranchProxy *childBranchProxy, s16 sibdexEstimate);

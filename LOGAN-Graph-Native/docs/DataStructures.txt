@@ -467,7 +467,7 @@ Leak detection:
 valgrind --leak-check=full --show-reachable=yes ./LOGAN-Graph-Native/bin/LOGAN data/Ecoli-1_Q20.fq 1 1
 
 
-Debugging:
+Debugging (ASLR / Core):
 
 setarch `uname -m` -R /bin/bash
 ulimit -c unlimited

@@ -17,6 +17,8 @@ typedef struct routeTableLeafBlockStr
 
 	s16 parentBrindex;
 	s16 upstream;
+	s32 upstreamOffset;
+
 	u8 extraData[];
 
 	//RouteTableTreeLeafOffset offsets[offsetAlloc]
@@ -48,9 +50,16 @@ void flushRouteTableTreeLeafProxy(RouteTableTreeProxy *treeProxy, RouteTableTree
 RouteTableTreeLeafProxy *allocRouteTableTreeLeafProxy(RouteTableTreeProxy *treeProxy, s32 offsetAlloc, s32 entryAlloc);
 
 void ensureRouteTableTreeLeafOffsetCapacity(RouteTableTreeProxy *treeProxy, RouteTableTreeLeafProxy *leafProxy, s32 offsetAlloc);
+
 void expandRouteTableTreeLeafProxy(RouteTableTreeProxy *treeProxy, RouteTableTreeLeafProxy *leafProxy, s32 offsetAlloc);
+
 //void dumpLeafProxy(RouteTableTreeLeafProxy *leafProxy);
+void dumpLeafBlock(RouteTableTreeLeafBlock *leafBlock);
+
 void leafMakeEntryInsertSpace(RouteTableTreeLeafProxy *leaf, s16 entryPosition, s16 entryCount);
 
+void initRouteTableTreeLeafOffsets(RouteTableTreeLeafProxy *leafProxy, s16 upstream);
+void recalcRouteTableTreeLeafOffsets(RouteTableTreeLeafProxy *leafProxy);
+void validateRouteTableTreeLeafOffsets(RouteTableTreeLeafProxy *leafProxy);
 
 #endif

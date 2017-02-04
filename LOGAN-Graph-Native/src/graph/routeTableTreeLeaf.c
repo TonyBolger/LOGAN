@@ -95,6 +95,8 @@ static RouteTableTreeLeafBlock *allocRouteTableTreeLeafBlock(MemDispenser *disp,
 			LOG(LOG_CRITICAL,"Cannot allocate oversize leaf with %i children",entryAlloc);
 			}
 
+	//LOG(LOG_INFO,"Alloc of %i %i - total %i",offsetAlloc, entryAlloc, getRouteTableTreeLeafSize_Expected(offsetAlloc, entryAlloc));
+
 	RouteTableTreeLeafBlock *block=dAlloc(disp, getRouteTableTreeLeafSize_Expected(offsetAlloc, entryAlloc));
 
 	block->offsetAlloc=offsetAlloc;
@@ -102,15 +104,12 @@ static RouteTableTreeLeafBlock *allocRouteTableTreeLeafBlock(MemDispenser *disp,
 
 	block->parentBrindex=BRANCH_NINDEX_INVALID;
 	block->upstream=-1;
+	block->upstreamOffset=0;
 
 	RouteTableTreeLeafOffset *offsetPtr=getRouteTableTreeLeaf_OffsetPtr(block);
 	RouteTableTreeLeafEntry *entryPtr=getRouteTableTreeLeaf_EntryPtr(block);
 
-
-	for(int i=0;i<offsetAlloc;i++)
-		{
-		offsetPtr[i]=0;
-		}
+	memset(offsetPtr,0,sizeof(RouteTableTreeLeafOffset)*offsetAlloc);
 
 	for(int i=0;i<entryAlloc;i++)
 		{
@@ -231,6 +230,8 @@ void ensureRouteTableTreeLeafOffsetCapacity(RouteTableTreeProxy *treeProxy, Rout
 	flushRouteTableTreeLeafProxy(treeProxy, leafProxy);
 }
 
+
+
 void expandRouteTableTreeLeafProxy(RouteTableTreeProxy *treeProxy, RouteTableTreeLeafProxy *leafProxy, s32 offsetAlloc)
 {
 	s16 newEntryAlloc=MIN(leafProxy->entryAlloc+ROUTE_TABLE_TREE_LEAF_ENTRIES_CHUNK, ROUTE_TABLE_TREE_LEAF_ENTRIES);
@@ -259,6 +260,44 @@ void dumpLeafProxy(RouteTableTreeLeafProxy *leafProxy)
 
 
 
+void dumpLeafBlock(RouteTableTreeLeafBlock *leafBlock)
+{
+	if(leafBlock!=NULL)
+		{
+		LOG(LOG_INFO,"Leaf (%p): Parent %i, Upstream %i, Upstream Offset %i, Offset Alloc %i, Entry Alloc %i",
+			leafBlock, leafBlock->parentBrindex, leafBlock->upstream, leafBlock->upstreamOffset,
+			leafBlock->offsetAlloc, leafBlock->entryAlloc);
+
+		LOGS(LOG_INFO,"Offsets: ");
+		RouteTableTreeLeafOffset *offsetPtr=getRouteTableTreeLeaf_OffsetPtr(leafBlock);
+
+		for(int j=0;j<leafBlock->offsetAlloc;j++)
+			{
+			LOGS(LOG_INFO,"%i ",offsetPtr[j]);
+			if((j&0x3F)==0x3F)
+				LOGN(LOG_INFO,"");
+			}
+
+		LOGN(LOG_INFO,"");
+
+		LOGS(LOG_INFO,"Entries: ");
+		RouteTableTreeLeafEntry *entryPtr=getRouteTableTreeLeaf_EntryPtr(leafBlock);
+
+		for(int j=0;j<leafBlock->entryAlloc;j++)
+			{
+			LOGS(LOG_INFO,"D:%i W:%i  ",entryPtr[j].downstream, entryPtr[j].width);
+			if((j&0x1F)==0x1F)
+				LOGN(LOG_INFO,"");
+			}
+
+		LOGN(LOG_INFO,"");
+		}
+	else
+		LOG(LOG_INFO,"Leaf: NULL");
+
+}
+
+
 void leafMakeEntryInsertSpace(RouteTableTreeLeafProxy *leaf, s16 entryPosition, s16 entryCount)
 {
 	if((leaf->entryCount+entryCount)>leaf->entryAlloc)
@@ -282,6 +321,88 @@ void leafMakeEntryInsertSpace(RouteTableTreeLeafProxy *leaf, s16 entryPosition, 
 }
 
 
+void initRouteTableTreeLeafOffsets(RouteTableTreeLeafProxy *leafProxy, s16 upstream)
+{
+	leafProxy->dataBlock->upstream=upstream;
+	leafProxy->dataBlock->upstreamOffset=0;
+
+	RouteTableTreeLeafOffset *offsets=getRouteTableTreeLeaf_OffsetPtr(leafProxy->dataBlock);
+
+	//for(int i=0;i<leafProxy->dataBlock->offsetAlloc; i++)
+//		offsets[i]=0;
+
+	memset(offsets, 0, leafProxy->dataBlock->offsetAlloc*sizeof(RouteTableTreeLeafOffset));
+}
+
+void recalcRouteTableTreeLeafOffsets(RouteTableTreeLeafProxy *leafProxy)
+{
+	RouteTableTreeLeafOffset *offsets=getRouteTableTreeLeaf_OffsetPtr(leafProxy->dataBlock);
+	RouteTableTreeLeafEntry *entryPtr=getRouteTableTreeLeaf_EntryPtr(leafProxy->dataBlock);
+
+	//for(int i=0;i<leafProxy->dataBlock->offsetAlloc; i++)
+			//offsets[i]=0;
+
+	//LOG(LOG_INFO,"Recalc for leaf");
+	//dumpLeafBlock(leafProxy->dataBlock);
+
+	leafProxy->dataBlock->upstreamOffset=0;
+
+	memset(offsets, 0, leafProxy->dataBlock->offsetAlloc*sizeof(RouteTableTreeLeafOffset));
+
+	for(int i=0;i<leafProxy->entryCount;i++)
+		{
+		leafProxy->dataBlock->upstreamOffset+=entryPtr[i].width;
+		offsets[entryPtr[i].downstream]+=entryPtr[i].width;
+		}
+
+	//LOG(LOG_INFO,"Recalc for leaf completed");
+}
+
+
+void validateRouteTableTreeLeafOffsets(RouteTableTreeLeafProxy *leafProxy)
+{
+	RouteTableTreeLeafOffset *offsets=getRouteTableTreeLeaf_OffsetPtr(leafProxy->dataBlock);
+	RouteTableTreeLeafEntry *entryPtr=getRouteTableTreeLeaf_EntryPtr(leafProxy->dataBlock);
+
+	//for(int i=0;i<leafProxy->dataBlock->offsetAlloc; i++)
+			//offsets[i]=0;
+
+	RouteTableTreeLeafOffset *checkOffsets=alloca(leafProxy->dataBlock->offsetAlloc*sizeof(RouteTableTreeLeafOffset));
+
+	s32 checkUpstreamOffset=0;
+
+	memset(checkOffsets, 0, leafProxy->dataBlock->offsetAlloc*sizeof(RouteTableTreeLeafOffset));
+
+	for(int i=0;i<leafProxy->entryCount;i++)
+		{
+		checkUpstreamOffset+=entryPtr[i].width;
+		checkOffsets[entryPtr[i].downstream]+=entryPtr[i].width;
+		}
+
+	int bailFlag=0;
+
+	if(leafProxy->dataBlock->upstreamOffset!=checkUpstreamOffset)
+		{
+		LOG(LOG_INFO,"Mismatch upstream offset (Found: %i vs Calculated: %i)",leafProxy->dataBlock->upstreamOffset, checkUpstreamOffset);
+		bailFlag=1;
+		}
+
+
+	for(int i=0;i<leafProxy->dataBlock->offsetAlloc;i++)
+		{
+		if(offsets[i]!=checkOffsets[i])
+			{
+			LOG(LOG_INFO,"Mismatch at offset %i (Found: %i vs Calculated: %i)",i,offsets[i],checkOffsets[i]);
+			bailFlag=1;
+			}
+		}
+
+	if(bailFlag)
+	{
+		dumpLeafBlock(leafProxy->dataBlock);
+		LOG(LOG_CRITICAL,"Bailing out");
+	}
+}
 
 
 

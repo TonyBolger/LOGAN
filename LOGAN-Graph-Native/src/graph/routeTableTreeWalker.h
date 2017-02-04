@@ -24,14 +24,19 @@ typedef struct routeTableTreeWalkerStr
 
 void initTreeWalker(RouteTableTreeWalker *walker, RouteTableTreeProxy *treeProxy);
 
+void dumpWalker(RouteTableTreeWalker *walker);
+
 void walkerSeekStart(RouteTableTreeWalker *walker);
 void walkerSeekEnd(RouteTableTreeWalker *walker);
 
 s32 walkerGetCurrentEntry(RouteTableTreeWalker *walker, s16 *upstream, RouteTableTreeLeafEntry **entry);
+
+s32 walkerNextLeaf(RouteTableTreeWalker *walker, s16 *upstream, RouteTableTreeLeafEntry **entry);
 s32 walkerNextEntry(RouteTableTreeWalker *walker, s16 *upstream, RouteTableTreeLeafEntry **entry, s32 holdUpstream);
 
 void walkerResetOffsetArrays(RouteTableTreeWalker *walker);
 void walkerInitOffsetArrays(RouteTableTreeWalker *walker, s32 upstreamCount, s32 downstreamCount);
+void walkerAccumulateLeafOffsets(RouteTableTreeWalker *walker) __attribute__((optimize("no-tree-vectorize")));
 
 void walkerAppendNewLeaf(RouteTableTreeWalker *walker, s16 upstream);
 void walkerAppendPreorderedEntry(RouteTableTreeWalker *walker, RouteTableEntry *entry, int routingTable);

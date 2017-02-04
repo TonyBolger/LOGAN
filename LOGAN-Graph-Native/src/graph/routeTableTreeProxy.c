@@ -335,8 +335,7 @@ RouteTableTreeLeafProxy *treeProxySplitLeaf(RouteTableTreeProxy *treeProxy, Rout
 	leafProxy->entryCount=toKeepHalfEntry;
 	newLeafProxy->entryCount=toMoveHalfEntry;
 
-
-	//LOG(LOG_INFO,"Clearing New Leaf %i %i",newLeaf->entryCount, newLeaf->entryAlloc);
+		//LOG(LOG_INFO,"Clearing New Leaf %i %i",newLeaf->entryCount, newLeaf->entryAlloc);
 	for(int i=newLeafProxy->entryCount; i<newLeafProxy->entryAlloc; i++)
 		{
 		newEntryPtr[i].downstream=-1;
@@ -352,6 +351,9 @@ RouteTableTreeLeafProxy *treeProxySplitLeaf(RouteTableTreeProxy *treeProxy, Rout
 
 
 	newLeafProxy->dataBlock->upstream=leafProxy->dataBlock->upstream;
+
+	recalcRouteTableTreeLeafOffsets(leafProxy);
+	recalcRouteTableTreeLeafOffsets(newLeafProxy);
 
 	if(leafEntryPosition<toKeepHalfEntry)
 		{

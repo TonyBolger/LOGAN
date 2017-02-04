@@ -177,6 +177,31 @@ void dumpBranchProxy(RouteTableTreeBranchProxy *branchProxy)
 */
 
 
+void dumpBranchBlock(RouteTableTreeBranchBlock *branchBlock)
+{
+	if(branchBlock!=NULL)
+		{
+		LOG(LOG_INFO,"Branch (%p): Parent %i, Child Alloc %i",branchBlock, branchBlock->parentBrindex, branchBlock->childAlloc);
+
+		LOGS(LOG_INFO,"Children: ");
+
+		for(int j=0;j<branchBlock->childAlloc;j++)
+			{
+			LOGS(LOG_INFO,"%i ",branchBlock->childNindex[j]);
+			if((j&0x1F)==0x1F)
+				LOGN(LOG_INFO,"");
+			}
+
+		LOGN(LOG_INFO,"");
+
+		}
+	else
+		{
+		LOG(LOG_INFO,"Branch: NULL");
+		}
+}
+
+
 
 void branchMakeChildInsertSpace(RouteTableTreeBranchProxy *branchProxy, s16 childPosition, s16 childCount)
 {
