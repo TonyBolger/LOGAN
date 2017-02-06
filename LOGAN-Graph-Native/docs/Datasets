@@ -11,12 +11,12 @@ for i in *_Q20_1P.fq.gz; do j=`echo $i | cut -f 1-2 -d _`; gunzip -c ${j}_* | gz
 
 
 
-for i in Q10 Q15 Q20; do 
+for i in Q10 Q15 Q20; do
 gunzip -c *_${i}_[12][PU].fq.gz | gzip > ${i}.fq.gz &
 done
 
 
-Dataset 1: Ecoli 1 
+Dataset 1: Ecoli 1
 
 SRX016044: Illumina whole genome shotgun sequencing of genomic DNA paired-end library 'Solexa-11748' containing sample MG1655(+CHLOR)#2
 1 ILLUMINA (Illumina Genome Analyzer II) run: 10.4M spots, 2.1G bases, 1.5Gb downloads
@@ -115,7 +115,7 @@ Organism: Escherichia coli str. K-12 substr. MG1655
 
 
 
-Runs: HiSeq - 
+Runs: HiSeq -
 
 SRR447621 SRR447647 SRR447688 SRR447698 SRR447625 SRR447685 SRR447630 SRR447638 SRR447643 SRR447662 SRR447664 SRR447689
 
@@ -129,7 +129,7 @@ done; done
 File			Sequences		Bases			Coverage
 Unfiltered:  	283766708       28660437508		6177.25
 
- 
+
 
 
 
@@ -156,7 +156,7 @@ Sample: Arabidopsis thaliana individual sample Col-0
 SAMN01086391 • SRS349086 • All experiments • All runs
 Organism: Arabidopsis thaliana
 
-Runs: 
+Runs:
 
 SRR519624
 
@@ -182,12 +182,12 @@ done; done
 
 
 Dataset 5: Pennellii (Paired-end only)
-  
+
 
 
 for i in AA AB AC AD AE AF AG AH AI AJ AK AL AM AN AO AP AQ AR AS AT; do for q in 10 15 20; do
   java -classpath ~/Projects/Silicana/Trimmomatic/dist/jar/trimmomatic-0.37.jar org.usadellab.trimmomatic.TrimmomaticPE -threads 6 -phred64 reads/${i}1.fq.gz reads/${i}2.fq.gz -baseout filteredReads/Pen-1/${i}_Q${q}.fq ILLUMINACLIP:GAII_Clipping.fa:2:30:12 LEADING:3 TRAILING:3 SLIDINGWINDOW:4:${q} MINLEN:40 BASECOUNT:N:0:0 TOPHRED33
-done; done 
+done; done
 
 for i in BA BB BC BD BE BF BG BH BI BJ BK BL BM BN BO BP BQ BR BS; do for q in 10 15 20; do
   java -classpath ~/Projects/Silicana/Trimmomatic/dist/jar/trimmomatic-0.37.jar org.usadellab.trimmomatic.TrimmomaticPE -threads 6 -phred64 reads/${i}1.fq.gz reads/${i}2.fq.gz -baseout filteredReads/Pen-2/${i}_Q${q}.fq ILLUMINACLIP:GAII_Clipping.fa:2:30:12 LEADING:3 TRAILING:3 SLIDINGWINDOW:4:${q} MINLEN:40 BASECOUNT:N:0:0 TOPHRED33
@@ -209,37 +209,41 @@ Pen-2: 4349
 Pen-3: 113212
 
 
+GACATCGAAAATATCAACCATTTCAACGAGCAACACACTAACTACACCCATGTAATGGGAGGTATAGGTGACATTTGTTTAACACTAGCTGATGAAAATGAGATCGGAAGAGCGGTTCAGCAGGAATGCCGAGACCGATATCGTATGCC
+                                                                                                    AGATCGGAAGAGCGGTTCAGCAGGAATGCCGAGACCGATCTCGTATGCCGTCTTCTGCTTG
 
+                                                                                CAAGCAGAAGACGGCATACGAGATCGGTCTCGGCATTCCTGCTGAACCGCTCTTCCGATCT
 
+AGATCGGAAGAGCGGTTCAGCAGGAATGCCGAGACCGATCTCGTATGCC
 
 Dataset Ecoli PB:
 
 Experiment SRX255228
 
-SRR797943	207.7M	81.7k	
-SRR801638	172.2M	81.7k	
-SRR801639	124.8M	81.7k	
-SRR801640	217.1M	81.7k	
-SRR801641	185.1M	81.7k	
-SRR801642	166.4M	81.7k	
-SRR801643	184.4M	81.7k	
-SRR801644	169.7M	81.7k	
-SRR801645	197.6M	81.7k	
-SRR801646	188.6M	81.7k	
-SRR801647	169.0M	81.7k	
-SRR801648	193.3M	81.7k	
-SRR801649	150.4M	81.7k	
-SRR801650	219.3M	81.7k	
-SRR801651	147.9M	81.7k	
-SRR801652	161.0M	81.7k	
-SRR801653	178.1M	81.7k	
+SRR797943	207.7M	81.7k
+SRR801638	172.2M	81.7k
+SRR801639	124.8M	81.7k
+SRR801640	217.1M	81.7k
+SRR801641	185.1M	81.7k
+SRR801642	166.4M	81.7k
+SRR801643	184.4M	81.7k
+SRR801644	169.7M	81.7k
+SRR801645	197.6M	81.7k
+SRR801646	188.6M	81.7k
+SRR801647	169.0M	81.7k
+SRR801648	193.3M	81.7k
+SRR801649	150.4M	81.7k
+SRR801650	219.3M	81.7k
+SRR801651	147.9M	81.7k
+SRR801652	161.0M	81.7k
+SRR801653	178.1M	81.7k
 
 
 Dataset PB 2:
 
-SRX1058890 
+SRX1058890
 
-SRR2063111	1.5G	1.4M	
+SRR2063111	1.5G	1.4M
 
 
 
@@ -343,22 +347,22 @@ for i in Pen-4; do for q in 20; do cat ${i}_Q${q}_[12][PU].fq.gz | gunzip > unpa
 
 wait
 for i in Pen-1_*.fq; do
-  ~/unarc/jellyfish-2.2.5/bin/jellyfish count -C -m 31 -s 100000000 -t 4 -o ${i}.jf31 ${i} & 
+  ~/unarc/jellyfish-2.2.5/bin/jellyfish count -C -m 31 -s 100000000 -t 4 -o ${i}.jf31 ${i} &
   ~/unarc/jellyfish-2.2.5/bin/jellyfish count -C -m 63 -s 100000000 -t 4 -o ${i}.jf63 ${i} &
 done
 wait
 for i in Pen-2_*.fq; do
-  ~/unarc/jellyfish-2.2.5/bin/jellyfish count -C -m 31 -s 100000000 -t 4 -o ${i}.jf31 ${i} & 
+  ~/unarc/jellyfish-2.2.5/bin/jellyfish count -C -m 31 -s 100000000 -t 4 -o ${i}.jf31 ${i} &
   ~/unarc/jellyfish-2.2.5/bin/jellyfish count -C -m 63 -s 100000000 -t 4 -o ${i}.jf63 ${i} &
 done
 wait
 for i in Pen-3_*.fq; do
-  ~/unarc/jellyfish-2.2.5/bin/jellyfish count -C -m 31 -s 100000000 -t 4 -o ${i}.jf31 ${i} & 
+  ~/unarc/jellyfish-2.2.5/bin/jellyfish count -C -m 31 -s 100000000 -t 4 -o ${i}.jf31 ${i} &
   ~/unarc/jellyfish-2.2.5/bin/jellyfish count -C -m 63 -s 100000000 -t 4 -o ${i}.jf63 ${i} &
 done
 wait
 for i in Pen-4_*.fq; do
-  ~/unarc/jellyfish-2.2.5/bin/jellyfish count -C -m 31 -s 100000000 -t 4 -o ${i}.jf31 ${i} & 
+  ~/unarc/jellyfish-2.2.5/bin/jellyfish count -C -m 31 -s 100000000 -t 4 -o ${i}.jf31 ${i} &
   ~/unarc/jellyfish-2.2.5/bin/jellyfish count -C -m 63 -s 100000000 -t 4 -o ${i}.jf63 ${i} &
 done
 wait
@@ -373,23 +377,23 @@ for i in Pen-4; do
   echo $i
   for q in 20 15 10; do
     ~/unarc/jellyfish-2.2.5/bin/jellyfish count -C -m 23 -s 100000000 -t 16 -o ${i}_Q${q}.jf23 ${i}_Q${q}.fq
-    ~/unarc/jellyfish-2.2.5/bin/jellyfish count -C -m 31 -s 100000000 -t 16 -o ${i}_Q${q}.jf31 ${i}_Q${q}.fq 
-    ~/unarc/jellyfish-2.2.5/bin/jellyfish count -C -m 39 -s 100000000 -t 16 -o ${i}_Q${q}.jf39 ${i}_Q${q}.fq 
-    ~/unarc/jellyfish-2.2.5/bin/jellyfish count -C -m 47 -s 100000000 -t 16 -o ${i}_Q${q}.jf47 ${i}_Q${q}.fq 
+    ~/unarc/jellyfish-2.2.5/bin/jellyfish count -C -m 31 -s 100000000 -t 16 -o ${i}_Q${q}.jf31 ${i}_Q${q}.fq
+    ~/unarc/jellyfish-2.2.5/bin/jellyfish count -C -m 39 -s 100000000 -t 16 -o ${i}_Q${q}.jf39 ${i}_Q${q}.fq
+    ~/unarc/jellyfish-2.2.5/bin/jellyfish count -C -m 47 -s 100000000 -t 16 -o ${i}_Q${q}.jf47 ${i}_Q${q}.fq
     ~/unarc/jellyfish-2.2.5/bin/jellyfish count -C -m 55 -s 100000000 -t 16 -o ${i}_Q${q}.jf55 ${i}_Q${q}.fq
-    ~/unarc/jellyfish-2.2.5/bin/jellyfish count -C -m 63 -s 100000000 -t 16 -o ${i}_Q${q}.jf63 ${i}_Q${q}.fq 
-    ~/unarc/jellyfish-2.2.5/bin/jellyfish count -C -m 71 -s 100000000 -t 16 -o ${i}_Q${q}.jf71 ${i}_Q${q}.fq 
-    ~/unarc/jellyfish-2.2.5/bin/jellyfish count -C -m 79 -s 100000000 -t 16 -o ${i}_Q${q}.jf79 ${i}_Q${q}.fq 
+    ~/unarc/jellyfish-2.2.5/bin/jellyfish count -C -m 63 -s 100000000 -t 16 -o ${i}_Q${q}.jf63 ${i}_Q${q}.fq
+    ~/unarc/jellyfish-2.2.5/bin/jellyfish count -C -m 71 -s 100000000 -t 16 -o ${i}_Q${q}.jf71 ${i}_Q${q}.fq
+    ~/unarc/jellyfish-2.2.5/bin/jellyfish count -C -m 79 -s 100000000 -t 16 -o ${i}_Q${q}.jf79 ${i}_Q${q}.fq
   done
   for q in 20 15 10; do
-    ~/unarc/jellyfish-2.2.5/bin/jellyfish histo -h 1000000000 ${i}_Q${q}.jf23 -o ${i}_Q${q}.jf.histo 
-    ~/unarc/jellyfish-2.2.5/bin/jellyfish histo -h 1000000000 ${i}_Q${q}.jf31 -o ${i}_Q${q}.jf31.histo 
-    ~/unarc/jellyfish-2.2.5/bin/jellyfish histo -h 1000000000 ${i}_Q${q}.jf39 -o ${i}_Q${q}.jf39.histo 
-    ~/unarc/jellyfish-2.2.5/bin/jellyfish histo -h 1000000000 ${i}_Q${q}.jf47 -o ${i}_Q${q}.jf47.histo 
+    ~/unarc/jellyfish-2.2.5/bin/jellyfish histo -h 1000000000 ${i}_Q${q}.jf23 -o ${i}_Q${q}.jf.histo
+    ~/unarc/jellyfish-2.2.5/bin/jellyfish histo -h 1000000000 ${i}_Q${q}.jf31 -o ${i}_Q${q}.jf31.histo
+    ~/unarc/jellyfish-2.2.5/bin/jellyfish histo -h 1000000000 ${i}_Q${q}.jf39 -o ${i}_Q${q}.jf39.histo
+    ~/unarc/jellyfish-2.2.5/bin/jellyfish histo -h 1000000000 ${i}_Q${q}.jf47 -o ${i}_Q${q}.jf47.histo
   	~/unarc/jellyfish-2.2.5/bin/jellyfish histo -h 1000000000 ${i}_Q${q}.jf55 -o ${i}_Q${q}.jf55.histo
-  	~/unarc/jellyfish-2.2.5/bin/jellyfish histo -h 1000000000 ${i}_Q${q}.jf63 -o ${i}_Q${q}.jf63.histo 
-  	~/unarc/jellyfish-2.2.5/bin/jellyfish histo -h 1000000000 ${i}_Q${q}.jf71 -o ${i}_Q${q}.jf71.histo 
-  	~/unarc/jellyfish-2.2.5/bin/jellyfish histo -h 1000000000 ${i}_Q${q}.jf79 -o ${i}_Q${q}.jf79.histo   
+  	~/unarc/jellyfish-2.2.5/bin/jellyfish histo -h 1000000000 ${i}_Q${q}.jf63 -o ${i}_Q${q}.jf63.histo
+  	~/unarc/jellyfish-2.2.5/bin/jellyfish histo -h 1000000000 ${i}_Q${q}.jf71 -o ${i}_Q${q}.jf71.histo
+  	~/unarc/jellyfish-2.2.5/bin/jellyfish histo -h 1000000000 ${i}_Q${q}.jf79 -o ${i}_Q${q}.jf79.histo
   done
 done
 
@@ -398,14 +402,14 @@ for i in Pen-2; do for q in 10 15 20; do ~/unarc/jellyfish-2.2.5/bin/jellyfish d
 
 
 
-  
-    ~/unarc/jellyfish-2.2.5/bin/jellyfish count -C -m 31 -s 100000000 -t 4 -o ${i}_${q}.jf31 ${i} & 
+
+    ~/unarc/jellyfish-2.2.5/bin/jellyfish count -C -m 31 -s 100000000 -t 4 -o ${i}_${q}.jf31 ${i} &
     ~/unarc/jellyfish-2.2.5/bin/jellyfish count -C -m 63 -s 100000000 -t 4 -o ${i}_${q}.jf63 ${i} &
 
-    
+
 
 for i in Pen-4_*.fq; do
-  ~/unarc/jellyfish-2.2.5/bin/jellyfish count -C -m 31 -s 100000000 -t 4 -o ${i}.jf31 ${i} & 
+  ~/unarc/jellyfish-2.2.5/bin/jellyfish count -C -m 31 -s 100000000 -t 4 -o ${i}.jf31 ${i} &
   ~/unarc/jellyfish-2.2.5/bin/jellyfish count -C -m 63 -s 100000000 -t 4 -o ${i}.jf63 ${i} &
 done
 wait
@@ -435,7 +439,7 @@ for i in Pen-1 Pen-2 Pen-3 Pen-4; do for q in 10 15 20; do jellyfish histo -l 1 
 
 LOGAN:
 
-for i in Arabi-1 Ecoli-1 Ecoli-2 Lyrata-1 Pen-1 Pen-2 Pen-3 Pen-4; do for q in 10 15 20; do 
+for i in Arabi-1 Ecoli-1 Ecoli-2 Lyrata-1 Pen-1 Pen-2 Pen-3 Pen-4; do for q in 10 15 20; do
 
 
 
@@ -447,7 +451,7 @@ for d in Arabi-1 Ecoli-1 Ecoli-2 Lyrata-1 Pen-1 Pen-2 Pen-3 Pen-4; do for q in 1
 
 for d in Arabi-1 Ecoli-2 Lyrata-1; do for q in 10 15 20; do grep "LOGAN INFO src/task/taskRoutingLookup.c(189)" LOGAN-${d}_Q${q}.out | cut -f 8 -d " " | sort -T . -S 50G | uniq -c | tr -s " " | awk '{ print $2,$1 }' > ${d}_Q${q}.smer.count; done; done
 
-for d in Arabi-1; do for q in 10 15 20; do cat ${d}_Q${q}.smer.count | cut -f 2 -d " " | sort -n | uniq -c | tr -s " " | awk '{ print $2,$1 }' > ${d}_Q${q}.smer.histo; done; done 
+for d in Arabi-1; do for q in 10 15 20; do cat ${d}_Q${q}.smer.count | cut -f 2 -d " " | sort -n | uniq -c | tr -s " " | awk '{ print $2,$1 }' > ${d}_Q${q}.smer.histo; done; done
 
 
 sort -k1nr Ecoli-1_Q15.smer.histo > Ecoli-1_Q15.smer.histo.sort
@@ -525,7 +529,7 @@ Kmers: 103298774 with 581743573 occurrences
 479067516	82.3503% 	in top 10000000		with 2
 578444799	99.4330% 	in top 100000000	with 1
 
-Occurring <=5: 
+Occurring <=5:
 83921491	81.2415%
 10258698	09.9311%
 2929641		02.8361%
@@ -562,7 +566,7 @@ Smers: 4131872 with 61941048 occurrences
 15999671	25.8305% 	in top 100000		with 124
 58580524	94.5746% 	in top 1000000		with 2
 
-Occurring <=5: 
+Occurring <=5:
 2903220		70.2640%
 452400		10.9490%
 144236		03.4908%
@@ -602,7 +606,7 @@ Kmers: 65749267 with 450124738 occurrences
 117143711	26.0247% 	in top 1000000		with 98
 391393699	86.9523% 	in top 10000000		with 2
 
-Occurring <=5: 
+Occurring <=5:
 52767495	80.2556%
 6248547		09.5036%
 1482211		02.2543%
@@ -639,7 +643,7 @@ Smers: 2678843 with 44622920 occurrences
 12977613	29.0828% 	in top 100000		with 101
 42944077	96.2377% 	in top 1000000		with 1
 
-Occurring <=5: 
+Occurring <=5:
 1809545		67.5495%
 275436		10.2819%
 72039		02.6892%
@@ -679,7 +683,7 @@ Kmers: 43252698 with 356995804 occurrences
 98170040	27.4989% 	in top 1000000		with 82
 323743106	90.6854% 	in top 10000000		with 1
 
-Occurring <=5: 
+Occurring <=5:
 34047887	78.7185%
 3651353		08.4419%
 707231		01.6351%
@@ -715,7 +719,7 @@ Smers: 1803171 with 33151795 occurrences
 10635490	32.0812% 	in top 100000		with 83
 32348624	97.5773% 	in top 1000000		with 1
 
-Occurring <=5: 
+Occurring <=5:
 1153353		63.9625%
 159872		08.8662%
 33956		01.8831%
@@ -756,7 +760,7 @@ Kmers: 254024630 with 16936301842 occurrences
 16469277180	97.2425% 	in top 10000000		with 8
 16767044970	99.0006% 	in top 100000000	with 2
 
-Occurring <=5: 
+Occurring <=5:
 138792388	54.6374%
 49439844	19.4626%
 25561542	10.0626%
@@ -796,7 +800,7 @@ Smers: 10690522 with 3601719996 occurrences
 3578465182	99.3543% 	in top 1000000	with 32
 3601029474	99.9808% 	in top 10000000	with 1
 
-Occurring <=5: 
+Occurring <=5:
 4743576	44.3718%
 2080339	19.4597%
 1160236	10.8529%
@@ -840,7 +844,7 @@ Kmers: 199763791 with 16256663519 occurrences
 15927119430	97.9729% 	in top 10000000		with 6
 16156899728	99.3863% 	in top 100000000	with 1
 
-Occurring <=5: 
+Occurring <=5:
 111910568	56.0214%
 41907300	20.9784%
 19410659	09.7168%
@@ -879,7 +883,7 @@ Smers: 8154248 with 3239103965 occurrences
 608587875	18.7888% 	in top 100000	with 4720
 3224694132	99.5551% 	in top 1000000	with 10
 
-Occurring <=5: 
+Occurring <=5:
 3650036	44.7624%
 1728701	21.2000%
 854544	10.4797%
@@ -924,7 +928,7 @@ Kmers: 142829714 with 14835653375 occurrences
 14639828441	98.6800% 	in top 10000000		with 4
 14792823661	99.7113% 	in top 100000000	with 1
 
-Occurring <=5: 
+Occurring <=5:
 88819412	62.1855%
 28909942	20.2408%
 11215802	07.8526%
@@ -963,7 +967,7 @@ Smers: 5706953 with 2627195813 occurrences
 561636886	21.3778% 	in top 100000	with 4345
 2619643087	99.7125% 	in top 1000000	with 5
 
-Occurring <=5: 
+Occurring <=5:
 2807656	49.1971%
 1184096	20.7483%
 493885	08.6541%
@@ -1007,7 +1011,7 @@ Kmers: 333410182 with 2187144856 occurrences
 785473278	35.9132% 	in top 10000000		with 19
 1885928334	86.2279% 	in top 100000000	with 7
 
-Occurring <=5: 
+Occurring <=5:
 210355489	63.0921%
 8799357		02.6392%
 2656753		00.7968%
@@ -1048,7 +1052,7 @@ Smers: 15012387 with 272863119 occurrences
 201177825	73.7285% 	in top 1000000		with 17
 267850732	98.1630% 	in top 10000000		with 1
 
-Occurring <=5: 
+Occurring <=5:
 7934474		52.8528%
 365029		02.4315%
 122330		00.8149%
@@ -1093,7 +1097,7 @@ Kmers: 200483145 with 1905296335 occurrences
 722914358	37.9424% 	in top 10000000		with 18
 1757395351	92.2374% 	in top 100000000	with 6
 
-Occurring <=5: 
+Occurring <=5:
 85080024	42.4375%
 4080124		02.0351%
 1820993		00.9083%
@@ -1133,7 +1137,7 @@ Smers: 9771286 with 246422374 occurrences
 162841078	66.0821% 	in top 100000		with 138
 185252255	75.1767% 	in top 1000000		with 16
 
-Occurring <=5: 
+Occurring <=5:
 3076401		31.4841%
 168299		01.7224%
 89958		00.9206%
@@ -1178,7 +1182,7 @@ Kmers: 153547774 with 1682235187 occurrences
 650556063	38.6721% 	in top 10000000		with 16
 1594878260	94.8071% 	in top 100000000	with 5
 
-Occurring <=5: 
+Occurring <=5:
 41484211	27.0171%
 2431131		01.5833%
 2035937		01.3259%
@@ -1218,7 +1222,7 @@ Smers: 7960016 with 220322497 occurrences
 146567850	66.5242% 	in top 100000	with 109
 166451610	75.5491% 	in top 1000000	with 15
 
-Occurring <=5: 
+Occurring <=5:
 1394452		17.5182%
 103256		01.2972%
 109521		01.3759%
@@ -1263,7 +1267,7 @@ Kmers: 259547151 with 7221678411 occurrences
 4210120644	58.2984% 	in top 10000000		with 84
 6963658428	96.4271% 	in top 100000000	with 11
 
-Occurring <=5: 
+Occurring <=5:
 132416948	51.0185%
 11431228	04.4043%
 3314372		01.2770%
@@ -1306,7 +1310,7 @@ Smers: 12049154 with 1392235249 occurrences
 1233227619	88.5790% 	in top 1000000	with 74
 1390186095	99.8528% 	in top 10000000	with 1
 
-Occurring <=5: 
+Occurring <=5:
 4798062	39.8207%
 458508	03.8053%
 148283	01.2307%
@@ -1357,7 +1361,7 @@ Kmers: 226641873 with 7080159333 occurrences
 4150139816	58.6165% 	in top 10000000		with 83
 6863395869	96.9384% 	in top 100000000	with 11
 
-Occurring <=5: 
+Occurring <=5:
 102684512	45.3069%
 9511669		04.1968%
 2829826		01.2486%
@@ -1400,7 +1404,7 @@ Smers:10685305 with 1312951701 occurrences
 1163509116	88.6178% 	in top 1000000	with 70
 1312266396	99.9478% 	in top 10000000	with 1
 
-Occurring <=5: 
+Occurring <=5:
 3707685	34.6989%
 375217	03.5115%
 124802	01.1680%
@@ -1449,7 +1453,7 @@ Kmers: 191538069 with 6806846533 occurrences
 4008599914	58.8907% 	in top 10000000		with 81
 6636540973	97.4980% 	in top 100000000	with 11
 
-Occurring <=5: 
+Occurring <=5:
 71274217	37.2115%
 7347078		03.8358%
 2268650		01.1844%
@@ -1491,7 +1495,7 @@ Smers: 9243249 with 1214654614 occurrences
 973866129	80.1764% 	in top 100000	with 515
 1076990008	88.6664% 	in top 1000000	with 65
 
-Occurring <=5: 
+Occurring <=5:
 2552883	27.6189%
 286563	03.1002%
 100034	01.0822%
@@ -1542,7 +1546,7 @@ Kmers: 2041187359 with 26220669876 occurrences
 25179482517	96.0291%	1000000000	1
 
 
-Occurring <=5: 
+Occurring <=5:
 1293408912	63.3655%
 84820748	04.1555%
 38538735	01.8881%
@@ -1600,7 +1604,7 @@ Kmers: 1556435907 with 24404569633 occurrences
 23848133726	97.7200%	1000000000	1
 
 
-Occurring <=5: 
+Occurring <=5:
 855209314	54.9466%
 59407610	03.8169%
 32601610	02.0946%
@@ -1652,7 +1656,7 @@ Kmers: 984167632 with 19217906043 occurrences
 13030965397	67.8064%	100000000	26
 
 
-Occurring <=5: 
+Occurring <=5:
 340963276	34.6448%
 34832166	03.5393%
 30877771	03.1375%
@@ -1706,7 +1710,7 @@ Kmers: 2966353099 with 52282726576 occurrences
 50316373477	96.2390%	1000000000	1
 
 
-Occurring <=5: 
+Occurring <=5:
 2105709081	70.9865%
 145995245	04.9217%
 34066361	01.1484%
@@ -1760,7 +1764,7 @@ Kmers: 2057178672 with 49285523626 occurrences
 48228344954	97.8550%	1000000000	1
 
 
-Occurring <=5: 
+Occurring <=5:
 1291418493	62.7762%
 86116215	04.1861%
 19575049	00.9515%
@@ -1814,7 +1818,7 @@ Kmers: 1247325261 with 43139030131 occurrences
 42891704870	99.4267%	1000000000	1
 
 
-Occurring <=5: 
+Occurring <=5:
 563471205	45.1744%
 34443310	02.7614%
 7598054		00.6091%
@@ -1869,7 +1873,7 @@ Kmers: 1672337392 with 51247527348 occurrences
 50575189956	98.6881%	1000000000	1
 
 
-Occurring <=5: 
+Occurring <=5:
 938480702	56.1179%
 66891373	03.9999%
 14426830	00.8627%
@@ -1922,7 +1926,7 @@ Kmers: 1438198496 with 49935962634 occurrences
 49497764138	99.1225%	1000000000	1
 
 
-Occurring <=5: 
+Occurring <=5:
 727263076	50.5676%
 52104901	03.6229%
 11116246	00.7729%
@@ -1976,7 +1980,7 @@ Kmers: 1135067516 with 46751357775 occurrences
 46616290259	99.7111%	1000000000	1
 
 
-Occurring <=5: 
+Occurring <=5:
 456230218	40.1941%
 31620634	02.7858%
 6497399		00.5724%
@@ -2031,7 +2035,7 @@ Kmers: 5006391147 with 129750924184 occurrences
 125564897938	96.7738%	1000000000	2
 
 
-Occurring <=5: 
+Occurring <=5:
 3826756048	76.4374%
 344477345	06.8808%
 84357116	01.6850%
@@ -2087,7 +2091,7 @@ Kmers: 3525867459 with 123626056405 occurrences
 121100188946	97.9568%	1000000000	1
 
 
-Occurring <=5: 
+Occurring <=5:
 2544438697	72.1649%
 221795333	06.2905%
 52022114	01.4754%
@@ -2142,7 +2146,7 @@ Kmers: 2007193383 with 109108293693 occurrences
 108101100310	99.0769%	1000000000	1
 
 
-Occurring <=5: 
+Occurring <=5:
 1231777438	61.3681%
 92289327	04.5979%
 19893658	00.9911%
@@ -2185,16 +2189,15 @@ Smers:
 
 
 
-		
-		
-		
-		
-		
-		
-		
 
-		
-		
-		
-		
-				
+
+
+
+
+
+
+
+
+
+
+

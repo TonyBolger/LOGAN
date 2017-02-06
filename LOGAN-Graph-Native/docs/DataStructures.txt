@@ -1111,6 +1111,76 @@ Merge Flowchart:
 
 
 
+Collection Use-Cases:
+
+
+Survey Task:
+	Map <Kmer, Integer>: Semi-online
+		Key is random but biased via canonicalization (low values), towards other keys (base substitution effect) and '4*k' effect (successive Kmers in a sequence)
+		Value biased towards small values, but some large values exist
+
+Index Task:
+	Set <Smer>: Semi-online
+		Value is random but biased via canonicalization
+
+
+Routing Task:
+	Map <Smer, Tail/Route ptr>
+		Value is random but biased via canonicalization
+
+
+	SeqTails: Offline
+		(Ordered) List of prefix/suffix tail strings
+
+
+	Routing Table List: Offline
+
+		Route Entries: Dynamic list <upstream, downstream, width>
+				Upstream is sorted
+				Downstream is biased, but repetitive (MTF encode?)
+				Width is biased small
+
+	Routing Table Tree: Semi-online
+
+		Branch:
+			Offsets: Semi-dynamic list of <tail, offset>
+				Tails are sometimes clustered (for upstream)
+
+		Leaf: Semi-online
+			Route Entries: Dynamic list <upstream, downstream, width>
+				Upstream is sorted
+				Downstream is biased, but repetitive (MTF encode?)
+				Width is biased small
+
+			Offsets: Semi-dynamic list of <tail, offset>
+				Tails are sometimes clustered (for upstream)
+
+
+	RoutingReadData: Online
+		Fixed-dynamic list for each S-mer within a read (position, fwd/rev smer, slice, slice index)
+
+	RoutePatch: Online
+		List of decorated RoutingReadData instances adding prefix/suffix index and re-ordering
+
+	RoutingIndexedReadReferenceBlock/RoutingReadReferenceBlock: Online
+		List of RoutingReadData for queueing/routing, with optional grouping into a single sliceIndex
+
+	Routing Walker: Online
+		Fixed-dynamic offset counts for upstream / downstream
+
+
+
+
+Heap Management:
+
+	TODO
+
+
+
+
+
+
+
 
 Scratch space:
 

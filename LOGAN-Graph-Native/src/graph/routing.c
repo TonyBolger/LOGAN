@@ -412,7 +412,7 @@ void mergeTopArrayUpdates_branch(RouteTableTreeArrayProxy *branchArrayProxy, int
 
 				branchArrayProxy->dataBlock->data[i]=newData;
 
-				s32 headerSize=rtEncodeArrayBlockHeader(arrayNum, ARRAY_TYPE_SHALLOW_DATA, indexSize, index, i, newData);
+				s32 headerSize=rtEncodeArrayBlockHeader(arrayNum, ARRAY_TYPE_SHALLOW_DATA, indexSize, index, i>>ROUTE_TABLE_TREE_DATA_ARRAY_SUBINDEX_SHIFT, newData);
 				newData+=headerSize;
 
 				s32 dataSize=getRouteTableTreeBranchSize_Existing(newBranchData);
@@ -519,7 +519,7 @@ void mergeTopArrayUpdates_leaf(RouteTableTreeArrayProxy *leafArrayProxy, int arr
 //				LOG(LOG_INFO,"Leaf Move/Expand write to %p (%i %i)",newData, newLeafData->entryAlloc,oldLeafEntryAlloc);
 				leafArrayProxy->dataBlock->data[i]=newData;
 
-				s32 headerSize=rtEncodeArrayBlockHeader(arrayNum, ARRAY_TYPE_SHALLOW_DATA, indexSize, index, i, newData);
+				s32 headerSize=rtEncodeArrayBlockHeader(arrayNum, ARRAY_TYPE_SHALLOW_DATA, indexSize, index, i>>ROUTE_TABLE_TREE_DATA_ARRAY_SUBINDEX_SHIFT, newData);
 				newData+=headerSize;
 
 				s32 dataSize=getRouteTableTreeLeafSize_Existing(newLeafData);
@@ -615,7 +615,7 @@ static void writeBuildersAsIndirectData(RoutingComboBuilder *routingBuilder, s8 
 
 		neededBlocks[i].dataSize=rttGetTopArraySize(arrayProxy);
 
-		if(arrayProxy->newDataCount>255)
+		if(arrayProxy->newDataCount>=ROUTE_TABLE_TREE_DATA_ARRAY_ENTRIES)
 			{
 			LOG(LOG_INFO,"Array %i oversize",i);
 			rttDumpRoutingTable(routingBuilder->treeBuilder);

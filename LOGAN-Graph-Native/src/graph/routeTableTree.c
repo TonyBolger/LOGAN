@@ -707,7 +707,17 @@ static void rttMergeRoutes_ordered_reverseSingle(RouteTableTreeWalker *walker, R
 //	LOG(LOG_INFO,"Reverse: Looking for P %i S %i Min %i Max %i", targetPrefix, targetSuffix, minEdgePosition, maxEdgePosition);
 //	LOG(LOG_INFO,"*****************");
 
+
 	int res=walkerGetCurrentEntry(walker, &upstream, &entry);
+
+	while(res && upstream < targetSuffix) 												// Skip lower upstream (leaf at a time)
+		{
+		walkerAccumulateLeafOffsets(walker);
+		res=walkerNextLeaf(walker, &upstream, &entry);
+//		dumpWalker(walker);
+		}
+
+	/*
 	while(res && upstream < targetSuffix) 												// Skip lower upstream
 		{
 		walker->downstreamOffsets[entry->downstream]+=entry->width;
@@ -718,6 +728,7 @@ static void rttMergeRoutes_ordered_reverseSingle(RouteTableTreeWalker *walker, R
 
 		res=walkerNextEntry(walker, &upstream, &entry, 0);
 		}
+*/
 
 //	int upstreamEdgeOffset=walker->upstreamOffsets[targetPrefix];
 	//int downstreamEdgeOffset=0;
@@ -733,6 +744,16 @@ static void rttMergeRoutes_ordered_reverseSingle(RouteTableTreeWalker *walker, R
 
 	LOG(LOG_INFO,"Proxy is %p, Block is %p",walker->leafProxy, walker->leafProxy->dataBlock);
 */
+
+	while(res && upstream == targetSuffix &&										// Skip earlier upstream (leaf at a time)
+		((walker->upstreamOffsets[targetSuffix]+walker->leafProxy->dataBlock->upstreamOffset) < minEdgePosition))
+		{
+		walkerAccumulateLeafOffsets(walker);
+		res=walkerNextLeaf(walker, &upstream, &entry);
+		}
+
+
+
 	while(res && upstream == targetSuffix &&
 			((walker->upstreamOffsets[targetSuffix]+entry->width)<minEdgePosition ||
 			((walker->upstreamOffsets[targetSuffix]+entry->width)==minEdgePosition && entry->downstream!=targetPrefix))) // Skip earlier? upstream

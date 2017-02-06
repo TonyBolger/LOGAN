@@ -146,8 +146,8 @@ s32 rtEncodeTailBlockHeader(u32 prefixSuffix, u32 indexSize, u32 index, u8 *data
 s32 rtDecodeTailBlockHeader(u8 *data, u32 *prefixSuffix, u32 *indexSizePtr, u32 *indexPtr);
 s32 rtGetTailBlockHeaderSize(int indexSize);
 
-s32 rtEncodeArrayBlockHeader(u32 arrayNum, u32 arrayType, u32 indexSize, u32 index, u32 subindex, u8 *data);
-s32 rtDecodeArrayBlockHeader(u8 *data, u32 *arrayNumPtr, u32 *arrayTypePtr, u32 *indexSizePtr, u32 *indexPtr, u32 *subindexSizePtr, u32 *subindexPtr);
+s32 rtEncodeArrayBlockHeader(s32 arrayNum, s32 arrayType, s32 indexSize, s32 index, s32 subindex, u8 *data);
+s32 rtDecodeArrayBlockHeader(u8 *data, s32 *arrayNumPtr, s32 *arrayTypePtr, s32 *indexSizePtr, s32 *indexPtr, s32 *subindexSizePtr, s32 *subindexPtr);
 s32 rtGetArrayBlockHeaderSize(int indexSize, int subindexSize);
 
 

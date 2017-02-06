@@ -439,7 +439,7 @@ s32 rtGetTailBlockHeaderSize(int indexSize)
 }
 
 
-s32 rtEncodeArrayBlockHeader(u32 arrayNum, u32 arrayType, u32 indexSize, u32 index, u32 subindex, u8 *data)
+s32 rtEncodeArrayBlockHeader(s32 arrayNum, s32 arrayType, s32 indexSize, s32 index, s32 subindex, u8 *data)
 {
 	if(subindex==256)
 		LOG(LOG_CRITICAL,"rtEncodeArrayBlockHeader with subindex 256");
@@ -466,7 +466,7 @@ s32 rtEncodeArrayBlockHeader(u32 arrayNum, u32 arrayType, u32 indexSize, u32 ind
 
 
 // u32 arrayNum, u32 arrayType, u32 indexSize, u32 index, u32 subindex
-s32 rtDecodeArrayBlockHeader(u8 *data, u32 *arrayNumPtr, u32 *arrayTypePtr, u32 *indexSizePtr, u32 *indexPtr, u32 *subindexSizePtr, u32 *subindexPtr)
+s32 rtDecodeArrayBlockHeader(u8 *data, s32 *arrayNumPtr, s32 *arrayTypePtr, s32 *indexSizePtr, s32 *indexPtr, s32 *subindexSizePtr, s32 *subindexPtr)
 {
 	u8 header=(*data++)&(~ALLOC_HEADER_LIVE_ARRAY);
 
@@ -489,7 +489,7 @@ s32 rtDecodeArrayBlockHeader(u8 *data, u32 *arrayNumPtr, u32 *arrayTypePtr, u32 
 
 	data+=indexSize;
 
-	u32 subindexSize=0, subindex=-1;
+	s32 subindexSize=0, subindex=-1;
 
 	switch(arrayType)
 		{
@@ -558,15 +558,45 @@ static s32 scanTagData(u8 **tagData, s32 tagDataLength, s32 startIndex, u8 *want
 	return -1;
 }
 
-/*
-//static
-s32 scanTagDataNested(u8 **tagData, s32 smerIndex, s32 arrayNum, s32 subIndex) // TODO
-{
 
-	return 0;
+static s32 scanTagDataNested_ShallowData(u8 **tagData, s32 smerIndex, s32 arrayNum, s32 subIndex, u8 *wanted) // TODO
+{
+	u8 *primaryPtr=tagData[smerIndex];
+
+	if(primaryPtr==NULL)
+		{
+		LOG(LOG_CRITICAL,"Attempt to scan nested entry %i with NULL data",smerIndex);
+		}
+
+	u8 header=*primaryPtr;
+
+	if((header & ALLOC_HEADER_LIVE_GAP_ROOT_MASK) != ALLOC_HEADER_LIVE_GAP_ROOT_TOP_VALUE)
+		{
+		LOG(LOG_CRITICAL,"Attempt to scan nested entry %i with invalid header %i",header);
+		}
+
+	RouteTableTreeTopBlock *topPtr=(RouteTableTreeTopBlock *)((primaryPtr)+rtGetGapBlockHeaderSize());
+
+	u8 *arrayBlockPtr=topPtr->data[arrayNum];
+	s32 headerSize=rtDecodeArrayBlockHeader(arrayBlockPtr,NULL,NULL,NULL,NULL,NULL,NULL);
+	RouteTableTreeArrayBlock *array=(RouteTableTreeArrayBlock *)(arrayBlockPtr+headerSize);
+
+	subIndex<<=ROUTE_TABLE_TREE_DATA_ARRAY_SUBINDEX_SHIFT;
+
+	int entriesToScan=MIN(subIndex+ROUTE_TABLE_TREE_DATA_ARRAY_SUBINDEX_RANGE, array->dataAlloc);
+
+	for(int i=subIndex; i<entriesToScan; i++)
+		{
+		if(array->data[i]==wanted)
+			{
+			return i;
+			}
+		}
+
+	return -1;
 }
 
-*/
+
 
 static MemCircHeapChunkIndex *allocOrExpandIndexer(MemCircHeapChunkIndex *oldIndex, MemDispenser *disp)
 {
@@ -595,7 +625,7 @@ static MemCircHeapChunkIndex *allocOrExpandIndexer(MemCircHeapChunkIndex *oldInd
 
 void dumpRawArrayBlock(u8 *data)
 {
-	u32 arrayNum=0, arrayType=0, indexSize=0, index=0, subindexSize=0, subIndex=0;
+	s32 arrayNum=0, arrayType=0, indexSize=0, index=0, subindexSize=0, subIndex=0;
 
 	int headerSize=rtDecodeArrayBlockHeader(data, &arrayNum, &arrayType, &indexSize, &index, &subindexSize, &subIndex);
 
@@ -631,7 +661,6 @@ void validateReclaimIndexEntry(MemCircHeapChunkIndexEntry *indexEntry, u8 *heapP
 		{
 		LOG(LOG_CRITICAL,"Attempt to validate entry %i indexing NULL data",sindex);
 		}
-
 
 	//s32 size=indexEntry->size;
 	s32 topindex=indexEntry->topindex;
@@ -850,9 +879,9 @@ MemCircHeapChunkIndex *rtReclaimIndexer(u8 *heapDataPtr, s64 targetAmount, u8 ta
 				}
 			else // Array or Array Entry: Leaf, Branch or Offset
 				{
-				u32 arrayNum=0,arrayType=0;
-				u32 smerIndex=0;
-				u32 subindex=-1;
+				s32 arrayNum=0,arrayType=0;
+				s32 smerIndex=0;
+				s32 subindex=-1;
 
 				s32 headerSize=rtDecodeArrayBlockHeader(heapDataPtr, &arrayNum, &arrayType, NULL, &smerIndex, NULL, &subindex);
 				u8 *scanPtr=heapDataPtr+headerSize;
@@ -916,6 +945,14 @@ MemCircHeapChunkIndex *rtReclaimIndexer(u8 *heapDataPtr, s64 targetAmount, u8 ta
 					{
 					if(entry==index->entryAlloc)
 						index=allocOrExpandIndexer(index, disp);
+
+					if(arrayType==ARRAY_TYPE_SHALLOW_DATA)
+						{
+						subindex=scanTagDataNested_ShallowData(tagData,smerIndex,arrayNum,subindex,heapDataPtr);
+
+						if(subindex<0)
+							LOG(LOG_CRITICAL,"Failed to find expected ptr %p at Smer %i Array %i",heapDataPtr, smerIndex, arrayNum);
+						}
 
 					index->entries[entry].index=smerIndex;
 					index->entries[entry].topindex=arrayNum;
