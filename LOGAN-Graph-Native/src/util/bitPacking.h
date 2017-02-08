@@ -10,7 +10,8 @@
 
 
 typedef struct bitPackerStr {
-	u8 *data;
+	//u8 *data;
+	u32 *data;
 	int position;
 } BitPacker;
 

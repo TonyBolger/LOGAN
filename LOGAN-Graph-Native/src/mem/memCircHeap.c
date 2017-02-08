@@ -77,7 +77,7 @@
  * Block must be at least minSize and at least the index, if not NULL
  */
 
-const double MAX_SURVIVOR[CIRCHEAP_MAX_GENERATIONS]={0.70, 0.75, 0.80, 0.85, 0.90, 0.92, 0.94, 0.96};
+const double MAX_SURVIVOR[CIRCHEAP_MAX_GENERATIONS]={0.70, 0.75, 0.75, 0.80, 0.80, 0.85, 0.85, 0.90};
 
 //const double MAX_SURVIVOR[CIRCHEAP_MAX_GENERATIONS]={0.50, 0.60, 0.70, 0.70, 0.70, 0.70, 0.70, 0.90};
 //const double MAX_SURVIVOR[CIRCHEAP_MAX_GENERATIONS]={0.50, 0.80, 0.90, 0.90, 0.90, 0.90, 0.90, 0.95};

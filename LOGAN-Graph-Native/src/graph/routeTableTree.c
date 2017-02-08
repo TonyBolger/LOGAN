@@ -993,7 +993,33 @@ void rttMergeRoutes(RouteTableTreeBuilder *builder,
 
 void rttUnpackRouteTableForSmerLinked(SmerLinked *smerLinked, u8 *data, MemDispenser *disp)
 {
-	LOG(LOG_CRITICAL,"Not implemented: rttUnpackRouteTableForSmerLinked");
+	u32 prefixBits=0, suffixBits=0, widthBits=0, forwardEntryCount=0, reverseEntryCount=0;
+
+	if(data!=NULL)
+		{
+		LOG(LOG_CRITICAL,"Not implemented: rttUnpackRouteTableForSmerLinked");
+		/*
+		data+=decodeHeader(data, &prefixBits, &suffixBits, &widthBits, &forwardEntryCount, &reverseEntryCount);
+
+		smerLinked->forwardRouteEntries=dAlloc(disp, sizeof(RouteTableEntry)*forwardEntryCount);
+		smerLinked->reverseRouteEntries=dAlloc(disp, sizeof(RouteTableEntry)*reverseEntryCount);
+
+		smerLinked->forwardRouteCount=forwardEntryCount;
+		smerLinked->reverseRouteCount=reverseEntryCount;
+
+		rtaUnpackRoutes(data, prefixBits, suffixBits, widthBits,
+				smerLinked->forwardRouteEntries, smerLinked->reverseRouteEntries, forwardEntryCount, reverseEntryCount,
+				NULL,NULL,NULL);
+				*/
+		}
+	else
+		{
+		smerLinked->forwardRouteEntries=NULL;
+		smerLinked->reverseRouteEntries=NULL;
+
+		smerLinked->forwardRouteCount=0;
+		smerLinked->reverseRouteCount=0;
+		}
 }
 
 

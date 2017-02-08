@@ -30,7 +30,7 @@ static u32 MASK_KEEP_UPPER[]={
 		0xFFFF0000,0xFFFF8000,0xFFFFC000,0xFFFFE000,0xFFFFF000,0xFFFFF800,0xFFFFFC00,0xFFFFFE00,
 		0xFFFFFF00,0xFFFFFF80,0xFFFFFFC0,0xFFFFFFE0,0xFFFFFFF0,0xFFFFFFF8,0xFFFFFFFC,0xFFFFFFFE,
 		0xFFFFFFFF};
-
+*/
 static u32 MASK_LOWER_32[]={
 		0xFFFFFFFF,0xFFFFFFFE,0xFFFFFFFC,0xFFFFFFF8,0xFFFFFFF0,0xFFFFFFE0,0xFFFFFFC0,0xFFFFFF80,
 		0xFFFFFF00,0xFFFFFE00,0xFFFFFC00,0xFFFFF800,0xFFFFF000,0xFFFFE000,0xFFFFC000,0xFFFF8000,
@@ -38,7 +38,6 @@ static u32 MASK_LOWER_32[]={
 		0xFF000000,0xFE000000,0xFC000000,0xF8000000,0xF0000000,0xE0000000,0xC0000000,0x80000000,
 		0x00000000
 };
-*/
 
 static u32 MASK_KEEP_LOWER_32[]={
 		0x00000000,0x00000001,0x00000003,0x00000007,0x0000000F,0x0000001F,0x0000003F,0x0000007F,
@@ -54,8 +53,8 @@ static u32 MASK_KEEP_LOWER_32[]={
 #define MASK_RANGE_32(x, u, l) ((x) & (MASK_LOWER_32[u+1] | MASK_KEEP_LOWER_32[l]))
 
 
-static u8 MASK_LOWER_8[]={0xFF,0xFE,0xFC,0xF8,0xF0,0xE0,0xC0,0x80,0x00};
-static u8 MASK_KEEP_LOWER_8[]={0x00,0x01,0x03,0x07,0x0F,0x1F,0x3F,0x7F,0xFF};
+//static u8 MASK_LOWER_8[]={0xFF,0xFE,0xFC,0xF8,0xF0,0xE0,0xC0,0x80,0x00};
+//static u8 MASK_KEEP_LOWER_8[]={0x00,0x01,0x03,0x07,0x0F,0x1F,0x3F,0x7F,0xFF};
 
 #define SELECT_AND_SHIFTLEFT_8(x, a, b) (((x) & MASK_KEEP_LOWER_8[a]) << (b))
 #define SHIFTRIGHT_AND_SELECT_8(x, a, b) (((x) >> (a)) & MASK_KEEP_LOWER_8[b])
@@ -63,10 +62,24 @@ static u8 MASK_KEEP_LOWER_8[]={0x00,0x01,0x03,0x07,0x0F,0x1F,0x3F,0x7F,0xFF};
 #define MASK_RANGE_8(x, u, l) ((x) & (MASK_LOWER_8[u+1] | MASK_KEEP_LOWER_8[l]))
 
 
-
+/*
 void initPacker(BitPacker *packer, u8 *ptr, int position)
 {
 	packer->data=ptr;
+	packer->position=position;
+}
+*/
+
+
+void initPacker(BitPacker *packer, u8 *ptr, int position)
+{
+	uintptr_t alignChecker=(uintptr_t)ptr;
+
+	int cor=alignChecker & 0x3;
+	ptr-=cor;
+	position+=8*cor;
+
+	packer->data=(u32 *)ptr;
 	packer->position=position;
 }
 
@@ -75,7 +88,7 @@ void seekPacker(BitPacker *packer, int position)
 	packer->position+=position;
 }
 
-
+/*
 void packBits(BitPacker *packer, int count, u32 data)
 {
 	if(count==0)
@@ -116,8 +129,8 @@ void packBits(BitPacker *packer, int count, u32 data)
 
 	packer->position+=originalCount;
 }
+*/
 
-/*
 void packBits(BitPacker *packer, int count, u32 data)
 {
 	if(count==0)
@@ -138,7 +151,7 @@ void packBits(BitPacker *packer, int count, u32 data)
 		// No-wrap case: Copy 'count' bits from bits count-1:0 of data into packPtr[position], bits endBitPosition:bitPosition inclusive
 
 		int tmpData=SELECT_AND_SHIFTLEFT_32(data,count,bitPosition);
-		*(packPtr+intPosition)=MASK_RANGE(*(packPtr+intPosition), endBitPosition, bitPosition)|tmpData;
+		*(packPtr+intPosition)=MASK_RANGE_32(*(packPtr+intPosition), endBitPosition, bitPosition)|tmpData;
 		}
 	else
 		{
@@ -158,7 +171,7 @@ void packBits(BitPacker *packer, int count, u32 data)
 	packer->position+=count;
 }
 
-*/
+
 
 void initUnpacker(BitUnpacker *unpacker, u8 *ptr, int position)
 {
