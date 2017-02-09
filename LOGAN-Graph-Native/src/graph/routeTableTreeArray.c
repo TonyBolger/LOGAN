@@ -95,6 +95,8 @@ void rttBindBlockArrayProxy(RouteTableTreeArrayProxy *arrayProxy, u8 *heapDataPt
 
 void initBlockArrayProxy(RouteTableTreeProxy *treeProxy, RouteTableTreeArrayProxy *arrayProxy, HeapDataBlock *heapDataBlock, u8 *heapDataPtr, u32 arrayType)
 {
+//	LOG(LOG_INFO,"Here");
+
 	arrayProxy->heapDataBlock=heapDataBlock;
 	arrayProxy->arrayType=arrayType;
 
@@ -105,9 +107,15 @@ void initBlockArrayProxy(RouteTableTreeProxy *treeProxy, RouteTableTreeArrayProx
 
 //	LOG(LOG_INFO,"Loaded array with %i of %i",arrayProxy->dataCount,arrayProxy->dataAlloc);
 
-	arrayProxy->newData=NULL;
-	arrayProxy->newDataAlloc=0;
-	arrayProxy->newDataCount=0;
+	arrayProxy->newEntries=NULL;
+	arrayProxy->newEntriesAlloc=0;
+	arrayProxy->newEntriesCount=0;
+
+	arrayProxy->newPtrAlloc=arrayProxy->ptrAlloc;
+	arrayProxy->newPtrCount=arrayProxy->ptrCount;
+
+	arrayProxy->newDataAlloc=arrayProxy->dataAlloc;
+	arrayProxy->newDataCount=arrayProxy->dataCount;
 
 	if(heapDataPtr!=NULL)
 		heapDataBlock->dataSize=rttGetTopArraySize(arrayProxy);
@@ -126,6 +134,66 @@ s32 getBlockArraySize(RouteTableTreeArrayProxy *arrayProxy)
 	return arrayProxy->dataCount;
 }
 
+/*
+static int blockArrayEntryComparator(const void *key, const void *entry)
+{
+	s32 *keyPtr=(s32 *)key;
+	RouteTableTreeArrayEntries **entryPtr=(RouteTableTreeArrayEntries **)entry;
+
+	return (*keyPtr)-(*entryPtr)->entryIndex;
+}
+*/
+/*
+// Return the index of given entry, or the next entry immediately after (which could be past end)
+static s32 findBlockArrayEntryIndex(s32 key, RouteTableTreeArrayEntry **base, size_t num)
+{
+	s32 start = 0, end = num;
+	int result;
+
+	while (start < end) {
+		s32 mid = start + (end - start) / 2; // avoid wrap
+
+		result = base[mid]->index-key;
+			// - if key bigger, check [start,mid)
+			// + if key smaller, check [mid+1, end)
+		if (result < 0)
+			end = mid;
+		else if (result > 0)
+			start = mid + 1;
+		else
+			return mid;
+	}
+
+	return end;
+}
+*/
+
+static s32 findBlockArrayEntryIndex(s32 key, RouteTableTreeArrayEntry *base, size_t num)
+{
+	s32 start = 0, end = num;
+	int result;
+
+	while (start < end) {
+		s32 mid = start + (end - start) / 2; // avoid wrap
+
+//		LOG(LOG_INFO,"Search %i %i %i",start,mid,end);
+
+		result = key - base[mid].index;
+			// - if key smaller, check [start,mid)
+			// + if key bigger, check [mid+1, end)
+		if (result < 0)
+			end = mid;
+		else if (result > 0)
+			start = mid + 1;
+		else
+			return mid;
+	}
+
+	return end;
+}
+
+
+
 //static
 u8 *getBlockArrayEntry(RouteTableTreeArrayProxy *arrayProxy, s32 index)
 {
@@ -134,12 +202,14 @@ u8 *getBlockArrayEntry(RouteTableTreeArrayProxy *arrayProxy, s32 index)
 		LOG(LOG_CRITICAL,"Two level arrays not implemented");
 		}
 
-	if(index>=0 && index<arrayProxy->newDataCount)
+	if(arrayProxy->newEntries!=NULL)
 		{
-		u8 *newData=arrayProxy->newData[index];
+		s32 entryIndex=findBlockArrayEntryIndex(index, arrayProxy->newEntries, arrayProxy->newEntriesCount);
 
-		if(newData!=NULL)
-			return newData;
+		if(entryIndex<arrayProxy->newEntriesCount && arrayProxy->newEntries[entryIndex].index==index)
+			{
+			return arrayProxy->newEntries[entryIndex].data;
+			}
 		}
 
 	if(index>=0 && index<arrayProxy->dataCount)
@@ -158,25 +228,95 @@ u8 *getBlockArrayEntry(RouteTableTreeArrayProxy *arrayProxy, s32 index)
 
 void ensureBlockArrayWritable(RouteTableTreeArrayProxy *arrayProxy, MemDispenser *disp)
 {
-	if(arrayProxy->newData==NULL) // Haven't yet written anything - make writable
+	if(arrayProxy->newEntries==NULL) // Haven't yet written anything - make writable
 		{
-		int newAlloc=arrayProxy->dataAlloc;
+		arrayProxy->newEntriesAlloc=ROUTE_TABLE_TREE_ARRAY_ENTRIES_CHUNK;
+		arrayProxy->newEntries=dAlloc(disp, sizeof(RouteTableTreeArrayEntry)*arrayProxy->newEntriesAlloc);
+		memset(arrayProxy->newEntries, 0, sizeof(RouteTableTreeArrayEntry)*arrayProxy->newEntriesAlloc);
 
-		if(arrayProxy->dataCount==newAlloc)
-			newAlloc=MIN(newAlloc+ROUTE_TABLE_TREE_ARRAY_ENTRIES_CHUNK, ROUTE_TABLE_TREE_DATA_ARRAY_ENTRIES);
-
-		u8 **newData=dAlloc(disp, sizeof(u8 *)*newAlloc);
-
-		//if(newAlloc>arrayProxy->dataCount)
-
-		memset(newData, 0, sizeof(u8 *)*newAlloc);
-
-		arrayProxy->newData=newData;
-		arrayProxy->newDataAlloc=newAlloc;
+		arrayProxy->newDataAlloc=MIN(arrayProxy->dataAlloc+ROUTE_TABLE_TREE_ARRAY_ENTRIES_CHUNK, ROUTE_TABLE_TREE_DATA_ARRAY_ENTRIES);
 		arrayProxy->newDataCount=arrayProxy->dataCount;
 		}
 
 }
+
+
+static void insertBlockArrayEntry(RouteTableTreeArrayProxy *arrayProxy, s32 entryIndex, s16 index, u8 *data, MemDispenser *disp)
+{
+	if(entryIndex<0 || entryIndex>arrayProxy->newEntriesCount)
+		LOG(LOG_CRITICAL,"Attempt to insert at invalid entry index %i in array with %i elements",entryIndex, arrayProxy->newEntriesCount);
+
+	if(index<0 || entryIndex>=arrayProxy->newDataCount)
+		LOG(LOG_CRITICAL,"Attempt to insert at invalid index %i in array with %i elements",entryIndex, arrayProxy->newDataCount);
+
+	// Need to expand or shuffle, then insert
+
+	if(arrayProxy->newEntriesCount>=arrayProxy->newEntriesAlloc)
+		{
+		arrayProxy->newEntriesAlloc+=ROUTE_TABLE_TREE_ARRAY_ENTRIES_CHUNK;
+
+		RouteTableTreeArrayEntry *newEntries=dAlloc(disp, sizeof(RouteTableTreeArrayEntry)*arrayProxy->newEntriesAlloc);
+		memcpy(newEntries, arrayProxy->newEntries, sizeof(RouteTableTreeArrayEntry) * entryIndex);
+
+		newEntries[entryIndex].index=index;
+		newEntries[entryIndex].data=data;
+
+		s32 remaining=arrayProxy->newEntriesCount-entryIndex;
+
+		memcpy(newEntries+entryIndex+1, arrayProxy->newEntries+entryIndex, sizeof(RouteTableTreeArrayEntry) * remaining);
+
+		arrayProxy->newEntries=newEntries;
+		arrayProxy->newEntriesCount++;
+		}
+	else
+		{
+		s32 remaining=arrayProxy->newEntriesCount-entryIndex;
+
+		memmove(arrayProxy->newEntries+entryIndex+1, arrayProxy->newEntries+entryIndex, sizeof(RouteTableTreeArrayEntry) * remaining);
+
+		arrayProxy->newEntries[entryIndex].index=index;
+		arrayProxy->newEntries[entryIndex].data=data;
+
+		arrayProxy->newEntriesCount++;
+		}
+
+}
+
+
+s32 appendBlockArrayEntry(RouteTableTreeArrayProxy *arrayProxy, u8 *data, MemDispenser *disp)
+{
+	// Need to optionally expand, then append
+
+	if(arrayProxy->newEntriesCount>=arrayProxy->newEntriesAlloc)
+		{
+		arrayProxy->newEntriesAlloc+=ROUTE_TABLE_TREE_ARRAY_ENTRIES_CHUNK;
+
+		RouteTableTreeArrayEntry *newEntries=dAlloc(disp, sizeof(RouteTableTreeArrayEntry)*arrayProxy->newEntriesAlloc);
+		memcpy(newEntries, arrayProxy->newEntries, sizeof(RouteTableTreeArrayEntry) * arrayProxy->newEntriesCount);
+
+		arrayProxy->newEntries=newEntries;
+		}
+
+	if(arrayProxy->newDataCount>=arrayProxy->newDataAlloc)
+		{
+		arrayProxy->newDataAlloc=MIN(arrayProxy->newDataAlloc+ROUTE_TABLE_TREE_ARRAY_ENTRIES_CHUNK, ROUTE_TABLE_TREE_DATA_ARRAY_ENTRIES);
+		if(arrayProxy->newDataCount>=arrayProxy->newDataAlloc)
+			LOG(LOG_CRITICAL, "Cannot expand array beyond size limit %i",ROUTE_TABLE_TREE_DATA_ARRAY_ENTRIES);
+		}
+
+	s32 index=arrayProxy->newDataCount++;
+	s32 entryIndex=arrayProxy->newEntriesCount;
+
+	arrayProxy->newEntries[entryIndex].index=index;
+	arrayProxy->newEntries[entryIndex].data=data;
+
+	arrayProxy->newEntriesCount++;
+
+
+	return index;
+}
+
+
 
 //static
 void setBlockArrayEntry(RouteTableTreeArrayProxy *arrayProxy, s32 index, u8 *data, MemDispenser *disp)
@@ -189,43 +329,18 @@ void setBlockArrayEntry(RouteTableTreeArrayProxy *arrayProxy, s32 index, u8 *dat
 		}
 
 	if(index>=0 && index<arrayProxy->newDataCount)
-		arrayProxy->newData[index]=data;
-	else
-		LOG(LOG_CRITICAL,"Invalid array index %i - Size %i",index,arrayProxy->newDataCount);
-}
-
-//static
-s32 appendBlockArrayEntry(RouteTableTreeArrayProxy *arrayProxy, u8 *data, MemDispenser *disp)
-{
-	ensureBlockArrayWritable(arrayProxy, disp);
-
-	if(arrayProxy->ptrBlock!=NULL)
 		{
-		LOG(LOG_CRITICAL,"Two level arrays not implemented");
-		}
+		s32 entryIndex=findBlockArrayEntryIndex(index, arrayProxy->newEntries, arrayProxy->newEntriesCount);
 
-	if(arrayProxy->newDataCount>=arrayProxy->newDataAlloc)
-		{
-		int newAllocCount=arrayProxy->newDataAlloc+ROUTE_TABLE_TREE_ARRAY_ENTRIES_CHUNK; // TODO: Move to realloc function
-
-		if(newAllocCount>ROUTE_TABLE_TREE_DATA_ARRAY_ENTRIES)
+		if(entryIndex<arrayProxy->newEntriesCount && arrayProxy->newEntries[entryIndex].index==index) // Found existing
 			{
-			LOG(LOG_CRITICAL,"Need to allocate more than %i entries (%i)",ROUTE_TABLE_TREE_DATA_ARRAY_ENTRIES, newAllocCount);
+			arrayProxy->newEntries[entryIndex].data=data;
+			return;
 			}
 
-		u8 **newData=dAlloc(disp, sizeof(u8 *)*newAllocCount);
-		memcpy(newData,arrayProxy->newData, sizeof(u8 *)*arrayProxy->newDataAlloc);
-		memset(newData+arrayProxy->newDataAlloc, 0, sizeof(u8 *)*(newAllocCount-arrayProxy->newDataAlloc));
-
-		arrayProxy->newData=newData;
-		arrayProxy->newDataAlloc=newAllocCount;
+		insertBlockArrayEntry(arrayProxy, entryIndex, index, data, disp);
 		}
-
-	s32 index=arrayProxy->newDataCount++;
-	arrayProxy->newData[index]=data;
-
-//	LOG(LOG_INFO,"appendBlockArrayEntry: Allocating Leaf %i",index);
-
-	return index;
+	else
+		LOG(LOG_CRITICAL,"Invalid array index %i - Size %i",index,arrayProxy->newDataCount);
 }
 

@@ -451,6 +451,25 @@ Profiles:
 
 
 
+
+Current Pen-3 (Cessna)
+
+ 1102814  12.9%  12.9%  1102987  12.9% packBits
+  828963   9.7%  22.5%   830268   9.7% unpackBits
+  734285   8.6%  31.1%  1009945  11.8% rtReclaimIndexer
+  699081   8.2%  39.3%  7699149  89.8% scanForDispatchesForGroups.isra.3
+  519310   6.1%  45.3%   519310   6.1% __memset_sse2
+  420677   4.9%  50.2%   639436   7.5% rtRelocater
+  362950   4.2%  54.5%   474952   5.5% getRouteTableTreeLeafProxy
+  336557   3.9%  58.4%  6336964  73.9% rtRouteReadsForSmer
+  269674   3.1%  61.5%  1099250  12.8% rtaUnpackRoutes
+  202670   2.4%  63.9%   233423   2.7% walkerNextEntry
+
+
+
+
+
+
 Memory Usage:
 
 valgrind --tool=massif --pages-as-heap=yes --massif-out-file=massif.out ./LOGAN-Graph-Native/bin/LOGAN data/Ecoli-1_Q20.fq 1 1

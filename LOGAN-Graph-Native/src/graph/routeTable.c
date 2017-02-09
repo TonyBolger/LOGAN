@@ -541,7 +541,7 @@ static s32 scanTagData(u8 **tagData, s32 tagDataLength, s32 startIndex, u8 *want
 		{
 		if(tagData[i]==wanted)
 			{
-			if(scanCount>10)
+			if(scanCount>100)
 				LOG(LOG_INFO,"Scan count of %i from %i of %i to find %p",scanCount,startIndex,tagDataLength,wanted);
 
 			return i;

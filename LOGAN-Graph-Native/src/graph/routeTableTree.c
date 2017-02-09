@@ -105,9 +105,9 @@ int dumpRoutingTableTree_ArrayProxy(RouteTableTreeArrayProxy *arrayProxy, char *
 	else
 		LOG(LOG_INFO,"Array %s existing datablock is NULL",name);
 
-	if(arrayProxy->newData!=NULL)
+	if(arrayProxy->newEntries!=NULL)
 		{
-		LOG(LOG_INFO,"Array %s new datablock %p contains %i of %i items",name,arrayProxy->newData,arrayProxy->newDataCount,arrayProxy->newDataAlloc);
+		LOG(LOG_INFO,"Array %s new datablock %p contains %i of %i items",name,arrayProxy->newEntries,arrayProxy->newDataCount,arrayProxy->newDataAlloc);
 		count=MAX(count, arrayProxy->newDataCount);
 		}
 	else
@@ -169,7 +169,7 @@ void rttDumpRoutingTable(RouteTableTreeBuilder *builder)
 
 s32 rttGetTopArrayDirty(RouteTableTreeArrayProxy *arrayProxy)
 {
-	return arrayProxy->newData!=NULL;
+	return arrayProxy->newEntries!=NULL;
 }
 
 
@@ -178,7 +178,7 @@ s32 rttGetTopArraySize(RouteTableTreeArrayProxy *arrayProxy)
 	if(arrayProxy->ptrBlock!=NULL)
 		LOG(LOG_CRITICAL,"Multi-level arrays not yet implemented");
 
-	if(arrayProxy->newData!=NULL)
+	if(arrayProxy->newEntries!=NULL)
 		return sizeof(RouteTableTreeArrayBlock)+sizeof(u8 *)*arrayProxy->newDataAlloc;
 	else
 		return sizeof(RouteTableTreeArrayBlock)+sizeof(u8 *)*arrayProxy->dataAlloc;
@@ -993,7 +993,7 @@ void rttMergeRoutes(RouteTableTreeBuilder *builder,
 
 void rttUnpackRouteTableForSmerLinked(SmerLinked *smerLinked, u8 *data, MemDispenser *disp)
 {
-	u32 prefixBits=0, suffixBits=0, widthBits=0, forwardEntryCount=0, reverseEntryCount=0;
+	//u32 prefixBits=0, suffixBits=0, widthBits=0, forwardEntryCount=0, reverseEntryCount=0;
 
 	if(data!=NULL)
 		{
