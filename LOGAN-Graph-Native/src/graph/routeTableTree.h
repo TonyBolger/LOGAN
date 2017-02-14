@@ -16,13 +16,25 @@
 //
 // Minimum Valid tree: Empty root
 
-// Two-level trees will need more than s16 indexes (currently 256*1024 possible leaves?)
+// Two-level trees may need more than s16 indexes (currently 256*(>256) possible leaves)
 
 #define ROUTE_TABLE_TREE_PTR_ARRAY_ENTRIES 256
-#define ROUTE_TABLE_TREE_DATA_ARRAY_ENTRIES 2048
 
-#define ROUTE_TABLE_TREE_DATA_ARRAY_SUBINDEX_SHIFT 3
-#define ROUTE_TABLE_TREE_DATA_ARRAY_SUBINDEX_RANGE (1<<ROUTE_TABLE_TREE_DATA_ARRAY_SUBINDEX_SHIFT)
+#define ROUTE_TABLE_TREE_SHALLOW_DATA_ARRAY_ENTRIES 64
+//#define ROUTE_TABLE_TREE_SHALLOW_DATA_ARRAY_ENTRIES 1024
+#define ROUTE_TABLE_TREE_SHALLOW_DATA_ARRAY_SUBINDEX_SHIFT 2
+#define ROUTE_TABLE_TREE_SHALLOW_DATA_ARRAY_SUBINDEX_RANGE (1<<ROUTE_TABLE_TREE_SHALLOW_DATA_ARRAY_SUBINDEX_SHIFT)
+
+#define ROUTE_TABLE_TREE_DEEP_DATA_ARRAY_ENTRIES 256
+#define ROUTE_TABLE_TREE_DEEP_DATA_ARRAY_SUBINDEX_SHIFT 0
+#define ROUTE_TABLE_TREE_DEEP_DATA_ARRAY_SUBINDEX_RANGE (1<<ROUTE_TABLE_TREE_DEEP_DATA_ARRAY_SUBINDEX_SHIFT)
+
+#define ROUTE_TABLE_TREE_DEEP_DATA_ARRAY_ENTRIES_SHIFT 8
+#define ROUTE_TABLE_TREE_DEEP_DATA_ARRAY_ENTRIES_MASK (ROUTE_TABLE_TREE_DEEP_DATA_ARRAY_ENTRIES-1)
+
+
+#define ROUTE_TABLE_TREE_MAX_ARRAY_ENTRIES (ROUTE_TABLE_TREE_PTR_ARRAY_ENTRIES*ROUTE_TABLE_TREE_DEEP_DATA_ARRAY_ENTRIES)
+
 
 #define ROUTE_TABLE_TREE_ARRAY_ENTRIES_CHUNK 8
 
@@ -37,12 +49,15 @@
 
 //#define ROUTE_TABLE_TREE_LEAF_ENTRIES 16384
 //#define ROUTE_TABLE_TREE_LEAF_ENTRIES_CHUNK 16
-#define ROUTE_TABLE_TREE_LEAF_ENTRIES 4096
-#define ROUTE_TABLE_TREE_LEAF_ENTRIES_CHUNK 8
+
+//#define ROUTE_TABLE_TREE_LEAF_ENTRIES 1024
+//#define ROUTE_TABLE_TREE_LEAF_ENTRIES_CHUNK 8
+
 //#define ROUTE_TABLE_TREE_LEAF_ENTRIES 4096
 //#define ROUTE_TABLE_TREE_LEAF_ENTRIES_CHUNK 16
-//#define ROUTE_TABLE_TREE_LEAF_ENTRIES 4
-//#define ROUTE_TABLE_TREE_LEAF_ENTRIES_CHUNK 4
+
+#define ROUTE_TABLE_TREE_LEAF_ENTRIES 16
+#define ROUTE_TABLE_TREE_LEAF_ENTRIES_CHUNK 4
 //#define ROUTE_TABLE_TREE_LEAF_ENTRIES 2
 //#define ROUTE_TABLE_TREE_LEAF_ENTRIES_CHUNK 2
 
@@ -50,21 +65,34 @@
 
 typedef struct rootTableTreeTopBlockStr
 {
-	u8 *data[8]; // Tail(P,S), Leaf(F,R), Branch(F,R), Offset(F,R)
+	u8 *data[6]; // Tail(P,S), Leaf(F,R), Branch(F,R)
 } __attribute__((packed)) RouteTableTreeTopBlock;
 
-#define ROUTE_TOPINDEX_DIRECT -2
-#define ROUTE_TOPINDEX_TOP -1
+// Negative types are pseudo-indexes
+#define ROUTE_PSEUDO_INDEX_DIRECT -2
+#define ROUTE_PSEUDO_INDEX_TOP -1
+
+// These types are real top indexes
+
 #define ROUTE_TOPINDEX_PREFIX 0
 #define ROUTE_TOPINDEX_SUFFIX 1
-#define ROUTE_TOPINDEX_FORWARD_LEAF 2
-#define ROUTE_TOPINDEX_REVERSE_LEAF 3
-#define ROUTE_TOPINDEX_FORWARD_BRANCH 4
-#define ROUTE_TOPINDEX_REVERSE_BRANCH 5
-#define ROUTE_TOPINDEX_FORWARD_OFFSET 6
-#define ROUTE_TOPINDEX_REVERSE_OFFSET 7
+#define ROUTE_TOPINDEX_FORWARD_BRANCH_ARRAY_0 2
+#define ROUTE_TOPINDEX_REVERSE_BRANCH_ARRAY_0 3
+#define ROUTE_TOPINDEX_FORWARD_LEAF_ARRAY_0 4
+#define ROUTE_TOPINDEX_REVERSE_LEAF_ARRAY_0 5
 
-#define ROUTE_TOPINDEX_MAX 8
+#define ROUTE_TOPINDEX_MAX 6
+
+// Remaining types are pseudo-indexes
+#define ROUTE_PSEUDO_INDEX_FORWARD_LEAF_ARRAY_1 6
+#define ROUTE_PSEUDO_INDEX_REVERSE_LEAF_ARRAY_1 7
+#define ROUTE_PSEUDO_INDEX_FORWARD_BRANCH_1 8
+#define ROUTE_PSEUDO_INDEX_REVERSE_BRANCH_1 9
+#define ROUTE_PSEUDO_INDEX_FORWARD_LEAF_1 10
+#define ROUTE_PSEUDO_INDEX_REVERSE_LEAF_1 11
+#define ROUTE_PSEUDO_INDEX_FORWARD_LEAF_2 12
+#define ROUTE_PSEUDO_INDEX_REVERSE_LEAF_2 13
+
 
 // Tree-wide Indexes of nodes:
 // Brindex = Branch Index, positive, starting from 0 (root)
@@ -105,7 +133,7 @@ struct routeTableTreeBuilderStr
 
 	//HeapDataBlock *topDataBlock;
 
-	HeapDataBlock dataBlocks[8];
+	HeapDataBlock dataBlocks[6];
 
 	RouteTableTreeProxy forwardProxy;
 	RouteTableTreeProxy reverseProxy;
@@ -127,7 +155,6 @@ void rttDumpRoutingTable(RouteTableTreeBuilder *builder);
 
 void rttBindBlockArrayProxy(RouteTableTreeArrayProxy *arrayProxy, u8 *heapDataPtr, u32 headerSize);
 
-s32 rttGetTopArrayDirty(RouteTableTreeArrayProxy *arrayProxy);
 s32 rttGetTopArraySize(RouteTableTreeArrayProxy *arrayProxy);
 
 s32 rttMergeTopArrayUpdates_accumulateSize(RouteTableTreeArrayProxy *arrayProxy, u8 *dataBlock);

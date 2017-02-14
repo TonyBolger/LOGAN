@@ -66,7 +66,7 @@ static RouteTableTreeBranchBlock *allocRouteTableTreeBranchBlock(MemDispenser *d
 }
 
 
-static void getRouteTableTreeBranchProxy_scan(RouteTableTreeBranchBlock *branchBlock, u16 *allocPtr, u16 *countPtr)
+void getRouteTableTreeBranchProxy_scan(RouteTableTreeBranchBlock *branchBlock, u16 *allocPtr, u16 *countPtr)
 {
 	if(branchBlock==NULL)
 		{
@@ -93,42 +93,11 @@ static void getRouteTableTreeBranchProxy_scan(RouteTableTreeBranchBlock *branchB
 
 
 
-RouteTableTreeBranchBlock *getRouteTableTreeBranchRaw(RouteTableTreeProxy *treeProxy, s32 brindex)
-{
-	if(brindex<0)
-		{
-		LOG(LOG_CRITICAL,"Brindex must be positive: %i",brindex);
-		}
-
-	u8 *data=getBlockArrayEntry(&(treeProxy->branchArrayProxy), brindex);
-
-	return (RouteTableTreeBranchBlock *)data;
-}
-
-
-RouteTableTreeBranchProxy *getRouteTableTreeBranchProxy(RouteTableTreeProxy *treeProxy, s32 brindex)
-{
-	if(brindex<0)
-		{
-		LOG(LOG_CRITICAL,"Brindex must be positive: %i",brindex);
-		}
-
-	u8 *data=getBlockArrayEntry(&(treeProxy->branchArrayProxy), brindex);
-
-	RouteTableTreeBranchProxy *branchBroxy=dAlloc(treeProxy->disp, sizeof(RouteTableTreeBranchProxy));
-
-	branchBroxy->dataBlock=(RouteTableTreeBranchBlock *)data;
-	branchBroxy->brindex=brindex;
-
-	getRouteTableTreeBranchProxy_scan(branchBroxy->dataBlock, &branchBroxy->childAlloc, &branchBroxy->childCount);
-
-	return branchBroxy;
-}
 
 
 void flushRouteTableTreeBranchProxy(RouteTableTreeProxy *treeProxy, RouteTableTreeBranchProxy *branchProxy)
 {
-	setBlockArrayEntry(&(treeProxy->branchArrayProxy), branchProxy->brindex, (u8 *)branchProxy->dataBlock, treeProxy->disp);
+	setBlockArrayEntryProxy(&(treeProxy->branchArrayProxy), branchProxy->brindex, branchProxy, treeProxy->disp);
 }
 
 
@@ -138,16 +107,17 @@ RouteTableTreeBranchProxy *allocRouteTableTreeBranchProxy(RouteTableTreeProxy *t
 		childAlloc=ROUTE_TABLE_TREE_BRANCH_CHILDREN_CHUNK;
 
 	RouteTableTreeBranchBlock *dataBlock=allocRouteTableTreeBranchBlock(treeProxy->disp, childAlloc);
-	s32 brindex=appendBlockArrayEntry(&(treeProxy->branchArrayProxy), (u8 *)dataBlock, treeProxy->disp);
 
-	RouteTableTreeBranchProxy *branchBroxy=dAlloc(treeProxy->disp, sizeof(RouteTableTreeBranchProxy));
-	branchBroxy->dataBlock=dataBlock;
-	branchBroxy->brindex=brindex;
+	RouteTableTreeBranchProxy *branchProxy=dAlloc(treeProxy->disp, sizeof(RouteTableTreeBranchProxy));
+	s32 brindex=appendBlockArrayEntryProxy(&(treeProxy->branchArrayProxy), branchProxy, treeProxy->disp);
 
-	branchBroxy->childAlloc=childAlloc;
-	branchBroxy->childCount=0;
+	branchProxy->dataBlock=dataBlock;
+	branchProxy->brindex=brindex;
 
-	return branchBroxy;
+	branchProxy->childAlloc=childAlloc;
+	branchProxy->childCount=0;
+
+	return branchProxy;
 }
 
 

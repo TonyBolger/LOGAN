@@ -44,8 +44,7 @@ s32 getRouteTableTreeLeafSize_Existing(RouteTableTreeLeafBlock *leafBlock);
 RouteTableTreeLeafOffset *getRouteTableTreeLeaf_OffsetPtr(RouteTableTreeLeafBlock *leafBlock);
 RouteTableTreeLeafEntry *getRouteTableTreeLeaf_EntryPtr(RouteTableTreeLeafBlock *leafBlock);
 
-RouteTableTreeLeafBlock *getRouteTableTreeLeafRaw(RouteTableTreeProxy *treeProxy, s32 lindex);
-RouteTableTreeLeafProxy *getRouteTableTreeLeafProxy(RouteTableTreeProxy *treeProxy, s32 lindex);
+void getRouteTableTreeLeafProxy_scan(RouteTableTreeLeafBlock *leafBlock, u16 *entryAllocPtr, u16 *entryCountPtr);
 
 void flushRouteTableTreeLeafProxy(RouteTableTreeProxy *treeProxy, RouteTableTreeLeafProxy *leafProxy);
 RouteTableTreeLeafProxy *allocRouteTableTreeLeafProxy(RouteTableTreeProxy *treeProxy, s32 offsetAlloc, s32 entryAlloc);

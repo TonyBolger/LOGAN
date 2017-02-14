@@ -57,11 +57,6 @@ typedef union s32floatUnion {
 #define ROUTING_TABLE_FORWARD 0
 #define ROUTING_TABLE_REVERSE 1
 
-#define ARRAY_TYPE_SHALLOW_PTR 0
-#define ARRAY_TYPE_DEEP_PTR 1
-#define ARRAY_TYPE_SHALLOW_DATA 2
-#define ARRAY_TYPE_DEEP_DATA 3
-
 
 
 typedef struct routePatchMergeWideReadsetStr // Represents a set of reads with same upstream, flexible positions, but potentially varied downstream
@@ -89,11 +84,15 @@ typedef struct routePatchMergePositionOrderedReadtreeStr // Represents sets of r
 
 typedef struct heapDataBlockStr
 {
+	// Used for all heap data (first level object)
 	s32 headerSize; // Including index/subindex
-	//s32 subindexSize;
-	//s32 subindex;
 	s32 dataSize;
-	//u8 *blockPtr; // Warning: Invalidated by (other) allocs
+
+	// Used for 2-level arrays only
+	s32 deepHeaderSize;
+	s32 completeDeepCount;
+	s32 completeDeepDataSize;
+	s32 additionalDeepDataSize;
 } HeapDataBlock;
 
 
@@ -146,15 +145,33 @@ s32 rtEncodeTailBlockHeader(u32 prefixSuffix, u32 indexSize, u32 index, u8 *data
 s32 rtDecodeTailBlockHeader(u8 *data, u32 *prefixSuffix, u32 *indexSizePtr, u32 *indexPtr);
 s32 rtGetTailBlockHeaderSize(int indexSize);
 
-s32 rtEncodeArrayBlockHeader(s32 arrayNum, s32 arrayType, s32 indexSize, s32 index, s32 subindex, u8 *data);
-s32 rtDecodeArrayBlockHeader(u8 *data, s32 *arrayNumPtr, s32 *arrayTypePtr, s32 *indexSizePtr, s32 *indexPtr, s32 *subindexSizePtr, s32 *subindexPtr);
-s32 rtGetArrayBlockHeaderSize(int indexSize, int subindexSize);
+s32 rtEncodeArrayBlockHeader_Branch0(s32 fwdRev, s32 indexSize, s32 index, u8 *data);
+s32 rtDecodeArrayBlockHeader_Branch0(u8 *data, s32 *indexSizePtr, s32 *indexPtr);
+s32 rtEncodeArrayBlockHeader_Leaf0(s32 fwdRev, s32 levels, s32 indexSize, s32 index, u8 *data);
+s32 rtDecodeArrayBlockHeader_Leaf0(u8 *data, s32 *levelsPtr, s32 *indexSizePtr, s32 *indexPtr);
+s32 rtDecodeIndexedBlockHeader_0(u8 *data, s32 *indexSizePtr, s32 *indexPtr);
+s32 rtGetIndexedBlockHeaderSize_0(s32 indexSize);
+
+s32 rtEncodeArrayBlockHeader_Leaf1(s32 fwdRev, s32 indexSize, s32 index, s32 subindex, u8 *data);
+s32 rtDecodeArrayBlockHeader_Leaf1(u8 *data, s32 *indexSizePtr, s32 *indexPtr, s32 subindexPtr);
+
+s32 rtEncodeEntityBlockHeader_Branch1(s32 fwdRev, s32 indexSize, s32 index, s32 subindex, u8 *data);
+s32 rtDecodeEntityBlockHeader_Branch1(u8 *data, s32 *indexSizePtr, s32 *indexPtr, s32 subindexPtr);
+s32 rtEncodeEntityBlockHeader_Leaf1(s32 fwdRev, s32 indexSize, s32 index, s32 subindex, u8 *data);
+s32 rtDecodeEntityBlockHeader_Leaf1(u8 *data, s32 *indexSizePtr, s32 *indexPtr, s32 subindexPtr);
+s32 rtDecodeIndexedBlockHeader_1(u8 *data, s32 *indexSizePtr, s32 *indexPtr, s32 *subindexPtr);
+s32 rtGetIndexedBlockHeaderSize_1(s32 indexSize);
+
+s32 rtEncodeEntityBlockHeader_Leaf2(s32 fwdRev, s32 indexSize, s32 index, s32 subindex, u8 *data);
+s32 rtDecodeEntityBlockHeader_Leaf2(u8 *data, s32 *indexSizePtr, s32 *indexPtr, s32 subindexPtr);
+s32 rtGetIndexedBlockHeaderSize_2(s32 indexSize);
+s32 rtDecodeIndexedBlockHeader(u8 *data, s32 *topindexPtr, s32 *indexSizePtr, s32 *indexPtr, s32 *subindexSizePtr, s32 *subindexPtr);
 
 
 MemCircHeapChunkIndex *rtReclaimIndexer(u8 *data, s64 targetAmount, u8 tag, u8 **tagData, s32 tagDataLength, s32 tagSearchOffset, MemDispenser *disp);
 void rtRelocater(MemCircHeapChunkIndex *index, u8 tag, u8 **tagData, s32 tagDataLength);
 
-
+void initHeapDataBlock(HeapDataBlock *block);
 
 
 

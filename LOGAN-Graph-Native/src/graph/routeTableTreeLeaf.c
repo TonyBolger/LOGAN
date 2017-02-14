@@ -125,7 +125,7 @@ static RouteTableTreeLeafBlock *allocRouteTableTreeLeafBlock(MemDispenser *disp,
 
 
 
-static void getRouteTableTreeLeafProxy_scan(RouteTableTreeLeafBlock *leafBlock, u16 *entryAllocPtr, u16 *entryCountPtr)
+void getRouteTableTreeLeafProxy_scan(RouteTableTreeLeafBlock *leafBlock, u16 *entryAllocPtr, u16 *entryCountPtr)
 {
 	if(leafBlock==NULL)
 		{
@@ -155,46 +155,12 @@ static void getRouteTableTreeLeafProxy_scan(RouteTableTreeLeafBlock *leafBlock, 
 
 
 
-RouteTableTreeLeafBlock *getRouteTableTreeLeafRaw(RouteTableTreeProxy *treeProxy, s32 lindex)
-{
-	if(lindex<0)
-		{
-		LOG(LOG_CRITICAL,"Lindex must be positive: %i",lindex);
-		}
-
-	u8 *data=getBlockArrayEntry(&(treeProxy->leafArrayProxy), lindex);
-
-	return (RouteTableTreeLeafBlock *)data;
-}
-
-
-RouteTableTreeLeafProxy *getRouteTableTreeLeafProxy(RouteTableTreeProxy *treeProxy, s32 lindex)
-{
-	if(lindex<0)
-		{
-		LOG(LOG_CRITICAL,"Lindex must be positive: %i",lindex);
-		}
-
-	u8 *data=getBlockArrayEntry(&(treeProxy->leafArrayProxy), lindex);
-
-	RouteTableTreeLeafProxy *proxy=dAlloc(treeProxy->disp, sizeof(RouteTableTreeLeafProxy));
-
-	proxy->dataBlock=(RouteTableTreeLeafBlock *)data;
-	proxy->lindex=lindex;
-
-//	LOG(LOG_INFO,"GetRouteTableTreeLeaf : %i",lindex);
-
-	getRouteTableTreeLeafProxy_scan(proxy->dataBlock, &proxy->entryAlloc, &proxy->entryCount);
-
-	return proxy;
-}
-
 
 void flushRouteTableTreeLeafProxy(RouteTableTreeProxy *treeProxy, RouteTableTreeLeafProxy *leafProxy)
 {
 //	LOG(LOG_INFO,"Flush %i to %p (%i)",leafProxy->lindex, leafProxy->dataBlock, leafProxy->dataBlock->entryAlloc);
 
-	setBlockArrayEntry(&(treeProxy->leafArrayProxy), leafProxy->lindex, (u8 *)leafProxy->dataBlock, treeProxy->disp);
+	setBlockArrayEntryProxy(&(treeProxy->leafArrayProxy), leafProxy->lindex, leafProxy, treeProxy->disp);
 }
 
 
@@ -204,9 +170,10 @@ RouteTableTreeLeafProxy *allocRouteTableTreeLeafProxy(RouteTableTreeProxy *treeP
 		entryAlloc=ROUTE_TABLE_TREE_LEAF_ENTRIES_CHUNK;
 
 	RouteTableTreeLeafBlock *dataBlock=allocRouteTableTreeLeafBlock(treeProxy->disp, offsetAlloc, entryAlloc);
-	s32 lindex=appendBlockArrayEntry(&(treeProxy->leafArrayProxy), (u8 *)dataBlock, treeProxy->disp);
 
 	RouteTableTreeLeafProxy *proxy=dAlloc(treeProxy->disp, sizeof(RouteTableTreeLeafProxy));
+	s32 lindex=appendBlockArrayEntryProxy(&(treeProxy->leafArrayProxy), proxy, treeProxy->disp);
+
 	proxy->dataBlock=dataBlock;
 	proxy->lindex=lindex;
 

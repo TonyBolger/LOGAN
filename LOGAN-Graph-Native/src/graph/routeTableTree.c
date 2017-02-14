@@ -20,14 +20,14 @@ void rttInitRouteTableTreeBuilder(RouteTableTreeBuilder *treeBuilder, RouteTable
 
 	//LOG(LOG_INFO,"rttInitRouteTableTreeBuilder: Forward %p %p %p",top->data[ROUTE_TOPINDEX_FORWARD_LEAF],top->data[ROUTE_TOPINDEX_FORWARD_LEAF],top->data[ROUTE_TOPINDEX_FORWARD_OFFSET]);
 	initTreeProxy(&(treeBuilder->forwardProxy),
-			&(treeBuilder->dataBlocks[ROUTE_TOPINDEX_FORWARD_LEAF]),top->data[ROUTE_TOPINDEX_FORWARD_LEAF],
-			&(treeBuilder->dataBlocks[ROUTE_TOPINDEX_FORWARD_BRANCH]),top->data[ROUTE_TOPINDEX_FORWARD_BRANCH],
+			&(treeBuilder->dataBlocks[ROUTE_TOPINDEX_FORWARD_LEAF_ARRAY_0]),top->data[ROUTE_TOPINDEX_FORWARD_LEAF_ARRAY_0],
+			&(treeBuilder->dataBlocks[ROUTE_TOPINDEX_FORWARD_BRANCH_ARRAY_0]),top->data[ROUTE_TOPINDEX_FORWARD_BRANCH_ARRAY_0],
 			treeBuilder->disp);
 
 	//LOG(LOG_INFO,"rttInitRouteTableTreeBuilder: Reverse %p %p %p",top->data[ROUTE_TOPINDEX_REVERSE_LEAF],top->data[ROUTE_TOPINDEX_REVERSE_LEAF],top->data[ROUTE_TOPINDEX_REVERSE_OFFSET]);
 	initTreeProxy(&(treeBuilder->reverseProxy),
-			&(treeBuilder->dataBlocks[ROUTE_TOPINDEX_REVERSE_LEAF]),top->data[ROUTE_TOPINDEX_REVERSE_LEAF],
-			&(treeBuilder->dataBlocks[ROUTE_TOPINDEX_REVERSE_BRANCH]),top->data[ROUTE_TOPINDEX_REVERSE_BRANCH],
+			&(treeBuilder->dataBlocks[ROUTE_TOPINDEX_REVERSE_LEAF_ARRAY_0]),top->data[ROUTE_TOPINDEX_REVERSE_LEAF_ARRAY_0],
+			&(treeBuilder->dataBlocks[ROUTE_TOPINDEX_REVERSE_BRANCH_ARRAY_0]),top->data[ROUTE_TOPINDEX_REVERSE_BRANCH_ARRAY_0],
 			treeBuilder->disp);
 
 
@@ -52,18 +52,15 @@ void rttUpgradeToRouteTableTreeBuilder(RouteTableArrayBuilder *arrayBuilder,  Ro
 	treeBuilder->disp=arrayBuilder->disp;
 
 	for(int i=0;i<ROUTE_TOPINDEX_MAX;i++)
-		{
-		treeBuilder->dataBlocks[i].headerSize=0;
-		treeBuilder->dataBlocks[i].dataSize=0;
-		}
+		initHeapDataBlock(treeBuilder->dataBlocks+i);
 
 	initTreeProxy(&(treeBuilder->forwardProxy),
-			&(treeBuilder->dataBlocks[ROUTE_TOPINDEX_FORWARD_LEAF]),NULL,
-			&(treeBuilder->dataBlocks[ROUTE_TOPINDEX_FORWARD_BRANCH]),NULL, disp);
+			&(treeBuilder->dataBlocks[ROUTE_TOPINDEX_FORWARD_LEAF_ARRAY_0]),NULL,
+			&(treeBuilder->dataBlocks[ROUTE_TOPINDEX_FORWARD_BRANCH_ARRAY_0]),NULL, disp);
 
 	initTreeProxy(&(treeBuilder->reverseProxy),
-			&(treeBuilder->dataBlocks[ROUTE_TOPINDEX_REVERSE_LEAF]),NULL,
-			&(treeBuilder->dataBlocks[ROUTE_TOPINDEX_REVERSE_BRANCH]),NULL, disp);
+			&(treeBuilder->dataBlocks[ROUTE_TOPINDEX_REVERSE_LEAF_ARRAY_0]),NULL,
+			&(treeBuilder->dataBlocks[ROUTE_TOPINDEX_REVERSE_BRANCH_ARRAY_0]),NULL, disp);
 
 	initTreeWalker(&(treeBuilder->forwardWalker), &(treeBuilder->forwardProxy));
 	walkerInitOffsetArrays(&(treeBuilder->forwardWalker), prefixCount, suffixCount);
@@ -167,25 +164,17 @@ void rttDumpRoutingTable(RouteTableTreeBuilder *builder)
 */
 
 
-s32 rttGetTopArrayDirty(RouteTableTreeArrayProxy *arrayProxy)
-{
-	return arrayProxy->newEntries!=NULL;
-}
 
 
 s32 rttGetTopArraySize(RouteTableTreeArrayProxy *arrayProxy)
 {
-	if(arrayProxy->ptrBlock!=NULL)
-		LOG(LOG_CRITICAL,"Multi-level arrays not yet implemented");
+	int entryCount=rttGetArrayEntries(arrayProxy);
 
-	if(arrayProxy->newEntries!=NULL)
-		return sizeof(RouteTableTreeArrayBlock)+sizeof(u8 *)*arrayProxy->newDataAlloc;
-	else
-		return sizeof(RouteTableTreeArrayBlock)+sizeof(u8 *)*arrayProxy->dataAlloc;
+	if(entryCount>ROUTE_TABLE_TREE_SHALLOW_DATA_ARRAY_ENTRIES)
+		entryCount=rttCalcFirstLevelArrayEntries(entryCount);
 
+	return rttCalcArraySize(entryCount);
 }
-
-
 
 
 
@@ -193,16 +182,16 @@ RouteTableTreeArrayProxy *rttGetTopArrayByIndex(RouteTableTreeBuilder *builder, 
 {
 	switch(topIndex)
 	{
-	case ROUTE_TOPINDEX_FORWARD_LEAF:
+	case ROUTE_TOPINDEX_FORWARD_LEAF_ARRAY_0:
 		return &(builder->forwardProxy.leafArrayProxy);
 
-	case ROUTE_TOPINDEX_REVERSE_LEAF:
+	case ROUTE_TOPINDEX_REVERSE_LEAF_ARRAY_0:
 		return &(builder->reverseProxy.leafArrayProxy);
 
-	case ROUTE_TOPINDEX_FORWARD_BRANCH:
+	case ROUTE_TOPINDEX_FORWARD_BRANCH_ARRAY_0:
 		return &(builder->forwardProxy.branchArrayProxy);
 
-	case ROUTE_TOPINDEX_REVERSE_BRANCH:
+	case ROUTE_TOPINDEX_REVERSE_BRANCH_ARRAY_0:
 		return &(builder->reverseProxy.branchArrayProxy);
 
 //	case ROUTE_TOPINDEX_FORWARD_OFFSET:
