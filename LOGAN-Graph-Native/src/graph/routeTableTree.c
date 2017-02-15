@@ -182,17 +182,18 @@ RouteTableTreeArrayProxy *rttGetTopArrayByIndex(RouteTableTreeBuilder *builder, 
 {
 	switch(topIndex)
 	{
+	case ROUTE_TOPINDEX_FORWARD_BRANCH_ARRAY_0:
+		return &(builder->forwardProxy.branchArrayProxy);
+
+	case ROUTE_TOPINDEX_REVERSE_BRANCH_ARRAY_0:
+		return &(builder->reverseProxy.branchArrayProxy);
+
 	case ROUTE_TOPINDEX_FORWARD_LEAF_ARRAY_0:
 		return &(builder->forwardProxy.leafArrayProxy);
 
 	case ROUTE_TOPINDEX_REVERSE_LEAF_ARRAY_0:
 		return &(builder->reverseProxy.leafArrayProxy);
 
-	case ROUTE_TOPINDEX_FORWARD_BRANCH_ARRAY_0:
-		return &(builder->forwardProxy.branchArrayProxy);
-
-	case ROUTE_TOPINDEX_REVERSE_BRANCH_ARRAY_0:
-		return &(builder->reverseProxy.branchArrayProxy);
 
 //	case ROUTE_TOPINDEX_FORWARD_OFFSET:
 //		return &(builder->forwardProxy.offsetArrayProxy);

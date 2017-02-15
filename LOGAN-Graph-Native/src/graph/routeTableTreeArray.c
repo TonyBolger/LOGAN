@@ -238,7 +238,7 @@ u8 *getBlockArrayExistingEntryData(RouteTableTreeArrayProxy *arrayProxy, s32 ind
 		u8 *data=arrayProxy->dataBlock->data[index];
 
 		if(data!=NULL)
-			data+=rtDecodeArrayBlockHeader(data,NULL,NULL,NULL,NULL,NULL,NULL);
+			data+=rtDecodeIndexedBlockHeader_1(data,NULL,NULL,NULL);
 
 		return data;
 		}
