@@ -10,7 +10,9 @@
 
 int logLevel = LOG_TRACE;
 
+#ifdef LOCK_LOG
 static pthread_mutex_t logMutex = PTHREAD_MUTEX_INITIALIZER;
+#endif
 
 static int logInitFlag=0;
 static struct timeval startTv;

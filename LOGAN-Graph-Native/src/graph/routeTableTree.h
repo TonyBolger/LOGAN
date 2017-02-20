@@ -20,16 +20,16 @@
 
 #define ROUTE_TABLE_TREE_PTR_ARRAY_ENTRIES 256
 
-//#define ROUTE_TABLE_TREE_SHALLOW_DATA_ARRAY_ENTRIES 64
-#define ROUTE_TABLE_TREE_SHALLOW_DATA_ARRAY_ENTRIES 1024
-#define ROUTE_TABLE_TREE_SHALLOW_DATA_ARRAY_SUBINDEX_SHIFT 2
-#define ROUTE_TABLE_TREE_SHALLOW_DATA_ARRAY_SUBINDEX_RANGE (1<<ROUTE_TABLE_TREE_SHALLOW_DATA_ARRAY_SUBINDEX_SHIFT)
+#define ROUTE_TABLE_TREE_SHALLOW_DATA_ARRAY_ENTRIES 64
+//#define ROUTE_TABLE_TREE_SHALLOW_DATA_ARRAY_ENTRIES 1024
 
-#define ROUTE_TABLE_TREE_DEEP_DATA_ARRAY_ENTRIES 256
-#define ROUTE_TABLE_TREE_DEEP_DATA_ARRAY_SUBINDEX_SHIFT 0
-#define ROUTE_TABLE_TREE_DEEP_DATA_ARRAY_SUBINDEX_RANGE (1<<ROUTE_TABLE_TREE_DEEP_DATA_ARRAY_SUBINDEX_SHIFT)
+#define ROUTE_TABLE_TREE_DATA_ARRAY_SUBINDEX_SHIFT 2
+#define ROUTE_TABLE_TREE_DATA_ARRAY_SUBINDEX_RANGE (1<<ROUTE_TABLE_TREE_DATA_ARRAY_SUBINDEX_SHIFT)
 
-#define ROUTE_TABLE_TREE_DEEP_DATA_ARRAY_ENTRIES_SHIFT 8
+//#define ROUTE_TABLE_TREE_DEEP_DATA_ARRAY_ENTRIES 256
+#define ROUTE_TABLE_TREE_DEEP_DATA_ARRAY_ENTRIES 16
+//#define ROUTE_TABLE_TREE_DEEP_DATA_ARRAY_ENTRIES_SHIFT 8
+#define ROUTE_TABLE_TREE_DEEP_DATA_ARRAY_ENTRIES_SHIFT 4
 #define ROUTE_TABLE_TREE_DEEP_DATA_ARRAY_ENTRIES_MASK (ROUTE_TABLE_TREE_DEEP_DATA_ARRAY_ENTRIES-1)
 
 
@@ -38,6 +38,7 @@
 
 #define ROUTE_TABLE_TREE_ARRAY_ENTRIES_CHUNK 8
 
+// Long term, should be at least 128 to allow 1024 branches contain 65536 leaves (at 50%)
 #define ROUTE_TABLE_TREE_BRANCH_CHILDREN 64
 #define ROUTE_TABLE_TREE_BRANCH_CHILDREN_CHUNK 8
 //#define ROUTE_TABLE_TREE_BRANCH_CHILDREN 4
@@ -45,19 +46,19 @@
 //#define ROUTE_TABLE_TREE_BRANCH_CHILDREN 2
 //#define ROUTE_TABLE_TREE_BRANCH_CHILDREN_CHUNK 2
 
-//#define ROUTE_TABLE_TREE_LEAF_OFFSETS 3
 
 //#define ROUTE_TABLE_TREE_LEAF_ENTRIES 16384
 //#define ROUTE_TABLE_TREE_LEAF_ENTRIES_CHUNK 16
 
-#define ROUTE_TABLE_TREE_LEAF_ENTRIES 1024
-#define ROUTE_TABLE_TREE_LEAF_ENTRIES_CHUNK 8
+//#define ROUTE_TABLE_TREE_LEAF_ENTRIES 1024
+//#define ROUTE_TABLE_TREE_LEAF_ENTRIES_CHUNK 8
 
 //#define ROUTE_TABLE_TREE_LEAF_ENTRIES 4096
 //#define ROUTE_TABLE_TREE_LEAF_ENTRIES_CHUNK 16
 
-//#define ROUTE_TABLE_TREE_LEAF_ENTRIES 16
-//#define ROUTE_TABLE_TREE_LEAF_ENTRIES_CHUNK 4
+#define ROUTE_TABLE_TREE_LEAF_ENTRIES 16
+#define ROUTE_TABLE_TREE_LEAF_ENTRIES_CHUNK 4
+
 //#define ROUTE_TABLE_TREE_LEAF_ENTRIES 2
 //#define ROUTE_TABLE_TREE_LEAF_ENTRIES_CHUNK 2
 
@@ -65,7 +66,7 @@
 
 typedef struct rootTableTreeTopBlockStr
 {
-	u8 *data[6]; // Tail(P,S), Leaf(F,R), Branch(F,R)
+	u8 *data[6]; // Tail(P,S), Branch(F,R), Leaf(F,R)
 } __attribute__((packed)) RouteTableTreeTopBlock;
 
 // Negative types are pseudo-indexes
@@ -150,13 +151,13 @@ struct routeTableTreeBuilderStr
 
 
 void rttInitRouteTableTreeBuilder(RouteTableTreeBuilder *builder, RouteTableTreeTopBlock *top);
-void rttUpgradeToRouteTableTreeBuilder(RouteTableArrayBuilder *arrayBuilder,  RouteTableTreeBuilder *treeBuilder, s32 prefixCount, s32 suffixCount, MemDispenser *disp);
+void rttUpgradeToRouteTableTreeBuilder(RouteTableArrayBuilder *arrayBuilder,  RouteTableTreeBuilder *treeBuilder, s32 sliceIndex, s32 prefixCount, s32 suffixCount, MemDispenser *disp);
 
 void rttDumpRoutingTable(RouteTableTreeBuilder *builder);
 
 //s32 rttGetRouteTableTreeBuilderDirty(RouteTableTreeBuilder *builder);
 
-void rttBindBlockArrayProxy(RouteTableTreeArrayProxy *arrayProxy, u8 *heapDataPtr, u32 headerSize);
+void rttBindBlockArrayProxy(RouteTableTreeArrayProxy *arrayProxy, u8 *heapDataPtr, u32 headerSize, u32 isIndirect);
 
 s32 rttGetTopArraySize(RouteTableTreeArrayProxy *arrayProxy);
 

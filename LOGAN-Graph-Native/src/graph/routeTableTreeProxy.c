@@ -10,8 +10,8 @@ void initTreeProxy(RouteTableTreeProxy *treeProxy,
 {
 	treeProxy->disp=disp;
 
-	initBlockArrayProxy(treeProxy, &(treeProxy->leafArrayProxy), leafBlock, leafDataPtr);
-	initBlockArrayProxy(treeProxy, &(treeProxy->branchArrayProxy), branchBlock, branchDataPtr);
+	initBlockArrayProxy(treeProxy, &(treeProxy->leafArrayProxy), leafBlock, leafDataPtr, leafBlock->variant);
+	initBlockArrayProxy(treeProxy, &(treeProxy->branchArrayProxy), branchBlock, branchDataPtr, 0);
 
 	if(getBlockArraySize(&(treeProxy->branchArrayProxy))>0)
 		treeProxy->rootProxy=getRouteTableTreeBranchProxy(treeProxy, BRANCH_NINDEX_ROOT);
@@ -22,7 +22,7 @@ void initTreeProxy(RouteTableTreeProxy *treeProxy,
 
 
 
-RouteTableTreeBranchBlock *getRouteTableTreeBranchRaw(RouteTableTreeProxy *treeProxy, s32 brindex)
+RouteTableTreeBranchBlock *getRouteTableTreeBranchBlock(RouteTableTreeProxy *treeProxy, s32 brindex)
 {
 	if(brindex<0)
 		{
@@ -66,7 +66,7 @@ RouteTableTreeBranchProxy *getRouteTableTreeBranchProxy(RouteTableTreeProxy *tre
 
 
 
-RouteTableTreeLeafBlock *getRouteTableTreeLeafRaw(RouteTableTreeProxy *treeProxy, s32 lindex)
+RouteTableTreeLeafBlock *getRouteTableTreeLeafBlock(RouteTableTreeProxy *treeProxy, s32 lindex)
 {
 	if(lindex<0)
 		{
@@ -122,13 +122,19 @@ void treeProxySeekStart(RouteTableTreeProxy *treeProxy, RouteTableTreeBranchProx
 	s16 sibdex=-1;
 
 	s16 childNindex=0;
+	int iter=20;
 
-	while(branchProxy->childCount>0 && childNindex>=0)
+	while(branchProxy->childCount>0 && childNindex>=0 && --iter>0)
 		{
 		childNindex=branchProxy->dataBlock->childNindex[0];
 		if(childNindex>0)
+			{
 			branchProxy=getRouteTableTreeBranchProxy(treeProxy, childNindex);
+			}
 		}
+
+	if(iter<=0)
+		LOG(LOG_CRITICAL,"Failed to seek start");
 
 	if(childNindex<0)
 		{
@@ -144,6 +150,7 @@ void treeProxySeekStart(RouteTableTreeProxy *treeProxy, RouteTableTreeBranchProx
 
 	if(leafProxyPtr!=NULL)
 		*leafProxyPtr=leafProxy;
+
 }
 
 
@@ -232,25 +239,25 @@ void treeProxySplitRoot(RouteTableTreeProxy *treeProxy, s16 childPosition, Route
 
 		if(childNindex<0)
 			{
-			RouteTableTreeLeafBlock *leafRaw=getRouteTableTreeLeafRaw(treeProxy, NINDEX_TO_LINDEX(childNindex));
+			RouteTableTreeLeafBlock *leafBlock=getRouteTableTreeLeafBlock(treeProxy, NINDEX_TO_LINDEX(childNindex));
 
-			if(leafRaw==NULL)
+			if(leafBlock==NULL)
 				{
 				LOG(LOG_CRITICAL,"Failed to find leaf with index %i",childNindex);
 				}
 
-			leafRaw->parentBrindex=branchBrindex1;
+			leafBlock->parentBrindex=branchBrindex1;
 			}
 		else
 			{
-			RouteTableTreeBranchBlock *branchRaw=getRouteTableTreeBranchRaw(treeProxy, childNindex);
+			RouteTableTreeBranchBlock *branchBlock=getRouteTableTreeBranchBlock(treeProxy, childNindex);
 
-			if(branchRaw==NULL)
+			if(branchBlock==NULL)
 				{
 				LOG(LOG_CRITICAL,"Failed to find branch with index %i",childNindex);
 				}
 
-			branchRaw->parentBrindex=branchBrindex1;
+			branchBlock->parentBrindex=branchBrindex1;
 			}
 		}
 
@@ -265,25 +272,25 @@ void treeProxySplitRoot(RouteTableTreeProxy *treeProxy, s16 childPosition, Route
 
 		if(childNindex<0)
 			{
-			RouteTableTreeLeafBlock *leafRaw=getRouteTableTreeLeafRaw(treeProxy, NINDEX_TO_LINDEX(childNindex));
+			RouteTableTreeLeafBlock *leafBlock=getRouteTableTreeLeafBlock(treeProxy, NINDEX_TO_LINDEX(childNindex));
 
-			if(leafRaw==NULL)
+			if(leafBlock==NULL)
 				{
 				LOG(LOG_CRITICAL,"Failed to find leaf with index %i",childNindex);
 				}
 
-			leafRaw->parentBrindex=branchBrindex2;
+			leafBlock->parentBrindex=branchBrindex2;
 			}
 		else
 			{
-			RouteTableTreeBranchBlock *branchRaw=getRouteTableTreeBranchRaw(treeProxy, childNindex);
+			RouteTableTreeBranchBlock *branchBlock=getRouteTableTreeBranchBlock(treeProxy, childNindex);
 
-			if(branchRaw==NULL)
+			if(branchBlock==NULL)
 				{
 				LOG(LOG_CRITICAL,"Failed to find branch with index %i",childNindex);
 				}
 
-			branchRaw->parentBrindex=branchBrindex2;
+			branchBlock->parentBrindex=branchBrindex2;
 			}
 		}
 
@@ -347,25 +354,25 @@ RouteTableTreeBranchProxy *treeProxySplitBranch(RouteTableTreeProxy *treeProxy, 
 
 		if(childNindex<0)
 			{
-			RouteTableTreeLeafBlock *leafRaw=getRouteTableTreeLeafRaw(treeProxy, NINDEX_TO_LINDEX(childNindex));
+			RouteTableTreeLeafBlock *leafBlock=getRouteTableTreeLeafBlock(treeProxy, NINDEX_TO_LINDEX(childNindex));
 
-			if(leafRaw==NULL)
+			if(leafBlock==NULL)
 				{
 				LOG(LOG_CRITICAL,"Failed to find leaf with index %i",childNindex);
 				}
 
-			leafRaw->parentBrindex=newBranchBrindex;
+			leafBlock->parentBrindex=newBranchBrindex;
 			}
 		else
 			{
-			RouteTableTreeBranchBlock *branchRaw=getRouteTableTreeBranchRaw(treeProxy, childNindex);
+			RouteTableTreeBranchBlock *branchBlock=getRouteTableTreeBranchBlock(treeProxy, childNindex);
 
-			if(branchRaw==NULL)
+			if(branchBlock==NULL)
 				{
 				LOG(LOG_CRITICAL,"Failed to find branch with index %i",childNindex);
 				}
 
-			branchRaw->parentBrindex=newBranchBrindex;
+			branchBlock->parentBrindex=newBranchBrindex;
 			}
 		}
 

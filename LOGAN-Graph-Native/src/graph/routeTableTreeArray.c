@@ -2,6 +2,13 @@
 #include "common.h"
 
 
+
+s32 getRouteTableTreeArraySize_Existing(RouteTableTreeArrayBlock *arrayBlock)
+{
+	return sizeof(RouteTableTreeArrayBlock)+sizeof(u8 *)*arrayBlock->dataAlloc;
+}
+
+
 /*
 RouteTableTreeArrayBlock *allocRouteTableTreeDataArrayBlock(MemDispenser *disp, s32 dataAlloc)
 {
@@ -38,6 +45,7 @@ RouteTableTreeArrayBlock *allocRouteTableTreePtrArrayBlock(MemDispenser *disp, s
 */
 
 
+
 static void initBlockArrayProxy_scan(RouteTableTreeArrayBlock *arrayBlock, u16 *allocPtr, u16 *countPtr)
 {
 	if(arrayBlock==NULL)
@@ -63,15 +71,23 @@ static void initBlockArrayProxy_scan(RouteTableTreeArrayBlock *arrayBlock, u16 *
 	*countPtr=count;
 }
 
-void rttBindBlockArrayProxy(RouteTableTreeArrayProxy *arrayProxy, u8 *heapDataPtr, u32 headerSize)
+void rttBindBlockArrayProxy(RouteTableTreeArrayProxy *arrayProxy, u8 *heapDataPtr, u32 headerSize, u32 isIndirect)
 {
 	RouteTableTreeArrayBlock *dataBlock=NULL;
 
 	if(heapDataPtr!=NULL)
 		dataBlock=(RouteTableTreeArrayBlock *)(heapDataPtr+headerSize);
 
-	arrayProxy->dataBlock=dataBlock;
-	arrayProxy->ptrBlock=NULL;
+	if(isIndirect)
+		{
+		arrayProxy->ptrBlock=dataBlock;
+		arrayProxy->dataBlock=NULL;
+		}
+	else
+		{
+		arrayProxy->dataBlock=dataBlock;
+		arrayProxy->ptrBlock=NULL;
+		}
 
 	//(RouteTableTreeArrayBlock *)(heapDataPtr+headerSize);
 
@@ -110,18 +126,14 @@ void rttBindBlockArrayProxy(RouteTableTreeArrayProxy *arrayProxy, u8 *heapDataPt
 		*/
 }
 
-void initBlockArrayProxy(RouteTableTreeProxy *treeProxy, RouteTableTreeArrayProxy *arrayProxy, HeapDataBlock *heapDataBlock, u8 *heapDataPtr)
+void initBlockArrayProxy(RouteTableTreeProxy *treeProxy, RouteTableTreeArrayProxy *arrayProxy, HeapDataBlock *heapDataBlock, u8 *heapDataPtr, u32 isIndirect)
 {
-//	LOG(LOG_INFO,"Here");
-
 	arrayProxy->heapDataBlock=heapDataBlock;
 
-	rttBindBlockArrayProxy(arrayProxy, heapDataPtr, arrayProxy->heapDataBlock->headerSize);
+	rttBindBlockArrayProxy(arrayProxy, heapDataPtr, arrayProxy->heapDataBlock->headerSize, isIndirect);
 
 	initBlockArrayProxy_scan(arrayProxy->ptrBlock, &arrayProxy->ptrAlloc, &arrayProxy->ptrCount);
 	initBlockArrayProxy_scan(arrayProxy->dataBlock, &arrayProxy->dataAlloc, &arrayProxy->dataCount);
-
-//	LOG(LOG_INFO,"Loaded array with %i of %i",arrayProxy->dataCount,arrayProxy->dataAlloc);
 
 	arrayProxy->newEntries=NULL;
 	arrayProxy->newEntriesAlloc=0;
@@ -141,6 +153,75 @@ void initBlockArrayProxy(RouteTableTreeProxy *treeProxy, RouteTableTreeArrayProx
 }
 
 
+
+void dumpBlockArrayProxy(RouteTableTreeArrayProxy *arrayProxy)
+{
+	if(arrayProxy==NULL)
+		{
+		LOG(LOG_INFO,"ArrayProxy is NULL");
+		return;
+		}
+
+	if(arrayProxy->ptrBlock!=NULL)
+		{
+		LOG(LOG_INFO,"Indirect Blocks: %i of %i (%i) at %p",arrayProxy->ptrCount, arrayProxy->ptrAlloc, arrayProxy->ptrBlock->dataAlloc, arrayProxy->ptrBlock);
+		for(int i=0;i<arrayProxy->ptrAlloc;i++)
+			{
+			if(arrayProxy->ptrBlock->data[i]==NULL)
+				{
+				LOG(LOG_INFO,"Indirect Block is NULL");
+				}
+			else
+				{
+				LOG(LOG_INFO,"Indirect Block is %p", arrayProxy->ptrBlock->data[i]);
+
+				int nestedHeaderSize=rtGetIndexedBlockHeaderSize_1(varipackLength(arrayProxy->heapDataBlock->sliceIndex));
+				RouteTableTreeArrayBlock *level1Block=(RouteTableTreeArrayBlock *)(arrayProxy->ptrBlock->data[i]+nestedHeaderSize);
+
+				LOG(LOG_INFO,"Indirect Block has %i",level1Block->dataAlloc);
+
+				for(int j=0;j<level1Block->dataAlloc;j++)
+					{
+					if(level1Block->data[j]==NULL)
+						LOG(LOG_INFO,"Indirect Block is NULL");
+					else
+						LOG(LOG_INFO,"Indirect Block is %p", level1Block->data[j]);
+
+					}
+				}
+			}
+		}
+
+	if(arrayProxy->dataBlock!=NULL)
+		{
+		LOG(LOG_INFO,"Direct Blocks: %i of %i (%i)",arrayProxy->dataCount, arrayProxy->dataAlloc, arrayProxy->dataBlock->dataAlloc);
+
+		for(int i=0;i<arrayProxy->dataAlloc;i++)
+			{
+			if(arrayProxy->dataBlock->data[i]==NULL)
+				LOG(LOG_INFO,"Direct Block is NULL");
+			else
+				LOG(LOG_INFO,"Direct Block is %p", arrayProxy->dataBlock->data[i]);
+			}
+		}
+
+	if(arrayProxy->newEntriesAlloc>0)
+		{
+		LOG(LOG_INFO,"NewEntry Blocks: %i of %i",arrayProxy->newEntriesCount, arrayProxy->newEntriesAlloc);
+
+		for(int i=0;i<arrayProxy->newEntriesCount;i++)
+			{
+			LOG(LOG_INFO,"NewEntry Block: Index %i is %p", arrayProxy->newEntries[i].index, arrayProxy->newEntries[i].proxy);
+			}
+		}
+}
+
+
+
+
+
+
+
 //static
 s32 getBlockArraySize(RouteTableTreeArrayProxy *arrayProxy)
 {
@@ -148,6 +229,60 @@ s32 getBlockArraySize(RouteTableTreeArrayProxy *arrayProxy)
 		return arrayProxy->newDataCount;
 
 	return arrayProxy->dataCount;
+}
+
+
+u8 *getBlockArrayDataEntryRaw(RouteTableTreeArrayProxy *arrayProxy, s32 subindex)
+{
+	// Indirect Mode
+	if(arrayProxy->ptrBlock!=NULL)
+		{
+		if(subindex>=0 && subindex<arrayProxy->dataAlloc)
+			{
+			int firstSubindex=subindex>>ROUTE_TABLE_TREE_DEEP_DATA_ARRAY_ENTRIES_SHIFT;
+			int secondSubindex=subindex&ROUTE_TABLE_TREE_DEEP_DATA_ARRAY_ENTRIES_MASK;
+
+			u8 *interRaw=arrayProxy->ptrBlock->data[firstSubindex];
+			RouteTableTreeArrayBlock *interBlock=(RouteTableTreeArrayBlock *)(interRaw+rtGetIndexedBlockHeaderSize_1(varipackLength(arrayProxy->heapDataBlock->sliceIndex)));
+
+			return interBlock->data[secondSubindex];
+			}
+		LOG(LOG_INFO,"Index out of range %i vs %i",subindex, arrayProxy->dataAlloc);
+		}
+	else if(arrayProxy->dataBlock!=NULL && subindex >=0 && subindex<arrayProxy->dataAlloc)
+		{
+		return arrayProxy->dataBlock->data[subindex];
+		}
+
+	return NULL;
+}
+
+void setBlockArrayDataEntryRaw(RouteTableTreeArrayProxy *arrayProxy, s32 subindex, u8 *data)
+{
+	// Indirect Mode
+	if(arrayProxy->ptrBlock!=NULL)
+		{
+		if(subindex>=0 && subindex<arrayProxy->dataAlloc)
+			{
+			int firstSubindex=subindex>>ROUTE_TABLE_TREE_DEEP_DATA_ARRAY_ENTRIES_SHIFT;
+			int secondSubindex=subindex&ROUTE_TABLE_TREE_DEEP_DATA_ARRAY_ENTRIES_MASK;
+
+			u8 *interRaw=arrayProxy->ptrBlock->data[firstSubindex];
+			RouteTableTreeArrayBlock *interBlock=(RouteTableTreeArrayBlock *)(interRaw+rtGetIndexedBlockHeaderSize_1(varipackLength(arrayProxy->heapDataBlock->sliceIndex)));
+
+			interBlock->data[secondSubindex]=data;
+			return;
+			}
+
+		LOG(LOG_CRITICAL,"Invalid datablock %p %p / index %i ",arrayProxy->ptrBlock, arrayProxy->dataBlock, subindex);
+		}
+	else if(arrayProxy->dataBlock!=NULL && subindex >=0 && subindex<arrayProxy->dataAlloc)
+		{
+		arrayProxy->dataBlock->data[subindex]=data;
+		return;
+		}
+
+	LOG(LOG_CRITICAL,"Invalid datablock %p %p / index %i ",arrayProxy->ptrBlock, arrayProxy->dataBlock, subindex);
 }
 
 /*
@@ -211,11 +346,6 @@ static s32 findBlockArrayEntryIndex(s32 key, RouteTableTreeArrayEntry *base, siz
 
 void *getBlockArrayNewEntryProxy(RouteTableTreeArrayProxy *arrayProxy, s32 index)
 {
-	if(arrayProxy->ptrBlock!=NULL)
-		{
-		LOG(LOG_CRITICAL,"Two level arrays not implemented");
-		}
-
 	if(arrayProxy->newEntries!=NULL)
 		{
 		s32 entryIndex=findBlockArrayEntryIndex(index, arrayProxy->newEntries, arrayProxy->newEntriesCount);
@@ -233,6 +363,38 @@ void *getBlockArrayNewEntryProxy(RouteTableTreeArrayProxy *arrayProxy, s32 index
 //static
 u8 *getBlockArrayExistingEntryData(RouteTableTreeArrayProxy *arrayProxy, s32 index)
 {
+	if(index<0 || index>arrayProxy->dataCount)
+		{
+		return NULL;
+		}
+
+	if(arrayProxy->ptrBlock!=NULL)
+		{
+		LOG(LOG_INFO,"getBlockArrayExistingEntryData");
+		u8 *data=getBlockArrayDataEntryRaw(arrayProxy, index);
+
+		if(data==NULL)
+			{
+			LOG(LOG_INFO,"Failed to find %i",index);
+			return data;
+			}
+
+		if(index<arrayProxy->dataAlloc)
+			return data+rtGetIndexedBlockHeaderSize_1(varipackLength(arrayProxy->heapDataBlock->sliceIndex));
+		else
+			return data+rtGetIndexedBlockHeaderSize_2(varipackLength(arrayProxy->heapDataBlock->sliceIndex));
+		}
+
+	u8 *data=arrayProxy->dataBlock->data[index];
+	if(data!=NULL)
+		data+=rtDecodeIndexedBlockHeader_1(data,NULL,NULL,NULL);
+
+	return data;
+}
+
+/*
+u8 *getBlockArrayExistingEntryData(RouteTableTreeArrayProxy *arrayProxy, s32 index)
+{
 	if(index>=0 && index<arrayProxy->dataCount)
 		{
 		u8 *data=arrayProxy->dataBlock->data[index];
@@ -246,7 +408,7 @@ u8 *getBlockArrayExistingEntryData(RouteTableTreeArrayProxy *arrayProxy, s32 ind
 	return NULL;
 
 }
-
+*/
 void ensureBlockArrayWritable(RouteTableTreeArrayProxy *arrayProxy, MemDispenser *disp)
 {
 	if(arrayProxy->newEntries==NULL) // Haven't yet written anything - make writable
@@ -398,7 +560,7 @@ s32 rttCalcFirstLevelArrayAdditionalEntries(s32 entries)
 	if(entries<ROUTE_TABLE_TREE_SHALLOW_DATA_ARRAY_ENTRIES)
 		LOG(LOG_CRITICAL,"Unnecessary use of indirect arrays for %i entries",entries);
 
-	return (entries && ROUTE_TABLE_TREE_DEEP_DATA_ARRAY_ENTRIES_MASK);
+	return (entries & ROUTE_TABLE_TREE_DEEP_DATA_ARRAY_ENTRIES_MASK);
 }
 
 

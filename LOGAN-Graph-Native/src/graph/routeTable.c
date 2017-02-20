@@ -139,6 +139,9 @@ Alloc Header:
 
 //#define ALLOC_HEADER_DEFAULT 0xBF
 
+
+// Header consists of Live Bit, 4-bits type/index, then either 3-bit gap, or variant bit plus 2-bit index size
+
 // Check Live
 #define ALLOC_HEADER_LIVE_MASK 0x80							// ? - - -  - - - -
 
@@ -206,10 +209,7 @@ Alloc Header:
 // Branches	/ Leaves
 
 #define ALLOC_HEADER_ARRAY_DIRECTION 0x10					// - - - -  - ? - -
-
-// Leaves													// - 0 l l  ? ? ? ? (l>1)
-
-#define ALLOC_HEADER_LEAF_ARRAY_LEVEL_MASK 0x04				// - - - -  - ? - -
+#define ALLOC_HEADER_VARIANT_MASK 0x04						// - - - -  - ? - -
 
 
 // Inits
@@ -563,7 +563,7 @@ s32 rtDecodeArrayBlockHeader_Leaf0(u8 *data, s32 *levelsPtr, s32 *indexSizePtr, 
 {
 	u8 header=*data++;
 
-	s32 levels=header&ALLOC_HEADER_LEAF_ARRAY_LEVEL_MASK;
+	s32 levels=header&ALLOC_HEADER_VARIANT_MASK;
 	s32 indexSize=(header&ALLOC_HEADER_INDEXSIZE_MASK)+1;
 	s32 index=varipackDecode(indexSize, data);
 
@@ -579,12 +579,17 @@ s32 rtDecodeArrayBlockHeader_Leaf0(u8 *data, s32 *levelsPtr, s32 *indexSizePtr, 
 	return 1+indexSize;
 }
 
-s32 rtDecodeIndexedBlockHeader_0(u8 *data, s32 *indexSizePtr, s32 *indexPtr)
+s32 rtDecodeIndexedBlockHeader_0(u8 *data, s32 *variantPtr, s32 *indexSizePtr, s32 *indexPtr)
 {
 	u8 header=*data++;
 
 	s32 indexSize=(header&ALLOC_HEADER_INDEXSIZE_MASK)+1;
+	s32 variant=(header&ALLOC_HEADER_VARIANT_MASK)!=0;
+
 	s32 index=varipackDecode(indexSize, data);
+
+	if(variantPtr!=NULL)
+		*variantPtr=variant;
 
 	if(indexSizePtr!=NULL)
 		*indexSizePtr=indexSize;
@@ -922,12 +927,14 @@ static s32 scanTagData(u8 **tagData, s32 tagDataLength, s32 startIndex, u8 *want
 }
 
 
-static s32 scanTagDataIndexed_1(u8 **tagData, s32 smerIndex, s32 topindex, s32 subIndex, u8 *wanted)
+static s32 scanTagDataIndexed_1(u8 **tagData, s32 smerIndex, s32 topindex, s32 subindex, u8 *wanted)
 {
 	u8 *primaryPtr=tagData[smerIndex];
 
 	if(primaryPtr==NULL)
 		LOG(LOG_CRITICAL,"Attempt to scan nested entry %i with NULL data",smerIndex);
+
+	//LOG(LOG_INFO,"Scan for %i",subindex);
 
 	u8 header=*primaryPtr;
 
@@ -937,27 +944,50 @@ static s32 scanTagDataIndexed_1(u8 **tagData, s32 smerIndex, s32 topindex, s32 s
 	RouteTableTreeTopBlock *topPtr=(RouteTableTreeTopBlock *)((primaryPtr)+rtGetGapBlockHeaderSize());
 
 	u8 *arrayBlockPtr=topPtr->data[topindex];
+	s32 variant=0;
 
-	s32 headerSize=rtDecodeIndexedBlockHeader_0(arrayBlockPtr,NULL,NULL);
-
+	s32 headerSize=rtDecodeIndexedBlockHeader_0(arrayBlockPtr,&variant, NULL,NULL);
 	RouteTableTreeArrayBlock *array1=(RouteTableTreeArrayBlock *)(arrayBlockPtr+headerSize);
 
-	subIndex<<=ROUTE_TABLE_TREE_SHALLOW_DATA_ARRAY_SUBINDEX_SHIFT;
+	//LOG(LOG_INFO,"Array1 is %p Variant is %i",array1,variant);
 
-	int entriesToScan=MIN(subIndex+ROUTE_TABLE_TREE_SHALLOW_DATA_ARRAY_SUBINDEX_RANGE, array1->dataAlloc);
+	subindex<<=ROUTE_TABLE_TREE_DATA_ARRAY_SUBINDEX_SHIFT;
 
-	for(int i=subIndex; i<entriesToScan; i++)
+	if(variant)
 		{
-		if(array1->data[i]==wanted)
+		int subindex1=subindex >> ROUTE_TABLE_TREE_DEEP_DATA_ARRAY_ENTRIES_SHIFT;
+
+		u8 *array2BlockPtr=array1->data[subindex1];
+		s32 header2Size=rtDecodeIndexedBlockHeader_1(array2BlockPtr,NULL,NULL,NULL);
+		RouteTableTreeArrayBlock *array2=(RouteTableTreeArrayBlock *)(array2BlockPtr+header2Size);
+
+		int subindex2=subindex & ROUTE_TABLE_TREE_DEEP_DATA_ARRAY_ENTRIES_MASK;
+		int entriesToScan=MIN(subindex2+ROUTE_TABLE_TREE_DATA_ARRAY_SUBINDEX_RANGE, array2->dataAlloc);
+
+		for(int i=subindex2; i<entriesToScan; i++)
 			{
-			return i;
+			if(array2->data[i]==wanted)
+				return i+(subindex&~ROUTE_TABLE_TREE_DEEP_DATA_ARRAY_ENTRIES_MASK);
 			}
+
+		LOG(LOG_CRITICAL,"Failed to find indexed entity2 %i %i %i %i",subindex, subindex1, subindex2, entriesToScan);
+		}
+	else
+		{
+		int entriesToScan=MIN(subindex+ROUTE_TABLE_TREE_DATA_ARRAY_SUBINDEX_RANGE, array1->dataAlloc);
+
+		for(int i=subindex; i<entriesToScan; i++)
+			{
+			if(array1->data[i]==wanted)
+				return i;
+			}
+
+		LOG(LOG_CRITICAL,"Failed to find indexed entity1");
 		}
 
-	LOG(LOG_CRITICAL,"Failed to find indexed entity1");
 	return -1;
 }
-
+/*
 static s32 scanTagDataIndexed_2(u8 **tagData, s32 smerIndex, s32 topindex, s32 subIndex, u8 *wanted)
 {
 	u8 *primaryPtr=tagData[smerIndex];
@@ -973,7 +1003,7 @@ static s32 scanTagDataIndexed_2(u8 **tagData, s32 smerIndex, s32 topindex, s32 s
 	RouteTableTreeTopBlock *topPtr=(RouteTableTreeTopBlock *)((primaryPtr)+rtGetGapBlockHeaderSize());
 
 	u8 *array1BlockPtr=topPtr->data[topindex];
-	s32 header1Size=rtDecodeIndexedBlockHeader_0(array1BlockPtr,NULL,NULL);
+	s32 header1Size=rtDecodeIndexedBlockHeader_0(array1BlockPtr,NULL, NULL,NULL);
 	RouteTableTreeArrayBlock *array1=(RouteTableTreeArrayBlock *)(array1BlockPtr+header1Size);
 
 	u8 *array2BlockPtr=array1->data[subIndex >> ROUTE_TABLE_TREE_DEEP_DATA_ARRAY_ENTRIES_SHIFT];
@@ -982,7 +1012,7 @@ static s32 scanTagDataIndexed_2(u8 **tagData, s32 smerIndex, s32 topindex, s32 s
 
 	subIndex&=ROUTE_TABLE_TREE_DEEP_DATA_ARRAY_ENTRIES_MASK;
 
-	int entriesToScan=MIN(subIndex+ROUTE_TABLE_TREE_SHALLOW_DATA_ARRAY_SUBINDEX_RANGE, array2->dataAlloc);
+	int entriesToScan=MIN(subIndex+ROUTE_TABLE_TREE_DATA_ARRAY_SUBINDEX_RANGE, array2->dataAlloc);
 
 	for(int i=subIndex; i<entriesToScan; i++)
 		{
@@ -996,7 +1026,7 @@ static s32 scanTagDataIndexed_2(u8 **tagData, s32 smerIndex, s32 topindex, s32 s
 	return -1;
 
 }
-
+*/
 
 
 
@@ -1024,34 +1054,7 @@ static MemCircHeapChunkIndex *allocOrExpandIndexer(MemCircHeapChunkIndex *oldInd
 		}
 }
 
-/*
-void dumpRawArrayBlock(u8 *data)
-{
-	s32 arrayNum=0, arrayType=0, indexSize=0, index=0, subindexSize=0, subIndex=0;
 
-	int headerSize=rtDecodeArrayBlockHeader(data, &arrayNum, &arrayType, &indexSize, &index, &subindexSize, &subIndex);
-
-	RouteTableTreeArrayBlock *block=(RouteTableTreeArrayBlock *)(data+headerSize);
-
-	LOGS(LOG_INFO,"DumpArray %p (%2x header %i alloc):",data, *data, block->dataAlloc);
-
-	for(int i=0;i<block->dataAlloc;i++)
-		LOGS(LOG_INFO," %p",block->data[i]);
-
-	LOGN(LOG_INFO,"");
-
-}
-
-void dumpRawLeafBlock()
-{
-
-}
-
-void dumpRawBranchBlock()
-{
-
-}
-*/
 
 void validateReclaimIndexEntry(MemCircHeapChunkIndexEntry *indexEntry, u8 *heapPtr, u8 tag, u8 **tagData, s32 tagDataLength)
 {
@@ -1068,62 +1071,70 @@ void validateReclaimIndexEntry(MemCircHeapChunkIndexEntry *indexEntry, u8 *heapP
 	s32 topindex=indexEntry->topindex;
 
 	if(topindex<0) // Gap encoded: tag offset needs updating
+		return;
+
+	//LOG(LOG_INFO,"Validate indexEntry: Index: %i Size: %i TopIndex: %i SubIndex: %i",indexEntry->index, indexEntry->size, indexEntry->topindex, indexEntry->subindex);
+
+	RouteTableTreeTopBlock *topPtr=(RouteTableTreeTopBlock *)((*primaryPtr)+rtGetGapBlockHeaderSize());
+	//u8 *dataPtr=NULL;
+
+	if(topindex>=0 && topindex<ROUTE_TOPINDEX_MAX)
 		{
+		if(topPtr->data[topindex]!=heapPtr)
+			LOG(LOG_CRITICAL,"Level 0 Pointer mismatch in array during heap validation (Ref: %p vs Heap: %p) - Top: %p",topPtr->data[topindex],heapPtr, (*primaryPtr));
+
+		return;
+		}
+	else if(topindex<=ROUTE_PSEUDO_INDEX_REVERSE_LEAF_ARRAY_1)
+		{
+		s32 subindex=indexEntry->subindex;
+		u8 *array1BlockPtr=topPtr->data[topindex-ROUTE_PSEUDO_INDEX_MID_ADJUST];
+
+		s32 header1Size=rtDecodeIndexedBlockHeader_0(array1BlockPtr, NULL, NULL, NULL);
+
+		RouteTableTreeArrayBlock *array1=(RouteTableTreeArrayBlock *)(array1BlockPtr+header1Size);
+
+		if(array1->data[subindex]!=heapPtr)
+			LOG(LOG_CRITICAL,"Level 1 Pointer mismatch in array entry during validation (%p vs %p) - Top: %p Array: %p",array1->data[subindex],heapPtr,(*primaryPtr),array1);
+
+		return;
+		}
+	else if (topindex<=ROUTE_PSEUDO_INDEX_REVERSE_LEAF_1)
+		topindex-=ROUTE_PSEUDO_INDEX_ENTITY_1_ADJUST;
+	else
+		topindex-=ROUTE_PSEUDO_INDEX_LEAF_2_ADJUST;
+
+	s32 subindex=indexEntry->subindex;
+	u8 *array1BlockPtr=topPtr->data[topindex];
+
+	s32 variant;
+	s32 header1Size=rtDecodeIndexedBlockHeader_0(array1BlockPtr, &variant, NULL, NULL);
+
+	RouteTableTreeArrayBlock *array1=(RouteTableTreeArrayBlock *)(array1BlockPtr+header1Size);
+
+	if(!variant)
+		{
+		if(array1->data[subindex]!=heapPtr)
+			LOG(LOG_CRITICAL,"Level 1 Pointer mismatch in array entry during validation (%p vs %p) - Top: %p Array: %p",array1->data[subindex],heapPtr,(*primaryPtr),array1);
+
 		return;
 		}
 	else
 		{
-		//LOG(LOG_INFO,"Validate indexEntry: Index: %i Size: %i TopIndex: %i SubIndex: %i",indexEntry->index, indexEntry->size, indexEntry->topindex, indexEntry->subindex);
+		int subindex1=subindex >> ROUTE_TABLE_TREE_DEEP_DATA_ARRAY_ENTRIES_SHIFT;
 
-		RouteTableTreeTopBlock *topPtr=(RouteTableTreeTopBlock *)((*primaryPtr)+rtGetGapBlockHeaderSize());
+		u8 *array2BlockPtr=array1->data[subindex1];
+		s32 header2Size=rtDecodeIndexedBlockHeader_1(array2BlockPtr,NULL,NULL,NULL);
+		RouteTableTreeArrayBlock *array2=(RouteTableTreeArrayBlock *)(array2BlockPtr+header2Size);
 
-		//u8 *dataPtr=NULL;
+		int subindex2=subindex & ROUTE_TABLE_TREE_DEEP_DATA_ARRAY_ENTRIES_MASK;
 
-		if(topindex>=0 && topindex<ROUTE_TOPINDEX_MAX)
-			{
-			if(topPtr->data[topindex]!=heapPtr)
-				LOG(LOG_CRITICAL,"Level 0 Pointer mismatch in array during heap validation (Ref: %p vs Heap: %p) - Top: %p",topPtr->data[topindex],heapPtr, (*primaryPtr));
+		if(array2->data[subindex2]!=heapPtr)
+			LOG(LOG_CRITICAL,"Level 2 Pointer mismatch in array entry during validation (%p vs %p) - Top: %p Array: %p %p",array2->data[subindex2],heapPtr,(*primaryPtr),array1, array2);
 
-			return;
-			}
-		else if(topindex<=ROUTE_PSEUDO_INDEX_REVERSE_LEAF_ARRAY_1)
-			{
-			LOG(LOG_CRITICAL,"Mid");
-			}
-		else if(topindex<=ROUTE_PSEUDO_INDEX_REVERSE_LEAF_1)
-			{
-			s32 subindex=indexEntry->subindex;
-
-			u8 *array1BlockPtr=topPtr->data[topindex-ROUTE_PSEUDO_INDEX_ENTITY_1_ADJUST];
-			s32 header1Size=rtDecodeIndexedBlockHeader_0(array1BlockPtr, NULL, NULL);
-			RouteTableTreeArrayBlock *array1=(RouteTableTreeArrayBlock *)(array1BlockPtr+header1Size);
-
-			if(array1->data[subindex]!=heapPtr)
-				LOG(LOG_CRITICAL,"Level 1 Pointer mismatch in array entry during validation (%p vs %p) - Top: %p Array: %p",array1->data[subindex],heapPtr,(*primaryPtr),array1);
-
-			return;
-			}
-		else
-			{
-			LOG(LOG_CRITICAL,"Level 2 validation");
-/*
-			s32 subindex1=subindex>>ROUTE_TABLE_TREE_DEEP_DATA_ARRAY_ENTRIES_SHIFT;
-			s32 subindex2=subindex&ROUTE_TABLE_TREE_DEEP_DATA_ARRAY_ENTRIES_MASK;
-
-			u8 *array2BlockPtr=array1->data[subindex1];
-
-				s32 header2Size=rtDecodeEntityBlockHeader_Leaf2(array1BlockPtr, NULL, NULL, NULL);
-				RouteTableTreeArrayBlock *array2=(RouteTableTreeArrayBlock *)(array2BlockPtr+header2Size);
-
-				if(array1->data[subindex2]!=heapPtr)
-					LOG(LOG_CRITICAL,"Level 2 Pointer mismatch in array entry during validation (%p vs %p) - Top: %p Array: %p",array2->data[subindex2],heapPtr,(*primaryPtr),array1);
-
-				return;
-				}
-				*/
-			}
-
+		return;
 		}
+
 }
 
 
@@ -1323,16 +1334,14 @@ MemCircHeapChunkIndex *rtReclaimIndexer(u8 *heapDataPtr, s64 targetAmount, u8 ta
 				u8 *scanPtr=heapDataPtr+headerSize;
 
 				u32 dataSize=0;
-				u16 alloc=0;
 
 				if(topindex<=ROUTE_TOPINDEX_REVERSE_LEAF_ARRAY_0) // Level 0 leaf/branch array
 					{
-					alloc=((RouteTableTreeArrayBlock *)scanPtr)->dataAlloc;
-					dataSize=sizeof(RouteTableTreeArrayBlock)+sizeof(u8 *)*alloc;
+					dataSize=getRouteTableTreeArraySize_Existing((RouteTableTreeArrayBlock *)scanPtr);
 					}
 				else if(topindex<=ROUTE_PSEUDO_INDEX_REVERSE_LEAF_ARRAY_1)
 					{
-					LOG(LOG_CRITICAL,"IndexMid");
+					dataSize=getRouteTableTreeArraySize_Existing((RouteTableTreeArrayBlock *)scanPtr);
 					}
 				else if(topindex<=ROUTE_PSEUDO_INDEX_REVERSE_BRANCH_1)
 					{
@@ -1353,7 +1362,7 @@ MemCircHeapChunkIndex *rtReclaimIndexer(u8 *heapDataPtr, s64 targetAmount, u8 ta
 					dataSize=getRouteTableTreeLeafSize_Existing((RouteTableTreeLeafBlock *)scanPtr);
 
 					if(header & ALLOC_HEADER_LIVE_MASK)
-						subindex=scanTagDataIndexed_2(tagData,smerIndex,topindex-ROUTE_PSEUDO_INDEX_LEAF_2_ADJUST,subindex,heapDataPtr);
+						subindex=scanTagDataIndexed_1(tagData,smerIndex,topindex-ROUTE_PSEUDO_INDEX_LEAF_2_ADJUST,subindex,heapDataPtr);
 					}
 
 				scanPtr+=dataSize;
@@ -1468,41 +1477,58 @@ void rtRelocater(MemCircHeapChunkIndex *index, u8 tag, u8 **tagData, s32 tagData
 			//u8 *dataPtr=NULL;
 			//s32 subindex=index->entries[i].subindex;
 
-			if(topindex<=ROUTE_TOPINDEX_REVERSE_LEAF_ARRAY_0)		// In top
+			if(topindex<=ROUTE_TOPINDEX_REVERSE_LEAF_ARRAY_0)		// Zero level Array (directly in top)
 				{
 				memmove(newChunk,topPtr->data[topindex],size);
 				topPtr->data[topindex]=newChunk;
 				newChunk+=size;
 				}
-			else if(topindex<=ROUTE_PSEUDO_INDEX_REVERSE_LEAF_1)	// Single level array
+			else if(topindex<=ROUTE_PSEUDO_INDEX_REVERSE_LEAF_ARRAY_1)	// Mid level array
 				{
-				u8 *arrayBlockPtr=topPtr->data[topindex-ROUTE_PSEUDO_INDEX_ENTITY_1_ADJUST];
-				s32 headerSize=rtDecodeIndexedBlockHeader_0(arrayBlockPtr,NULL,NULL);
-				RouteTableTreeArrayBlock *array=(RouteTableTreeArrayBlock *)(arrayBlockPtr+headerSize);
-
 				s32 subindex=index->entries[i].subindex;
+
+				u8 *arrayBlockPtr=topPtr->data[topindex-ROUTE_PSEUDO_INDEX_MID_ADJUST];
+				s32 headerSize=rtDecodeIndexedBlockHeader_0(arrayBlockPtr,NULL, NULL,NULL);
+				RouteTableTreeArrayBlock *array=(RouteTableTreeArrayBlock *)(arrayBlockPtr+headerSize);
 
 				memmove(newChunk,array->data[subindex],size);
 				array->data[subindex]=newChunk;
 				newChunk+=size;
 				}
-			else													// Two level array
+			else
 				{
-				u8 *array1BlockPtr=topPtr->data[topindex-ROUTE_PSEUDO_INDEX_LEAF_2_ADJUST];
-				s32 header1Size=rtDecodeIndexedBlockHeader_0(array1BlockPtr,NULL,NULL);
-				RouteTableTreeArrayBlock *array1=(RouteTableTreeArrayBlock *)(array1BlockPtr+header1Size);
+				if(topindex<=ROUTE_PSEUDO_INDEX_REVERSE_LEAF_1)
+					topindex-=ROUTE_PSEUDO_INDEX_ENTITY_1_ADJUST;
+				else
+					topindex-=ROUTE_PSEUDO_INDEX_LEAF_2_ADJUST;
+
+				u8 *arrayBlockPtr=topPtr->data[topindex];
+
+				s32 variant=0;
+				s32 headerSize=rtDecodeIndexedBlockHeader_0(arrayBlockPtr,&variant, NULL,NULL);
+				RouteTableTreeArrayBlock *array=(RouteTableTreeArrayBlock *)(arrayBlockPtr+headerSize);
 
 				s32 subindex=index->entries[i].subindex;
 
-				s32 subindex1=subindex>>ROUTE_TABLE_TREE_DEEP_DATA_ARRAY_ENTRIES_SHIFT;
-				s32 subindex2=subindex&ROUTE_TABLE_TREE_DEEP_DATA_ARRAY_ENTRIES_MASK;
+				if(variant)
+					{
+					int subindex1=subindex >> ROUTE_TABLE_TREE_DEEP_DATA_ARRAY_ENTRIES_SHIFT;
 
-				u8 *array2BlockPtr=array1->data[subindex1];
-				s32 header2Size=rtDecodeEntityBlockHeader_Leaf2(array1BlockPtr, NULL, NULL, NULL);
-				RouteTableTreeArrayBlock *array2=(RouteTableTreeArrayBlock *)(array2BlockPtr+header2Size);
+					u8 *array2BlockPtr=array->data[subindex1];
+					s32 header2Size=rtDecodeIndexedBlockHeader_1(array2BlockPtr,NULL,NULL,NULL);
+					RouteTableTreeArrayBlock *array2=(RouteTableTreeArrayBlock *)(array2BlockPtr+header2Size);
 
-				memmove(newChunk,array2->data[subindex2],size);
-				array2->data[subindex2]=newChunk;
+					int subindex2=subindex & ROUTE_TABLE_TREE_DEEP_DATA_ARRAY_ENTRIES_MASK;
+
+					memmove(newChunk,array2->data[subindex2],size);
+					array2->data[subindex2]=newChunk;
+					}
+				else
+					{
+					memmove(newChunk,array->data[subindex],size);
+					array->data[subindex]=newChunk;
+					}
+
 				newChunk+=size;
 				}
 			}
@@ -1510,16 +1536,17 @@ void rtRelocater(MemCircHeapChunkIndex *index, u8 tag, u8 **tagData, s32 tagData
 
 	if(newChunk!=endPtr)
 		{
-		LOG(LOG_CRITICAL,"Mismatch %p vs %p after relocate",newChunk,endPtr);
+		LOG(LOG_CRITICAL,"Mismatch Actual: %p vs Expected: %p after relocate",newChunk,endPtr);
 		}
 
 //	LOG(LOG_INFO,"Relocated for %p with data %p",index,index->newChunk);
 }
 
 
-void initHeapDataBlock(HeapDataBlock *block)
+void initHeapDataBlock(HeapDataBlock *block, s32 sliceIndex)
 {
 	memset(block, 0, sizeof(HeapDataBlock));
+	block->sliceIndex=sliceIndex;
 }
 
 

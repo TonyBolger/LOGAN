@@ -22,11 +22,11 @@ typedef struct routeTableTreeArrayEntriesStr
 
 struct routeTableTreeArrayProxyStr
 {
-	RouteTableTreeArrayBlock *ptrBlock; // If using two levels
+	RouteTableTreeArrayBlock *ptrBlock; // If using two levels (After Headers in first level)
 	u16 ptrAlloc;
 	u16 ptrCount;
 
-	RouteTableTreeArrayBlock *dataBlock; // After Headers.
+	RouteTableTreeArrayBlock *dataBlock; // After Headers
 	u16 dataAlloc;
 	u16 dataCount;
 
@@ -46,11 +46,16 @@ struct routeTableTreeArrayProxyStr
 
 
 
+s32 getRouteTableTreeArraySize_Existing(RouteTableTreeArrayBlock *arrayBlock);
 
-void rttBindBlockArrayProxy(RouteTableTreeArrayProxy *arrayProxy, u8 *heapDataPtr, u32 headerSize);
-void initBlockArrayProxy(RouteTableTreeProxy *treeProxy, RouteTableTreeArrayProxy *arrayProxy, HeapDataBlock *heapDataBlock, u8 *heapDataPtr);
+void rttBindBlockArrayProxy(RouteTableTreeArrayProxy *arrayProxy, u8 *heapDataPtr, u32 headerSize, u32 isIndirect);
+void initBlockArrayProxy(RouteTableTreeProxy *treeProxy, RouteTableTreeArrayProxy *arrayProxy, HeapDataBlock *heapDataBlock, u8 *heapDataPtr, u32 isIndirect);
+
+void dumpBlockArrayProxy(RouteTableTreeArrayProxy *arrayProxy);
 
 s32 getBlockArraySize(RouteTableTreeArrayProxy *arrayProxy);
+u8 *getBlockArrayDataEntryRaw(RouteTableTreeArrayProxy *arrayProxy, s32 index);
+void setBlockArrayDataEntryRaw(RouteTableTreeArrayProxy *arrayProxy, s32 index, u8 *data);
 
 void *getBlockArrayNewEntryProxy(RouteTableTreeArrayProxy *arrayProxy, s32 index);
 u8 *getBlockArrayExistingEntryData(RouteTableTreeArrayProxy *arrayProxy, s32 index);
@@ -59,6 +64,8 @@ void ensureBlockArrayWritable(RouteTableTreeArrayProxy *arrayProxy, MemDispenser
 
 s32 appendBlockArrayEntryProxy(RouteTableTreeArrayProxy *arrayProxy, void *proxy, MemDispenser *disp);
 void setBlockArrayEntryProxy(RouteTableTreeArrayProxy *arrayProxy, s32 index, void *proxy, MemDispenser *disp);
+
+
 
 s32 rttGetArrayDirty(RouteTableTreeArrayProxy *arrayProxy);
 

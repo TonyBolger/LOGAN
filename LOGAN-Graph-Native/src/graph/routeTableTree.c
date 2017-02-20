@@ -45,14 +45,14 @@ void rttInitRouteTableTreeBuilder(RouteTableTreeBuilder *treeBuilder, RouteTable
 
 }
 
-void rttUpgradeToRouteTableTreeBuilder(RouteTableArrayBuilder *arrayBuilder,  RouteTableTreeBuilder *treeBuilder, s32 prefixCount, s32 suffixCount, MemDispenser *disp)
+void rttUpgradeToRouteTableTreeBuilder(RouteTableArrayBuilder *arrayBuilder,  RouteTableTreeBuilder *treeBuilder, s32 sliceIndex, s32 prefixCount, s32 suffixCount, MemDispenser *disp)
 {
 	//LOG(LOG_INFO,"Upgrade");
 
 	treeBuilder->disp=arrayBuilder->disp;
 
 	for(int i=0;i<ROUTE_TOPINDEX_MAX;i++)
-		initHeapDataBlock(treeBuilder->dataBlocks+i);
+		initHeapDataBlock(treeBuilder->dataBlocks+i, sliceIndex);
 
 	initTreeProxy(&(treeBuilder->forwardProxy),
 			&(treeBuilder->dataBlocks[ROUTE_TOPINDEX_FORWARD_LEAF_ARRAY_0]),NULL,
@@ -75,6 +75,8 @@ void rttUpgradeToRouteTableTreeBuilder(RouteTableArrayBuilder *arrayBuilder,  Ro
 
 //	LOG(LOG_INFO,"Adding %i reverse entries to tree",arrayBuilder->oldReverseEntryCount);
 	walkerAppendPreorderedEntries(&(treeBuilder->reverseWalker), arrayBuilder->oldReverseEntries, arrayBuilder->oldReverseEntryCount, ROUTING_TABLE_REVERSE);
+
+//	LOG(LOG_INFO,"Upgrade completed");
 
 	treeBuilder->newEntryCount=arrayBuilder->oldForwardEntryCount+arrayBuilder->oldReverseEntryCount;
 
@@ -124,7 +126,7 @@ void dumpRoutingTableTree(RouteTableTreeProxy *treeProxy)
 
 	for(int i=0;i<branchCount;i++)
 		{
-		RouteTableTreeBranchBlock *branchBlock=getRouteTableTreeBranchRaw(treeProxy, i);
+		RouteTableTreeBranchBlock *branchBlock=getRouteTableTreeBranchBlock(treeProxy, i);
 
 		dumpBranchBlock(branchBlock);
 		}
@@ -132,7 +134,7 @@ void dumpRoutingTableTree(RouteTableTreeProxy *treeProxy)
 
 	for(int i=0;i<leafCount;i++)
 		{
-		RouteTableTreeLeafBlock *leafBlock=getRouteTableTreeLeafRaw(treeProxy, i);
+		RouteTableTreeLeafBlock *leafBlock=getRouteTableTreeLeafBlock(treeProxy, i);
 
 		dumpLeafBlock(leafBlock);
 		}
@@ -171,7 +173,10 @@ s32 rttGetTopArraySize(RouteTableTreeArrayProxy *arrayProxy)
 	int entryCount=rttGetArrayEntries(arrayProxy);
 
 	if(entryCount>ROUTE_TABLE_TREE_SHALLOW_DATA_ARRAY_ENTRIES)
+		{
+		LOG(LOG_INFO,"Multi-level array");
 		entryCount=rttCalcFirstLevelArrayEntries(entryCount);
+		}
 
 	return rttCalcArraySize(entryCount);
 }

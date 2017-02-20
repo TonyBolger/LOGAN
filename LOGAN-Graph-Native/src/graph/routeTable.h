@@ -84,15 +84,18 @@ typedef struct routePatchMergePositionOrderedReadtreeStr // Represents sets of r
 
 typedef struct heapDataBlockStr
 {
+	u32 sliceIndex;
+
 	// Used for all heap data (first level object)
 	s32 headerSize; // Including index/subindex
 	s32 dataSize;
 
+	s32 variant; // For Leaf Array: 0 => single level, 1 => two level
 	// Used for 2-level arrays only
-	s32 deepHeaderSize;
-	s32 completeDeepCount;
-	s32 completeDeepDataSize;
-	s32 additionalDeepDataSize;
+	s32 midHeaderSize;
+	s32 completeMidCount;
+	s32 completeMidDataSize;
+	s32 additionalMidDataSize;
 } HeapDataBlock;
 
 
@@ -103,6 +106,7 @@ typedef struct routingComboBuilderStr
 {
 	MemDispenser *disp;
 	u8 **rootPtr;
+	s32 sliceIndex;
 
 	SeqTailBuilder prefixBuilder;
 	SeqTailBuilder suffixBuilder;
@@ -149,7 +153,7 @@ s32 rtEncodeArrayBlockHeader_Branch0(s32 fwdRev, s32 indexSize, s32 index, u8 *d
 s32 rtDecodeArrayBlockHeader_Branch0(u8 *data, s32 *indexSizePtr, s32 *indexPtr);
 s32 rtEncodeArrayBlockHeader_Leaf0(s32 fwdRev, s32 levels, s32 indexSize, s32 index, u8 *data);
 s32 rtDecodeArrayBlockHeader_Leaf0(u8 *data, s32 *levelsPtr, s32 *indexSizePtr, s32 *indexPtr);
-s32 rtDecodeIndexedBlockHeader_0(u8 *data, s32 *indexSizePtr, s32 *indexPtr);
+s32 rtDecodeIndexedBlockHeader_0(u8 *data, s32 *variantPtr, s32 *indexSizePtr, s32 *indexPtr);
 s32 rtGetIndexedBlockHeaderSize_0(s32 indexSize);
 
 s32 rtEncodeArrayBlockHeader_Leaf1(s32 fwdRev, s32 indexSize, s32 index, s32 subindex, u8 *data);
@@ -171,7 +175,7 @@ s32 rtDecodeIndexedBlockHeader(u8 *data, s32 *topindexPtr, s32 *indexSizePtr, s3
 MemCircHeapChunkIndex *rtReclaimIndexer(u8 *data, s64 targetAmount, u8 tag, u8 **tagData, s32 tagDataLength, s32 tagSearchOffset, MemDispenser *disp);
 void rtRelocater(MemCircHeapChunkIndex *index, u8 tag, u8 **tagData, s32 tagDataLength);
 
-void initHeapDataBlock(HeapDataBlock *block);
+void initHeapDataBlock(HeapDataBlock *block, s32 sliceIndex);
 
 
 

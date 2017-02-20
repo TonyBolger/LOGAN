@@ -841,6 +841,11 @@ void *circAlloc_nobumper(MemCircHeap *circHeap, size_t size, u8 tag, s32 newTagO
 		{
 		LOG(LOG_CRITICAL, "Request to allocate %i bytes of ColHeap memory refused since it is above the max allocation size %i",size,CIRCHEAP_MAX_ALLOC);
 		}
+	if(size>CIRCHEAP_MAX_ALLOC_WARN)
+		{
+		LOG(LOG_INFO, "Request to allocate %i bytes of ColHeap memory logged since it is above the warn allocation size %i",size,CIRCHEAP_MAX_ALLOC_WARN);
+		}
+
 
 	//LOG(LOG_INFO,"circAlloc_nobumper: Requesting %i with tag %i offset %i",size);
 
@@ -874,7 +879,8 @@ void *circAlloc_nobumper(MemCircHeap *circHeap, size_t size, u8 tag, s32 newTagO
 
 void *circAlloc(MemCircHeap *circHeap, size_t size, u8 tag, s32 newTagOffset, s32 *oldTagOffset)
 {
-	return circAlloc_nobumper(circHeap, size, tag, newTagOffset, oldTagOffset);
+	void *ptr=circAlloc_nobumper(circHeap, size, tag, newTagOffset, oldTagOffset);
+	return ptr;
 }
 
 /*
