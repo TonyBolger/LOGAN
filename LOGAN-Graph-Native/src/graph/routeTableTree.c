@@ -96,10 +96,15 @@ int dumpRoutingTableTree_ArrayProxy(RouteTableTreeArrayProxy *arrayProxy, char *
 
 	int count=0;
 
+	if(arrayProxy->ptrBlock!=NULL)
+		{
+		LOG(LOG_CRITICAL,"Array is indirect - TODO");
+		}
+
 	if(arrayProxy->dataBlock!=NULL)
 		{
-		LOG(LOG_INFO,"Array %s existing datablock %p contains %i of %i items",name,arrayProxy->dataBlock,arrayProxy->dataCount,arrayProxy->dataAlloc);
-		count=MAX(count, arrayProxy->dataCount);
+		LOG(LOG_INFO,"Array %s existing datablock %p contains %i of %i items",name,arrayProxy->dataBlock,arrayProxy->oldDataCount,arrayProxy->oldDataAlloc);
+		count=MAX(count, arrayProxy->oldDataCount);
 		}
 	else
 		LOG(LOG_INFO,"Array %s existing datablock is NULL",name);
@@ -174,7 +179,6 @@ s32 rttGetTopArraySize(RouteTableTreeArrayProxy *arrayProxy)
 
 	if(entryCount>ROUTE_TABLE_TREE_SHALLOW_DATA_ARRAY_ENTRIES)
 		{
-		LOG(LOG_INFO,"Multi-level array");
 		entryCount=rttCalcFirstLevelArrayEntries(entryCount);
 		}
 
@@ -1045,10 +1049,10 @@ void rttGetStats(RouteTableTreeBuilder *builder,
 		{
 		// Process leaves: Assume Direct
 
-		int arrayAlloc=treeProxies[p]->leafArrayProxy.dataAlloc;
+		int arrayAlloc=treeProxies[p]->leafArrayProxy.oldDataAlloc;
 		arrayBytes+=sizeof(RouteTableTreeArrayBlock)+arrayAlloc*sizeof(u8 *);
 
-		int leafCount=treeProxies[p]->leafArrayProxy.dataCount;
+		int leafCount=treeProxies[p]->leafArrayProxy.oldDataCount;
 		for(int i=0;i<leafCount;i++)
 			{
 			RouteTableTreeLeafProxy *leafProxy=getRouteTableTreeLeafProxy(treeProxies[p], i);
@@ -1070,10 +1074,10 @@ void rttGetStats(RouteTableTreeBuilder *builder,
 			}
 
 		// Process branches: Assume Direct
-		arrayAlloc=treeProxies[p]->branchArrayProxy.dataAlloc;
+		arrayAlloc=treeProxies[p]->branchArrayProxy.oldDataAlloc;
 		arrayBytes+=sizeof(RouteTableTreeArrayBlock)+arrayAlloc*sizeof(u8 *);
 
-		int branchCount=treeProxies[p]->branchArrayProxy.dataCount;
+		int branchCount=treeProxies[p]->branchArrayProxy.oldDataCount;
 		for(int i=0;i<branchCount;i++)
 			{
 			RouteTableTreeBranchProxy *branchProxy=getRouteTableTreeBranchProxy(treeProxies[p], i);

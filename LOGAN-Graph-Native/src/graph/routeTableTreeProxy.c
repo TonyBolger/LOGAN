@@ -13,7 +13,7 @@ void initTreeProxy(RouteTableTreeProxy *treeProxy,
 	initBlockArrayProxy(treeProxy, &(treeProxy->leafArrayProxy), leafBlock, leafDataPtr, leafBlock->variant);
 	initBlockArrayProxy(treeProxy, &(treeProxy->branchArrayProxy), branchBlock, branchDataPtr, 0);
 
-	if(getBlockArraySize(&(treeProxy->branchArrayProxy))>0)
+	if(rttGetArrayEntries(&(treeProxy->branchArrayProxy))>0)
 		treeProxy->rootProxy=getRouteTableTreeBranchProxy(treeProxy, BRANCH_NINDEX_ROOT);
 	else
 		treeProxy->rootProxy=allocRouteTableTreeBranchProxy(treeProxy, ROUTE_TABLE_TREE_BRANCH_CHILDREN_CHUNK);

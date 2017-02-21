@@ -95,7 +95,7 @@ typedef struct heapDataBlockStr
 	s32 midHeaderSize;
 	s32 completeMidCount;
 	s32 completeMidDataSize;
-	s32 additionalMidDataSize;
+	s32 partialMidDataSize;
 } HeapDataBlock;
 
 

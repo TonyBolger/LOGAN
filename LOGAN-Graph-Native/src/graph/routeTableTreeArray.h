@@ -23,23 +23,20 @@ typedef struct routeTableTreeArrayEntriesStr
 struct routeTableTreeArrayProxyStr
 {
 	RouteTableTreeArrayBlock *ptrBlock; // If using two levels (After Headers in first level)
-	u16 ptrAlloc;
-	u16 ptrCount;
+	u16 ptrAlloc; // First level allocation (currently equal ptrCount)
+	u16 ptrCount; // First level used
 
-	RouteTableTreeArrayBlock *dataBlock; // After Headers
-	u16 dataAlloc;
-	u16 dataCount;
+	RouteTableTreeArrayBlock *dataBlock; // If using only one level (After Headers)
+
+	u16 oldDataAlloc; // Direct, or combined indirect, allocation (can round up)
+	u16 oldDataCount; // Direct, or combined indirect, used
 
 	RouteTableTreeArrayEntry *newEntries; // Sorted array of indexed new entries
 	u16 newEntriesAlloc;
 	u16 newEntriesCount;
 
-	//u8 **newData;
-	u16 newPtrAlloc; // Number of future indirect entries allocated
-	u16 newPtrCount; // Number of future indirect entries
-
-	u16 newDataAlloc; // Number of future direct entries allocated
-	u16 newDataCount; // Number of future direct entries used
+	u16 newDataAlloc; // Number of direct, or combined indirect entries allocated, including new
+	u16 newDataCount; // Number of direct, or combined indirect entries used, including new
 
 	HeapDataBlock *heapDataBlock;
 };
@@ -53,7 +50,7 @@ void initBlockArrayProxy(RouteTableTreeProxy *treeProxy, RouteTableTreeArrayProx
 
 void dumpBlockArrayProxy(RouteTableTreeArrayProxy *arrayProxy);
 
-s32 getBlockArraySize(RouteTableTreeArrayProxy *arrayProxy);
+//s32 getBlockArraySize(RouteTableTreeArrayProxy *arrayProxy);
 u8 *getBlockArrayDataEntryRaw(RouteTableTreeArrayProxy *arrayProxy, s32 index);
 void setBlockArrayDataEntryRaw(RouteTableTreeArrayProxy *arrayProxy, s32 index, u8 *data);
 
