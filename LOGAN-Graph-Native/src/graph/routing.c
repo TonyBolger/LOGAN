@@ -578,9 +578,49 @@ static u8 *writeBuildersAsIndirectData_bindArrays(RouteTableTreeBuilder *treeBui
 				}
 			else
 				{
-				LOG(LOG_CRITICAL,"TODO: Non-upgrade indirect");
+				LOG(LOG_INFO,"Previous Upgrade: START");
+				RouteTableTreeArrayProxy *arrayProxy=rttGetTopArrayByIndex(treeBuilder, i);
+				dumpBlockArrayProxy(arrayProxy);
+
+				LOG(LOG_INFO,"Previous Upgrade: END");
+
+
+				existingSize=treeBuilder->dataBlocks[i].headerSize+treeBuilder->dataBlocks[i].dataSize;
+				neededSize=neededBlocks[i].headerSize+neededBlocks[i].dataSize;
+
+				if(neededSize>existingSize)
+					{
+					LOG(LOG_CRITICAL,"TODO: Non-upgrade indirect (expand mid)");
+					}
+				else if(neededSize<existingSize)
+					{
+					LOG(LOG_CRITICAL,"Unexpected size reduction, indirect (mid)");
+					}
+
+				if(neededBlocks[i].completeMidCount>treeBuilder->dataBlocks[i].completeMidCount)
+					{
+					LOG(LOG_CRITICAL,"TODO: Non-upgrade indirect (more complete)");
+					}
+				else if(neededBlocks[i].completeMidCount<treeBuilder->dataBlocks[i].completeMidCount)
+					{
+					LOG(LOG_CRITICAL,"Unexpected size reduction, indirect (completeMidCount)");
+					}
+				else if(neededBlocks[i].partialMidDataSize>treeBuilder->dataBlocks[i].partialMidDataSize)
+					{
+					LOG(LOG_CRITICAL,"TODO: Non-upgrade indirect (larger partial)");
+					}
+				else if(neededBlocks[i].partialMidDataSize<treeBuilder->dataBlocks[i].partialMidDataSize)
+					{
+					LOG(LOG_CRITICAL,"Unexpected size reduction, indirect (partial)");
+					}
+
+
+				//LOG(LOG_CRITICAL,"Fallback");
+
+
 
 /*
+ *
 				existingSize=treeBuilder->dataBlocks[i].headerSize+treeBuilder->dataBlocks[i].dataSize;
 				neededSize=neededBlocks[i].headerSize+neededBlocks[i].dataSize;
 

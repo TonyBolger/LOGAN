@@ -177,6 +177,48 @@ void initBlockArrayProxy(RouteTableTreeProxy *treeProxy, RouteTableTreeArrayProx
 }
 
 
+void dumpBlockArrayEntry(u8 *rawPtr)
+{
+	s32 topIndex=0, indexSize=0, index=0, subindexSize=0, subindex=0;
+
+	s32 headerSize=rtDecodeIndexedBlockHeader(rawPtr, &topIndex, &indexSize, &index, &subindexSize, &subindex);
+
+	LOG(LOG_INFO,"Header %i TopIndex %i Index %i SubIndex %i",headerSize, topIndex, index, subindex);
+
+	u8 *block=rawPtr+headerSize;
+
+	switch(topIndex)
+	{
+		case ROUTE_TOPINDEX_FORWARD_BRANCH_ARRAY_0:
+		case ROUTE_TOPINDEX_REVERSE_BRANCH_ARRAY_0:
+			LOG(LOG_CRITICAL,"Unexpected BRANCH_ARRAY_0");
+			break;
+
+		case ROUTE_TOPINDEX_FORWARD_LEAF_ARRAY_0:
+		case ROUTE_TOPINDEX_REVERSE_LEAF_ARRAY_0:
+			LOG(LOG_CRITICAL,"Unexpected LEAF_ARRAY_0");
+			break;
+
+		case ROUTE_PSEUDO_INDEX_FORWARD_LEAF_ARRAY_1:
+		case ROUTE_PSEUDO_INDEX_REVERSE_LEAF_ARRAY_1:
+			LOG(LOG_CRITICAL,"Unexpected LEAF_ARRAY_1");
+			break;
+
+		case ROUTE_PSEUDO_INDEX_FORWARD_BRANCH_1:
+		case ROUTE_PSEUDO_INDEX_REVERSE_BRANCH_1:
+			dumpBranchBlock((RouteTableTreeBranchBlock *) block);
+			break;
+
+		case ROUTE_PSEUDO_INDEX_FORWARD_LEAF_1:
+		case ROUTE_PSEUDO_INDEX_REVERSE_LEAF_1:
+		case ROUTE_PSEUDO_INDEX_FORWARD_LEAF_2:
+		case ROUTE_PSEUDO_INDEX_REVERSE_LEAF_2:
+			dumpLeafBlock((RouteTableTreeLeafBlock *) block);
+			break;
+	}
+
+
+}
 
 void dumpBlockArrayProxy(RouteTableTreeArrayProxy *arrayProxy)
 {
@@ -208,9 +250,12 @@ void dumpBlockArrayProxy(RouteTableTreeArrayProxy *arrayProxy)
 				for(int j=0;j<level1Block->dataAlloc;j++)
 					{
 					if(level1Block->data[j]==NULL)
-						LOG(LOG_INFO,"Indirect Block is NULL");
+						LOG(LOG_INFO,"Indirect Block entry is NULL");
 					else
-						LOG(LOG_INFO,"Indirect Block is %p", level1Block->data[j]);
+						{
+						LOG(LOG_INFO,"Indirect Block entry is %p", level1Block->data[j]);
+						dumpBlockArrayEntry(level1Block->data[j]);
+						}
 
 					}
 				}
@@ -226,7 +271,10 @@ void dumpBlockArrayProxy(RouteTableTreeArrayProxy *arrayProxy)
 			if(arrayProxy->dataBlock->data[i]==NULL)
 				LOG(LOG_INFO,"Direct Block is NULL");
 			else
+				{
 				LOG(LOG_INFO,"Direct Block is %p", arrayProxy->dataBlock->data[i]);
+				dumpBlockArrayEntry(arrayProxy->dataBlock->data[i]);
+				}
 			}
 		}
 
