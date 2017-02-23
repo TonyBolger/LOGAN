@@ -826,6 +826,25 @@ s32 rtDecodeIndexedBlockHeader(u8 *data, s32 *topindexPtr, s32 *indexSizePtr, s3
 	return 1+indexSize+subindexSize;
 }
 
+s32 rtDecodeIndexedBlockHeaderSize(u8 *data)
+{
+	u8 header=*data;
+
+	s32 topindex=((header & ALLOC_HEADER_TOP_MASK)-ALLOC_HEADER_TOP_TAIL_PREFIX)>>3; // Allow for Direct and Top
+	s32 indexSize=(header&ALLOC_HEADER_INDEXSIZE_MASK)+1;
+
+	if(topindex>=ROUTE_PSEUDO_INDEX_FORWARD_LEAF_2)
+		{
+		return 3+indexSize;
+		}
+	else if(topindex>=ROUTE_PSEUDO_INDEX_FORWARD_LEAF_ARRAY_1)
+		{
+		return 2+indexSize;
+		}
+
+	return 1+indexSize;
+}
+
 /*
 
 s32 rtDecodeArrayBlockHeader(u8 *data, s32 *arrayNumPtr, s32 *arrayTypePtr, s32 *indexSizePtr, s32 *indexPtr, s32 *subindexSizePtr, s32 *subindexPtr)
@@ -970,7 +989,8 @@ static s32 scanTagDataIndexed_1(u8 **tagData, s32 smerIndex, s32 topindex, s32 s
 				return i+(subindex&~ROUTE_TABLE_TREE_DEEP_DATA_ARRAY_ENTRIES_MASK);
 			}
 
-		LOG(LOG_CRITICAL,"Failed to find indexed entity2 %i %i %i %i",subindex, subindex1, subindex2, entriesToScan);
+		LOG(LOG_CRITICAL,"GC Failed to find indexed entity2 %p - expected at sub %i (%i %i) %i",
+				wanted, subindex, subindex1, subindex2, entriesToScan);
 		}
 	else
 		{
@@ -982,7 +1002,7 @@ static s32 scanTagDataIndexed_1(u8 **tagData, s32 smerIndex, s32 topindex, s32 s
 				return i;
 			}
 
-		LOG(LOG_CRITICAL,"Failed to find indexed entity1");
+		LOG(LOG_CRITICAL,"GC Failed to find indexed entity1");
 		}
 
 	return -1;

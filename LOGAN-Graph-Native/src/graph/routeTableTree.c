@@ -494,7 +494,7 @@ static void rttMergeRoutes_ordered_forwardSingle(RouteTableTreeBuilder *builder,
 	s16 upstream=-1;
 	RouteTableTreeLeafEntry *entry=NULL;
 
-	LOG(LOG_INFO,"rttMergeRoutes_ordered_forwardSingle %i %i with %i %i",targetPrefix, targetSuffix, minEdgePosition, maxEdgePosition);
+//	LOG(LOG_INFO,"rttMergeRoutes_ordered_forwardSingle %i %i with %i %i",targetPrefix, targetSuffix, minEdgePosition, maxEdgePosition);
 
 //	dumpWalker(walker);
 
@@ -609,8 +609,8 @@ static void rttMergeRoutes_ordered_forwardSingle(RouteTableTreeBuilder *builder,
 			LOG(LOG_CRITICAL,"Negative gap detected in route insert - Min: %i Max: %i",minMargin,maxMargin);
 			}
 
+//		LOG(LOG_INFO,"Handoff %i %i",downstreamEdgeOffset,downstreamEdgeOffset);
 
-		LOG(LOG_INFO,"Handoff %i %i",downstreamEdgeOffset,downstreamEdgeOffset);
 		// Map offsets to new entry
 		(*(patch->rdiPtr))->minEdgePosition=downstreamEdgeOffset;
 		(*(patch->rdiPtr))->maxEdgePosition=downstreamEdgeOffset;
@@ -640,9 +640,9 @@ static void rttMergeRoutes_ordered_forwardSingle(RouteTableTreeBuilder *builder,
 			LOG(LOG_CRITICAL,"Invalid offsets or gap detected in route insert - Min: %i Max: %i",minOffset,maxOffset);
 			}
 
-		// Map offsets to new entry
-		LOG(LOG_INFO,"Handoff %i %i",downstreamEdgeOffset+minOffset,downstreamEdgeOffset+maxOffset);
+//		LOG(LOG_INFO,"Handoff %i %i",downstreamEdgeOffset+minOffset,downstreamEdgeOffset+maxOffset);
 
+		// Map offsets to new entry
 		(*(patch->rdiPtr))->minEdgePosition=downstreamEdgeOffset+minOffset;
 		(*(patch->rdiPtr))->maxEdgePosition=downstreamEdgeOffset+maxOffset;
 
@@ -660,7 +660,7 @@ static void rttMergeRoutes_ordered_forwardSingle(RouteTableTreeBuilder *builder,
 			LOG(LOG_CRITICAL,"Non-positive split width detected in route insert - Width1: %i Width2: %i from %i",splitWidth1, splitWidth2, entry->width);
 			}
 
-		LOG(LOG_INFO,"Handoff %i %i",downstreamEdgeOffset,downstreamEdgeOffset);
+//		LOG(LOG_INFO,"Handoff %i %i",downstreamEdgeOffset,downstreamEdgeOffset);
 
 		// Map offsets
 		(*(patch->rdiPtr))->minEdgePosition=downstreamEdgeOffset;
@@ -688,7 +688,7 @@ static void rttMergeRoutes_ordered_reverseSingle(RouteTableTreeWalker *walker, R
 	s16 upstream=-1;
 	RouteTableTreeLeafEntry *entry=NULL;
 
-	LOG(LOG_INFO,"rttMergeRoutes_ordered_reverseSingle %i %i with %i %i",targetPrefix, targetSuffix, minEdgePosition, maxEdgePosition);
+//	LOG(LOG_INFO,"rttMergeRoutes_ordered_reverseSingle %i %i with %i %i",targetPrefix, targetSuffix, minEdgePosition, maxEdgePosition);
 
 	/*
 	int res=walkerGetCurrentEntry(walker, &upstream, &entry);
@@ -816,7 +816,8 @@ static void rttMergeRoutes_ordered_reverseSingle(RouteTableTreeWalker *walker, R
 			LOG(LOG_CRITICAL,"Negative gap detected in route insert - Min: %i Max: %i",minMargin,maxMargin);
 			}
 
-		LOG(LOG_INFO,"Handoff %i %i",downstreamEdgeOffset,downstreamEdgeOffset);
+//		LOG(LOG_INFO,"Handoff %i %i",downstreamEdgeOffset,downstreamEdgeOffset);
+
 		// Map offsets to new entry
 		(*(patch->rdiPtr))->minEdgePosition=downstreamEdgeOffset;
 		(*(patch->rdiPtr))->maxEdgePosition=downstreamEdgeOffset;
@@ -842,7 +843,7 @@ static void rttMergeRoutes_ordered_reverseSingle(RouteTableTreeWalker *walker, R
 			LOG(LOG_CRITICAL,"Invalid offsets or gap detected in route insert - Min: %i Max: %i",minOffset,maxOffset);
 			}
 
-		LOG(LOG_INFO,"Handoff %i %i",downstreamEdgeOffset+minOffset,downstreamEdgeOffset+maxOffset);
+//		LOG(LOG_INFO,"Handoff %i %i",downstreamEdgeOffset+minOffset,downstreamEdgeOffset+maxOffset);
 
 		// Map offsets to new entry
 		(*(patch->rdiPtr))->minEdgePosition=downstreamEdgeOffset+minOffset;
@@ -862,7 +863,8 @@ static void rttMergeRoutes_ordered_reverseSingle(RouteTableTreeWalker *walker, R
 			LOG(LOG_CRITICAL,"Non-positive split width detected in route insert - Width1: %i Width2: %i from %i",splitWidth1, splitWidth2, entry->width);
 			}
 
-		LOG(LOG_INFO,"Handoff %i %i",downstreamEdgeOffset,downstreamEdgeOffset);
+//		LOG(LOG_INFO,"Handoff %i %i",downstreamEdgeOffset,downstreamEdgeOffset);
+
 		// Map offsets
 		(*(patch->rdiPtr))->minEdgePosition=downstreamEdgeOffset;
 		(*(patch->rdiPtr))->maxEdgePosition=downstreamEdgeOffset;

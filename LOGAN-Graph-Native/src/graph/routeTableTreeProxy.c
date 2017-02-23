@@ -61,6 +61,8 @@ RouteTableTreeBranchProxy *getRouteTableTreeBranchProxy(RouteTableTreeProxy *tre
 
 	getRouteTableTreeBranchProxy_scan(branchProxy->dataBlock, &branchProxy->childAlloc, &branchProxy->childCount);
 
+	//LOG(LOG_INFO,"Got branch with %i of %i", branchProxy->childCount, branchProxy->childAlloc);
+
 	return branchProxy;
 }
 
@@ -106,6 +108,8 @@ RouteTableTreeLeafProxy *getRouteTableTreeLeafProxy(RouteTableTreeProxy *treePro
 //	LOG(LOG_INFO,"GetRouteTableTreeLeaf : %i",lindex);
 
 	getRouteTableTreeLeafProxy_scan(leafProxy->dataBlock, &leafProxy->entryAlloc, &leafProxy->entryCount);
+
+//	LOG(LOG_INFO,"Got leaf with %i indexes, and %i of %i", leafProxy->dataBlock->offsetAlloc, leafProxy->entryCount, leafProxy->entryAlloc);
 
 	return leafProxy;
 }
