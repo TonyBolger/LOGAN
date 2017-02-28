@@ -1522,6 +1522,8 @@ SmerRoutingStats *rtGetRoutingStats(SmerArraySlice *smerArraySlice, u32 sliceNum
 
 			routingBuilder.disp=disp;
 			routingBuilder.rootPtr=smerArraySlice->smerData+i;
+			routingBuilder.sliceIndex=i;
+			routingBuilder.sliceTag=sliceNum & SMER_DISPATCH_GROUP_SLICEMASK;
 
 			u8 header=*smerData;
 

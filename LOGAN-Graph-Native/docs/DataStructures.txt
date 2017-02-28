@@ -468,6 +468,30 @@ Current Pen-3 (Cessna)
 
 
 
+Current Pen-4 (Cessna)
+
+ 9497638  22.1%  22.1%  9497638  22.1% getRouteTableTreeLeafProxy_scan
+ 3930983   9.1%  31.2%  3931089   9.1% rtDecodeIndexedBlockHeaderSize
+ 3718125   8.6%  39.8%  3718125   8.6% __memset_sse2
+ 2912994   6.8%  46.6% 40493562  94.0% scanForDispatchesForGroups.isra.3
+ 1646682   3.8%  50.4%  1677153   3.9% walkerAccumulateLeafOffsets
+ 1604521   3.7%  54.1%  1604895   3.7% packBits
+ 1409649   3.3%  57.4%  1618358   3.8% walkerNextEntry
+ 1359887   3.2%  60.6% 10526137  24.4% rttMergeRoutes_ordered_forwardSingle.isra.0
+ 1344187   3.1%  63.7% 11368195  26.4% rttMergeRoutes_ordered_reverseSingle.isra.1
+ 1344123   3.1%  66.8% 33193474  77.1% rtRouteReadsForSmer
+ 1231471   2.9%  69.7%  1234600   2.9% unpackBits
+ 1139475   2.6%  72.3%  1838982   4.3% rtReclaimIndexer
+  869041   2.0%  74.3%   884253   2.1% initSeqTailBuilder
+  808016   1.9%  76.2%  1238327   2.9% rtRelocater
+  763368   1.8%  78.0% 15117439  35.1% getNextLeafSibling
+  757555   1.8%  79.7%  4724687  11.0% getBlockArrayExistingEntryData
+  609283   1.4%  81.1% 15893182  36.9% walkerNextLeaf
+  469236   1.1%  82.2%   481538   1.1% assignToDispatchArrayEntry
+  408844   0.9%  83.2%  1641993   3.8% rtaUnpackRoutes
+  397644   0.9%  84.1%  1000085   2.3% scanForSmerLookupsForSlices
+
+
 
 
 Memory Usage:

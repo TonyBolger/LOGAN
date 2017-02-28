@@ -209,6 +209,44 @@ Pen-2: 4349
 Pen-3: 113212
 
 
+
+
+
+
+
+Dataset 6: Barley (~5.3Gbp genome)
+
+Raw:
+Barley-1: PRJNA250197	Reads:	667,280,722		BP: 66,728,072,200  (~12x)
+Barley-2: PRJNA249942 	Reads:  1,201,764,080	BP: 120,176,408,000 (~22x)
+Barley-3: SRP021206 	Reads: 	4,213,661,314	BP: 421,366,131,400 (~80x)
+Barley-4: SRP055042
+
+Filtered:
+
+File			Sequences			Bases
+Barley-1_Q20:	  579,282,758		 53,502,882,974 (~10x)
+Barley-2_Q20:	1,044,060,388		 98,554,077,880 (~18x)
+Barley-3_Q20: 	3,743,357,174		349,915,400,334 (~66x)
+
+
+
+
+Dataset 7: Wheat (~17Gb genome)
+
+Raw:
+Wheat-1: PRJNA265585	Reads:	1048023916		BP: 157203587400 (~9x)
+
+PRJNA234411
+PRJNA250383
+
+Filtered:
+
+File			Sequences			Bases
+
+Wheat-1:		956,754,254			121,161,592,429
+
+
 GACATCGAAAATATCAACCATTTCAACGAGCAACACACTAACTACACCCATGTAATGGGAGGTATAGGTGACATTTGTTTAACACTAGCTGATGAAAATGAGATCGGAAGAGCGGTTCAGCAGGAATGCCGAGACCGATATCGTATGCC
                                                                                                     AGATCGGAAGAGCGGTTCAGCAGGAATGCCGAGACCGATCTCGTATGCCGTCTTCTGCTTG
 
@@ -2183,9 +2221,6 @@ Occurrence Power Series:
 
 
 Smers:
-
-
-
 
 
 

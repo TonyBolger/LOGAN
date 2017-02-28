@@ -338,6 +338,8 @@ u8 *getBlockArrayDataEntryRaw(RouteTableTreeArrayProxy *arrayProxy, s32 subindex
 				{
 				u8 *data=interBlock->data[secondSubindex];
 
+				//LOG(LOG_INFO,"Indirect access at subindex %i gives %p", subindex, data);
+
 				/*
 				LOG(LOG_INFO,"Indirect access %p at subindex %i of %i / %i (%i of %i / %i (%p %i -> %p) and %i of %i)",
 						data,
@@ -356,8 +358,9 @@ u8 *getBlockArrayDataEntryRaw(RouteTableTreeArrayProxy *arrayProxy, s32 subindex
 		}
 	else if(arrayProxy->dataBlock!=NULL && subindex >=0 && subindex<arrayProxy->oldDataAlloc)
 		{
-//		LOG(LOG_INFO,"Direct access at subindex %i", subindex);
-		return arrayProxy->dataBlock->data[subindex];
+		u8 *data=arrayProxy->dataBlock->data[subindex];
+		//LOG(LOG_INFO,"Direct access at subindex %i gives %p", subindex, data);
+		return data;
 		}
 
 	LOG(LOG_CRITICAL,"Index out of range %i vs %i",subindex, arrayProxy->oldDataAlloc);

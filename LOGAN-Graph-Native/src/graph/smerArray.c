@@ -130,6 +130,9 @@ void saCleanupSmerArray(SmerArray *smerArray) {
 						stats[j].routeTableTotalBytes, stats[j].smerTotalBytes);
 				}
 
+			// 00001b1ec071	AGTAAAGACGTACTGTAAACTAC	14	45	11	38	2	451	8688	370	7118	821	15806	0	48	392	7272	1188	5808	56	0	48	7768	7863
+			// 000000000000	AAAAAAAAAAAAAAAAAAAAAAA	4	8	8	16	2	55054	1890803	12093	267641	67147	2158444	0	48	1032	496074	3408	491418	224	0	216	497378	497414
+
 			dispenserReset(disp);
 #endif
 			smSmerEntryArrayFree(smerArray->slice[i].smerIT);
