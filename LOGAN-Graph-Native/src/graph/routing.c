@@ -1100,7 +1100,7 @@ static void writeBuildersAsIndirectData(RoutingComboBuilder *routingBuilder, u8 
 		{
 		u8 *newArrayData=circAlloc(circHeap, totalNeededSize, sliceTag, 0, NULL);
 
-		memset(newArrayData,0,totalNeededSize);
+		memset(newArrayData,0,totalNeededSize); // Really needed?
 		u8 *endArrayData=newArrayData+totalNeededSize;
 
 		topPtr=(RouteTableTreeTopBlock *)((*(routingBuilder->rootPtr))+routingBuilder->topDataBlock.headerSize); // Rebind root after alloc
