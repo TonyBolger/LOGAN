@@ -3,7 +3,7 @@
 #CFLAGS=-std=gnu99 -pedantic -pedantic-errors -Wall -Werror -Wextra -Wshadow -O3 -g
 #CFLAGS=-std=gnu99 -pedantic -pedantic-errors -Wall -Werror -Wextra -Wshadow -O0 -g
 
-#-fopt-info-loop 
+# -fopt-info-loop		Prints optimizations during compile 
 # -fno-tree-vectorize 	Prevent strange errors due to misalignment
 # -fno-ipa-sra 			Prevent .isra merged functions which make profiling difficult
 

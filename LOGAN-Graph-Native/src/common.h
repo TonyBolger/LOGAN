@@ -23,8 +23,8 @@
 #include <stdint.h>
 
 
-#define FEATURE_ENABLE_SMER_STATS
-#define FEATURE_ENABLE_HEAP_STATS
+//#define FEATURE_ENABLE_SMER_STATS
+//#define FEATURE_ENABLE_HEAP_STATS
 
 
 #define PAD_1BITLENGTH_BYTE(L) (((L)+7)>>3)
