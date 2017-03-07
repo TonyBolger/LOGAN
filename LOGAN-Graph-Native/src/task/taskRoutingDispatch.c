@@ -98,9 +98,11 @@ static void expandIndexedIntermediateDispatchBlock(RoutingIndexedReadReferenceBl
 
 static void assignReadDataToDispatchIndexedIntermediate(RoutingIndexedReadReferenceBlock *intermediate, RoutingReadData *readData, MemDispenser *disp)
 {
-	u64 entryCount=intermediate->entryCount;
+	s32 entryCount=intermediate->entryCount;
 	if(entryCount>=TR_DISPATCH_READS_PER_INTERMEDIATE_BLOCK && !((entryCount & (entryCount - 1))))
+		{
 		expandIndexedIntermediateDispatchBlock(intermediate, disp);
+		}
 
 	intermediate->entries[entryCount]=readData;
 	intermediate->entryCount++;
@@ -510,26 +512,19 @@ static int indexedReadReferenceBlockSorter(const void *a, const void *b)
 
 	return (*pa)->sliceIndex-(*pb)->sliceIndex;
 }
-
+/*
 static int indexDispatchesForSlice(RoutingReadReferenceBlock *smerInboundDispatches, int sliceSmerCount, MemDispenser *disp,
-		RoutingIndexedReadReferenceBlock **indexedDispatches)
+		RoutingIndexedReadReferenceBlock ***indexedDispatchesPtr)
 {
-//	int size=sizeof(RoutingDispatchIntermediate *) *sliceSmerCount;
-	//RoutingDispatchIntermediate **smerDispatches=dAlloc(disp, size);
-
-//	LOG(LOG_INFO,"%i %p %i %p %p",sliceSmerCount,smerDispatches, size, indexedDispatches, sliceIndexes);
+	RoutingIndexedReadReferenceBlock **indexedDispatches=dAlloc(disp, sizeof(RoutingIndexedReadReferenceBlock *)*  sliceSmerCount);
+	*indexedDispatchesPtr=indexedDispatches;
 
 	RoutingIndexedReadReferenceBlock **smerDispatches=dAlloc(disp, sizeof(RoutingIndexedReadReferenceBlock *)*  sliceSmerCount);
 
 	for(int j=0;j<sliceSmerCount;j++)
-		{
-//		indexedDispatches[j]=NULL;
-//		sliceIndexes[j]=-1;
 		smerDispatches[j]=NULL;
-		}
 
 	int usedCount=0;
-//	int maxCount=0;
 
 
 	for(int i=0;i<smerInboundDispatches->entryCount;i++)
@@ -551,9 +546,6 @@ static int indexDispatchesForSlice(RoutingReadReferenceBlock *smerInboundDispatc
 				}
 
 			assignReadDataToDispatchIndexedIntermediate(rdi,readData,disp);
-
-//			if(rdi->entryCount>maxCount)
-//				maxCount=rdi->entryCount;
 			}
 		else
 			{
@@ -564,17 +556,59 @@ static int indexDispatchesForSlice(RoutingReadReferenceBlock *smerInboundDispatc
 
 	qsort(indexedDispatches, usedCount, sizeof(RoutingIndexedReadReferenceBlock *), indexedReadReferenceBlockSorter);
 
-	/*
-	for(int i=0;i<usedCount;i++)
-		{
-		LOG(LOG_INFO,"Dispatch to slice %li",indexedDispatches[i]->sliceIndex);
-		}
-*/
-
 	return usedCount;
 }
+*/
 
 
+static int calcCapacityForIndexedEntries(int entryCount)
+{
+	if(entryCount<16)
+		return 6;
+
+	int clz=__builtin_clz(entryCount);
+	int size=5+((32-clz)>>1);
+
+	return size;
+}
+
+static int indexDispatchesForSlice(RoutingReadReferenceBlock *smerInboundDispatches, int sliceSmerCount, MemDispenser *disp,
+		RoutingIndexedReadReferenceBlock ***indexedDispatchesPtr)
+{
+	IohHash *map=iohInitMap(disp, calcCapacityForIndexedEntries(smerInboundDispatches->entryCount));
+
+	for(int i=0;i<smerInboundDispatches->entryCount;i++)
+	{
+		RoutingReadData *readData=smerInboundDispatches->entries[i];
+		int sliceIndex=readData->sliceIndexes[readData->indexCount];
+
+		if(sliceIndex>=0 && sliceIndex<sliceSmerCount)
+			{
+			RoutingIndexedReadReferenceBlock *rdi=iohGet(map,sliceIndex);
+
+			if(rdi==NULL)
+				{
+				rdi=allocDispatchIndexedIntermediateBlock(disp);
+				rdi->sliceIndex=sliceIndex;
+
+				iohPut(map,sliceIndex,rdi);
+				}
+
+			assignReadDataToDispatchIndexedIntermediate(rdi,readData,disp);
+			}
+		else
+			{
+			LOG(LOG_CRITICAL,"Got invalid slice index %i",sliceIndex);
+			}
+	}
+
+	RoutingIndexedReadReferenceBlock **indexedDispatches=(RoutingIndexedReadReferenceBlock **)iohGetAllValues(map);
+	*indexedDispatchesPtr=indexedDispatches;
+
+	qsort(indexedDispatches, map->entryCount, sizeof(RoutingIndexedReadReferenceBlock *), indexedReadReferenceBlockSorter);
+
+	return map->entryCount;
+}
 
 /*
 void dumpPatches(RoutePatch *patches, int patchCount)
@@ -594,8 +628,12 @@ static void processSlice(RoutingReadReferenceBlock *smerInboundDispatches,  Smer
 
 		if(smerInboundDispatches->entryCount>0)
 			{
+
+
+
+
 			// Wasteful approach for groups with few reads - consider stable sort based on sliceIndex first
-			RoutingIndexedReadReferenceBlock **indexedDispatches=dAlloc(disp, sizeof(RoutingIndexedReadReferenceBlock *)*  slice->smerCount);
+//			RoutingIndexedReadReferenceBlock **indexedDispatches=dAlloc(disp, sizeof(RoutingIndexedReadReferenceBlock *)*  slice->smerCount);
 			//u32 *sliceIndexes=dAlloc(disp, sizeof(u32)*slice->smerCount);
 /*
 			for(int j=0;j<slice->smerCount;j++)
@@ -604,8 +642,13 @@ static void processSlice(RoutingReadReferenceBlock *smerInboundDispatches,  Smer
 				sliceIndexes[j]=-1;
 				}
 */
-			int indexLength=indexDispatchesForSlice(smerInboundDispatches, slice->smerCount, disp, indexedDispatches);//, smerTmpDispatches);
 
+			RoutingIndexedReadReferenceBlock **indexedDispatches=NULL;
+
+			int indexLength=indexDispatchesForSlice(smerInboundDispatches, slice->smerCount, disp, &indexedDispatches);//, smerTmpDispatches);
+
+//			if(smerInboundDispatches->entryCount>10)
+//				LOG(LOG_INFO,"SMERS: %i INBOUND: %i INDEX: %i",slice->smerCount,smerInboundDispatches->entryCount, indexLength);
 
 			u8 sliceTag=(u8)sliceIndex; // In practice, cannot be bigger than SMER_DISPATCH_GROUP_SLICES (256)
 
@@ -706,11 +749,12 @@ static int gatherSliceOutbound(RoutingDispatchGroupState *groupState, int sliceN
 
 
 
-static int scanForDispatchesForGroups(RoutingBuilder *rb, int startGroup, int endGroup, int force, int workerNo)
+static int scanForDispatchesForGroups(RoutingBuilder *rb, int startGroup, int endGroup, int force, int workerNo, int *lastGroupPtr)
 {
 	int work=0;
+	int i;
 
-	for(int i=startGroup;i<endGroup;i++)
+	for(i=startGroup;i<endGroup;i++)
 		{
 		RoutingReadReferenceBlockDispatch *tmpPtr=__atomic_load_n(rb->dispatchPtr+i, __ATOMIC_SEQ_CST);
 
@@ -726,7 +770,7 @@ static int scanForDispatchesForGroups(RoutingBuilder *rb, int startGroup, int en
 					{
 					MemDispenser *routingDisp=dispenserAlloc("Routing", DISPENSER_BLOCKSIZE_HUGE);
 
-					work=1;
+					work++;
 
 					RoutingReadReferenceBlockDispatch *reversed=buildPrevLinks(dispatchEntry);
 					assignReversedInboundDispatchesToSlices(reversed, groupState);
@@ -761,7 +805,9 @@ static int scanForDispatchesForGroups(RoutingBuilder *rb, int startGroup, int en
 //							for(int i=0;i<inboundEntryCount;i++)
 //								LOG(LOG_INFO,"%i",rdiIndexes[i]);
 
-							work+=gatherSliceOutbound(groupState, j, orderedDispatches);
+							//work+=gatherSliceOutbound(groupState, j, orderedDispatches);
+
+							gatherSliceOutbound(groupState, j, orderedDispatches);
 							}
 						}
 
@@ -775,21 +821,28 @@ static int scanForDispatchesForGroups(RoutingBuilder *rb, int startGroup, int en
 				}
 			}
 
+		if(work>TR_DISPATCH_MAX_WORK)
+			break;
 		}
 
-	return work>0;
+	*lastGroupPtr=i;
+
+	return work;
 }
 
 
 
-int scanForDispatches(RoutingBuilder *rb, int workerNo, int force)
+int scanForDispatches(RoutingBuilder *rb, int workerNo, RoutingWorkerState *wState, int force)
 {
-	int startPos=(workerNo*SMER_SLICE_PRIME)&SMER_DISPATCH_GROUP_MASK;
-
+	int position=wState->dispatchGroupCurrent;
 	int work=0;
+	int lastGroup=-1;
 
-	work=scanForDispatchesForGroups(rb,startPos,SMER_DISPATCH_GROUPS, force, workerNo);
-	work+=scanForDispatchesForGroups(rb, 0, startPos, force, workerNo);
+	work=scanForDispatchesForGroups(rb,position,SMER_DISPATCH_GROUPS, force, workerNo, &lastGroup);
+	if(work<TR_DISPATCH_MAX_WORK)
+		work+=scanForDispatchesForGroups(rb, 0, position, force, workerNo, &lastGroup);
+
+	wState->dispatchGroupCurrent=lastGroup;
 
 	return work;
 }

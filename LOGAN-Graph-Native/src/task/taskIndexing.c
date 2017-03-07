@@ -9,17 +9,19 @@
 
 
 
-static void tiDoRegister(ParallelTask *pt, int workerNo)
+static void *tiDoRegister(ParallelTask *pt, int workerNo)
 {
-	LOG(LOG_INFO,"TaskIndexing: DoRegister (%i)",workerNo);
+	return NULL;
 }
 
-static void tiDoDeregister(ParallelTask *pt, int workerNo)
+static void tiDoDeregister(ParallelTask *pt, int workerNo, void *workerState)
 {
-	LOG(LOG_INFO,"TaskIndexing: DoDeregister (%i)",workerNo);
+	if(workerState!=NULL)
+		gFree(workerState);
+
 }
 
-static int tiDoIngress(ParallelTask *pt, int workerNo,void *ingressPtr, int ingressPosition, int ingressSize)
+static int tiDoIngress(ParallelTask *pt, int workerNo, void *workerState, void *ingressPtr, int ingressPosition, int ingressSize)
 {
 	SwqBuffer *rec=ingressPtr;
 	IndexingBuilder *ib=pt->dataPtr;
@@ -55,7 +57,7 @@ static int tiDoIntermediate(ParallelTask *pt, int workerNo, int force)
 }
 */
 
-static int tiDoTidy(ParallelTask *pt, int workerNo, int tidyNo)
+static int tiDoTidy(ParallelTask *pt, int workerNo, void *workerState, int tidyNo)
 {
 	IndexingBuilder *ib=pt->dataPtr;
 	Graph *graph=ib->graph;

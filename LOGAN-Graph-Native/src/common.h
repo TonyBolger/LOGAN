@@ -186,6 +186,7 @@ typedef struct swqBufferStr {
 #include "util/bitMap.h"
 #include "util/bitPacking.h"
 #include "util/bloom.h"
+#include "util/intObjectHash.h"
 #include "util/log.h"
 #include "util/pack.h"
 #include "util/smerImplicitTree.h"

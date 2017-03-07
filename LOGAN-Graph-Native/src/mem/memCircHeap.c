@@ -335,6 +335,8 @@ static void *allocFromGeneration(MemCircGeneration *generation, size_t newAllocS
 
 	int needTag=(generation->allocCurrentChunkTag!=tag || generation->allocCurrentChunkTagOffset > firstTagOffset || generation->allocCurrentChunkPtr==NULL);
 
+	//LOG(LOG_INFO,"Need tag %i - %i %i %i", needTag, generation->allocCurrentChunkTag!=tag, generation->allocCurrentChunkTagOffset > firstTagOffset, generation->allocCurrentChunkPtr==NULL);
+
 	if(needTag)
 		newAllocSize+=2; // Allow for chunk marker and tag
 
@@ -593,11 +595,17 @@ static MemCircHeapChunkIndex *moveIndexedHeap(MemCircHeap *circHeap, MemCircHeap
 			u8 *newChunk=NULL;
 
 			if(scan->firstLiveTagOffset==-1)
+				{
+//				LOG(LOG_INFO,"moveIndexHeap alloc 1");
 				newChunk=allocFromGeneration(circHeap->generations+allocGeneration, scan->sizeLive,
-									scan->chunkTag, 0, 0, NULL);
+									scan->chunkTag, INT_MAX, INT_MAX, NULL);
+				}
 			else
+				{
+//				LOG(LOG_INFO,"moveIndexHeap alloc 2");
 				newChunk=allocFromGeneration(circHeap->generations+allocGeneration, scan->sizeLive,
 					scan->chunkTag, scan->firstLiveTagOffset, scan->lastLiveTagOffset, &(scan->newChunkOldTagOffset));
+				}
 
 //			LOG(LOG_INFO,"moveIndexedHeap Alloc: %p Size: %li ChunkTag: %i Generation: %i",newChunk,scan->sizeLive,scan->chunkTag,allocGeneration);
 

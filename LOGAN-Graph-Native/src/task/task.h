@@ -19,13 +19,13 @@ typedef struct parallelTaskStr ParallelTask;
 
 typedef struct parallelTaskConfigStr
 {
-	void (*doRegister)(ParallelTask *pt, int workerNo);
-	void (*doDeregister)(ParallelTask *pt, int workerNo);
+	void *(*doRegister)(ParallelTask *pt, int workerNo);
+	void (*doDeregister)(ParallelTask *pt, int workerNo, void *workerState);
 
 	int (*allocateIngressSlot)(ParallelTask *pt, int workerNo);
-	int (*doIngress)(ParallelTask *pt, int workerNo,void *ingressPtr, int ingressPosition, int ingressSize);
-	int (*doIntermediate)(ParallelTask *pt, int workerNo, int force);
-	int (*doTidy)(ParallelTask *pt, int workerNo, int tidyNo);
+	int (*doIngress)(ParallelTask *pt, int workerNo, void *workerState, void *ingressPtr, int ingressPosition, int ingressSize);
+	int (*doIntermediate)(ParallelTask *pt, int workerNo, void *workerState, int force);
+	int (*doTidy)(ParallelTask *pt, int workerNo, void *workerState, int tidyNo);
 
 	s32 expectedThreads;
 	int ingressBlocksize;
@@ -123,12 +123,12 @@ struct parallelTaskStr
 */
 
 ParallelTaskConfig *allocParallelTaskConfig(
-		void (*doRegister)(ParallelTask *pt, int workerNo),
-		void (*doDeregister)(ParallelTask *pt, int workerNo),
+		void *(*doRegister)(ParallelTask *pt, int workerNo),
+		void (*doDeregister)(ParallelTask *pt, int workerNo, void *workerState),
 		int (*allocateIngressSlot)(ParallelTask *pt, int workerNo),
-		int (*doIngress)(ParallelTask *pt, int workerNo,void *ingressPtr, int ingressPosition, int ingressSize),
-		int (*doIntermediate)(ParallelTask *pt, int workerNo, int force),
-		int (*doTidy)(ParallelTask *pt, int workerNo, int tidyNo),
+		int (*doIngress)(ParallelTask *pt, int workerNo, void *workerState, void *ingressPtr, int ingressPosition, int ingressSize),
+		int (*doIntermediate)(ParallelTask *pt, int workerNo, void *workerState, int force),
+		int (*doTidy)(ParallelTask *pt, int workerNo, void *workerState, int tidyNo),
 		int expectedThreads, int ingressBlocksize,
 		int ingressPerTidyMin, int ingressPerTidyMax, int tidysPerBackoff, int tasksPerTidy);
 

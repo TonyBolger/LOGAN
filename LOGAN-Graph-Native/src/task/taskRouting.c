@@ -10,12 +10,17 @@
 
 
 
-static void trDoRegister(ParallelTask *pt, int workerNo)
+static void *trDoRegister(ParallelTask *pt, int workerNo)
 {
+	RoutingWorkerState *workerState=gAlloc(sizeof(RoutingWorkerState));
 
+	workerState->lookupSliceDefault=workerState->lookupSliceCurrent=(workerNo*SMER_SLICE_PRIME)&SMER_SLICE_MASK;
+	workerState->dispatchGroupDefault=workerState->dispatchGroupCurrent=(workerNo*SMER_SLICE_PRIME)&SMER_DISPATCH_GROUP_MASK;
+
+	return workerState;
 }
 
-static void trDoDeregister(ParallelTask *pt, int workerNo)
+static void trDoDeregister(ParallelTask *pt, int workerNo, void *wState)
 {
 
 }
@@ -28,7 +33,7 @@ static int trAllocateIngressSlot(ParallelTask *pt, int workerNo)
 }
 
 
-static int trDoIngress(ParallelTask *pt, int workerNo,void *ingressPtr, int ingressPosition, int ingressSize)
+static int trDoIngress(ParallelTask *pt, int workerNo,void *wState, void *ingressPtr, int ingressPosition, int ingressSize)
 {
 	SwqBuffer *rec=ingressPtr;
 	RoutingBuilder *rb=pt->dataPtr;
@@ -126,8 +131,9 @@ static void dumpUnclean(RoutingBuilder *rb)
 */
 
 
-static int trDoIntermediate(ParallelTask *pt, int workerNo, int force)
+static int trDoIntermediate(ParallelTask *pt, int workerNo, void *wState, int force)
 {
+	RoutingWorkerState *workerState=wState;
 	RoutingBuilder *rb=pt->dataPtr;
 
 	if(scanForCompleteReadDispatchBlocks(rb))
@@ -144,7 +150,7 @@ static int trDoIntermediate(ParallelTask *pt, int workerNo, int force)
 
 	if(rb->allocatedReadDispatchBlocks==TR_READBLOCK_DISPATCHES_INFLIGHT)
 		{
-		if(scanForDispatches(rb, workerNo, force))
+		if(scanForDispatches(rb, workerNo, workerState, force))
 			{
 			//LOG(LOG_INFO,"scanForDispatches 1");
 			return 1;
@@ -153,7 +159,7 @@ static int trDoIntermediate(ParallelTask *pt, int workerNo, int force)
 
 	if((force)||(rb->allocatedReadLookupBlocks==TR_READBLOCK_LOOKUPS_INFLIGHT))
 		{
-		if(scanForSmerLookups(rb, workerNo))
+		if(scanForSmerLookups(rb, workerNo, workerState))
 			{
 			//LOG(LOG_INFO,"scanForSmerLookups");
 			return 1;
@@ -162,7 +168,7 @@ static int trDoIntermediate(ParallelTask *pt, int workerNo, int force)
 
 	if(force)
 		{
-		if(scanForDispatches(rb, workerNo, force))
+		if(scanForDispatches(rb, workerNo, workerState, force))
 			{
 			//LOG(LOG_INFO,"scanForDispatches 2");
 			return 1;
@@ -180,7 +186,7 @@ static int trDoIntermediate(ParallelTask *pt, int workerNo, int force)
 	return 0;
 }
 
-static int trDoTidy(ParallelTask *pt, int workerNo, int tidyNo)
+static int trDoTidy(ParallelTask *pt, int workerNo, void *wState, int tidyNo)
 {
 	return 0;
 }

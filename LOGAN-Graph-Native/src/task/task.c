@@ -168,7 +168,7 @@ static void performTaskNewIngress(ParallelTask *pt)
 	pthread_cond_broadcast(&(pt->master_ingress));
 }
 
-static int performTaskActive(ParallelTask *pt, int workerNo)
+static int performTaskActive(ParallelTask *pt, int workerNo, RoutingWorkerState *wState)
 {
 	int lockRet=0, ret=0;
 
@@ -177,7 +177,7 @@ static int performTaskActive(ParallelTask *pt, int workerNo)
 		{
 		pthread_mutex_unlock(&(pt->mutex));
 
-		ret = pt->config->doIntermediate(pt,workerNo,0);
+		ret = pt->config->doIntermediate(pt,workerNo,wState,0);
 
 		lockRet=pthread_mutex_lock(&(pt->mutex));
 		if(lockRet!=0)
@@ -237,7 +237,7 @@ static int performTaskActive(ParallelTask *pt, int workerNo)
 
 		pthread_mutex_unlock(&(pt->mutex));
 
-		ret=pt->config->doIngress(pt,workerNo,ingressPtr, ingressPos, ingressSize);
+		ret=pt->config->doIngress(pt,workerNo,wState, ingressPtr, ingressPos, ingressSize);
 
 		lockRet=pthread_mutex_lock(&(pt->mutex));
 		if(lockRet!=0)
@@ -263,7 +263,7 @@ static int performTaskActive(ParallelTask *pt, int workerNo)
 		{
 		pthread_mutex_unlock(&(pt->mutex));
 
-		ret = pt->config->doIntermediate(pt,workerNo,1);
+		ret = pt->config->doIntermediate(pt,workerNo,wState, 1);
 
 		lockRet=pthread_mutex_lock(&(pt->mutex));
 		if(lockRet!=0)
@@ -329,7 +329,7 @@ void performTidyWait(ParallelTask *pt)
 //	LOG(LOG_INFO,"TIDY WAIT done");
 }
 
-void performTidy(ParallelTask *pt, int workerNo)
+void performTidy(ParallelTask *pt, int workerNo, RoutingWorkerState *wState)
 {
 	int tidyPos=pt->activeTidyPosition;
 
@@ -346,7 +346,7 @@ void performTidy(ParallelTask *pt, int workerNo)
 		{
 		pthread_mutex_unlock(&(pt->mutex));
 
-		pt->config->doTidy(pt,workerNo,tidyPos);
+		pt->config->doTidy(pt,workerNo,wState, tidyPos);
 
 		int ret=pthread_mutex_lock(&(pt->mutex));
 		if(ret!=0)
@@ -375,7 +375,7 @@ void performTask_worker(ParallelTask *pt)
 
 	//LOG(LOG_INFO,"Worker %i Register",workerNo);
 
-	pt->config->doRegister(pt,workerNo);
+	RoutingWorkerState *wState=pt->config->doRegister(pt,workerNo);
 
 	//LOG(LOG_INFO,"Worker %i Startup Barrier wait",workerNo);
 
@@ -408,7 +408,7 @@ void performTask_worker(ParallelTask *pt)
 
 		if(pt->state==PTSTATE_ACTIVE)
 			{
-			if(performTaskActive(pt,workerNo))
+			if(performTaskActive(pt,workerNo, wState))
 				{
 				pthread_cond_broadcast(&(pt->workers_idle));
 				}
@@ -439,7 +439,7 @@ void performTask_worker(ParallelTask *pt)
 			{
 			if(pt->activeTidyTotal>0)
 				{
-				performTidy(pt, workerNo);
+				performTidy(pt, workerNo, wState);
 				}
 			else
 				{
@@ -490,7 +490,7 @@ void performTask_worker(ParallelTask *pt)
 		}
 
 	while(pt->activeTidyTotal>0)
-		performTidy(pt, workerNo);
+		performTidy(pt, workerNo, wState);
 
 
 	// Release Lock at shutdown
@@ -513,7 +513,7 @@ void performTask_worker(ParallelTask *pt)
 
 //	LOG(LOG_INFO,"Worker %i Deregister",workerNo);
 
-	pt->config->doDeregister(pt,workerNo);
+	pt->config->doDeregister(pt,workerNo,wState);
 	int alive=__atomic_sub_fetch(&(pt->liveThreads),1, __ATOMIC_SEQ_CST);
 
 //	LOG(LOG_INFO,"Worker %i - still alive %i",workerNo,alive);
@@ -547,12 +547,12 @@ void performTask_worker(ParallelTask *pt)
 
 
 ParallelTaskConfig *allocParallelTaskConfig(
-		void (*doRegister)(ParallelTask *pt, int workerNo),
-		void (*doDeregister)(ParallelTask *pt, int workerNo),
+		void *(*doRegister)(ParallelTask *pt, int workerNo),
+		void (*doDeregister)(ParallelTask *pt, int workerNo, void *workerState),
 		int (*allocateIngressSlot)(ParallelTask *pt, int workerNo),
-		int (*doIngress)(ParallelTask *pt, int workerNo,void *ingressPtr, int ingressPosition, int ingressSize),
-		int (*doIntermediate)(ParallelTask *pt, int workerNo, int force),
-		int (*doTidy)(ParallelTask *pt, int workerNo, int tidyNo),
+		int (*doIngress)(ParallelTask *pt, int workerNo, void *workerState, void *ingressPtr, int ingressPosition, int ingressSize),
+		int (*doIntermediate)(ParallelTask *pt, int workerNo, void *workerState, int force),
+		int (*doTidy)(ParallelTask *pt, int workerNo, void *workerState, int tidyNo),
 		int expectedThreads, int ingressBlocksize,
 		int ingressPerTidyMin, int ingressPerTidyMax, int tidysPerBackoff, int tasksPerTidy)
 {

@@ -1,7 +1,7 @@
 
 #include "../common.h"
 
-static const float MAX_LOAD_FACTOR = 0.45; // 0.68 -> 0.65 -> 0.60: Reduced to eliminate large scan counts
+static const float MAX_LOAD_FACTOR = 0.40; // 0.68 -> 0.65 -> 0.60 -> 0.45 -> 0.40: Reduced to eliminate large scan counts
 
 static const u32 INIT_SHIFT=10;
 
@@ -98,10 +98,7 @@ static int scanForSmer_HS(SmerMapSlice *smerMapSlice, SmerEntry entry, u32 hash,
 			position = 0;
 
 			if (scanCount > 200)
-				{
 				LOG(LOG_CRITICAL,"Filled hashmap: count %i from %i in %i for %x (got %x)",scanCount,(hash & mask), sliceNum, entry, tmp);
-				exit(1);
-				}
 			}
 
 		tmp=__atomic_load_n((smerMapSlice->smers + position), __ATOMIC_SEQ_CST);

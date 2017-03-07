@@ -542,11 +542,12 @@ int scanForAndDispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb)
 	return 1;
 }
 
-static int scanForSmerLookupsForSlices(RoutingBuilder *rb, int startSlice, int endSlice)
+static int scanForSmerLookupsForSlices(RoutingBuilder *rb, int startSlice, int endSlice, int *lastSlicePtr)
 {
 	int work=0;
+	int i;
 
-	for(int i=startSlice;i<endSlice;i++)
+	for(i=startSlice;i<endSlice;i++)
 		{
 		RoutingSmerEntryLookup *lookupEntry=dequeueLookupForSliceList(rb, i);
 
@@ -567,21 +568,35 @@ static int scanForSmerLookupsForSlices(RoutingBuilder *rb, int startSlice, int e
 				lookupEntryScan=lookupEntryScan->nextPtr;
 				}
 			}
-
+		if(work>TR_LOOKUP_MAX_WORK)
+			break;
 		}
 
-	return work>0;
+	*lastSlicePtr=i;
+
+	return work;
 }
 
 
-int scanForSmerLookups(RoutingBuilder *rb, int workerNo)
+int scanForSmerLookups(RoutingBuilder *rb, int workerNo, RoutingWorkerState *wState)
 {
-	int startPos=(workerNo*SMER_SLICE_PRIME)&SMER_SLICE_MASK;
-
+	//int startPos=(workerNo*SMER_SLICE_PRIME)&SMER_SLICE_MASK;
+/*
 	int work=0;
 
 	work=scanForSmerLookupsForSlices(rb,startPos,SMER_SLICES);
 	work+=scanForSmerLookupsForSlices(rb, 0, startPos);
+*/
+
+	int position=wState->lookupSliceCurrent;
+	int work=0;
+	int lastSlice=-1;
+
+	work=scanForSmerLookupsForSlices(rb,position,SMER_SLICES, &lastSlice);
+	if(work<TR_LOOKUP_MAX_WORK)
+		work+=scanForSmerLookupsForSlices(rb, 0, position,  &lastSlice);
+
+	wState->lookupSliceCurrent=lastSlice;
 
 	return work;
 }

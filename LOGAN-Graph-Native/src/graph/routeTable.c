@@ -1440,6 +1440,7 @@ MemCircHeapChunkIndex *rtReclaimIndexer(u8 *heapDataPtr, s64 targetAmount, u8 ta
 
 void rtRelocater(MemCircHeapChunkIndex *index, u8 tag, u8 **tagData, s32 tagDataLength)
 {
+//	LOG(LOG_INFO,"Begin rtRelocater");
 	u8 *newChunk=index->newChunk;
 	u8 *endPtr=newChunk+index->sizeLive;
 
@@ -1499,7 +1500,15 @@ void rtRelocater(MemCircHeapChunkIndex *index, u8 tag, u8 **tagData, s32 tagData
 
 			if(topindex<=ROUTE_TOPINDEX_REVERSE_LEAF_ARRAY_0)		// Zero level Array (directly in top)
 				{
+				/*
+				LOG(LOG_INFO,"Relocate Index Array: Index: %i TopIndex: %i SubIndex: %i Size: %i",
+						index->entries[i].index, index->entries[i].topindex,
+						index->entries[i].subindex, index->entries[i].size);
+
+				LOG(LOG_INFO,"Moving Array to %p from %p size %i",newChunk, topPtr->data[topindex], size);
+*/
 				memmove(newChunk,topPtr->data[topindex],size);
+
 				topPtr->data[topindex]=newChunk;
 				newChunk+=size;
 				}
@@ -1545,6 +1554,14 @@ void rtRelocater(MemCircHeapChunkIndex *index, u8 tag, u8 **tagData, s32 tagData
 					}
 				else
 					{
+					/*
+					LOG(LOG_INFO,"Relocate Index Entry: Index: %i TopIndex: %i SubIndex: %i Size: %i",
+							index->entries[i].index, index->entries[i].topindex,
+							index->entries[i].subindex, index->entries[i].size);
+
+
+					LOG(LOG_INFO,"Moving to %p from %p (%i) size %i Array Header %i ArrayBlock %p",newChunk, array->data[subindex], subindex, size, headerSize, arrayBlockPtr);
+					*/
 					memmove(newChunk,array->data[subindex],size);
 					array->data[subindex]=newChunk;
 					}
@@ -1559,7 +1576,7 @@ void rtRelocater(MemCircHeapChunkIndex *index, u8 tag, u8 **tagData, s32 tagData
 		LOG(LOG_CRITICAL,"Mismatch Actual: %p vs Expected: %p after relocate",newChunk,endPtr);
 		}
 
-//	LOG(LOG_INFO,"Relocated for %p with data %p",index,index->newChunk);
+	//LOG(LOG_INFO,"Relocated for %p with data %p",index,index->newChunk);
 }
 
 

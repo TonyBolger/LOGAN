@@ -20,7 +20,7 @@ void showReadDispatchBlocks(RoutingBuilder *rb);
 
 // Entry points for trDoIntermediate
 int scanForCompleteReadDispatchBlocks(RoutingBuilder *rb);
-int scanForDispatches(RoutingBuilder *rb, int workerNo, int force);
+int scanForDispatches(RoutingBuilder *rb, int workerNo, RoutingWorkerState *wState, int force);
 
 void queueDispatchArray(RoutingBuilder *rb, RoutingReadReferenceBlockDispatchArray *dispArray);
 
