@@ -9,6 +9,6 @@ void queueReadsForSmerLookup(SwqBuffer *rec, int ingressPosition, int ingressSiz
 
 // Entry points for trDoIntermediate
 int scanForAndDispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb);
-int scanForSmerLookups(RoutingBuilder *rb, int workerNo, RoutingWorkerState *wState);
+int scanForSmerLookups(RoutingBuilder *rb, int workerNo, RoutingWorkerState *wState, int force);
 
 #endif

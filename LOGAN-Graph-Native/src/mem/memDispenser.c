@@ -7,7 +7,7 @@ static MemDispenserBlock *dispenserBlockAlloc(s32 blocksize)
 {
 	MemDispenserBlock *block=NULL;
 
-	if(sizeof(MemDispenserBlock)&CACHE_ALIGNMENT_MASK)
+	if(sizeof(MemDispenserBlock)&(CACHE_ALIGNMENT_SIZE-1))
 		{
 		LOG(LOG_CRITICAL,"Dispenser block not a multiple of cache alignment size %i vs %i",sizeof(MemDispenserBlock),CACHE_ALIGNMENT_SIZE);
 		}
@@ -30,7 +30,7 @@ static MemDispenserBlock *dispenserBlockAlloc(s32 blocksize)
 }
 
 
-MemDispenser *dispenserAlloc(const char *name, u32 blocksize)
+MemDispenser *dispenserAlloc(const char *name, u32 baseBlocksize, u32 maxBlocksize)
 {
 	//LOG(LOG_INFO,"Allocating Dispenser: %s",name);
 	MemDispenser *disp=malloc(sizeof(MemDispenser));
@@ -39,13 +39,15 @@ MemDispenser *dispenserAlloc(const char *name, u32 blocksize)
 		LOG(LOG_CRITICAL,"Failed to alloc dispenser");
 
 	disp->name=name;
-	disp->blocksize=blocksize;
-	disp->block=dispenserBlockAlloc(blocksize);
+	disp->blocksize=baseBlocksize;
+	disp->maxBlocksize=maxBlocksize;
+
+	disp->block=dispenserBlockAlloc(baseBlocksize);
 	disp->allocated=0;
 
-	int i=0;
-	for(i=0;i<MAX_ALLOCATORS;i++)
-		disp->allocatorUsage[i]=0;
+//	int i=0;
+//	for(i=0;i<MAX_ALLOCATORS;i++)
+//		disp->allocatorUsage[i]=0;
 
 //	memset(disp->allocatorUsage,0,sizeof(int)*MAX_ALLOCATORS);
 
@@ -153,9 +155,9 @@ void dispenserReset(MemDispenser *dispenser)
 	dispenser->block->prev=NULL;
 	dispenser->allocated=0;
 
-	int i=0;
-	for(i=0;i<MAX_ALLOCATORS;i++)
-		dispenser->allocatorUsage[i]=0;
+//	int i=0;
+//	for(i=0;i<MAX_ALLOCATORS;i++)
+//		dispenser->allocatorUsage[i]=0;
 
 }
 
@@ -166,47 +168,74 @@ int dispenserSize(MemDispenser *disp)
 }
 
 
-void *dAlloc(MemDispenser *disp, size_t size)
+static void *dAllocAligned(MemDispenser *disp, size_t allocSize, s32 alignmentMask)
 {
-	if(size==0)
+	if(allocSize==0)
 		return NULL;
 
 	if(disp->allocated>DISPENSER_MAX)
 		{
-		LOG(LOG_INFO,"Dispenser Overallocation detected - wanted %i\n",(int)size);
-		int i;
-		for(i=0;i<MAX_ALLOCATORS;i++)
-			LOG(LOG_INFO,"%i %i\n",i,disp->allocatorUsage[i]);
-
+		LOG(LOG_INFO,"Dispenser Overallocation detected - wanted %i\n",(int)allocSize);
 		LOG(LOG_CRITICAL,"Dispenser %s refusing to allocate",disp->name);
 
 		return NULL;
 		}
 
-	//if(size>10000)
-		//LOG(LOG_INFO,"Large Alloc %i\n",(int)size);
+	int padSize=0;
 
-	size_t allocSize=size;
-
-	if(disp->block == NULL || disp->block->allocated+allocSize > disp->block->blocksize)
+	if(alignmentMask>0)
 		{
-		MemDispenserBlock *newBlock=dispenserBlockAlloc(disp->blocksize);
+		int offset=disp->block->allocated & alignmentMask;
+		if(offset>0)
+			padSize=1+alignmentMask-offset;
+		}
+
+//	if(disp->block != NULL)
+//		LOG(LOG_INFO,"Alloc of %i with %i padding using blocksize ",allocSize,padSize, disp->blocksize);
+
+	int tempAllocSize=allocSize+padSize;
+
+	if(disp->block == NULL || disp->block->allocated+tempAllocSize > disp->block->blocksize)
+		{
+		u32 blocksize=disp==NULL? disp->blocksize: disp->block->blocksize;
+
+		if(tempAllocSize>blocksize)
+			{
+			padSize=0;
+
+			while(allocSize>blocksize)
+				{
+				blocksize=blocksize*2;
+				if(blocksize>=disp->maxBlocksize)
+					{
+					LOG(LOG_INFO,"Warning: Block %s expanded to max: %i",disp->name,disp->maxBlocksize);
+					blocksize=disp->maxBlocksize;
+					break;
+					}
+
+				LOG(LOG_INFO,"Block %s expanded to: %i",disp->name,blocksize);
+				}
+			}
+
+		MemDispenserBlock *newBlock=dispenserBlockAlloc(blocksize);
 
 		newBlock->prev=disp->block;
 		disp->block=newBlock;
 		}
 
+	allocSize+=padSize;
+
 	MemDispenserBlock *block=disp->block;
 
-	if(block->allocated+size > block->blocksize)
+	if(block->allocated+allocSize > block->blocksize)
 		{
-		LOG(LOG_INFO,"Dispenser Local overallocation detected - wanted %i\n",(int)size);
+		LOG(LOG_INFO,"Dispenser Local overallocation detected - wanted %i\n",(int)allocSize);
 
 		LOG(LOG_CRITICAL,"Dispenser %s refusing to allocate",disp->name);
 		return NULL;
 		}
 
-	void *usrPtr=block->data+block->allocated;
+	void *usrPtr=block->data+block->allocated+padSize;
 
 	block->allocated+=allocSize;
 	disp->allocated+=allocSize;
@@ -219,179 +248,20 @@ void *dAlloc(MemDispenser *disp, size_t size)
 }
 
 
-void *dAllocLogged(MemDispenser *disp, size_t size)
+void *dAlloc(MemDispenser *disp, size_t size)
 {
-	if(size==0)
-		return NULL;
-
-	if(disp->allocated>DISPENSER_MAX)
-		{
-		LOG(LOG_INFO,"Dispenser Overallocation detected - wanted %i\n",(int)size);
-		int i;
-		for(i=0;i<MAX_ALLOCATORS;i++)
-			LOG(LOG_INFO,"%i %i\n",i,disp->allocatorUsage[i]);
-
-		LOG(LOG_CRITICAL,"Dispenser %s refusing to allocate",disp->name);
-
-		return NULL;
-		}
-
-	//if(size>10000)
-		//LOG(LOG_INFO,"Large Alloc %i\n",(int)size);
-
-	size_t allocSize=size;
-
-	if(disp->block == NULL || disp->block->allocated+allocSize > disp->block->blocksize)
-		{
-		MemDispenserBlock *newBlock=dispenserBlockAlloc(disp->blocksize);
-
-		newBlock->prev=disp->block;
-		disp->block=newBlock;
-		}
-
-	MemDispenserBlock *block=disp->block;
-
-	if(block->allocated+size > block->blocksize)
-		{
-		LOG(LOG_INFO,"Dispenser Local overallocation detected - wanted %i\n",(int)size);
-
-		LOG(LOG_CRITICAL,"Dispenser %s refusing to allocate",disp->name);
-		return NULL;
-		}
-
-	void *usrPtr=block->data+block->allocated;
-
-	block->allocated+=allocSize;
-	disp->allocated+=allocSize;
-
-	LOG(LOG_INFO,"Alloced %i at %p - %i %i %i",allocSize,usrPtr,disp->allocated,block->allocated,disp->blocksize);
-
-	return usrPtr;
+	return dAllocAligned(disp,size,0);
 }
-
-
-
 
 void *dAllocQuadAligned(MemDispenser *disp, size_t size)
 {
-	if(size==0)
-		return NULL;
-
-	if(disp->allocated>DISPENSER_MAX)
-		{
-		LOG(LOG_INFO,"Dispenser Overallocation detected - wanted %i\n",(int)size);
-		int i;
-		for(i=0;i<MAX_ALLOCATORS;i++)
-			LOG(LOG_INFO,"%i %i\n",i,disp->allocatorUsage[i]);
-
-		LOG(LOG_CRITICAL,"Dispenser %s refusing to allocate",disp->name);
-
-		return NULL;
-		}
-
-	//if(size>10000)
-		//LOG(LOG_INFO,"Large Alloc %i\n",(int)size);
-
-	size_t allocSize=size;
-
-	if(disp->block == NULL || disp->block->allocated+allocSize+QUAD_ALIGNMENT_MASK > disp->block->blocksize)
-		{
-		MemDispenserBlock *newBlock=dispenserBlockAlloc(disp->blocksize);
-
-		newBlock->prev=disp->block;
-		disp->block=newBlock;
-		}
-
-	MemDispenserBlock *block=disp->block;
-
-	int padSize=0;
-	int offset=block->allocated & QUAD_ALIGNMENT_MASK;
-	if(offset>0)
-		{
-		padSize=QUAD_ALIGNMENT_SIZE-offset;
-
-		block->allocated+=padSize;
-		disp->allocated+=padSize;
-		}
-
-	if(block->allocated+size > block->blocksize)
-		{
-		LOG(LOG_INFO,"Dispenser Local overallocation detected - wanted %i\n",(int)size);
-
-		LOG(LOG_CRITICAL,"Dispenser %s refusing to allocate",disp->name);
-		return NULL;
-		}
-
-	void *usrPtr=block->data+block->allocated;
-
-	block->allocated+=allocSize;
-	disp->allocated+=allocSize;
-
-//	LOG(LOG_INFO,"Alloced quad aligned %i at %p in block %p at offset %i of %i",allocSize,usrPtr,block->data,block->allocated, block->blocksize);
-
-	return usrPtr;
+	return dAllocAligned(disp,size,QUAD_ALIGNMENT_SIZE-1);
 }
-
 
 
 void *dAllocCacheAligned(MemDispenser *disp, size_t size)
 {
-	if(size==0)
-		return NULL;
-
-	if(disp->allocated>DISPENSER_MAX)
-		{
-		LOG(LOG_INFO,"Dispenser Overallocation detected - wanted %i\n",(int)size);
-		int i;
-		for(i=0;i<MAX_ALLOCATORS;i++)
-			LOG(LOG_INFO,"%i %i\n",i,disp->allocatorUsage[i]);
-
-		LOG(LOG_CRITICAL,"Dispenser %s refusing to allocate",disp->name);
-
-		return NULL;
-		}
-
-	//if(size>10000)
-		//LOG(LOG_INFO,"Large Alloc %i\n",(int)size);
-
-	size_t allocSize=size;
-
-	if(disp->block == NULL || disp->block->allocated+allocSize+CACHE_ALIGNMENT_MASK > disp->block->blocksize)
-		{
-		MemDispenserBlock *newBlock=dispenserBlockAlloc(disp->blocksize);
-
-		newBlock->prev=disp->block;
-		disp->block=newBlock;
-		}
-
-	MemDispenserBlock *block=disp->block;
-
-	int padSize=0;
-	int offset=block->allocated & CACHE_ALIGNMENT_MASK;
-	if(offset>0)
-		{
-		padSize=CACHE_ALIGNMENT_SIZE-offset;
-
-		block->allocated+=padSize;
-		disp->allocated+=padSize;
-		}
-
-	if(block->allocated+size > block->blocksize)
-		{
-		LOG(LOG_INFO,"Dispenser Local overallocation detected - wanted %i\n",(int)size);
-
-		LOG(LOG_CRITICAL,"Dispenser %s refusing to allocate",disp->name);
-		return NULL;
-		}
-
-	void *usrPtr=block->data+block->allocated;
-
-	block->allocated+=allocSize;
-	disp->allocated+=allocSize;
-
-	//LOG(LOG_INFO,"Alloced cache aligned %i at %p",allocSize,usrPtr);
-
-	return usrPtr;
+	return dAllocAligned(disp,size,CACHE_ALIGNMENT_SIZE-1);
 }
 
 

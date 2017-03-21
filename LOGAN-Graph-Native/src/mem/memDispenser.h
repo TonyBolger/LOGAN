@@ -12,8 +12,8 @@
 
 #define DISPENSER_BLOCKSIZE_SMALL (1024*64)
 #define DISPENSER_BLOCKSIZE_MEDIUM (1024*256)
-#define DISPENSER_BLOCKSIZE_LARGE (1024*1024*2)
-#define DISPENSER_BLOCKSIZE_HUGE (1024*1024*20)
+#define DISPENSER_BLOCKSIZE_LARGE (1024*1024)
+#define DISPENSER_BLOCKSIZE_HUGE (1024*1024*4)
 
 /* Structures for tracking Memory Dispensers */
 
@@ -33,13 +33,14 @@ typedef struct memDispenserStr
 	const char *name;
 	struct memDispenserBlockStr *block;
 	u32 blocksize;
+	u32 maxBlocksize;
 
-	int allocatorUsage[MAX_ALLOCATORS];
+	//int allocatorUsage[MAX_ALLOCATORS];
 	int allocated;
 } MemDispenser;
 
 
-MemDispenser *dispenserAlloc(const char *name, u32 blocksize);
+MemDispenser *dispenserAlloc(const char *name, u32 blocksize, u32 maxBlocksize);
 void dispenserFree(MemDispenser *dispenser);
 void dispenserFreeLogged(MemDispenser *dispenser);
 //void dispenserNukeFree(MemDispenser *disp, u8 val);

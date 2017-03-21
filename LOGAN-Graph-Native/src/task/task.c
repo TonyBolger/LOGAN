@@ -191,6 +191,15 @@ static int performTaskActive(ParallelTask *pt, int workerNo, RoutingWorkerState 
 			return 1;
 		}
 
+
+	// 1.5th priority - new ingress
+	if((pt->reqIngressPtr) && (!pt->activeIngressPtr))
+		{
+		performTaskNewIngress(pt);
+		return 1;
+		}
+
+
 	// 2nd priority - active ingress
 
 

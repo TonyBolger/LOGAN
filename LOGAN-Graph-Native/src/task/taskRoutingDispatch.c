@@ -39,7 +39,7 @@ RoutingIndexedReadReferenceBlock *allocDispatchIndexedIntermediateBlock(MemDispe
 
 RoutingReadReferenceBlockDispatchArray *allocDispatchArray(RoutingReadReferenceBlockDispatchArray *nextPtr)
 {
-	MemDispenser *disp=dispenserAlloc("RoutingDispatchArray", DISPENSER_BLOCKSIZE_MEDIUM);
+	MemDispenser *disp=dispenserAlloc("RoutingDispatchArray", DISPENSER_BLOCKSIZE_MEDIUM, DISPENSER_BLOCKSIZE_LARGE); // Was DISPENSER_BLOCKSIZE_MEDIUM
 
 	RoutingReadReferenceBlockDispatchArray *array=dAlloc(disp, sizeof(RoutingReadReferenceBlockDispatchArray));
 
@@ -137,7 +137,7 @@ void assignToDispatchArrayEntry(RoutingReadReferenceBlockDispatchArray *array, R
 
 void initRoutingDispatchGroupState(RoutingDispatchGroupState *dispatchGroupState)
 {
-	MemDispenser *disp=dispenserAlloc("DispatchGroupState", DISPENSER_BLOCKSIZE_HUGE);
+	MemDispenser *disp=dispenserAlloc("DispatchGroupState", DISPENSER_BLOCKSIZE_MEDIUM, DISPENSER_BLOCKSIZE_HUGE);
 
 	dispatchGroupState->status=0;
 	dispatchGroupState->forceCount=0;
@@ -194,7 +194,7 @@ void recycleRoutingDispatchGroupState(RoutingDispatchGroupState *dispatchGroupSt
 
 	if(disp==NULL)
 		{
-		disp=dispenserAlloc("DispatchGroupState", DISPENSER_BLOCKSIZE_MEDIUM);
+		disp=dispenserAlloc("DispatchGroupState", DISPENSER_BLOCKSIZE_SMALL, DISPENSER_BLOCKSIZE_MEDIUM);
 		dispatchGroupState->disp=disp;
 		}
 	else
@@ -629,9 +629,6 @@ static void processSlice(RoutingReadReferenceBlock *smerInboundDispatches,  Smer
 		if(smerInboundDispatches->entryCount>0)
 			{
 
-
-
-
 			// Wasteful approach for groups with few reads - consider stable sort based on sliceIndex first
 //			RoutingIndexedReadReferenceBlock **indexedDispatches=dAlloc(disp, sizeof(RoutingIndexedReadReferenceBlock *)*  slice->smerCount);
 			//u32 *sliceIndexes=dAlloc(disp, sizeof(u32)*slice->smerCount);
@@ -703,7 +700,7 @@ static void prepareGroupOutbound(RoutingDispatchGroupState *groupState)
 
 static int gatherSliceOutbound(RoutingDispatchGroupState *groupState, int sliceNum, RoutingReadData **orderedDispatches)
 {
-	int work=0;
+	int completionCount=0;
 	RoutingReadReferenceBlockDispatchArray *dispatchArray=groupState->outboundDispatches;
 
 //	for(int i=0;i<SMER_DISPATCH_GROUP_SLICES;i++)
@@ -723,7 +720,8 @@ static int gatherSliceOutbound(RoutingDispatchGroupState *groupState, int sliceN
 
 			if(nextIndexCount==0) // Past last Smer - read is done
 				{
-				__atomic_fetch_sub(readData->completionCountPtr,1, __ATOMIC_SEQ_CST);
+				if(__atomic_sub_fetch(readData->completionCountPtr,1, __ATOMIC_SEQ_CST)==0)
+					completionCount++;
 				}
 
 			else if(nextIndexCount>0)
@@ -738,19 +736,17 @@ static int gatherSliceOutbound(RoutingDispatchGroupState *groupState, int sliceN
 				}
 			}
 
-		if(smerInboundDispatches->entryCount)
-			work=1;
-
 		smerInboundDispatches->entryCount=0;
 //		}
 
-	return work;
+	return completionCount;
 }
 
 
 
-static int scanForDispatchesForGroups(RoutingBuilder *rb, int startGroup, int endGroup, int force, int workerNo, int *lastGroupPtr)
+static int scanForDispatchesForGroups(RoutingBuilder *rb, int startGroup, int endGroup, int force, int workerNo, int *completionCountPtr)
 {
+	int completionCount=0;
 	int work=0;
 	int i;
 
@@ -768,7 +764,7 @@ static int scanForDispatchesForGroups(RoutingBuilder *rb, int startGroup, int en
 
 				if(dispatchEntry!=NULL)
 					{
-					MemDispenser *routingDisp=dispenserAlloc("Routing", DISPENSER_BLOCKSIZE_HUGE);
+					MemDispenser *routingDisp=dispenserAlloc("Routing", DISPENSER_BLOCKSIZE_MEDIUM, DISPENSER_BLOCKSIZE_HUGE);
 
 					work++;
 
@@ -807,7 +803,7 @@ static int scanForDispatchesForGroups(RoutingBuilder *rb, int startGroup, int en
 
 							//work+=gatherSliceOutbound(groupState, j, orderedDispatches);
 
-							gatherSliceOutbound(groupState, j, orderedDispatches);
+							completionCount+=gatherSliceOutbound(groupState, j, orderedDispatches);
 							}
 						}
 
@@ -821,11 +817,15 @@ static int scanForDispatchesForGroups(RoutingBuilder *rb, int startGroup, int en
 				}
 			}
 
-		if(work>TR_DISPATCH_MAX_WORK)
-			break;
+
+		if(work>=TR_DISPATCH_MAX_WORK)
+			{
+			*completionCountPtr+=completionCount;
+			return work;
+			}
 		}
 
-	*lastGroupPtr=i;
+	*completionCountPtr+=completionCount;
 
 	return work;
 }
@@ -834,15 +834,18 @@ static int scanForDispatchesForGroups(RoutingBuilder *rb, int startGroup, int en
 
 int scanForDispatches(RoutingBuilder *rb, int workerNo, RoutingWorkerState *wState, int force)
 {
-	int position=wState->dispatchGroupCurrent;
+	int position=wState->dispatchGroupDefault;
 	int work=0;
-	int lastGroup=-1;
+	int completionCount=0;
 
-	work=scanForDispatchesForGroups(rb,position,SMER_DISPATCH_GROUPS, force, workerNo, &lastGroup);
+	work=scanForDispatchesForGroups(rb,position,SMER_DISPATCH_GROUPS, force, workerNo, &completionCount);
 	if(work<TR_DISPATCH_MAX_WORK)
-		work+=scanForDispatchesForGroups(rb, 0, position, force, workerNo, &lastGroup);
+		work+=scanForDispatchesForGroups(rb, 0, position, force, workerNo, &completionCount);
 
-	wState->dispatchGroupCurrent=lastGroup;
+	if(completionCount || (work==0 && force))
+		{
+		work+=scanForCompleteReadDispatchBlocks(rb);
+		}
 
 	return work;
 }
