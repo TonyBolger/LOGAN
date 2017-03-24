@@ -454,7 +454,7 @@ int scanForAndDispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb)
 
 	RoutingReadDispatchBlock *dispatchReadBlock=allocateReadDispatchBlock(rb);
 
-	MemDispenser *disp=dispenserAlloc("RoutingDispatch", DISPENSER_BLOCKSIZE_SMALL, DISPENSER_BLOCKSIZE_MEDIUM);
+	MemDispenser *disp=dispenserAlloc("RoutingDispatch", DISPENSER_BLOCKSIZE_MEDIUM, DISPENSER_BLOCKSIZE_LARGE);
 	dispatchReadBlock->disp=disp;
 
 	s32 lastHit=lookupReadBlock->maxReadLength-nodeSize+2; // Allow for F & L
@@ -544,9 +544,9 @@ int scanForAndDispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb)
 
 static int scanForSmerLookupsForSlices(RoutingBuilder *rb, int startSlice, int endSlice, int *completionCountPtr)
 {
-	int completionCount=0;
 	int work=0;
 	int i;
+	int completionCount=0;
 
 	for(i=startSlice;i<endSlice;i++)
 		{
@@ -565,28 +565,27 @@ static int scanForSmerLookupsForSlices(RoutingBuilder *rb, int startSlice, int e
 				for(int j=0;j<lookupEntryScan->entryCount;j++)
 					lookupEntryScan->entries[j]=saFindSmerEntry(slice,lookupEntryScan->entries[j]);
 
-				if(__atomic_sub_fetch(lookupEntryScan->completionCountPtr,1,__ATOMIC_SEQ_CST))
+				if(__atomic_sub_fetch(lookupEntryScan->completionCountPtr,1,__ATOMIC_SEQ_CST)==0)
 					completionCount++;
 
 				lookupEntryScan=lookupEntryScan->nextPtr;
 				}
 			}
-
-		if(work>=TR_LOOKUP_MAX_WORK)
-			{
-			*completionCountPtr+=completionCount;
-
-			return work;
-			}
 		}
 
-	*completionCountPtr+=completionCount;
+	*completionCountPtr=completionCount;
 
 	return work;
 }
 
+/*
+static int scanForSmerLookupsForGroups(RoutingBuilder *rb, int startGroup, int endGroup)
+{
 
-int scanForSmerLookups(RoutingBuilder *rb, int workerNo, RoutingWorkerState *wState, int force)
+}
+*/
+
+int scanForSmerLookups(RoutingBuilder *rb, int workerNo, RoutingWorkerState *wState)
 {
 	//int startPos=(workerNo*SMER_SLICE_PRIME)&SMER_SLICE_MASK;
 /*
@@ -596,18 +595,13 @@ int scanForSmerLookups(RoutingBuilder *rb, int workerNo, RoutingWorkerState *wSt
 	work+=scanForSmerLookupsForSlices(rb, 0, startPos);
 */
 
-	int position=wState->lookupSliceDefault;
+//	int position=wState->lookupSliceCurrent;
 	int work=0;
 	int completionCount=0;
 
-	work=scanForSmerLookupsForSlices(rb,position,SMER_SLICES, &completionCount);
-	if(work<TR_LOOKUP_MAX_WORK)
-		work+=scanForSmerLookupsForSlices(rb, 0, position,  &completionCount);
-
-	if(completionCount || (work==0 && force))
-		{
-		work+=scanForAndDispatchLookupCompleteReadLookupBlocks(rb);
-		}
+	work=scanForSmerLookupsForSlices(rb,wState->lookupSliceStart,wState->lookupSliceEnd, &completionCount);
+	//if(work<TR_LOOKUP_MAX_WORK)
+		//work+=scanForSmerLookupsForSlices(rb, 0, position,  &lastSlice);
 
 	//wState->lookupSliceCurrent=lastSlice;
 

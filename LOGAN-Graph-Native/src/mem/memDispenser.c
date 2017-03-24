@@ -24,6 +24,8 @@ static MemDispenserBlock *dispenserBlockAlloc(s32 blocksize)
 	block->allocated=0;
 	block->blocksize=blocksize;
 
+//	LOG(LOG_INFO,"AllocDispBlock %p %i",block,blocksize);
+
 	//memset(block->data,0,DISPENSER_BLOCKSIZE);
 
 	return block;
@@ -56,6 +58,8 @@ MemDispenser *dispenserAlloc(const char *name, u32 baseBlocksize, u32 maxBlocksi
 
 void dispenserFree(MemDispenser *disp)
 {
+	//LOG(LOG_INFO,"DispFree %p",disp);
+
 	if(disp==NULL)
 		return;
 
@@ -79,6 +83,8 @@ void dispenserFree(MemDispenser *disp)
 
 void dispenserFreeLogged(MemDispenser *disp)
 {
+//	LOG(LOG_INFO,"DispFree %p",disp);
+
 	if(disp==NULL)
 		return;
 
@@ -136,6 +142,8 @@ void dispenserNukeFree(MemDispenser *disp, u8 val)
 
 void dispenserReset(MemDispenser *dispenser)
 {
+//	LOG(LOG_INFO,"DispReset %p",dispenser);
+
 	MemDispenserBlock *blockPtr=dispenser->block;
 
 	if(blockPtr!=NULL)
@@ -191,7 +199,8 @@ static void *dAllocAligned(MemDispenser *disp, size_t allocSize, s32 alignmentMa
 		}
 
 //	if(disp->block != NULL)
-//		LOG(LOG_INFO,"Alloc of %i with %i padding using blocksize ",allocSize,padSize, disp->blocksize);
+
+	//LOG(LOG_INFO,"Alloc of %i with %i padding",allocSize,padSize);
 
 	int tempAllocSize=allocSize+padSize;
 

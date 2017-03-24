@@ -9,7 +9,7 @@
 
 
 
-static void *tiDoRegister(ParallelTask *pt, int workerNo)
+static void *tiDoRegister(ParallelTask *pt, int workerNo, int totalWorkers)
 {
 	return NULL;
 }

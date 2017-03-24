@@ -10,12 +10,24 @@
 
 
 
-static void *trDoRegister(ParallelTask *pt, int workerNo)
+static void *trDoRegister(ParallelTask *pt, int workerNo, int totalWorkers)
 {
 	RoutingWorkerState *workerState=gAlloc(sizeof(RoutingWorkerState));
 
-	workerState->lookupSliceDefault=workerState->lookupSliceCurrent=(workerNo*SMER_SLICE_PRIME)&SMER_SLICE_MASK;
-	workerState->dispatchGroupDefault=workerState->dispatchGroupCurrent=(workerNo*SMER_DISPATCH_GROUP_PRIME)&SMER_DISPATCH_GROUP_MASK;
+	workerState->lookupSliceStart=(SMER_SLICES*workerNo)/totalWorkers;
+	workerState->lookupSliceEnd=(SMER_SLICES*(workerNo+1))/totalWorkers;
+
+	workerState->dispatchGroupStart=(SMER_DISPATCH_GROUPS*workerNo)/totalWorkers;
+	workerState->dispatchGroupEnd=(SMER_DISPATCH_GROUPS*(workerNo+1))/totalWorkers;
+
+	LOG(LOG_INFO,"Worker %i of %i - Lookup Range %i %i DispatchGroup Range %i %i",
+			workerNo,totalWorkers,
+			workerState->lookupSliceStart, workerState->lookupSliceEnd,
+			workerState->dispatchGroupStart, workerState->dispatchGroupEnd);
+
+
+	//workerState->lookupSliceDefault=workerState->lookupSliceCurrent=(workerNo*SMER_SLICE_PRIME)&SMER_SLICE_MASK;
+	//workerState->dispatchGroupDefault=workerState->dispatchGroupCurrent=(workerNo*SMER_DISPATCH_GROUP_PRIME)&SMER_DISPATCH_GROUP_MASK;
 
 	return workerState;
 }
@@ -136,39 +148,38 @@ static int trDoIntermediate(ParallelTask *pt, int workerNo, void *wState, int fo
 	RoutingWorkerState *workerState=wState;
 	RoutingBuilder *rb=pt->dataPtr;
 
-	int arlb=__atomic_load_n(&rb->allocatedReadLookupBlocks, __ATOMIC_SEQ_CST);
-	int ardb=__atomic_load_n(&rb->allocatedReadDispatchBlocks, __ATOMIC_SEQ_CST);
-
-//	LOG(LOG_INFO,"F: %i L: %i D: %i",force, arlb, ardb);
-
-	if(!force) // No force - do if lots of work
+	if(scanForCompleteReadDispatchBlocks(rb))
 		{
-		if(ardb==TR_READBLOCK_DISPATCHES_INFLIGHT)
-			{
-			if(scanForDispatches(rb, workerNo, workerState, force))
-				{
-				//LOG(LOG_INFO,"scanForDispatches 1");
-				return 1;
-				}
-			}
+		//LOG(LOG_INFO,"scanForCompleteReadDispatchBlocks OK");
+		return 1;
+		}
 
-		if(arlb==TR_READBLOCK_LOOKUPS_INFLIGHT)
+	if(scanForAndDispatchLookupCompleteReadLookupBlocks(rb))
+		{
+		//LOG(LOG_INFO,"scanForAndDispatchLookupCompleteReadLookupBlocks OK");
+		return 1;
+		}
+
+	if(rb->allocatedReadDispatchBlocks==TR_READBLOCK_DISPATCHES_INFLIGHT)
+		{
+		if(scanForDispatches(rb, workerNo, workerState, force))
 			{
-			if(scanForSmerLookups(rb, workerNo, workerState, force))
-				{
-				//LOG(LOG_INFO,"scanForSmerLookups");
-				return 1;
-				}
+			//LOG(LOG_INFO,"scanForDispatches 1");
+			return 1;
 			}
 		}
-	else
+
+	if((force)||(rb->allocatedReadLookupBlocks==TR_READBLOCK_LOOKUPS_INFLIGHT))
 		{
-		if(scanForSmerLookups(rb, workerNo, workerState, force))
+		if(scanForSmerLookups(rb, workerNo, workerState))
 			{
 			//LOG(LOG_INFO,"scanForSmerLookups");
 			return 1;
 			}
+		}
 
+	if(force)
+		{
 		if(scanForDispatches(rb, workerNo, workerState, force))
 			{
 			//LOG(LOG_INFO,"scanForDispatches 2");
@@ -176,8 +187,8 @@ static int trDoIntermediate(ParallelTask *pt, int workerNo, void *wState, int fo
 			}
 		}
 
-	arlb=__atomic_load_n(&rb->allocatedReadLookupBlocks, __ATOMIC_SEQ_CST);
-	ardb=__atomic_load_n(&rb->allocatedReadDispatchBlocks, __ATOMIC_SEQ_CST);
+	int arlb=__atomic_load_n(&rb->allocatedReadLookupBlocks, __ATOMIC_SEQ_CST);
+	int ardb=__atomic_load_n(&rb->allocatedReadDispatchBlocks, __ATOMIC_SEQ_CST);
 
 //	LOG(LOG_INFO,"trDoIntermediate: %i %i %i %i",workerNo, force, arlb, ardb);
 

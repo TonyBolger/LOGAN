@@ -839,6 +839,7 @@ void rtaMergeRoutes(RouteTableArrayBuilder *builder, RoutePatch *forwardRoutePat
 				}
 			}
 
+
 		forwardCount=srcBufferEnd-srcBuffer;
 		builder->newForwardEntryCount=forwardCount;
 		builder->newForwardEntries=dAlloc(disp, forwardCount*sizeof(RouteTableEntry));
@@ -849,7 +850,6 @@ void rtaMergeRoutes(RouteTableArrayBuilder *builder, RoutePatch *forwardRoutePat
 //		if(forwardCount>0)
 //			LOG(LOG_INFO,"FirstRev: P: %i S: %i W: %i",builder->newForwardEntries[0].prefix,builder->newForwardEntries[0].suffix,builder->newForwardEntries[0].width);
 		}
-
 
 	// Reverse Routes
 
@@ -928,6 +928,7 @@ void rtaMergeRoutes(RouteTableArrayBuilder *builder, RoutePatch *forwardRoutePat
 	int tableSize=PAD_1BITLENGTH_BYTE((prefixBits+suffixBits+widthBits)*(forwardCount+reverseCount));
 
 	builder->totalPackedSize=headerSize+tableSize;
+
 }
 
 

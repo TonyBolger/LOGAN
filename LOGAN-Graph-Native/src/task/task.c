@@ -191,15 +191,6 @@ static int performTaskActive(ParallelTask *pt, int workerNo, RoutingWorkerState 
 			return 1;
 		}
 
-
-	// 1.5th priority - new ingress
-	if((pt->reqIngressPtr) && (!pt->activeIngressPtr))
-		{
-		performTaskNewIngress(pt);
-		return 1;
-		}
-
-
 	// 2nd priority - active ingress
 
 
@@ -384,7 +375,7 @@ void performTask_worker(ParallelTask *pt)
 
 	//LOG(LOG_INFO,"Worker %i Register",workerNo);
 
-	RoutingWorkerState *wState=pt->config->doRegister(pt,workerNo);
+	RoutingWorkerState *wState=pt->config->doRegister(pt,workerNo,pt->config->expectedThreads);
 
 	//LOG(LOG_INFO,"Worker %i Startup Barrier wait",workerNo);
 
@@ -556,7 +547,7 @@ void performTask_worker(ParallelTask *pt)
 
 
 ParallelTaskConfig *allocParallelTaskConfig(
-		void *(*doRegister)(ParallelTask *pt, int workerNo),
+		void *(*doRegister)(ParallelTask *pt, int workerNo, int totalWorkers),
 		void (*doDeregister)(ParallelTask *pt, int workerNo, void *workerState),
 		int (*allocateIngressSlot)(ParallelTask *pt, int workerNo),
 		int (*doIngress)(ParallelTask *pt, int workerNo, void *workerState, void *ingressPtr, int ingressPosition, int ingressSize),

@@ -19,7 +19,7 @@ typedef struct parallelTaskStr ParallelTask;
 
 typedef struct parallelTaskConfigStr
 {
-	void *(*doRegister)(ParallelTask *pt, int workerNo);
+	void *(*doRegister)(ParallelTask *pt, int workerNo, int totalWorkers);
 	void (*doDeregister)(ParallelTask *pt, int workerNo, void *workerState);
 
 	int (*allocateIngressSlot)(ParallelTask *pt, int workerNo);
@@ -123,7 +123,7 @@ struct parallelTaskStr
 */
 
 ParallelTaskConfig *allocParallelTaskConfig(
-		void *(*doRegister)(ParallelTask *pt, int workerNo),
+		void *(*doRegister)(ParallelTask *pt, int workerNo, int totalWorkers),
 		void (*doDeregister)(ParallelTask *pt, int workerNo, void *workerState),
 		int (*allocateIngressSlot)(ParallelTask *pt, int workerNo),
 		int (*doIngress)(ParallelTask *pt, int workerNo, void *workerState, void *ingressPtr, int ingressPosition, int ingressSize),

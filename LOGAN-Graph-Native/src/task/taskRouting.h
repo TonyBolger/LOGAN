@@ -9,20 +9,15 @@
 #define TR_TIDYS_PER_BACKOFF 1
 
 #define TR_READBLOCK_LOOKUPS_INFLIGHT 20
-//#define TR_READBLOCK_LOOKUPS_INFLIGHT 50
-//#define TR_READBLOCK_LOOKUPS_INFLIGHT 100
 
 #define TR_READBLOCK_DISPATCHES_INFLIGHT 200
-//#define TR_READBLOCK_DISPATCHES_INFLIGHT 500
-//#define TR_READBLOCK_DISPATCHES_INFLIGHT 1000
 
 // Lookup work is in slices (max 16384)
-#define TR_LOOKUP_MAX_WORK 1024
-//#define TR_LOOKUP_MAX_WORK 16384
+//#define TR_LOOKUP_MAX_WORK 1024
+#define TR_LOOKUP_MAX_WORK 16384
 // Dispatch work is in groups (max TR_LOOKUPS_PER_SLICE_BLOCK)
-#define TR_DISPATCH_MAX_WORK 4
-//#define TR_DISPATCH_MAX_WORK 64
-
+//#define TR_DISPATCH_MAX_WORK 4
+#define TR_DISPATCH_MAX_WORK 64
 
 // TR_LOOKUPS_PER_SLICE_BLOCK / TR_LOOKUPS_PER_INTERMEDIATE_BLOCK must be a power of 2
 #define TR_LOOKUPS_PER_SLICE_BLOCK 64
@@ -126,11 +121,17 @@ typedef struct routingDispatchGroupStateStr {
 
 
 typedef struct routingWorkerStateStr {
-	int lookupSliceDefault;
-	int lookupSliceCurrent;
+	int lookupSliceStart;
+	int lookupSliceEnd;
 
-	int dispatchGroupDefault;
-	int dispatchGroupCurrent;
+	int dispatchGroupStart;
+	int dispatchGroupEnd;
+
+//	int lookupSliceDefault;
+//	int lookupSliceCurrent;
+
+//	int dispatchGroupDefault;
+//	int dispatchGroupCurrent;
 
 } RoutingWorkerState;
 

@@ -1396,15 +1396,12 @@ int rtRouteReadsForSmer(RoutingIndexedReadReferenceBlock *rdi, SmerArraySlice *s
 	if(routingBuilder.treeBuilder!=NULL)
 		{
 		rttMergeRoutes(routingBuilder.treeBuilder, forwardPatches, reversePatches, forwardCount, reverseCount, prefixCount, suffixCount, orderedDispatches, disp);
-
 		writeBuildersAsIndirectData(&routingBuilder, sliceTag, sliceIndex,circHeap);
 		}
 	else
 		{
 		rtaMergeRoutes(routingBuilder.arrayBuilder, forwardPatches, reversePatches, forwardCount, reverseCount, prefixCount, suffixCount, orderedDispatches, disp);
-
 		writeBuildersAsDirectData(&routingBuilder, sliceTag, sliceIndex, circHeap);
-
 		}
 
 	return entryCount;

@@ -834,7 +834,7 @@ static void circHeapEnsureSpace_generation(MemCircHeap *circHeap, size_t support
 
 static void circHeapEnsureSpace(MemCircHeap *circHeap, size_t newAllocSize)
 {
-	MemDispenser *disp=dispenserAlloc("GC", DISPENSER_BLOCKSIZE_MEDIUM, DISPENSER_BLOCKSIZE_LARGE);
+	MemDispenser *disp=dispenserAlloc("GC", DISPENSER_BLOCKSIZE_MEDIUM, DISPENSER_BLOCKSIZE_MEDIUM);
 
 	circHeapEnsureSpace_generation(circHeap, newAllocSize, 0, disp);
 
