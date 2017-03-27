@@ -5,8 +5,9 @@
  *      Author: tony
  */
 
+#include "../jniSrc/JNI_graph.h"
+
 #include "common.h"
-#include "JNI_graph.h"
 
 
 #define EXCEPTION_LOG_AND_CLEAR(env) { if((*env)->ExceptionOccurred(env)) { (*env)->ExceptionDescribe(env); } }
@@ -89,21 +90,22 @@ static void waitForIdle(int *usageCount)
 {
 	while(__atomic_load_n(usageCount,__ATOMIC_SEQ_CST))
 		{
-		struct timespec req, rem;
+		struct timespec req;
 
-		req.tv_sec=0;
-		req.tv_nsec=1000000;
+		req.tv_sec=DEFAULT_SLEEP_SECS;
+		req.tv_nsec=DEFAULT_SLEEP_NANOS;
 
-		nanosleep(&req, &rem);
+		nanosleep(&req, NULL);
 		}
 }
 
-static void processReadFiles(JNIEnv *env, jobjectArray jFilePaths, void *handlerContext, void (*handler)(SwqBuffer *buffer, void *handlerContext))
+static void processReadFiles(JNIEnv *env, jobjectArray jFilePaths, void *handlerContext, void (*handler)(SwqBuffer *swqBuffer, ParallelTaskIngress *ingressBuffer, void *handlerContext))
 {
-	SwqBuffer buffers[PT_INGRESS_BUFFERS];
+	SwqBuffer swqBuffer[PT_INGRESS_BUFFERS];
+	ParallelTaskIngress ingressBuffers[PT_INGRESS_BUFFERS];
 
 	for(int i=0;i<PT_INGRESS_BUFFERS;i++)
-		initIngressBuffer(buffers+i, FASTQ_BASES_PER_BATCH, FASTQ_RECORDS_PER_BATCH, FASTQ_MAX_READ_LENGTH);
+		initSequenceBuffer(swqBuffer+i, FASTQ_BASES_PER_BATCH, FASTQ_RECORDS_PER_BATCH, FASTQ_MAX_READ_LENGTH);
 
 	u8 *ioBuffer=malloc(FASTQ_IO_RECYCLE_BUFFER+FASTQ_IO_PRIMARY_BUFFER);
 
@@ -123,7 +125,7 @@ static void processReadFiles(JNIEnv *env, jobjectArray jFilePaths, void *handler
 
 		int reads=parseAndProcess(filePath, FASTQ_MIN_READ_LENGTH, 0, 2000000000,
 			ioBuffer, FASTQ_IO_RECYCLE_BUFFER, FASTQ_IO_PRIMARY_BUFFER,
-			buffers, PT_INGRESS_BUFFERS,
+			swqBuffer, ingressBuffers, PT_INGRESS_BUFFERS,
 			handlerContext, handler);
 
 		LOG(LOG_INFO,"Parsed %i reads from %s",reads,filePath);
@@ -133,8 +135,8 @@ static void processReadFiles(JNIEnv *env, jobjectArray jFilePaths, void *handler
 
 	for(int i=0;i<PT_INGRESS_BUFFERS;i++)
 		{
-		waitForIdle(&buffers[i].usageCount);
-		freeIngressBuffer(buffers+i);
+		waitForIdle(&swqBuffer[i].usageCount);
+		freeSequenceBuffer(swqBuffer+i);
 		}
 
 	free(ioBuffer);

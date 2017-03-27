@@ -51,7 +51,8 @@ typedef struct routingSmerEntryLookupStr {
 } __attribute__((aligned (32))) RoutingSmerEntryLookup;
 
 typedef struct routingLookupPercolateStr {
-	u64 entryCount; // 8
+	u32 entryCount; // 8
+	u32 entryPosition; // 8
 	u32 *entries; // 8 - pairs of (slice, smerEntry)
 } __attribute__((aligned (16))) RoutingLookupPercolate;
 
@@ -94,7 +95,7 @@ typedef struct routingDispatchArray {
 
 // Represents an array of reads which are undergoing routing
 typedef struct routingReadDispatchBlockStr {
-	RoutingReadData readData[TR_INGRESS_BLOCKSIZE];
+	RoutingReadData *readData[TR_INGRESS_BLOCKSIZE];
 	u32 readCount;
 
 	MemDispenser *disp;

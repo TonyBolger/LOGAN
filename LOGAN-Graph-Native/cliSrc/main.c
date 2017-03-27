@@ -64,10 +64,11 @@ void runIptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 
 	// Parse stuff here
 
-	SwqBuffer buffers[PT_INGRESS_BUFFERS];
+	static SwqBuffer swqBuffers[PT_INGRESS_BUFFERS];
+	static ParallelTaskIngress ingressBuffers[PT_INGRESS_BUFFERS];
 
 	for(i=0;i<PT_INGRESS_BUFFERS;i++)
-		initIngressBuffer(buffers+i, FASTQ_BASES_PER_BATCH, FASTQ_RECORDS_PER_BATCH, FASTQ_MAX_READ_LENGTH);
+		initSequenceBuffer(swqBuffers+i, FASTQ_BASES_PER_BATCH, FASTQ_RECORDS_PER_BATCH, FASTQ_MAX_READ_LENGTH);
 
 	u8 *ioBuffer=malloc(FASTQ_IO_RECYCLE_BUFFER+FASTQ_IO_PRIMARY_BUFFER);
 
@@ -80,7 +81,7 @@ void runIptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 
 		int reads=parseAndProcess(path, FASTQ_MIN_READ_LENGTH, 0, 2000000000,
 				ioBuffer, FASTQ_IO_RECYCLE_BUFFER, FASTQ_IO_PRIMARY_BUFFER,
-				buffers, PT_INGRESS_BUFFERS,
+				swqBuffers, ingressBuffers, PT_INGRESS_BUFFERS,
 				ib, indexingBuilderDataHandler);
 
 		LOG(LOG_INFO,"Indexing: Parsed %i reads from %s",reads,path);
@@ -97,7 +98,11 @@ void runIptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 		pthread_join(threads[i], &status);
 
 	for(i=0;i<PT_INGRESS_BUFFERS;i++)
-		freeIngressBuffer(buffers+i);
+		{
+		freeSequenceBuffer(swqBuffers+i);
+		if(*(ingressBuffers[i].ingressUsageCount)>0)
+			LOG(LOG_INFO,"Buffer still in use");
+		}
 
 	freeIndexingBuilder(ib);
 
@@ -148,22 +153,11 @@ void runRptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 
 	// Parse stuff here
 
-	SwqBuffer buffers[PT_INGRESS_BUFFERS];
-
-	int bufSize=FASTQ_BASES_PER_BATCH;
+	static SwqBuffer swqBuffers[PT_INGRESS_BUFFERS];
+	static ParallelTaskIngress ingressBuffers[PT_INGRESS_BUFFERS];
 
 	for(i=0;i<PT_INGRESS_BUFFERS;i++)
-		{
-		buffers[i].seqBuffer=malloc(bufSize);
-		buffers[i].qualBuffer=malloc(bufSize);
-		buffers[i].rec=malloc(sizeof(SequenceWithQuality)*FASTQ_RECORDS_PER_BATCH);
-
-		buffers[i].maxSequenceTotalLength=bufSize;
-		buffers[i].maxSequences=FASTQ_RECORDS_PER_BATCH;
-		buffers[i].maxSequenceLength=FASTQ_MAX_READ_LENGTH;
-		buffers[i].numSequences=0;
-		buffers[i].usageCount=0;
-		}
+		initSequenceBuffer(swqBuffers+i, FASTQ_BASES_PER_BATCH, FASTQ_RECORDS_PER_BATCH, FASTQ_MAX_READ_LENGTH);
 
 	u8 *ioBuffer=malloc(FASTQ_IO_RECYCLE_BUFFER+FASTQ_IO_PRIMARY_BUFFER);
 
@@ -178,7 +172,7 @@ void runRptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 
 		int reads=parseAndProcess(path, FASTQ_MIN_READ_LENGTH, 0, 2000000000,
 				ioBuffer, FASTQ_IO_RECYCLE_BUFFER, FASTQ_IO_PRIMARY_BUFFER,
-				buffers, PT_INGRESS_BUFFERS,
+				swqBuffers, ingressBuffers, PT_INGRESS_BUFFERS,
 				rb, routingBuilderDataHandler);
 
 		LOG(LOG_INFO,"Routing: Parsed %i reads from %s",reads,path);
@@ -196,9 +190,10 @@ void runRptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 
 	for(i=0;i<PT_INGRESS_BUFFERS;i++)
 		{
-		free(buffers[i].seqBuffer);
-		free(buffers[i].qualBuffer);
-		free(buffers[i].rec);
+		freeSequenceBuffer(swqBuffers+i);
+
+		if(*(ingressBuffers[i].ingressUsageCount)>0)
+			LOG(LOG_INFO,"Buffer still in use");
 		}
 
 	free(ioBuffer);

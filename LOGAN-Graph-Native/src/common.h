@@ -26,6 +26,9 @@
 //#define FEATURE_ENABLE_SMER_STATS
 //#define FEATURE_ENABLE_HEAP_STATS
 
+#define DEFAULT_SLEEP_NANOS 1000000
+#define DEFAULT_SLEEP_SECS 0
+
 
 #define PAD_1BITLENGTH_BYTE(L) (((L)+7)>>3)
 #define PAD_2BITLENGTH_BYTE(L) (((L)+3)>>2)
@@ -199,6 +202,7 @@ typedef struct swqBufferStr {
 #include "util/intObjectHash.h"
 #include "util/log.h"
 #include "util/pack.h"
+#include "util/queue.h"
 #include "util/smerImplicitTree.h"
 #include "util/varipack.h"
 

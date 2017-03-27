@@ -31,18 +31,18 @@
 #define FASTQ_IO_PRIMARY_BUFFER (1024*1024)
 
 
-void initIngressBuffer(SwqBuffer *buffer, int bufSize, int recordsPerBatch, int maxReadLength);
-void freeIngressBuffer(SwqBuffer *buffer);
+void initSequenceBuffer(SwqBuffer *swqBuffer, int bufSize, int recordsPerBatch, int maxReadLength);
+void freeSequenceBuffer(SwqBuffer *swqBuffer);
 
 
-void indexingBuilderDataHandler(SwqBuffer *buffer, void *context);
-void routingBuilderDataHandler(SwqBuffer *buffer, void *context);
+void indexingBuilderDataHandler(SwqBuffer *swqBuffer, ParallelTaskIngress *ingressBuffer, void *context);
+void routingBuilderDataHandler(SwqBuffer *swqBuffer, ParallelTaskIngress *ingressBuffer, void *context);
 
 
 int parseAndProcess(char *path, int minSeqLength, int recordsToSkip, int recordsToUse,
 		u8 *ioBuffer, int ioBufferRecycleSize, int ioBufferPrimarySize,
-		SwqBuffer *swqBuffers, int bufferCount,
-		void *handlerContext, void (*handler)(SwqBuffer *buffer, void *handlerContext));
+		SwqBuffer *swqBuffers, ParallelTaskIngress *ingressBuffers, int bufferCount,
+		void *handlerContext, void (*handler)(SwqBuffer *swqBuffer, ParallelTaskIngress *ingressBuffer, void *handlerContext));
 
 
 #endif

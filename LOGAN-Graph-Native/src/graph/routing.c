@@ -1197,12 +1197,12 @@ static void createRoutePatches(RoutingIndexedReadReferenceBlock *rdi, int entryC
 
 		if(0)
 		{
-			SmerId currSmer=rdd->fsmers[index];
-			SmerId prevSmer=rdd->fsmers[index+1];
-			SmerId nextSmer=rdd->fsmers[index-1];
+			SmerId currSmer=rdd->indexedData[index].fsmer;
+			SmerId prevSmer=rdd->indexedData[index+1].fsmer;
+			SmerId nextSmer=rdd->indexedData[index-1].fsmer;
 
-			int upstreamLength=rdd->readIndexes[index]-rdd->readIndexes[index+1];
-			int downstreamLength=rdd->readIndexes[index-1]-rdd->readIndexes[index];
+			int upstreamLength=rdd->indexedData[index].readIndex-rdd->indexedData[index+1].readIndex;
+			int downstreamLength=rdd->indexedData[index-1].readIndex-rdd->indexedData[index].readIndex;
 
 			char bufferP[SMER_BASES+1]={0};
 			char bufferC[SMER_BASES+1]={0};
@@ -1215,8 +1215,8 @@ static void createRoutePatches(RoutingIndexedReadReferenceBlock *rdi, int entryC
 			LOG(LOG_INFO,"Read Orientation: %s (%i) %s %s (%i)",bufferP, upstreamLength, bufferC, bufferN, downstreamLength);
 		}
 
-		SmerId currFmer=rdd->fsmers[index];
-		SmerId currRmer=rdd->rsmers[index];
+		SmerId currFmer=rdd->indexedData[index].fsmer;
+		SmerId currRmer=rdd->indexedData[index].rsmer;
 
 		if(currFmer<=currRmer) // Canonical Read Orientation
 			{
@@ -1232,11 +1232,11 @@ static void createRoutePatches(RoutingIndexedReadReferenceBlock *rdi, int entryC
 					}
 */
 
-				SmerId prefixSmer=rdd->rsmers[index+1]; // Previous smer in read, reversed
-				SmerId suffixSmer=rdd->fsmers[index-1]; // Next smer in read
+				SmerId prefixSmer=rdd->indexedData[index+1].rsmer; // Previous smer in read, reversed
+				SmerId suffixSmer=rdd->indexedData[index-1].fsmer; // Next smer in read
 
-				int prefixLength=rdd->readIndexes[index]-rdd->readIndexes[index+1];
-				int suffixLength=rdd->readIndexes[index-1]-rdd->readIndexes[index];
+				int prefixLength=rdd->indexedData[index].readIndex-rdd->indexedData[index+1].readIndex;
+				int suffixLength=rdd->indexedData[index-1].readIndex-rdd->indexedData[index].readIndex;
 
 				forwardPatches[forwardCount].next=NULL;
 				forwardPatches[forwardCount].rdiPtr=rdi->entries+i;
@@ -1276,12 +1276,12 @@ static void createRoutePatches(RoutingIndexedReadReferenceBlock *rdi, int entryC
 					}
 */
 
-				SmerId prefixSmer=rdd->fsmers[index-1]; // Next smer in read
-				SmerId suffixSmer=rdd->rsmers[index+1]; // Previous smer in read, reversed
+				SmerId prefixSmer=rdd->indexedData[index-1].fsmer; // Next smer in read
+				SmerId suffixSmer=rdd->indexedData[index+1].rsmer; // Previous smer in read, reversed
 
 
-				int prefixLength=rdd->readIndexes[index-1]-rdd->readIndexes[index];
-				int suffixLength=rdd->readIndexes[index]-rdd->readIndexes[index+1];
+				int prefixLength=rdd->indexedData[index-1].readIndex-rdd->indexedData[index].readIndex;
+				int suffixLength=rdd->indexedData[index].readIndex-rdd->indexedData[index+1].readIndex;
 
 				reversePatches[reverseCount].next=NULL;
 				reversePatches[reverseCount].rdiPtr=rdi->entries+i;

@@ -2,25 +2,35 @@
 #define __ROUTE_TABLE_H
 
 
-typedef struct routingReadDataStr {
-	u8 *packedSeq; // 8
-	u8 *quality; // 8
-	u32 seqLength; // 4
+typedef struct routingReadDataEntryStr {
+	u32 readIndex; // 4
+	SmerId fsmer; // 8
+	SmerId rsmer; // 8
+	u32 slice; // 4
+	u32 sliceIndex; // 4
+} RoutingReadIndexedDataEntry;
 
-	s32 indexCount; // 4
+typedef struct routingReadDataStr {
+	//u8 *packedSeq; // 8
+	//u8 *quality; // 8
+	//u32 seqLength; // 4
+
 	s32 *completionCountPtr; // 8
+	s32 indexCount; // 4
 
 	// Tracking of edge positions
 
 	s32 minEdgePosition;
 	s32 maxEdgePosition;
 
-	// Split into aux structure with []. Add first/last.
-	u32 *readIndexes; // 8
-	SmerId *fsmers; // 8
-	SmerId *rsmers; // 8
-	u32 *slices; // 8
-	u32 *sliceIndexes; // 8
+	RoutingReadIndexedDataEntry indexedData[];
+
+	// Split into aux RoutingReadDataEntry structure with []. Add first/last.
+	//u32 *readIndexes; // 8
+	//SmerId *fsmers; // 8
+	//SmerId *rsmers; // 8
+	//u32 *slices; // 8
+	//u32 *sliceIndexes; // 8
 
 } __attribute__((aligned (32))) RoutingReadData;
 

@@ -55,6 +55,7 @@ CLI_OBJS += \
 ./bin/cli/common/util/intObjectHash.o \
 ./bin/cli/common/util/log.o \
 ./bin/cli/common/util/pack.o \
+./bin/cli/common/util/queue.o \
 ./bin/cli/common/util/smerImplicitTree.o \
 ./bin/cli/common/util/varipack.o \
 ./bin/cli/obj/main.o 
@@ -92,6 +93,7 @@ JNI_OBJS += \
 ./bin/jni/common/util/bloom.o \
 ./bin/jni/common/util/log.o \
 ./bin/jni/common/util/pack.o \
+./bin/jni/common/util/queue.o \
 ./bin/jni/common/util/smerImplicitTree.o \
 ./bin/jni/common/util/varipack.o \
 ./bin/jni/obj/JNI_graph.o 

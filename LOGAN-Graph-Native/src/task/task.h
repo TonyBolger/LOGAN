@@ -15,6 +15,13 @@
 
 // Cleanup task: After end of Ingress/Intermediate processing (with barrier), perform cleanup tasks
 
+typedef struct parallelTaskIngressStr {
+
+	void *ingressPtr;
+	int ingressTotal;
+	int *ingressUsageCount;
+} ParallelTaskIngress;
+
 typedef struct parallelTaskStr ParallelTask;
 
 typedef struct parallelTaskConfigStr
@@ -38,25 +45,28 @@ typedef struct parallelTaskConfigStr
 } ParallelTaskConfig;
 
 
+
 struct parallelTaskStr
 {
 	ParallelTaskConfig *config;
 	void *dataPtr;
 
-	// Updated by master to make ingress or shutodwn requests
-	void *reqIngressPtr;
-	int reqIngressTotal;
-	int *reqIngressUsageCount;
+	Queue *ingressQueue;
 
+	// Updated by master to make shutdown requests
 	int reqShutdown;
 
 	// Updated by worker on ingress acceptance & completion
 
-	void *activeIngressPtr;
-	int activeIngressTotal;
-	int *activeIngressUsageCount;
+	int ingressAcceptToken;
+	int ingressConsumeToken;
 
+	ParallelTaskIngress *activeIngressPtr;
 	int activeIngressPosition;
+
+	int accumulatedIngressArrived;
+	int accumulatedIngressProcessed;
+
 
 	int activeTidyPosition;
 	int activeTidyTotal;
@@ -68,12 +78,12 @@ struct parallelTaskStr
 	int tidyBackoffCounter;
 
 	// One lock to rule them all
-	pthread_mutex_t mutex;
+	//pthread_mutex_t mutex;
 
 	// Master can sync here
-	pthread_cond_t master_startup;
-	pthread_cond_t master_ingress;
-	pthread_cond_t master_shutdown;
+	//pthread_cond_t master_startup;
+	//pthread_cond_t master_ingress;
+	//pthread_cond_t master_shutdown;
 
 	int state;
 
@@ -84,7 +94,8 @@ struct parallelTaskStr
 	pthread_barrier_t  tidyEndBarrier;
 
 	// Workers sleep here
-	pthread_cond_t workers_idle;
+	s32 idleThreadPokeCount;
+	//pthread_cond_t workers_idle;
 
 	s32 liveThreads; // Threads which are somewhere in performTask
 	s32 idleThreads; // Threads which are sleeping
@@ -144,7 +155,7 @@ void waitForStartup(ParallelTask *pt);
 void waitForShutdown(ParallelTask *pt);
 
 // queueIngress may wait if an ingress already exists
-int queueIngress(ParallelTask *pt, void *ingressPtr, int ingressCount, int *ingressUsageCount);
+int queueIngress(ParallelTask *pt, ParallelTaskIngress *ingressData);
 
 void queueShutdown(ParallelTask *pt);
 

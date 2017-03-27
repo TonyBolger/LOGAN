@@ -201,6 +201,7 @@ s32 walkerNextEntry(RouteTableTreeWalker *walker, s16 *upstream, RouteTableTreeL
 
 	if(walker->leafEntry>=walker->leafProxy->entryCount)
 		{
+
 //		LOG(LOG_INFO,"Next Sib Peek");
 
 		RouteTableTreeBranchProxy *branchProxy=walker->branchProxy;
@@ -231,8 +232,6 @@ s32 walkerNextEntry(RouteTableTreeWalker *walker, s16 *upstream, RouteTableTreeL
 
 		if(holdUpstream && leafProxy->dataBlock!=NULL && (leafProxy->dataBlock->upstream!=*upstream))
 			{
-//			LOG(LOG_INFO,"Hold upstream");
-
 			*entry=NULL;
 			return 0;
 			}

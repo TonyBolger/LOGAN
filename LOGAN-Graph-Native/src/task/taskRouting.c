@@ -65,17 +65,17 @@ static void dumpUncleanDispatchReadBlocks(int blockNum, RoutingReadDispatchBlock
 
 		for(int i=0;i<readDispatchBlock->readCount;i++)
 			{
-			if(readDispatchBlock->readData[i].indexCount!=-1)
+			if(readDispatchBlock->readData[i]->indexCount!=-1)
 				{
-				int indexCount=readDispatchBlock->readData[i].indexCount;
+				int indexCount=readDispatchBlock->readData[i]->indexCount;
 
 				if(indexCount>=0)
 					{
-					LOG(LOG_INFO,"INCOMPLETE: Blocked read: %i at indexCount %i in slice %i",i,indexCount, readDispatchBlock->readData[i].slices[indexCount]);
+					LOG(LOG_INFO,"INCOMPLETE: Blocked read: %i at indexCount %i in slice %i",i,indexCount, readDispatchBlock->readData[i]->indexedData[indexCount].slice);
 					}
 				else
 					{
-					LOG(LOG_INFO,"INCOMPLETE: %i at indexCount %i",i,readDispatchBlock->readData[i].indexCount);
+					LOG(LOG_INFO,"INCOMPLETE: %i at indexCount %i",i,readDispatchBlock->readData[i]->indexCount);
 					}
 				}
 			}
@@ -187,8 +187,8 @@ static int trDoIntermediate(ParallelTask *pt, int workerNo, void *wState, int fo
 			}
 		}
 
-	int arlb=__atomic_load_n(&rb->allocatedReadLookupBlocks, __ATOMIC_SEQ_CST);
-	int ardb=__atomic_load_n(&rb->allocatedReadDispatchBlocks, __ATOMIC_SEQ_CST);
+	int arlb=__atomic_load_n(&rb->allocatedReadLookupBlocks, __ATOMIC_RELAXED);
+	int ardb=__atomic_load_n(&rb->allocatedReadDispatchBlocks, __ATOMIC_RELAXED);
 
 //	LOG(LOG_INFO,"trDoIntermediate: %i %i %i %i",workerNo, force, arlb, ardb);
 
@@ -209,8 +209,7 @@ RoutingBuilder *allocRoutingBuilder(Graph *graph, int threads)
 	RoutingBuilder *rb=tiRoutingBuilderAlloc();
 
 	ParallelTaskConfig *ptc=allocParallelTaskConfig(trDoRegister,trDoDeregister,trAllocateIngressSlot,trDoIngress,trDoIntermediate,trDoTidy,threads,
-			TR_INGRESS_BLOCKSIZE, TR_INGRESS_PER_TIDY_MIN, TR_INGRESS_PER_TIDY_MAX, TR_TIDYS_PER_BACKOFF,
-			16);//SMER_HASH_SLICES);
+			TR_INGRESS_BLOCKSIZE, TR_INGRESS_PER_TIDY_MIN, TR_INGRESS_PER_TIDY_MAX, TR_TIDYS_PER_BACKOFF, 0);//SMER_HASH_SLICES);
 
 	rb->pt=allocParallelTask(ptc,rb);
 	rb->graph=graph;

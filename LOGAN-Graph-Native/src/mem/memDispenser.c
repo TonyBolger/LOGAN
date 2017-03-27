@@ -58,7 +58,7 @@ MemDispenser *dispenserAlloc(const char *name, u32 baseBlocksize, u32 maxBlocksi
 
 void dispenserFree(MemDispenser *disp)
 {
-	//LOG(LOG_INFO,"DispFree %p",disp);
+//	LOG(LOG_INFO,"DispFree %p",disp);
 
 	if(disp==NULL)
 		return;

@@ -11,35 +11,51 @@
 #define MASTER_TIMEOUT (60*60*24)
 
 
+static void wakeIdleWorkers(ParallelTask *pt)
+{
+	__atomic_fetch_add(&(pt->idleThreadPokeCount),1, __ATOMIC_SEQ_CST);
+}
+
+
+static void sleepIdleWorker(ParallelTask *pt, int workerNo)
+{
+	//LOG(LOG_INFO,"Sleep %i", workerNo);
+	int pokeCount=__atomic_load_n(&(pt->idleThreadPokeCount),__ATOMIC_SEQ_CST);
+
+	__atomic_fetch_add(&pt->idleThreads, 1, __ATOMIC_SEQ_CST);
+
+	while(pokeCount==__atomic_load_n(&(pt->idleThreadPokeCount),__ATOMIC_SEQ_CST))
+		{
+		struct timespec req;
+
+		req.tv_sec=DEFAULT_SLEEP_SECS;
+		req.tv_nsec=DEFAULT_SLEEP_NANOS;
+
+		nanosleep(&req, NULL);
+		}
+
+	__atomic_fetch_add(&pt->idleThreads, -1, __ATOMIC_SEQ_CST);
+//	LOG(LOG_INFO,"Awake %i", workerNo);
+}
+
 
 
 void waitForStartup(ParallelTask *pt)
 {
 	LOG(LOG_INFO,"Master: Waiting for startup");
 
-	int lock=pthread_mutex_lock(&(pt->mutex));
-	if(lock!=0)
-			{
-			LOG(LOG_CRITICAL,"Failed to lock for performTask");
-			return;
-			}
+	int state=__atomic_load_n(&(pt->state), __ATOMIC_SEQ_CST);
 
-	struct timespec ts;
-
-	clock_gettime(CLOCK_REALTIME, &ts);
-	ts.tv_sec += MASTER_TIMEOUT;
-	int rc = 0;
-	while(pt->state==PTSTATE_STARTUP && rc==0)
+	while(state==PTSTATE_STARTUP)
 		{
-        rc = pthread_cond_timedwait(&(pt->master_startup),&(pt->mutex), &ts);
-        if (rc != 0)
-        	{
-        	LOG(LOG_INFO,"Master: WaitForStartup Timeout");
-        	exit(1);
-        	}
-		}
+		struct timespec req;
 
-	pthread_mutex_unlock(&(pt->mutex));
+		req.tv_sec=DEFAULT_SLEEP_SECS;
+		req.tv_nsec=DEFAULT_SLEEP_NANOS;
+
+		nanosleep(&req, NULL);
+		state=__atomic_load_n(&(pt->state), __ATOMIC_SEQ_CST);
+		}
 
 	LOG(LOG_INFO,"Master: Done Startup");
 }
@@ -48,79 +64,44 @@ void waitForShutdown(ParallelTask *pt)
 {
 	LOG(LOG_INFO,"Master: Waiting for shutdown");
 
+	int state=__atomic_load_n(&(pt->state), __ATOMIC_SEQ_CST);
 
-	int lock=pthread_mutex_lock(&(pt->mutex));
-	if(lock!=0)
+	while(state!=PTSTATE_DEAD)
 		{
-		LOG(LOG_CRITICAL,"Failed to lock for waitForShutdown");
-		return;
+		struct timespec req;
+
+		req.tv_sec=DEFAULT_SLEEP_SECS;
+		req.tv_nsec=DEFAULT_SLEEP_NANOS;
+
+		nanosleep(&req, NULL);
+		state=__atomic_load_n(&(pt->state), __ATOMIC_SEQ_CST);
 		}
 
-	struct timespec ts;
-
-	clock_gettime(CLOCK_REALTIME, &ts);
-	ts.tv_sec += MASTER_TIMEOUT;
-	int rc = 0;
-	while(pt->state!=PTSTATE_DEAD && rc==0)
-		{
-        rc = pthread_cond_timedwait(&(pt->master_shutdown),&(pt->mutex), &ts);
-        if (rc != 0)
-        	{
-        	LOG(LOG_INFO,"Master: WaitForShutdown Timeout");
-        	exit(1);
-        	}
-		}
-
-	pthread_mutex_unlock(&(pt->mutex));
-
-	LOG(LOG_INFO,"Master: Done Shutdown");
+	LOG(LOG_INFO,"Master: Done Shutdown %i %i",
+			__atomic_load_n(&(pt->accumulatedIngressArrived),__ATOMIC_SEQ_CST),
+			__atomic_load_n(&(pt->accumulatedIngressProcessed),__ATOMIC_SEQ_CST));
 }
 
 
-int queueIngress(ParallelTask *pt, void *ingressPtr, int ingressCount, int *ingressUsageCount)
+int queueIngress(ParallelTask *pt, ParallelTaskIngress *ingressData)
 {
 //	LOG(LOG_INFO,"Master: QueueIngress %p %i",ingressPtr,ingressCount);
 
-	int lock=pthread_mutex_lock(&(pt->mutex));
-	if(lock!=0)
+	__atomic_store_n(ingressData->ingressUsageCount,1,__ATOMIC_SEQ_CST); // Allow for 'queued usage'
+
+//	LOG(LOG_INFO,"Master: Queue Ingress %p %i - Usage %i", ingressData->ingressPtr, ingressData->ingressTotal, *(ingressData->ingressUsageCount));
+
+	while(!queueTryInsert(pt->ingressQueue, ingressData))
 		{
-		LOG(LOG_CRITICAL,"Failed to lock for QueueIngress");
-		return 0;
+		struct timespec req;
+
+		req.tv_sec=DEFAULT_SLEEP_SECS;
+		req.tv_nsec=DEFAULT_SLEEP_NANOS;
+
+		nanosleep(&req, NULL);
+
+		wakeIdleWorkers(pt);
 		}
-
-	// NEED TO CHECK EXISTING INGRESS
-
-	//LOG(LOG_INFO,"Master: QueueIngress Wait");
-
-	struct timespec ts;
-
-	clock_gettime(CLOCK_REALTIME, &ts);
-	ts.tv_sec += MASTER_TIMEOUT;
-	int rc = 0;
-	while(pt->reqIngressPtr!=NULL && rc==0)
-		{
-        rc = pthread_cond_timedwait(&(pt->master_ingress),&(pt->mutex), &ts);
-        if (rc != 0)
-        	{
-        	LOG(LOG_INFO,"Master: QueueIngress Timeout");
-        	exit(1);
-        	}
-
-		}
-
-	//LOG(LOG_INFO,"Master: QueueIngress Wait Done");
-
-	pt->reqIngressPtr=ingressPtr;
-	pt->reqIngressTotal=ingressCount;
-	pt->reqIngressUsageCount=ingressUsageCount;
-
-	*ingressUsageCount=1;
-
-	pthread_cond_broadcast(&(pt->workers_idle));
-
-	pthread_mutex_unlock(&(pt->mutex));
-
-//	LOG(LOG_INFO,"Master: QueueIngress Done");
 
 	return 0;
 }
@@ -130,62 +111,145 @@ void queueShutdown(ParallelTask *pt)
 {
 	LOG(LOG_INFO,"Master: QueueShutdown");
 
-	int lock=pthread_mutex_lock(&(pt->mutex));
-	if(lock!=0)
-		{
-		LOG(LOG_CRITICAL,"Failed to lock for queueShutdown");
-		return;
-		}
-
-	LOG(LOG_INFO,"Master: QueueShutdown locked");
-
-	pt->reqShutdown=1;
-
-	pthread_cond_broadcast(&(pt->workers_idle));
-
-	pthread_mutex_unlock(&(pt->mutex));
+	__atomic_store_n(&pt->reqShutdown, 1, __ATOMIC_SEQ_CST);
+	wakeIdleWorkers(pt);
 
 	LOG(LOG_INFO,"Master: QueueShutdown Complete");
 }
 
-static void performTaskNewIngress(ParallelTask *pt)
+static int performTaskAcceptNewIngress(ParallelTask *pt)
 {
-//	LOG(LOG_INFO,"New Ingress Req");
+	int oldToken=1;
 
-	if(pt->activeIngressPtr!=NULL)
+	if(!__atomic_compare_exchange_n(&pt->ingressAcceptToken, &oldToken, 0, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST))
+		return 0;
+
+	if(__atomic_load_n(&(pt->activeIngressPtr), __ATOMIC_SEQ_CST)!=NULL)
 		{
-		LOG(LOG_INFO,"Have an active ingress");
-		exit(1);
+		__atomic_store_n(&pt->ingressAcceptToken, 1, __ATOMIC_SEQ_CST);
+		return 0;
 		}
 
-	pt->activeIngressPtr=pt->reqIngressPtr;
-	pt->activeIngressTotal=pt->reqIngressTotal;
-	pt->activeIngressUsageCount=pt->reqIngressUsageCount;
+	ParallelTaskIngress *newIngress=queuePoll(pt->ingressQueue);
 
-	pt->activeIngressPosition=0;
+	if(newIngress!=NULL)
+		{
+		__atomic_fetch_add(&(pt->accumulatedIngressArrived), newIngress->ingressTotal, __ATOMIC_SEQ_CST);
 
-	pt->reqIngressPtr=NULL;
-	pthread_cond_broadcast(&(pt->master_ingress));
+		__atomic_store_n(&pt->activeIngressPosition, 0, __ATOMIC_RELAXED);
+		__atomic_store_n(&pt->activeIngressPtr, newIngress, __ATOMIC_RELAXED);
+
+		wakeIdleWorkers(pt);
+		}
+
+	__atomic_store_n(&pt->ingressAcceptToken, 1, __ATOMIC_SEQ_CST);
+
+	return newIngress!=NULL;
+}
+
+
+static int changeState(ParallelTask *pt, int originState, int destinationState)
+{
+	int oldState=originState;
+
+	if(__atomic_compare_exchange_n(&pt->state, &oldState, destinationState, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST))
+		return 1;
+
+	return 0;
+}
+
+static int performTaskConsumeActiveIngress(ParallelTask *pt, int workerNo, RoutingWorkerState *wState)
+{
+	int oldToken=1;
+
+	if(!__atomic_compare_exchange_n(&pt->ingressConsumeToken, &oldToken, 0, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST))
+		{
+		return 0;
+		}
+
+	ParallelTaskIngress *ptIngressPtr=__atomic_load_n(&(pt->activeIngressPtr), __ATOMIC_SEQ_CST);
+
+	if(ptIngressPtr==NULL)
+		{
+		__atomic_store_n(&pt->ingressConsumeToken, 1, __ATOMIC_SEQ_CST);
+		return 0;
+		}
+
+	if((pt->config->allocateIngressSlot != NULL) && !(pt->config->allocateIngressSlot(pt,workerNo)))
+		{
+		__atomic_store_n(&pt->ingressConsumeToken, 1, __ATOMIC_SEQ_CST);
+		return 0;
+		}
+
+	int ingressPos=__atomic_load_n(&(pt->activeIngressPosition), __ATOMIC_RELAXED);
+	int ingressTotal=__atomic_load_n(&(ptIngressPtr->ingressTotal), __ATOMIC_RELAXED);
+	int *ingressUsageCount = __atomic_load_n(&(ptIngressPtr->ingressUsageCount), __ATOMIC_RELAXED);
+
+	int ingressSize=pt->config->ingressBlocksize;
+
+	if(ingressPos+ingressSize > ingressTotal)
+		ingressSize=ingressTotal-ingressPos;
+
+	int ingressNewPosition=ingressPos+ingressSize;
+
+	int newIngressFlag=0;
+
+	if(ingressNewPosition>=ingressTotal) // If all consumed
+		{
+		newIngressFlag=1;
+
+		__atomic_store_n(&(pt->activeIngressPtr), NULL, __ATOMIC_RELAXED);
+		__atomic_store_n(&(pt->activeIngressPosition), 0, __ATOMIC_RELAXED);
+
+
+		if(pt->config->tasksPerTidy>0)							// If tidy is configured
+			{
+			if(__atomic_sub_fetch(&(pt->ingressPerTidyCounter),1, __ATOMIC_SEQ_CST)<=0)
+				{
+				//LOG(LOG_INFO,"TIDY triggered");
+
+				__atomic_store_n(&(pt->activeTidyTotal), pt->config->tasksPerTidy, __ATOMIC_SEQ_CST);
+				__atomic_store_n(&(pt->activeTidyPosition) ,0, __ATOMIC_SEQ_CST);
+
+				newIngressFlag=0;
+				}
+			}
+		}
+	else
+		{
+		__atomic_store_n(&(pt->activeIngressPosition), ingressNewPosition, __ATOMIC_SEQ_CST);
+		__atomic_fetch_add(ingressUsageCount, 1, __ATOMIC_SEQ_CST); // Increase usage count if not last, to allow for 'queued usage'
+		}
+
+	__atomic_store_n(&(pt->ingressConsumeToken), 1, __ATOMIC_SEQ_CST);
+
+	__atomic_thread_fence(__ATOMIC_SEQ_CST);
+	int ret=pt->config->doIngress(pt,workerNo, wState, ptIngressPtr->ingressPtr, ingressPos, ingressSize);
+	__atomic_thread_fence(__ATOMIC_SEQ_CST);
+
+	__atomic_fetch_add(&(pt->accumulatedIngressProcessed), ingressSize, __ATOMIC_SEQ_CST);
+
+	__atomic_sub_fetch(ingressUsageCount, 1, __ATOMIC_RELEASE);
+
+	if(newIngressFlag)
+		performTaskAcceptNewIngress(pt);
+
+	return ret;
 }
 
 static int performTaskActive(ParallelTask *pt, int workerNo, RoutingWorkerState *wState)
 {
-	int lockRet=0, ret=0;
+	int ret=0;
+
+//	LOG(LOG_INFO,"performTaskActive %p ", pt->activeIngressPtr);
+
 
 	// 1st priority - high priority intermediates
 	if(pt->config->doIntermediate!=NULL)
 		{
-		pthread_mutex_unlock(&(pt->mutex));
-
+		__atomic_thread_fence(__ATOMIC_SEQ_CST);
 		ret = pt->config->doIntermediate(pt,workerNo,wState,0);
-
-		lockRet=pthread_mutex_lock(&(pt->mutex));
-		if(lockRet!=0)
-				{
-				LOG(LOG_CRITICAL,"Failed to lock for performTask: %s",strerror(lockRet));
-				}
-
-		//LOG(LOG_INFO,"Hipri %i for worker %i",ret,workerNo);
+		__atomic_thread_fence(__ATOMIC_SEQ_CST);
 
 		if(ret)
 			return 1;
@@ -193,99 +257,32 @@ static int performTaskActive(ParallelTask *pt, int workerNo, RoutingWorkerState 
 
 	// 2nd priority - active ingress
 
-
-	if((pt->activeIngressPtr!=NULL) && (pt->config->allocateIngressSlot == NULL || pt->config->allocateIngressSlot(pt,workerNo)))
+	if(__atomic_load_n(&(pt->activeIngressPtr), __ATOMIC_SEQ_CST)!=NULL)
 		{
-//		LOG(LOG_INFO,"Active 2 %i %i",pt->activeIngressCounter,pt->activeIngressTotal);
-
-		void *ingressPtr=pt->activeIngressPtr;
-		int *ingressUsageCount=pt->activeIngressUsageCount;
-		int ingressPos=pt->activeIngressPosition;
-
-		int ingressSize=pt->config->ingressBlocksize;
-		if(pt->activeIngressPosition+ingressSize > pt->activeIngressTotal)
-			ingressSize=pt->activeIngressTotal-pt->activeIngressPosition;
-
-		pt->activeIngressPosition+=ingressSize;
-
-		if(pt->activeIngressPosition>=pt->activeIngressTotal)
-			{
-	//		LOG(LOG_INFO,"Ingress done");
-
-			pt->activeIngressPtr=NULL;
-			pt->activeIngressUsageCount=NULL;
-			pt->activeIngressPosition=0;
-
-			if(pt->config->tasksPerTidy>0)
-				pt->ingressPerTidyCounter--;
-
-			if(pt->ingressPerTidyCounter<=0)
-				{
-				pt->activeTidyTotal=pt->config->tasksPerTidy;
-				pt->activeTidyPosition=0;
-				}
-			else
-				{
-				if(pt->reqIngressPtr)
-					performTaskNewIngress(pt);
-				}
-			}
-		else
-			__atomic_fetch_add(ingressUsageCount, 1, __ATOMIC_SEQ_CST); // Increase usage count if not last, to allow for 'queued usage'
-
-		// Do Ingress
-
-		pthread_mutex_unlock(&(pt->mutex));
-
-		ret=pt->config->doIngress(pt,workerNo,wState, ingressPtr, ingressPos, ingressSize);
-
-		lockRet=pthread_mutex_lock(&(pt->mutex));
-		if(lockRet!=0)
-				{
-				LOG(LOG_CRITICAL,"Failed to lock for performTask: %s",strerror(lockRet));
-				}
-
-		__atomic_fetch_sub(ingressUsageCount, 1, __ATOMIC_SEQ_CST);
-
-		return 1;
+		if(performTaskConsumeActiveIngress(pt, workerNo, wState))
+			return 1;
 		}
-	/*
-	else
-		{
-		//pthread_cond_broadcast(&(pt->master_ingress));
-
-		//LOG(LOG_INFO,"Has Ingress %p and %p",pt->activeIngressPtr, pt->reqIngressPtr);
-		}
-*/
 
 	// 3rd priority - low priority intermediates
 	if(pt->config->doIntermediate!=NULL)
 		{
-		pthread_mutex_unlock(&(pt->mutex));
-
+		__atomic_thread_fence(__ATOMIC_SEQ_CST);
 		ret = pt->config->doIntermediate(pt,workerNo,wState, 1);
-
-		lockRet=pthread_mutex_lock(&(pt->mutex));
-		if(lockRet!=0)
-				{
-				LOG(LOG_CRITICAL,"Failed to lock for performTask: %s",strerror(lockRet));
-				}
-
-		//LOG(LOG_INFO,"Lopri %i for worker %i",ret,workerNo);
+		__atomic_thread_fence(__ATOMIC_SEQ_CST);
 
 		if(ret)
 			return 1;
 		}
 
 	// 4th priority - tidy
-	if(pt->activeTidyTotal>0)
+	if(__atomic_load_n(&(pt->activeTidyTotal), __ATOMIC_SEQ_CST)>0)
 		{
-		//LOG(LOG_INFO,"Tidy needed");
-
 		// Last non-sleeping thread
 		if(pt->idleThreads==pt->liveThreads-1)
 			{
-			pt->state=PTSTATE_TIDY_WAIT;
+			//LOG(LOG_INFO,"Tidy activate");
+
+			changeState(pt, PTSTATE_ACTIVE, PTSTATE_TIDY_WAIT);
 			return 1;
 			}
 		else
@@ -293,18 +290,23 @@ static int performTaskActive(ParallelTask *pt, int workerNo, RoutingWorkerState 
 		}
 
 	// 5th priority - new ingress
-	if((pt->reqIngressPtr) && (!pt->activeIngressPtr))
+
+	if(__atomic_load_n(&(pt->activeIngressPtr), __ATOMIC_SEQ_CST)==NULL)
 		{
-		performTaskNewIngress(pt);
-		return 1;
+//		LOG(LOG_INFO,"New ingress needed");
+
+		if(performTaskAcceptNewIngress(pt))
+			return 1;
 		}
 
-	// 6th priority - shutdown
-	else if(pt->reqShutdown)
+	// 6th priority - shutdown (hacky for now)
+	if(queueIsEmpty(pt->ingressQueue) &&
+			__atomic_load_n(&(pt->activeIngressPtr),__ATOMIC_SEQ_CST)==NULL &&
+			__atomic_load_n(&(pt->reqShutdown), __ATOMIC_SEQ_CST))
 		{
-		//LOG(LOG_INFO,"New Shutdown Req");
+//		LOG(LOG_INFO,"New Shutdown Req");
 
-   		pt->state=PTSTATE_SHUTDOWN_TIDY_WAIT;
+		changeState(pt, PTSTATE_ACTIVE, PTSTATE_SHUTDOWN_TIDY_WAIT);
    		return 1;
 		}
 
@@ -316,43 +318,33 @@ void performTidyWait(ParallelTask *pt)
 {
 //	LOG(LOG_INFO,"TIDY WAIT");
 
-	pthread_mutex_unlock(&(pt->mutex));
-
 	pthread_barrier_wait(&(pt->tidyStartBarrier));
-
-	int ret=pthread_mutex_lock(&(pt->mutex));
-	if(ret!=0)
-		{
-		LOG(LOG_CRITICAL,"Failed to lock for performTask: %s",strerror(ret));
-		}
 
 //	LOG(LOG_INFO,"TIDY WAIT done");
 }
 
 void performTidy(ParallelTask *pt, int workerNo, RoutingWorkerState *wState)
 {
-	int tidyPos=pt->activeTidyPosition;
+	int tidyTotal=__atomic_load_n(&(pt->activeTidyTotal), __ATOMIC_SEQ_CST);
+	if(tidyTotal==0)
+		return;
 
-	pt->activeTidyPosition++;
+	int tidyPos=__atomic_fetch_add(&(pt->activeTidyPosition),1,__ATOMIC_SEQ_CST);
 
-	if(pt->activeTidyPosition>=pt->activeTidyTotal)
+	if(tidyPos>=tidyTotal)
 		{
-		pt->activeTidyTotal=0;
-		pt->activeTidyPosition=0;
+		__atomic_store_n(&(pt->activeTidyTotal), 0, __ATOMIC_SEQ_CST);
+		__atomic_store_n(&(pt->activeTidyPosition), 0, __ATOMIC_SEQ_CST);
+
+		return;
 		}
 
 	// Do Tidy if handler set
 	if(pt->config->doTidy!=NULL)
 		{
-		pthread_mutex_unlock(&(pt->mutex));
-
+		__atomic_thread_fence(__ATOMIC_SEQ_CST);
 		pt->config->doTidy(pt,workerNo,wState, tidyPos);
-
-		int ret=pthread_mutex_lock(&(pt->mutex));
-		if(ret!=0)
-			{
-			LOG(LOG_CRITICAL,"Failed to lock for performTask: %s",strerror(ret));
-			}
+		__atomic_thread_fence(__ATOMIC_SEQ_CST);
 		}
 }
 
@@ -361,7 +353,7 @@ void performTidy(ParallelTask *pt, int workerNo, RoutingWorkerState *wState)
 void performTask_worker(ParallelTask *pt)
 {
 	int workerNo=-1;
-	int ret=0;
+	//int ret=0;
 
 	/*
 	 * Join steps:
@@ -375,7 +367,9 @@ void performTask_worker(ParallelTask *pt)
 
 	//LOG(LOG_INFO,"Worker %i Register",workerNo);
 
+	__atomic_thread_fence(__ATOMIC_SEQ_CST);
 	RoutingWorkerState *wState=pt->config->doRegister(pt,workerNo,pt->config->expectedThreads);
+	__atomic_thread_fence(__ATOMIC_SEQ_CST);
 
 	//LOG(LOG_INFO,"Worker %i Startup Barrier wait",workerNo);
 
@@ -384,58 +378,40 @@ void performTask_worker(ParallelTask *pt)
 
 	//LOG(LOG_INFO,"Worker %i Startup Barrier done",workerNo);
 
-	// Lock should be held except when working
-
-	ret=pthread_mutex_lock(&(pt->mutex));
-	if(ret!=0)
-			{
-			LOG(LOG_CRITICAL,"Failed to lock for performTask: %s",strerror(ret));
-			}
-
 	// If nobody else did it, update state and notify any waiting master
-	if(pt->state==PTSTATE_STARTUP)
+
+	changeState(pt, PTSTATE_STARTUP, PTSTATE_ACTIVE);
+
+	int state=__atomic_load_n(&(pt->state), __ATOMIC_SEQ_CST);
+
+	if(state!=PTSTATE_ACTIVE)
 		{
-		pt->state=PTSTATE_ACTIVE;
-		pthread_cond_broadcast(&(pt->master_startup));
+		LOG(LOG_CRITICAL,"unexpected state change %i at startup",state);
 		}
 
-	//LOG(LOG_INFO,"Worker %i Entering main loop",workerNo);
 
-
-	while(pt->state!=PTSTATE_SHUTDOWN_TIDY_WAIT)
+	while(state!=PTSTATE_SHUTDOWN_TIDY_WAIT)
 		{
 		//LOG(LOG_INFO,"Worker %i looping %i",workerNo,pt->state);
 
-		if(pt->state==PTSTATE_ACTIVE)
+		if(state==PTSTATE_ACTIVE)
 			{
-			if(performTaskActive(pt,workerNo, wState))
+			if(!performTaskActive(pt,workerNo, wState))
 				{
-				pthread_cond_broadcast(&(pt->workers_idle));
+				sleepIdleWorker(pt, workerNo);
 				}
-		   	else
-    			{
-		   		pt->idleThreads++;
-		   		pthread_cond_broadcast(&(pt->master_ingress));
-
-//		   		if(pt->idleThreads > 6)
-//		   			LOG(LOG_INFO,"Worker %i sleeping (idle %i)",workerNo, pt->idleThreads);
-
-		   		pthread_cond_wait(&(pt->workers_idle),&(pt->mutex));
-
-		   		pt->idleThreads--;
-
-//		   		if(pt->idleThreads > 5)
-//		   			LOG(LOG_INFO,"Worker %i waking (idle %i)",workerNo, pt->idleThreads);
-    			}
+			else
+				{
+				if(__atomic_load_n(&(pt->idleThreads),__ATOMIC_SEQ_CST)>0)
+					wakeIdleWorkers(pt);
+				}
 			}
-		else if(pt->state==PTSTATE_TIDY_WAIT)
+		else if(state==PTSTATE_TIDY_WAIT)
 			{
 			performTidyWait(pt);
-
-			if(pt->state==PTSTATE_TIDY_WAIT)
-				pt->state=PTSTATE_TIDY;
+			changeState(pt, PTSTATE_TIDY_WAIT, PTSTATE_TIDY);
 			}
-		else if(pt->state==PTSTATE_TIDY)
+		else if(state==PTSTATE_TIDY)
 			{
 			if(pt->activeTidyTotal>0)
 				{
@@ -443,35 +419,28 @@ void performTask_worker(ParallelTask *pt)
 				}
 			else
 				{
-				pthread_mutex_unlock(&(pt->mutex));
 				pthread_barrier_wait(&(pt->tidyEndBarrier));
-				ret=pthread_mutex_lock(&(pt->mutex));
-				if(ret!=0)
-						{
-						LOG(LOG_CRITICAL,"Failed to lock for performTask: %s",strerror(ret));
-						}
 
-				if(pt->state==PTSTATE_TIDY)
+				if(changeState(pt, PTSTATE_TIDY, PTSTATE_ACTIVE))
 					{
-					pt->state=PTSTATE_ACTIVE;
-
-					pt->tidyBackoffCounter--;
-					if(pt->tidyBackoffCounter==0)
+					if(__atomic_sub_fetch(&(pt->tidyBackoffCounter), 1, __ATOMIC_SEQ_CST)<=0)
 						{
-						pt->tidyBackoffCounter=pt->config->tidysPerBackoff;
+						__atomic_store_n(&(pt->tidyBackoffCounter), pt->config->tidysPerBackoff, __ATOMIC_SEQ_CST);
 
-						pt->ingressPerTidyTotal*=2;
-						if(pt->ingressPerTidyTotal > pt->config->ingressPerTidyMax)
-							pt->ingressPerTidyTotal = pt->config->ingressPerTidyMax;
+						int ingressPerTidyTotal=__atomic_load_n(&(pt->ingressPerTidyTotal), __ATOMIC_SEQ_CST)*2;
+
+						if(ingressPerTidyTotal > pt->config->ingressPerTidyMax)
+							ingressPerTidyTotal = pt->config->ingressPerTidyMax;
+
+						__atomic_store_n(&(pt->ingressPerTidyTotal), ingressPerTidyTotal, __ATOMIC_SEQ_CST);
 						}
 
-					pt->ingressPerTidyCounter=pt->ingressPerTidyTotal;
-
-//					LOG(LOG_INFO,"IngressesPerTidy %i BackOffCount %i",pt->ingressPerTidyTotal,pt->tidyBackoffCounter);
+					__atomic_store_n(&(pt->ingressPerTidyCounter), __atomic_load_n(&(pt->ingressPerTidyTotal), __ATOMIC_SEQ_CST), __ATOMIC_SEQ_CST);
 					}
 				}
 			}
 
+		state=__atomic_load_n(&(pt->state), __ATOMIC_SEQ_CST);
 		}
 
 	LOG(LOG_INFO,"Worker %i Completed main loop - waiting for shutdown tidy",workerNo);
@@ -480,23 +449,12 @@ void performTask_worker(ParallelTask *pt)
 
 	performTidyWait(pt);
 
-
-	if(pt->state==PTSTATE_SHUTDOWN_TIDY_WAIT)
-		{
-		pt->state=PTSTATE_SHUTDOWN_TIDY;
-
-		//pt->activeTidyTotal=pt->config->tasksPerTidy;
-		//pt->activeTidyPosition=0;
-		}
+	changeState(pt, PTSTATE_SHUTDOWN_TIDY_WAIT, PTSTATE_SHUTDOWN_TIDY);
 
 	while(pt->activeTidyTotal>0)
 		performTidy(pt, workerNo, wState);
 
-
-	// Release Lock at shutdown
-	pt->state=PTSTATE_SHUTDOWN;
-
-	pthread_mutex_unlock(&(pt->mutex));
+	changeState(pt, PTSTATE_SHUTDOWN_TIDY, PTSTATE_SHUTDOWN);
 
 	/*
 	 * Leave steps:
@@ -513,7 +471,10 @@ void performTask_worker(ParallelTask *pt)
 
 //	LOG(LOG_INFO,"Worker %i Deregister",workerNo);
 
+	__atomic_thread_fence(__ATOMIC_SEQ_CST);
 	pt->config->doDeregister(pt,workerNo,wState);
+	__atomic_thread_fence(__ATOMIC_SEQ_CST);
+
 	int alive=__atomic_sub_fetch(&(pt->liveThreads),1, __ATOMIC_SEQ_CST);
 
 //	LOG(LOG_INFO,"Worker %i - still alive %i",workerNo,alive);
@@ -521,18 +482,7 @@ void performTask_worker(ParallelTask *pt)
 	if(alive==0)
 		{
 		LOG(LOG_INFO,"Worker %i last out, notifying master",workerNo);
-
-		ret=pthread_mutex_lock(&(pt->mutex));
-		if(ret!=0)
-				{
-				LOG(LOG_CRITICAL,"Failed to lock for performTask: %s",strerror(ret));
-				return;
-				}
-
-		pt->state=PTSTATE_DEAD;
-		pthread_cond_broadcast(&(pt->master_shutdown));
-
-		pthread_mutex_unlock(&(pt->mutex));
+		__atomic_store_n(&(pt->state), PTSTATE_DEAD, __ATOMIC_SEQ_CST);
 		}
 
 }
@@ -595,50 +545,26 @@ ParallelTask *allocParallelTask(ParallelTaskConfig *ptc, void *dataPtr)
 	pt->config=ptc;
 	pt->dataPtr=dataPtr;
 
-	pt->reqIngressPtr=NULL;
-	pt->reqIngressTotal=0;
+	pt->ingressQueue=queueAlloc(2);
+
 	pt->reqShutdown=0;
 
 	pt->activeIngressPtr=NULL;
-	pt->activeIngressTotal=0;
+	pt->ingressAcceptToken=1;
+	pt->ingressConsumeToken=1;
+
+	pt->accumulatedIngressArrived=0;
+	pt->accumulatedIngressProcessed=0;
 
 	pt->activeTidyPosition=0;
 	pt->activeTidyTotal=0;
 
-	pt->ingressPerTidyTotal=ptc->ingressPerTidyMin;
+	pt->ingressPerTidyTotal=pt->ingressPerTidyCounter=ptc->ingressPerTidyMin;
 	pt->tidyBackoffCounter=ptc->tidysPerBackoff;
 
 	int ret;
 
-	ret=pthread_mutex_init(&(pt->mutex),NULL);
-	if(ret!=0)
-		{
-		LOG(LOG_CRITICAL,"Failed to init mutex: %s",strerror(ret));
-		return NULL;
-		}
-
-	ret=pthread_cond_init(&(pt->master_startup),NULL);
-	if(ret!=0)
-		{
-		LOG(LOG_CRITICAL,"Failed to init cond: %s",strerror(ret));
-		return NULL;
-		}
-
-	ret=pthread_cond_init(&(pt->master_ingress),NULL);
-	if(ret!=0)
-		{
-		LOG(LOG_CRITICAL,"Failed to init cond: %s",strerror(ret));
-		return NULL;
-		}
-
-	ret=pthread_cond_init(&(pt->master_shutdown),NULL);
-	if(ret!=0)
-		{
-		LOG(LOG_CRITICAL,"Failed to init cond: %s",strerror(ret));
-		return NULL;
-		}
-
-	pt->state=0;
+	pt->state=PTSTATE_STARTUP;
 
 	ret=pthread_barrier_init(&(pt->startupBarrier),NULL,ptc->expectedThreads);
 	if(ret!=0)
@@ -668,12 +594,7 @@ ParallelTask *allocParallelTask(ParallelTaskConfig *ptc, void *dataPtr)
 		return NULL;
 		}
 
-	ret=pthread_cond_init(&(pt->workers_idle),NULL);
-	if(ret!=0)
-		{
-		LOG(LOG_CRITICAL,"Failed to init cond: %s",strerror(ret));
-		return NULL;
-		}
+	pt->idleThreadPokeCount=0;
 
 	pt->liveThreads=0;
 	pt->idleThreads=0;
@@ -683,34 +604,6 @@ ParallelTask *allocParallelTask(ParallelTaskConfig *ptc, void *dataPtr)
 void freeParallelTask(ParallelTask *pt)
 {
 	int ret;
-
-	ret=pthread_mutex_destroy(&(pt->mutex));
-	if(ret!=0)
-		{
-		LOG(LOG_CRITICAL,"Failed to destroy mutex: %s",strerror(ret));
-		return;
-		}
-
-	ret=pthread_cond_destroy(&(pt->master_startup));
-	if(ret!=0)
-		{
-		LOG(LOG_CRITICAL,"Failed to destroy cond: %s",strerror(ret));
-		return;
-		}
-
-	ret=pthread_cond_destroy(&(pt->master_ingress));
-	if(ret!=0)
-		{
-		LOG(LOG_CRITICAL,"Failed to destroy cond: %s",strerror(ret));
-		return;
-		}
-
-	ret=pthread_cond_destroy(&(pt->master_shutdown));
-	if(ret!=0)
-		{
-		LOG(LOG_CRITICAL,"Failed to destroy cond: %s",strerror(ret));
-		return;
-		}
 
 	ret=pthread_barrier_destroy(&(pt->startupBarrier));
 	if(ret!=0)
@@ -740,12 +633,6 @@ void freeParallelTask(ParallelTask *pt)
 		return;
 		}
 
-	ret=pthread_cond_destroy(&(pt->workers_idle));
-	if(ret!=0)
-		{
-		LOG(LOG_CRITICAL,"Failed to destroy cond: %s",strerror(ret));
-		return;
-		}
 
 	ptParallelTaskFree(pt);
 }

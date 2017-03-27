@@ -9,55 +9,61 @@
 
 
 
-void initIngressBuffer(SwqBuffer *buffer, int bufSize, int recordsPerBatch, int maxReadLength)
+void initSequenceBuffer(SwqBuffer *swqBuffer, int bufSize, int recordsPerBatch, int maxReadLength)
 {
 	if(bufSize>0)
 		{
-		buffer->seqBuffer=malloc(bufSize);
-		buffer->qualBuffer=malloc(bufSize);
+		swqBuffer->seqBuffer=malloc(bufSize);
+		swqBuffer->qualBuffer=malloc(bufSize);
 		}
 	else
 		{
-		buffer->seqBuffer=NULL;
-		buffer->qualBuffer=NULL;
+		swqBuffer->seqBuffer=NULL;
+		swqBuffer->qualBuffer=NULL;
 		}
 
-	buffer->rec=malloc(sizeof(SequenceWithQuality)*recordsPerBatch);
+	swqBuffer->rec=malloc(sizeof(SequenceWithQuality)*recordsPerBatch);
 
-	buffer->maxSequenceTotalLength=bufSize;
-	buffer->maxSequences=recordsPerBatch;
-	buffer->maxSequenceLength=maxReadLength;
-	buffer->numSequences=0;
-	buffer->usageCount=0;
+	swqBuffer->maxSequenceTotalLength=bufSize;
+	swqBuffer->maxSequences=recordsPerBatch;
+	swqBuffer->maxSequenceLength=maxReadLength;
+	swqBuffer->numSequences=0;
+	swqBuffer->usageCount=0;
 
 }
 
-void freeIngressBuffer(SwqBuffer *buffer)
+void freeSequenceBuffer(SwqBuffer *swqBuffer)
 {
-	if(buffer->seqBuffer!=NULL)
-		free(buffer->seqBuffer);
+	if(swqBuffer->seqBuffer!=NULL)
+		free(swqBuffer->seqBuffer);
 
-	if(buffer->qualBuffer!=NULL)
-		free(buffer->qualBuffer);
+	if(swqBuffer->qualBuffer!=NULL)
+		free(swqBuffer->qualBuffer);
 
-	free(buffer->rec);
+	free(swqBuffer->rec);
 
-	memset(buffer, 0, sizeof(SwqBuffer));
+	memset(swqBuffer, 0, sizeof(SwqBuffer));
 }
-
 
 
 static void waitForIdle(int *usageCount)
 {
-	while(__atomic_load_n(usageCount,__ATOMIC_SEQ_CST))
+//	LOG(LOG_INFO,"WaitForIdle");
+
+	while(__atomic_load_n(usageCount,__ATOMIC_SEQ_CST)>0)
 		{
-		struct timespec req, rem;
+		struct timespec req;
 
-		req.tv_sec=0;
-		req.tv_nsec=1000000;
+		req.tv_sec=DEFAULT_SLEEP_SECS;
+		req.tv_nsec=DEFAULT_SLEEP_NANOS;
 
-		nanosleep(&req, &rem);
+		nanosleep(&req, NULL);
 		}
+
+	if(__atomic_load_n(usageCount,__ATOMIC_SEQ_CST)<0)
+		LOG(LOG_CRITICAL,"Negative usage");
+
+//	LOG(LOG_INFO,"WaitForIdle Done");
 }
 
 
@@ -371,17 +377,28 @@ int readBufferedFastqRecord(u8 *ioBuffer, int *offset, SequenceWithQuality *rec,
 }
 
 
-void indexingBuilderDataHandler(SwqBuffer *buffer, void *context)
+void indexingBuilderDataHandler(SwqBuffer *swqBuffer, ParallelTaskIngress *ingressBuffer, void *context)
 {
 	IndexingBuilder *ib=(IndexingBuilder *)context;
-	queueIngress(ib->pt, buffer, buffer->numSequences, &buffer->usageCount);
+
+	ingressBuffer->ingressPtr=swqBuffer;
+	ingressBuffer->ingressTotal=swqBuffer->numSequences;
+	ingressBuffer->ingressUsageCount=&swqBuffer->usageCount;
+
+	queueIngress(ib->pt, ingressBuffer);
 }
 
 
-void routingBuilderDataHandler(SwqBuffer *buffer, void *context)
+void routingBuilderDataHandler(SwqBuffer *swqBuffer, ParallelTaskIngress *ingressBuffer, void *context)
 {
 	RoutingBuilder *rb=(RoutingBuilder *)context;
-	queueIngress(rb->pt, buffer, buffer->numSequences, &buffer->usageCount);
+
+	ingressBuffer->ingressPtr=swqBuffer;
+	ingressBuffer->ingressTotal=swqBuffer->numSequences;
+	ingressBuffer->ingressUsageCount=&swqBuffer->usageCount;
+
+	queueIngress(rb->pt, ingressBuffer);
+
 }
 
 
@@ -390,8 +407,8 @@ void routingBuilderDataHandler(SwqBuffer *buffer, void *context)
 
 int parseAndProcess(char *path, int minSeqLength, int recordsToSkip, int recordsToUse,
 		u8 *ioBuffer, int ioBufferRecycleSize, int ioBufferPrimarySize,
-		SwqBuffer *swqBuffers, int bufferCount,
-		void *handlerContext, void (*handler)(SwqBuffer *buffer, void *handlerContext))
+		SwqBuffer *swqBuffers, ParallelTaskIngress *ingressBuffers, int bufferCount,
+		void *handlerContext, void (*handler)(SwqBuffer *swqBuffer, ParallelTaskIngress *ingressBuffer, void *handlerContext))
 {
 	FILE *file=fopen(path,"r");
 
@@ -444,7 +461,7 @@ int parseAndProcess(char *path, int minSeqLength, int recordsToSkip, int records
 					{
 					swqBuffers[currentBuffer].numSequences=batchReadCount;
 
-					(*handler)(swqBuffers+currentBuffer,handlerContext);
+					(*handler)(swqBuffers+currentBuffer, ingressBuffers+currentBuffer, handlerContext);
 					totalBatch+=batchReadCount;
 					batchReadCount=0;
 					batchBaseCount=0;
@@ -496,7 +513,7 @@ int parseAndProcess(char *path, int minSeqLength, int recordsToSkip, int records
 		{
 		swqBuffers[currentBuffer].numSequences=batchReadCount;
 
-		(*handler)(swqBuffers+currentBuffer,handlerContext);
+		(*handler)(swqBuffers+currentBuffer,ingressBuffers+currentBuffer, handlerContext);
 		totalBatch+=batchReadCount;
 		}
 
