@@ -48,6 +48,8 @@ void waitForStartup(ParallelTask *pt)
 
 	while(state==PTSTATE_STARTUP)
 		{
+		LOG(LOG_INFO,"Master: State is %i",state);
+
 		struct timespec req;
 
 		req.tv_sec=DEFAULT_SLEEP_SECS;
@@ -386,7 +388,7 @@ void performTask_worker(ParallelTask *pt)
 
 	if(state!=PTSTATE_ACTIVE)
 		{
-		LOG(LOG_CRITICAL,"unexpected state change %i at startup",state);
+		LOG(LOG_CRITICAL,"Failed / Unexpected state change %i at startup",state);
 		}
 
 

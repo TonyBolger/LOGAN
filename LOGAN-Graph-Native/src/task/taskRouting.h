@@ -12,6 +12,10 @@
 
 #define TR_READBLOCK_DISPATCHES_INFLIGHT 200
 
+// Each block: 10000 reads * 150bp? * Smer: 8 * 2: Max 24MByte
+// 20 Lookups: 480MBytes (full)
+// 200 Dispatches: 2.4GBytes (50% real smers)
+
 // Lookup work is in slices (max 16384)
 //#define TR_LOOKUP_MAX_WORK 1024
 #define TR_LOOKUP_MAX_WORK 16384

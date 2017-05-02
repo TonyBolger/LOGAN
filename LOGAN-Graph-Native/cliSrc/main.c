@@ -47,6 +47,10 @@ void runIptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 
 	IptThreadData *data=malloc(sizeof(IptThreadData)*threadCount);
 
+	pthread_attr_t attr;
+	pthread_attr_init(&attr);
+	pthread_attr_setstacksize(&attr, THREAD_INDEXING_STACKSIZE);
+
 	int i=0;
 	for(i=0;i<threadCount;i++)
 		{
@@ -54,7 +58,16 @@ void runIptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 		data[i].indexingBuilder=ib;
 
 		data[i].threadIndex=i;
-		pthread_create(threads+i,NULL,runIptWorker,data+i);
+
+		int err=pthread_create(threads+i,&attr,runIptWorker,data+i);
+
+		if(err)
+			{
+			char errBuf[1000];
+			strerror_r(err,errBuf,1000);
+
+			LOG(LOG_CRITICAL,"Error %i (%s) creating worker thread %i",err,errBuf,i);
+			}
 		}
 
 	waitForStartup(ib->pt);
@@ -137,6 +150,10 @@ void runRptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 
 	RptThreadData *data=malloc(sizeof(RptThreadData)*threadCount);
 
+	pthread_attr_t attr;
+	pthread_attr_init(&attr);
+	pthread_attr_setstacksize(&attr,THREAD_ROUTING_STACKSIZE);
+
 	int i=0;
 	for(i=0;i<threadCount;i++)
 		{
@@ -144,7 +161,15 @@ void runRptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 		data[i].routingBuilder=rb;
 
 		data[i].threadIndex=i;
-		pthread_create(threads+i,NULL,runRptWorker,data+i);
+		int err=pthread_create(threads+i,&attr,runRptWorker,data+i);
+
+		if(err)
+			{
+			char errBuf[1000];
+			strerror_r(err,errBuf,1000);
+
+			LOG(LOG_CRITICAL,"Error %i (%s) creating worker thread %i",err,errBuf,i);
+			}
 		}
 
 	waitForStartup(rb->pt);

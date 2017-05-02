@@ -847,11 +847,11 @@ void *circAlloc_nobumper(MemCircHeap *circHeap, size_t size, u8 tag, s32 newTagO
 {
 	if(size>CIRCHEAP_MAX_ALLOC)
 		{
-		LOG(LOG_CRITICAL, "Request to allocate %i bytes of ColHeap memory refused since it is above the max allocation size %i",size,CIRCHEAP_MAX_ALLOC);
+		LOG(LOG_CRITICAL, "Request to allocate %i bytes of CircHeap memory refused since it is above the max allocation size %i",size,CIRCHEAP_MAX_ALLOC);
 		}
 	if(size>CIRCHEAP_MAX_ALLOC_WARN)
 		{
-		LOG(LOG_INFO, "Request to allocate %i bytes of ColHeap memory logged since it is above the warn allocation size %i",size,CIRCHEAP_MAX_ALLOC_WARN);
+		LOG(LOG_INFO, "Request to allocate %i bytes of CircHeap memory logged since it is above the warn allocation size %i",size,CIRCHEAP_MAX_ALLOC_WARN);
 		}
 
 

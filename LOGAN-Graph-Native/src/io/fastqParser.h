@@ -27,8 +27,8 @@
 
 // RECYCLE_BUFFER should be at least FASTQ_MAX_READ_LENGTH * 4
 
-#define FASTQ_IO_RECYCLE_BUFFER (64*1024)
-#define FASTQ_IO_PRIMARY_BUFFER (1024*1024)
+#define FASTQ_IO_RECYCLE_BUFFER (4*1024*1024)
+#define FASTQ_IO_PRIMARY_BUFFER (10*1024*1024)
 
 
 void initSequenceBuffer(SwqBuffer *swqBuffer, int bufSize, int recordsPerBatch, int maxReadLength);

@@ -104,7 +104,7 @@ void saCleanupSmerArray(SmerArray *smerArray) {
 			"RTlB\tRTloB\tRTleB\t"
 			"RTbB\tRTboB\tRTbcB\t"
 			"RTByte\tByte");
-	MemDispenser *disp=dispenserAlloc("Stats",DISPENSER_BLOCKSIZE_HUGE);
+	MemDispenser *disp=dispenserAlloc("Stats",DISPENSER_BLOCKSIZE_MEDIUM, DISPENSER_BLOCKSIZE_HUGE);
 #endif
 	for (i = 0; i < SMER_SLICES; i++)
 		{
