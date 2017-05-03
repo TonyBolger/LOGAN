@@ -290,7 +290,9 @@ static void rttMergeRoutes_insertEntry(RouteTableTreeWalker *walker, s32 upstrea
 			RouteTableTreeLeafProxy *targetLeafProxy=NULL;
 			s16 targetLeafEntry=-1;
 
-			ensureRouteTableTreeLeafOffsetCapacity(walker->treeProxy, leafProxy, walker->downstreamOffsetCount);
+//			ensureRouteTableTreeLeafOffsetCapacity(walker->treeProxy, leafProxy, walker->downstreamOffsetCount);
+
+			ensureRouteTableTreeLeafOffsetCapacity(walker->treeProxy, leafProxy, downstream+1);
 
 			//RouteTableTreeLeafProxy *newLeafProxy=
 
@@ -324,7 +326,8 @@ static void rttMergeRoutes_insertEntry(RouteTableTreeWalker *walker, s32 upstrea
 				expandRouteTableTreeLeafProxy(walker->treeProxy, leafProxy, walker->downstreamOffsetCount);
 				}
 			else
-				ensureRouteTableTreeLeafOffsetCapacity(walker->treeProxy, leafProxy, walker->downstreamOffsetCount);
+				//ensureRouteTableTreeLeafOffsetCapacity(walker->treeProxy, leafProxy, walker->downstreamOffsetCount);
+				ensureRouteTableTreeLeafOffsetCapacity(walker->treeProxy, leafProxy, downstream+1);
 
 			leafMakeEntryInsertSpace(leafProxy, walker->leafEntry, 1);
 			}
@@ -366,7 +369,7 @@ static void rttMergeRoutes_widen(RouteTableTreeWalker *walker)
 		}
 
 
-	ensureRouteTableTreeLeafOffsetCapacity(walker->treeProxy, leafProxy, walker->downstreamOffsetCount);
+	//ensureRouteTableTreeLeafOffsetCapacity(walker->treeProxy, leafProxy, walker->downstreamOffsetCount);
 
 	RouteTableTreeLeafEntry *entryPtr=getRouteTableTreeLeaf_EntryPtr(leafProxy->dataBlock);
 
@@ -383,6 +386,9 @@ static void rttMergeRoutes_widen(RouteTableTreeWalker *walker)
 
 	entryPtr[walker->leafEntry].width++;
 	s32 downstream=entryPtr[walker->leafEntry].downstream;
+
+	//ensureRouteTableTreeLeafOffsetCapacity(walker->treeProxy, leafProxy, walker->downstreamOffsetCount);
+	ensureRouteTableTreeLeafOffsetCapacity(walker->treeProxy, leafProxy, downstream+1);
 
 	leafProxy->dataBlock->upstreamOffset++;
 	getRouteTableTreeLeaf_OffsetPtr(leafProxy->dataBlock)[downstream]++;
@@ -415,7 +421,8 @@ static void rttMergeRoutes_split(RouteTableTreeWalker *walker, s32 downstream, s
 		RouteTableTreeLeafProxy *targetLeafProxy=NULL;
 		s16 targetLeafEntry=-1;
 
-		ensureRouteTableTreeLeafOffsetCapacity(walker->treeProxy, leafProxy, walker->downstreamOffsetCount);
+//		ensureRouteTableTreeLeafOffsetCapacity(walker->treeProxy, leafProxy, walker->downstreamOffsetCount);
+		ensureRouteTableTreeLeafOffsetCapacity(walker->treeProxy, leafProxy, downstream+1);
 
 		//RouteTableTreeLeafProxy *newLeafProxy=
 		treeProxySplitLeafInsertChildEntrySpace(walker->treeProxy, walker->branchProxy, walker->branchChildSibdex, walker->leafProxy,
@@ -449,7 +456,8 @@ static void rttMergeRoutes_split(RouteTableTreeWalker *walker, s32 downstream, s
 			expandRouteTableTreeLeafProxy(walker->treeProxy, leafProxy, walker->downstreamOffsetCount);
 			}
 		else
-			ensureRouteTableTreeLeafOffsetCapacity(walker->treeProxy, leafProxy, walker->downstreamOffsetCount);
+			//ensureRouteTableTreeLeafOffsetCapacity(walker->treeProxy, leafProxy, walker->downstreamOffsetCount);
+			ensureRouteTableTreeLeafOffsetCapacity(walker->treeProxy, leafProxy, downstream+1);
 
 		//LOG(LOG_INFO,"Entry Split: Easy case");
 		leafMakeEntryInsertSpace(leafProxy, walker->leafEntry, 2);

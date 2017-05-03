@@ -219,7 +219,10 @@ static void writeBuildersAsDirectData(RoutingComboBuilder *builder, s8 sliceTag,
 	rtHeaderMarkDead(oldData);
 
 	s32 oldTagOffset=0;
-//	LOG(LOG_INFO,"CircAlloc %i",totalSize);
+
+	if(totalSize>1000000)
+		LOG(LOG_INFO,"writeDirect: CircAlloc %i",totalSize);
+
 	newData=circAlloc(circHeap, totalSize, sliceTag, sliceIndex, &oldTagOffset);
 
 	//LOG(LOG_INFO,"Offset Diff: %i for %i",offsetDiff,sliceIndex);
@@ -287,6 +290,10 @@ static RouteTableTreeTopBlock *writeBuildersAsIndirectData_writeTop(RoutingCombo
 		s32 totalSize=routingBuilder->topDataBlock.dataSize+routingBuilder->topDataBlock.headerSize;
 
 		s32 oldTagOffset=0;
+
+		if(totalSize>1000000)
+			LOG(LOG_INFO,"writeIndirectTop: CircAlloc %i",totalSize);
+
 		u8 *newTopData=circAlloc(circHeap, totalSize, sliceTag, sliceIndex, &oldTagOffset);
 		s32 diff=sliceIndex-oldTagOffset;
 
@@ -978,7 +985,10 @@ s32 writeBuildersAsIndirectData_mergeTopArrayUpdates_leaf_accumulateSize(RouteTa
 		int newLeafSize=getRouteTableTreeLeafSize_Existing(newLeafData);
 
 		if(newLeafSize!=oldLeafSize)
+			{
+			LOG(LOG_INFO,"Leaf size %i to %i",oldLeafSize,newLeafSize);
 			totalSize+=headerSize+newLeafSize;
+			}
 		}
 
 	return totalSize;
@@ -1098,6 +1108,9 @@ static void writeBuildersAsIndirectData(RoutingComboBuilder *routingBuilder, u8 
 
 	if(totalNeededSize>0)
 		{
+		if(totalNeededSize>1000000)
+			LOG(LOG_INFO,"writeIndirectTailAndArray: CircAlloc %i",totalNeededSize);
+
 		u8 *newArrayData=circAlloc(circHeap, totalNeededSize, sliceTag, INT_MAX, NULL);
 
 		memset(newArrayData,0,totalNeededSize); // Really needed?
@@ -1146,6 +1159,10 @@ static void writeBuildersAsIndirectData(RoutingComboBuilder *routingBuilder, u8 
 			rttBindBlockArrayProxy(arrayProxy, topPtr->data[i], neededBlocks[i].headerSize, neededBlocks[i].variant);	// Rebind array after alloc (root already done)
 
 			s32 size=writeBuildersAsIndirectData_mergeTopArrayUpdates_leaf_accumulateSize(arrayProxy, indexSize);
+
+			if(size>1000000)
+				LOG(LOG_INFO,"writeIndirect Leaf: CircAlloc %i",size);
+
 			u8 *newLeafData=circAlloc(circHeap, size, sliceTag, INT_MAX, NULL);
 
 			topPtr=(RouteTableTreeTopBlock *)((*(routingBuilder->rootPtr))+routingBuilder->topDataBlock.headerSize); // Rebind root & array after alloc
@@ -1167,6 +1184,10 @@ static void writeBuildersAsIndirectData(RoutingComboBuilder *routingBuilder, u8 
 			rttBindBlockArrayProxy(arrayProxy, topPtr->data[i], neededBlocks[i].headerSize, neededBlocks[i].variant);	// Rebind array after alloc (root already done)
 
 			s32 size=writeBuildersAsIndirectData_mergeTopArrayUpdates_branch_accumulateSize(arrayProxy, indexSize);
+
+			if(size>1000000)
+				LOG(LOG_INFO,"writeIndirect Branch: CircAlloc %i",size);
+
 			u8 *newBranchData=circAlloc(circHeap, size, sliceTag, INT_MAX, NULL);
 
 			topPtr=(RouteTableTreeTopBlock *)((*(routingBuilder->rootPtr))+routingBuilder->topDataBlock.headerSize); // Rebind root & array after alloc
