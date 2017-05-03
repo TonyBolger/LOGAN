@@ -1,40 +1,6 @@
 
 #include "common.h"
 
-//
-//
-
-
-// Idea for PackedArray format: store arrays of pointers, referencing a block of route entries grouped by upstream sequence. The blocks consist of packed entries
-// PckArr format: 1 1 0 W W W W W  P P P P S S S S
-//                F F F F F F F F  R R R R R R R R
-//                Fptr*
-//                Rptr*
-
-// PA Block:      E E E E E E E E  E E E E E E E E (entry count)
-//                E E E E E E E E  E E E E E E E E (entry count)
-//			 	  U*, (D*, W*)*
-
-
-
-
-// Huge format:   1 1 1 W W W W W  P P P P S S S S
-//                F F F F F F F F  F F F F F F F F
-//                F F F F F F F F  F F F F F F F F
-// 				  R R R R R R R R  R R R R R R R R
-// 				  R R R R R R R R  R R R R R R R R
-
-// Large format:  1 1 0 W W W W W  P P P P S S S S
-//                F F F F F F F F  F F F F F F F F
-// 				  R R R R R R R R  R R R R R R R R
-
-// Medium format: 1 0 W W W W P P  P S S S F F F F
-//                F F R R R R R R
-
-// Small format:  0 W W W P P S S  F F F F R R R R
-
-// Max: W=2^31, P=2^15, S=2^15, F=2^16, R=2^16
-
 
 
 static int getRouteTableHeaderSize(int prefixBits, u32 suffixBits, u32 widthBits, u32 forwardEntries, u32 reverseEntries)

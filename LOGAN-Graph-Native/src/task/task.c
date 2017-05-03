@@ -607,6 +607,8 @@ void freeParallelTask(ParallelTask *pt)
 {
 	int ret;
 
+	queueFree(pt->ingressQueue);
+
 	ret=pthread_barrier_destroy(&(pt->startupBarrier));
 	if(ret!=0)
 		{

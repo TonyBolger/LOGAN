@@ -23,8 +23,9 @@
 #include <stdint.h>
 
 
-#define FEATURE_ENABLE_SMER_STATS
+//#define FEATURE_ENABLE_SMER_STATS
 //#define FEATURE_ENABLE_HEAP_STATS
+#define FEATURE_ENABLE_MEMTRACK
 
 #define DEFAULT_SLEEP_NANOS 1000000
 #define DEFAULT_SLEEP_SECS 0
@@ -194,6 +195,8 @@ typedef struct swqBufferStr {
 	int usageCount;
 } SwqBuffer;
 
+
+#include "mem/memTracker.h"
 
 #include "mem/memDispenser.h"
 #include "mem/memPackStack.h"

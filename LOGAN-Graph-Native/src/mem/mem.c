@@ -4,8 +4,16 @@
 
 // Centralized Generic Alloc / Realloc / Free
 
-void *gAlloc(size_t size)
+#ifdef FEATURE_ENABLE_MEMTRACK
+void *gAlloc(size_t size, int memTrackerId)
 {
+	mtTrackAlloc(size, memTrackerId);
+
+#else
+	void *gAlloc(size_t size)
+	{
+#endif
+
 	void *usrPtr=malloc(size);
 
 	if(usrPtr==NULL)
@@ -14,9 +22,16 @@ void *gAlloc(size_t size)
 	return usrPtr;
 }
 
-void *gAllocC(size_t size)
+
+
+#ifdef FEATURE_ENABLE_MEMTRACK
+void *gAllocC(size_t size, int memTrackerId)
 {
-	//LOG(LOG_INFO,"Allocating %i",size);
+	mtTrackAlloc(size, memTrackerId);
+#else
+	void *gAllocC(size_t size)
+	{
+#endif
 	void *usrPtr=malloc(size);
 
 	if(usrPtr==NULL)
@@ -26,19 +41,34 @@ void *gAllocC(size_t size)
 	return usrPtr;
 }
 
-void *gRealloc(void *ptr, size_t size)
-{
-	void *usrPtr=realloc(ptr,size);
 
-	if(usrPtr==NULL)
-		LOG(LOG_CRITICAL,"Failed to re-allocate %i bytes",size);
+#ifdef FEATURE_ENABLE_MEMTRACK
+void *gAllocAligned(size_t size, size_t alignment, int memTrackerId)
+{
+	mtTrackAlloc(size, memTrackerId);
+
+#else
+	void *gAllocAligned(size_t size, size_t alignment)
+	{
+#endif
+
+	void *usrPtr=NULL;
+	if(posix_memalign((void **)&usrPtr, alignment, size)!=0)
+		LOG(LOG_CRITICAL,"Failed to allocate %i bytes with alignment %i",size, alignment);
 
 	return usrPtr;
 }
 
 
-void gFree(void *ptr)
+
+#ifdef FEATURE_ENABLE_MEMTRACK
+void gFree(void *ptr, size_t size, int memTrackerId)
 {
+	mtTrackFree(size, memTrackerId);
+#else
+	void gFree(void *ptr)
+	{
+#endif
 	if(ptr==NULL)
 		return;
 
@@ -46,51 +76,46 @@ void gFree(void *ptr)
 }
 
 
+
 /*
- * Specific allocator for SmerMap SmerId arrays
+ * Specific allocator for SmerId/SmerEntry/SmerData arrays
  *
- * For now, it just delegates to the malloc/free
+ * For now, they just delegates to the malloc/free
  *
  */
 
 SmerId *smSmerIdArrayAlloc(int length)
 {
-	size_t size=((long)length)*sizeof(SmerId);
-
-	SmerId *array = gAllocC(size);
+	SmerId *array = G_ALLOC(((long)length)*sizeof(SmerId), MEMTRACKID_SMER_ID);
 	return array;
 }
 
-void smSmerIdArrayFree(SmerId *array)
+void smSmerIdArrayFree(SmerId *array, int length)
 {
-	gFree(array);
+	G_FREE(array, ((long)length)*sizeof(SmerId), MEMTRACKID_SMER_ID);
 }
 
 SmerEntry *smSmerEntryArrayAlloc(int length)
 {
-	size_t size=((long)length)*sizeof(SmerEntry);
-
-	SmerEntry *array = gAllocC(size);
+	SmerEntry *array = G_ALLOC_C(((long)length)*sizeof(SmerEntry), MEMTRACKID_SMER_ENTRY);
 	return array;
 }
 
-void smSmerEntryArrayFree(SmerEntry *array)
+void smSmerEntryArrayFree(SmerEntry *array, int length)
 {
-	gFree(array);
+	G_FREE(array, ((long)length)*sizeof(SmerEntry), MEMTRACKID_SMER_ENTRY);
 }
 
 
 u8 **smSmerDataArrayAlloc(int length)
 {
-	size_t size=((long)length)*sizeof(u8 *);
-
-	u8 **array = gAllocC(size);
+	u8 **array = G_ALLOC_C(((long)length)*sizeof(u8 *), MEMTRACKID_SMER_DATA);
 	return array;
 }
 
-void smSmerDataArrayFree(u8 **array)
+void smSmerDataArrayFree(u8 **array, int length)
 {
-	gFree(array);
+	G_FREE(array, ((long)length)*sizeof(u8 *), MEMTRACKID_SMER_DATA);
 }
 
 
@@ -107,12 +132,12 @@ void smSmerDataArrayFree(u8 **array)
 
 ParallelTaskConfig *ptParallelTaskConfigAlloc()
 {
-	return gAllocC(sizeof(ParallelTaskConfig));
+	return G_ALLOC_C(sizeof(ParallelTaskConfig), MEMTRACKID_TASK);
 }
 
 void ptParallelTaskConfigFree(ParallelTaskConfig *ptc)
 {
-	gFree(ptc);
+	G_FREE(ptc, sizeof(ParallelTaskConfig), MEMTRACKID_TASK);
 }
 
 
@@ -125,12 +150,12 @@ void ptParallelTaskConfigFree(ParallelTaskConfig *ptc)
 
 ParallelTask *ptParallelTaskAlloc()
 {
-	return gAllocC(sizeof(ParallelTask));
+	return G_ALLOC_C(sizeof(ParallelTask), MEMTRACKID_TASK);
 }
 
 void ptParallelTaskFree(ParallelTask *pt)
 {
-	gFree(pt);
+	G_FREE(pt, sizeof(ParallelTask), MEMTRACKID_TASK);
 }
 
 
@@ -144,13 +169,13 @@ void ptParallelTaskFree(ParallelTask *pt)
 
 IndexingBuilder *tiIndexingBuilderAlloc()
 {
-	return gAllocC(sizeof(IndexingBuilder));
+	return G_ALLOC_C(sizeof(IndexingBuilder), MEMTRACKID_INDEXING_BUILDER);
 
 }
 
 void tiIndexingBuilderFree(IndexingBuilder *ib)
 {
-	gFree(ib);
+	G_FREE(ib, sizeof(IndexingBuilder), MEMTRACKID_INDEXING_BUILDER);
 }
 
 
@@ -164,12 +189,12 @@ void tiIndexingBuilderFree(IndexingBuilder *ib)
 
 RoutingBuilder *tiRoutingBuilderAlloc()
 {
-	return gAllocC(sizeof(RoutingBuilder));
+	return G_ALLOC_C(sizeof(RoutingBuilder), MEMTRACKID_ROUTING_BUILDER);
 }
 
 void tiRoutingBuilderFree(RoutingBuilder *rb)
 {
-	gFree(rb);
+	G_FREE(rb, sizeof(RoutingBuilder), MEMTRACKID_ROUTING_BUILDER);
 }
 
 
@@ -183,11 +208,11 @@ void tiRoutingBuilderFree(RoutingBuilder *rb)
 
 Graph *grGraphAlloc()
 {
-	return gAllocC(sizeof(Graph));
+	return G_ALLOC_C(sizeof(Graph), MEMTRACKID_GRAPH);
 }
 
 void grGraphFree(Graph *graph)
 {
-	gFree(graph);
+	G_FREE(graph, sizeof(Graph), MEMTRACKID_GRAPH);
 }
 

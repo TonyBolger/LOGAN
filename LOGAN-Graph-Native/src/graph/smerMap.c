@@ -34,7 +34,7 @@ void smCleanupSmerMap(SmerMap *smerMap) {
 	int i = 0;
 	for (i = 0; i < SMER_SLICES; i++) {
 		if (smerMap->slice[i].smers != NULL)
-			smSmerEntryArrayFree(smerMap->slice[i].smers);
+			smSmerEntryArrayFree(smerMap->slice[i].smers, smerMap->slice[i].mask+1);
 	}
 
 	memset(smerMap, 0, sizeof(SmerMap));
@@ -300,7 +300,7 @@ static void resize_S(SmerMapSlice *smerMapSlice, u32 sliceNo) {
 
 			}
 		}
-	smSmerEntryArrayFree(oldEntries);
+	smSmerEntryArrayFree(oldEntries, oldMask+1);
 }
 
 

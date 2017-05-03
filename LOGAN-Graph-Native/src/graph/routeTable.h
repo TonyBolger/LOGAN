@@ -1,6 +1,94 @@
 #ifndef __ROUTE_TABLE_H
 #define __ROUTE_TABLE_H
 
+// Route Table Array: Single block for both forward/reverse routing tables
+
+// Huge format:   1 1 1 W W W W W  P P P P S S S S
+//                F F F F F F F F  F F F F F F F F
+//                F F F F F F F F  F F F F F F F F
+// 				  R R R R R R R R  R R R R R R R R
+// 				  R R R R R R R R  R R R R R R R R
+//
+// Max: W=2^31, P=2^15, S=2^15, F=2^32, R=2^32
+
+// Large format:  1 1 0 W W W W W  P P P P S S S S
+//                F F F F F F F F  F F F F F F F F
+// 				  R R R R R R R R  R R R R R R R R
+//
+// Max: W=2^31, P=2^15, S=2^15, F=2^16, R=2^16
+
+// Medium format: 1 0 W W W W P P  P S S S F F F F
+//                F F R R R R R R
+//
+// Max: W=2^15, P=2^7, S=2^7, F=2^6, R=2^6
+
+// Small format:  0 W W W P P S S  F F F F R R R R
+//
+// Max: W=2^7, P=2^3, S=2^3, F=2^4, R=2^4
+
+// Route Table Tree: Separate trees for forward and reverse routing tables, split leaf/branches with arrays, with offset indexes
+//
+// Top:		u8 *data[6]; // Tail(P,S), Branch(F,R), Leaf(F,R)
+// 1 Level:	top[]->array[1024]->leaf/branch
+// 2 Level: top[]->array[256]->array[1024]->leaf
+//
+// Array:	u16 dataAlloc
+//			u8 *data[dataAlloc]
+//
+// Branch:	u16 childAlloc
+//			u16 parentBrindex
+//			s16 children[childAlloc]
+//
+// Leaf:	s16 offsetAlloc; Downstream
+//			s16 entryAlloc;
+//
+//			s16 parentBrindex;
+//			s16 upstream;
+//			s32 upstreamOffset;
+//
+//			u8 extraData[];
+
+// PackedTree:
+//
+// Branch:  u8 header
+//				totalSize(8/16 bit) 1?
+//				upstreamSize(8/16 bit) 1
+//				downstreamSize(8/16 bit) 1
+//				offsetSize(8/16/24/32 bit) 2
+//
+//			totalSize totalSize
+//
+//			upstreamSize upstreamFirst
+//			upstreamSize upstreamAlloc
+//			downstreamSize downstreamFirst
+//			downstreamSize downstreamAlloc
+//			childAlloc
+//
+//			upstreamOffsets[upstreamAlloc]
+//			downstreamOffsets[downstreamAlloc]
+//			children[childAlloc]
+//
+// Leaf:	u8 header
+//				totalSize(8/16 bit)     1?
+//				upstreamSize(8/16 bit)  1
+//				downstreamSize(8/16 bit) 1
+//				offsetSize(8/16/24/32 bit) 2
+//				width(8/16/24/32 bit) 2
+//
+//			totalSize totalSize
+//
+//			upstreamFirst
+//			upstreamAlloc
+//			downstreamFirst
+//			downstreamAlloc
+//
+//			upstreamOffsets[upstreamAlloc]
+//			downstreamOffsets[downstreamAlloc]
+//			perUpstreamData[upstreamAlloc?] // Could be just the upstream with non-zero offsets
+//				entryCount
+//					downstream[entryCount]
+//					width[entryCount]
+
 
 typedef struct routingReadDataEntryStr {
 	u32 readIndex; // 4

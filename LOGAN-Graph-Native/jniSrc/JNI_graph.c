@@ -107,7 +107,7 @@ static void processReadFiles(JNIEnv *env, jobjectArray jFilePaths, void *handler
 	for(int i=0;i<PT_INGRESS_BUFFERS;i++)
 		initSequenceBuffer(swqBuffer+i, FASTQ_BASES_PER_BATCH, FASTQ_RECORDS_PER_BATCH, FASTQ_MAX_READ_LENGTH);
 
-	u8 *ioBuffer=malloc(FASTQ_IO_RECYCLE_BUFFER+FASTQ_IO_PRIMARY_BUFFER);
+	u8 *ioBuffer=G_ALLOC(FASTQ_IO_RECYCLE_BUFFER+FASTQ_IO_PRIMARY_BUFFER, MEMTRACKID_IOBUF);
 
 	int fileCount=(*env)->GetArrayLength(env, jFilePaths);
 
@@ -126,7 +126,7 @@ static void processReadFiles(JNIEnv *env, jobjectArray jFilePaths, void *handler
 		int reads=parseAndProcess(filePath, FASTQ_MIN_READ_LENGTH, 0, 2000000000,
 			ioBuffer, FASTQ_IO_RECYCLE_BUFFER, FASTQ_IO_PRIMARY_BUFFER,
 			swqBuffer, ingressBuffers, PT_INGRESS_BUFFERS,
-			handlerContext, handler);
+			handlerContext, handler, NULL);
 
 		LOG(LOG_INFO,"Parsed %i reads from %s",reads,filePath);
 
@@ -139,7 +139,7 @@ static void processReadFiles(JNIEnv *env, jobjectArray jFilePaths, void *handler
 		freeSequenceBuffer(swqBuffer+i);
 		}
 
-	free(ioBuffer);
+	gFree(ioBuffer, FASTQ_IO_RECYCLE_BUFFER+FASTQ_IO_PRIMARY_BUFFER, MEMTRACKID_IOBUF);
 }
 
 
@@ -455,7 +455,7 @@ JNIEXPORT jlongArray JNICALL Java_logan_graph_Graph_getSmerIds_1Native
 	EXCEPTION_LOG_AND_CLEAR(env);
 
 	JNIutil_setLongArray(env, jsmerIds, (jlong *)smerIds, smerCount);
-	smSmerIdArrayFree(smerIds);
+	smSmerIdArrayFree(smerIds, smerCount);
 
 	return jsmerIds;
 }
@@ -469,7 +469,7 @@ JNIEXPORT jobject JNICALL Java_logan_graph_Graph_getLinkedSmer_1Native
 
 	SmerArray *smerArray = &(graph->smerArray);
 
-	MemDispenser *dispenser=dispenserAlloc("LinkedSmer", DISPENSER_BLOCKSIZE_SMALL, DISPENSER_BLOCKSIZE_LARGE);
+	MemDispenser *dispenser=dispenserAlloc(MEMTRACKID_DISPENSER_LINKED_SMER, DISPENSER_BLOCKSIZE_SMALL, DISPENSER_BLOCKSIZE_LARGE);
 
 	SmerLinked *linked=rtGetLinkedSmer(smerArray, (SmerId)jSmerId, dispenser);
 	jobject jObj=NULL;
@@ -622,7 +622,7 @@ JNIEXPORT jlong JNICALL Java_logan_graph_Graph_alloc_1Native(
 {
 	logInit();
 
-	GraphJni *jni=gAlloc(sizeof(GraphJni));
+	GraphJni *jni=gAlloc(sizeof(GraphJni), MEMTRACKID_GRAPH);
 
 	if (prepareJniRefs(env, jni) != 0)
 		return 0;
@@ -641,7 +641,7 @@ JNIEXPORT void JNICALL Java_logan_graph_Graph_free_1Native(
 
 	cleanupJniRefs(env, graph->userPtr);
 
-	gFree(graph->userPtr);
+	gFree(graph->userPtr, sizeof(GraphJni), MEMTRACKID_GRAPH);
 	graph->userPtr=NULL;
 
 	freeGraph(graph);
