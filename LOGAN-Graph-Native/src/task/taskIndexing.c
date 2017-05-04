@@ -17,8 +17,7 @@ static void *tiDoRegister(ParallelTask *pt, int workerNo, int totalWorkers)
 static void tiDoDeregister(ParallelTask *pt, int workerNo, void *workerState)
 {
 	if(workerState!=NULL)
-		gFree(workerState);
-
+		LOG(LOG_CRITICAL,"Unexpected non-NULL workerState during indexing");
 }
 
 static int tiDoIngress(ParallelTask *pt, int workerNo, void *workerState, void *ingressPtr, int ingressPosition, int ingressSize)
@@ -26,7 +25,9 @@ static int tiDoIngress(ParallelTask *pt, int workerNo, void *workerState, void *
 	SwqBuffer *rec=ingressPtr;
 	IndexingBuilder *ib=pt->dataPtr;
 
-	u8 *packedSeq=malloc(PAD_BYTELENGTH_4BYTE(rec->maxSequenceTotalLength));
+	int paddedLength=PAD_BYTELENGTH_4BYTE(rec->maxSequenceTotalLength);
+	u8 *packedSeq=G_ALLOC(paddedLength, MEMTRACKID_INDEXING_PACKSEQ);
+
 //	memset(packedSeq,0,PAD_BYTELENGTH_4BYTE(rec->maxSequenceTotalLength));
 
 	int i=0;
@@ -45,7 +46,7 @@ static int tiDoIngress(ParallelTask *pt, int workerNo, void *workerState, void *
 		smAddPathSmers(smerMap, currentRec->length, packedSeq, nodeSize, sparseness);
 		}
 
-	free(packedSeq);
+	gFree(packedSeq, paddedLength, MEMTRACKID_INDEXING_PACKSEQ);
 
 	return 1;
 }

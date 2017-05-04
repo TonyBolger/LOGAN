@@ -152,11 +152,8 @@ static MemCircHeapBlock *allocBlock(s32 minSize, int minblockSizeIndex)
 	MemCircHeapBlock *blockPtr=NULL;
 	u8 *dataPtr=NULL;
 
-	if(posix_memalign((void **)&blockPtr, CACHE_ALIGNMENT_SIZE, sizeof(MemCircHeapBlock))!=0)
-		LOG(LOG_CRITICAL,"Failed to alloc MemCircHeapBlockAllocation structure");
-
-	if(posix_memalign((void **)&dataPtr, PAGE_ALIGNMENT_SIZE*16, size)!=0)
-		LOG(LOG_CRITICAL,"Failed to alloc MemCircHeapBlockAllocation data");
+	blockPtr=G_ALLOC_ALIGNED(sizeof(MemCircHeapBlock), CACHE_ALIGNMENT_SIZE, MEMTRACKID_HEAP_BLOCK);
+	dataPtr=G_ALLOC_ALIGNED(size, PAGE_ALIGNMENT_SIZE*16, MEMTRACKID_HEAP_BLOCKDATA);
 
 	blockPtr->next=NULL;
 
@@ -180,8 +177,10 @@ static void freeBlock(MemCircHeapBlock *block)
 {
 //	LOG(LOG_INFO,"Alloc block %p : freed",block->ptr);
 
-	free(block->ptr);
-	free(block);
+	if(block->ptr!=NULL)
+		G_FREE(block->ptr, block->size, MEMTRACKID_HEAP_BLOCKDATA);
+
+	G_FREE(block, sizeof(MemCircHeapBlock), MEMTRACKID_HEAP_BLOCK);
 }
 
 static void freeBlockSafe(MemCircHeapBlock *block)
@@ -267,8 +266,7 @@ MemCircHeap *circHeapAlloc(MemCircHeapChunkIndex *(*reclaimIndexer)(u8 *data, s6
 {
 	MemCircHeap *circHeap=NULL;
 
-	if(posix_memalign((void **)&circHeap, CACHE_ALIGNMENT_SIZE, sizeof(MemCircHeap))!=0)
-		LOG(LOG_CRITICAL,"Failed to alloc MemCircHeap structure");
+	circHeap=G_ALLOC_ALIGNED(sizeof(MemCircHeap), CACHE_ALIGNMENT_SIZE, MEMTRACKID_HEAP);
 
 	for(int i=0;i<CIRCHEAP_MAX_GENERATIONS;i++)
 		{
@@ -314,6 +312,8 @@ void circHeapFree(MemCircHeap *circHeap)
 			block=next;
 			}
 		}
+
+	G_FREE(circHeap, sizeof(MemCircHeap), MEMTRACKID_HEAP);
 }
 
 
@@ -834,7 +834,7 @@ static void circHeapEnsureSpace_generation(MemCircHeap *circHeap, size_t support
 
 static void circHeapEnsureSpace(MemCircHeap *circHeap, size_t newAllocSize)
 {
-	MemDispenser *disp=dispenserAlloc("GC", DISPENSER_BLOCKSIZE_MEDIUM, DISPENSER_BLOCKSIZE_MEDIUM);
+	MemDispenser *disp=dispenserAlloc(MEMTRACKID_DISPENSER_GARBAGE_COLLECTOR, DISPENSER_BLOCKSIZE_MEDIUM, DISPENSER_BLOCKSIZE_MEDIUM);
 
 	circHeapEnsureSpace_generation(circHeap, newAllocSize, 0, disp);
 

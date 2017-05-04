@@ -113,15 +113,38 @@ Alloc Header:
 
 	Direct and Indirect root blocks encode a relative index offset vs the last such block
 
+	With 1 byte gap encoding:
+
 	Gap exponent 1: 0-255 gap (with value): Exact
 	Gap exponent 2: 256-511 gap (with value+256): Exact
-    Gap exponent 3: 0xD8 Indirect root with 512-1023 gap (with value*2+512): 0-1
-	Gap exponent 4: 0xE0 Indirect root with 1024-2047 gap (with value*4+1024): 0-3
-	Gap exponent 5: 0xE8 Indirect root with 2048-4095 gap (with value*8+2048): 0-7
-	Gap exponent 6: 0xF0 Indirect root with 4096-8191 gap (with value*16+4096): 0-15
-    Gap exponent 7: 0xF8 Indirect root with 8192-16383 gap (with value*32+8192): 0-31
+    Gap exponent 3: 512-1023 gap (with value*2+512): 0-1
+	Gap exponent 4: 1024-2047 gap (with value*4+1024): 0-3
+	Gap exponent 5: 2048-4095 gap (with value*8+2048): 0-7
+	Gap exponent 6: 4096-8191 gap (with value*16+4096): 0-15
+    Gap exponent 7: 8192-16383 gap (with value*32+8192): 0-31
 
+	Limit 16384 per slice -> 2^28 overall (268,435,456)
 
+	Option to resolve >16K per slice using 1 byte gap:
+
+	Gap exponent 8: 16384-32768 gap (with value*64+16384): 0-63
+	Gap exponent 9: 32768-65535 gap (with value*128+32768): 0-127
+	Gap exponent 10: 65536-130071 gap (with value*256+65536): 0-255
+    Gap exponent 11: 131072-262143 gap (with value*512+131072): 0-511
+
+	Limit 262144 per slice -> 2^32 overall (4,294,967,296)
+
+	With 2 byte gap encoding:
+
+	Gap exponent 1: 0-65535 gap (with value): Exact
+	Gap exponent 2: 65536-130072 gap (with value+65536): Exact
+    Gap exponent 3: 130072-262144 gap (with value*2+130072): 0-1
+	Gap exponent 4: 262144-524287 gap (with value*4+262144): 0-3
+	Gap exponent 5: 524288-1048575 gap (with value*8+524288): 0-7
+	Gap exponent 6: 1048576-2097151 gap (with value*16+4096): 0-15
+    Gap exponent 7: 2097152-4194303 gap (with value*32+8192): 0-31
+
+	Limit 4194304 per slice -> 2^36 overall (68,719,476,736)
  */
 
 
@@ -141,6 +164,8 @@ Alloc Header:
 
 
 // Header consists of Live Bit, 4-bits type/index, then either 3-bit gap, or variant bit plus 2-bit index size
+// Gap 001 -> 1-255
+// Gap 002 -> 2-
 
 // Check Live
 #define ALLOC_HEADER_LIVE_MASK 0x80							// ? - - -  - - - -
@@ -928,7 +953,7 @@ static s32 scanTagData(u8 **tagData, s32 tagDataLength, s32 startIndex, u8 *want
 		{
 		if(tagData[i]==wanted)
 			{
-			if(scanCount>100)
+			if(scanCount>1000)
 				LOG(LOG_INFO,"Scan count of %i from %i of %i to find %p",scanCount,startIndex,tagDataLength,wanted);
 
 			return i;

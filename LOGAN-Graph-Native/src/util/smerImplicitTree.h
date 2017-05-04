@@ -10,7 +10,7 @@
 
 
 SmerEntry *siitInitImplicitTree(SmerEntry *sortedSmers, u32 smerCount);
-void siitFreeImplicitTree(SmerEntry *smerIds);
+void siitFreeImplicitTree(SmerEntry *smerIds, u32 smerCount);
 
 int siitFindSmer(SmerEntry *smerIA, u32 smerCount, SmerEntry key);
 

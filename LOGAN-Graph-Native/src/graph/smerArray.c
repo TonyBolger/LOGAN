@@ -39,7 +39,7 @@ s32 saInitSmerArray(SmerArray *smerArray, SmerMap *smerMap) {
 		for(int j=0;j<count;j++)
 			setBloom(bloom,smerTmp[j]);
 
-		smSmerEntryArrayFree(smerTmp);
+		smSmerEntryArrayFree(smerTmp, count);
 
 		MemCircHeap *circHeap=smerArray->heaps[i>>SMER_DISPATCH_GROUP_SHIFT];
 		circHeapRegisterTagData(circHeap,i&SMER_DISPATCH_GROUP_SLICEMASK,arraySlices[i].smerData, arraySlices[i].smerCount);
@@ -110,9 +110,10 @@ void saCleanupSmerArray(SmerArray *smerArray) {
 		{
 		if (smerArray->slice[i].smerIT != NULL)
 			{
+			int smerCount=smerArray->slice[i].smerCount;
+
 #ifdef FEATURE_ENABLE_SMER_STATS
 			SmerRoutingStats *stats=rtGetRoutingStats(smerArray->slice+i, i, disp);
-			int smerCount=smerArray->slice[i].smerCount;
 
 			for(int j=0;j<smerCount;j++)
 				{
@@ -135,8 +136,8 @@ void saCleanupSmerArray(SmerArray *smerArray) {
 
 			dispenserReset(disp);
 #endif
-			smSmerEntryArrayFree(smerArray->slice[i].smerIT);
-			smSmerDataArrayFree(smerArray->slice[i].smerData);
+			siitFreeImplicitTree(smerArray->slice[i].smerIT, smerCount);
+			smSmerDataArrayFree(smerArray->slice[i].smerData, smerCount);
 			}
 
 		freeBloom(&(smerArray->slice[i].bloom));

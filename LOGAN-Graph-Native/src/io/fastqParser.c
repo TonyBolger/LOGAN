@@ -13,8 +13,8 @@ void initSequenceBuffer(SwqBuffer *swqBuffer, int bufSize, int recordsPerBatch, 
 {
 	if(bufSize>0)
 		{
-		swqBuffer->seqBuffer=malloc(bufSize);
-		swqBuffer->qualBuffer=malloc(bufSize);
+		swqBuffer->seqBuffer=G_ALLOC(bufSize, MEMTRACKID_SWQ);
+		swqBuffer->qualBuffer=G_ALLOC(bufSize, MEMTRACKID_SWQ);
 		}
 	else
 		{
@@ -22,7 +22,7 @@ void initSequenceBuffer(SwqBuffer *swqBuffer, int bufSize, int recordsPerBatch, 
 		swqBuffer->qualBuffer=NULL;
 		}
 
-	swqBuffer->rec=malloc(sizeof(SequenceWithQuality)*recordsPerBatch);
+	swqBuffer->rec=G_ALLOC(sizeof(SequenceWithQuality)*recordsPerBatch, MEMTRACKID_SWQ);
 
 	swqBuffer->maxSequenceTotalLength=bufSize;
 	swqBuffer->maxSequences=recordsPerBatch;
@@ -35,12 +35,12 @@ void initSequenceBuffer(SwqBuffer *swqBuffer, int bufSize, int recordsPerBatch, 
 void freeSequenceBuffer(SwqBuffer *swqBuffer)
 {
 	if(swqBuffer->seqBuffer!=NULL)
-		free(swqBuffer->seqBuffer);
+		G_FREE(swqBuffer->seqBuffer, swqBuffer->maxSequenceTotalLength, MEMTRACKID_SWQ);
 
 	if(swqBuffer->qualBuffer!=NULL)
-		free(swqBuffer->qualBuffer);
+		G_FREE(swqBuffer->qualBuffer, swqBuffer->maxSequenceTotalLength, MEMTRACKID_SWQ);
 
-	free(swqBuffer->rec);
+	G_FREE(swqBuffer->rec, sizeof(SequenceWithQuality)*swqBuffer->maxSequences, MEMTRACKID_SWQ);
 
 	memset(swqBuffer, 0, sizeof(SwqBuffer));
 }
@@ -408,7 +408,8 @@ void routingBuilderDataHandler(SwqBuffer *swqBuffer, ParallelTaskIngress *ingres
 int parseAndProcess(char *path, int minSeqLength, int recordsToSkip, int recordsToUse,
 		u8 *ioBuffer, int ioBufferRecycleSize, int ioBufferPrimarySize,
 		SwqBuffer *swqBuffers, ParallelTaskIngress *ingressBuffers, int bufferCount,
-		void *handlerContext, void (*handler)(SwqBuffer *swqBuffer, ParallelTaskIngress *ingressBuffer, void *handlerContext))
+		void *handlerContext, void (*handler)(SwqBuffer *swqBuffer, ParallelTaskIngress *ingressBuffer, void *handlerContext),
+		void (*monitor)())
 {
 	FILE *file=fopen(path,"r");
 
@@ -482,7 +483,12 @@ int parseAndProcess(char *path, int minSeqLength, int recordsToSkip, int records
 				usedRecords++;
 
 				if(usedRecords % 1000000 ==0)
+					{
 					LOG(LOG_INFO,"Reads: %i", usedRecords);
+
+					if(monitor!=NULL && (usedRecords % 10000000 ==0))
+						(*monitor)();
+					}
 				}
 
 			validRecordCount++;

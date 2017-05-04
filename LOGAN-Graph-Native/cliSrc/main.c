@@ -43,9 +43,8 @@ void runIptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 {
 	IndexingBuilder *ib=allocIndexingBuilder(graph, threadCount);
 
-	pthread_t *threads=malloc(sizeof(pthread_t)*threadCount);
-
-	IptThreadData *data=malloc(sizeof(IptThreadData)*threadCount);
+	pthread_t *threads=G_ALLOC(sizeof(pthread_t)*threadCount, MEMTRACKID_THREADS);
+	IptThreadData *data=G_ALLOC(sizeof(IptThreadData)*threadCount, MEMTRACKID_THREADS);
 
 	pthread_attr_t attr;
 	pthread_attr_init(&attr);
@@ -83,7 +82,13 @@ void runIptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 	for(i=0;i<PT_INGRESS_BUFFERS;i++)
 		initSequenceBuffer(swqBuffers+i, FASTQ_BASES_PER_BATCH, FASTQ_RECORDS_PER_BATCH, FASTQ_MAX_READ_LENGTH);
 
-	u8 *ioBuffer=malloc(FASTQ_IO_RECYCLE_BUFFER+FASTQ_IO_PRIMARY_BUFFER);
+	u8 *ioBuffer=G_ALLOC(FASTQ_IO_RECYCLE_BUFFER+FASTQ_IO_PRIMARY_BUFFER, MEMTRACKID_IOBUF);
+
+	void (*monitor)() = NULL;
+
+#ifdef FEATURE_ENABLE_MEMTRACK
+	monitor=mtDump;
+#endif
 
 	for(i=0;i<fileCount;i++)
 		{
@@ -95,11 +100,15 @@ void runIptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 		int reads=parseAndProcess(path, FASTQ_MIN_READ_LENGTH, 0, 2000000000,
 				ioBuffer, FASTQ_IO_RECYCLE_BUFFER, FASTQ_IO_PRIMARY_BUFFER,
 				swqBuffers, ingressBuffers, PT_INGRESS_BUFFERS,
-				ib, indexingBuilderDataHandler);
+				ib, indexingBuilderDataHandler, monitor);
 
 		LOG(LOG_INFO,"Indexing: Parsed %i reads from %s",reads,path);
 		}
 
+
+	#ifdef FEATURE_ENABLE_MEMTRACK
+		mtDump();
+	#endif
 
 	queueShutdown(ib->pt);
 
@@ -119,9 +128,10 @@ void runIptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 
 	freeIndexingBuilder(ib);
 
-	free(ioBuffer);
-	free(threads);
-	free(data);
+	G_FREE(ioBuffer, FASTQ_IO_RECYCLE_BUFFER+FASTQ_IO_PRIMARY_BUFFER, MEMTRACKID_IOBUF);
+	G_FREE(threads, sizeof(pthread_t)*threadCount, MEMTRACKID_THREADS);
+	G_FREE(data, sizeof(IptThreadData)*threadCount, MEMTRACKID_THREADS);
+
 }
 
 
@@ -146,9 +156,8 @@ void runRptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 {
 	RoutingBuilder *rb=allocRoutingBuilder(graph, threadCount);
 
-	pthread_t *threads=malloc(sizeof(pthread_t)*threadCount);
-
-	RptThreadData *data=malloc(sizeof(RptThreadData)*threadCount);
+	pthread_t *threads=G_ALLOC(sizeof(pthread_t)*threadCount, MEMTRACKID_THREADS);
+	RptThreadData *data=G_ALLOC(sizeof(RptThreadData)*threadCount, MEMTRACKID_THREADS);
 
 	pthread_attr_t attr;
 	pthread_attr_init(&attr);
@@ -184,9 +193,13 @@ void runRptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 	for(i=0;i<PT_INGRESS_BUFFERS;i++)
 		initSequenceBuffer(swqBuffers+i, FASTQ_BASES_PER_BATCH, FASTQ_RECORDS_PER_BATCH, FASTQ_MAX_READ_LENGTH);
 
-	u8 *ioBuffer=malloc(FASTQ_IO_RECYCLE_BUFFER+FASTQ_IO_PRIMARY_BUFFER);
+	u8 *ioBuffer=G_ALLOC(FASTQ_IO_RECYCLE_BUFFER+FASTQ_IO_PRIMARY_BUFFER, MEMTRACKID_IOBUF);
 
+	void (*monitor)() = NULL;
 
+#ifdef FEATURE_ENABLE_MEMTRACK
+	monitor=mtDump;
+#endif
 
 	for(i=0;i<fileCount;i++)
 		{
@@ -198,11 +211,15 @@ void runRptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 		int reads=parseAndProcess(path, FASTQ_MIN_READ_LENGTH, 0, 2000000000,
 				ioBuffer, FASTQ_IO_RECYCLE_BUFFER, FASTQ_IO_PRIMARY_BUFFER,
 				swqBuffers, ingressBuffers, PT_INGRESS_BUFFERS,
-				rb, routingBuilderDataHandler);
+				rb, routingBuilderDataHandler, monitor);
 
 		LOG(LOG_INFO,"Routing: Parsed %i reads from %s",reads,path);
 		}
 
+
+	#ifdef FEATURE_ENABLE_MEMTRACK
+		mtDump();
+	#endif
 
 	queueShutdown(rb->pt);
 
@@ -221,9 +238,9 @@ void runRptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 			LOG(LOG_INFO,"Buffer still in use");
 		}
 
-	free(ioBuffer);
-	free(threads);
-	free(data);
+	G_FREE(ioBuffer, FASTQ_IO_RECYCLE_BUFFER+FASTQ_IO_PRIMARY_BUFFER, MEMTRACKID_IOBUF);
+	G_FREE(threads, sizeof(pthread_t)*threadCount, MEMTRACKID_THREADS);
+	G_FREE(data, sizeof(RptThreadData)*threadCount, MEMTRACKID_THREADS);
 
 	freeRoutingBuilder(rb);
 }
@@ -239,8 +256,6 @@ void runRptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 int main(int argc, char **argv)
 {
 	logInit();
-
-	Graph *graph=allocGraph(23,23,NULL);
 
 	char *fileTemplate=NULL;
 	int fileCount=0;
@@ -271,11 +286,23 @@ int main(int argc, char **argv)
 		return 1;
 		}
 
+#ifdef FEATURE_ENABLE_MEMTRACK
+	mtDump();
+#endif
 
+	Graph *graph=allocGraph(23,23,NULL);
 
 	//runTpfMaster(fileTemplate, fileCount, graph);
 
+#ifdef FEATURE_ENABLE_MEMTRACK
+	mtDump();
+#endif
+
 	runIptMaster(fileTemplate, fileCount, threadCountIndexing, graph);
+
+#ifdef FEATURE_ENABLE_MEMTRACK
+	mtDump();
+#endif
 
 	LOG(LOG_INFO,"Smer count: %i",smGetSmerCount(&(graph->smerMap)));
 
@@ -283,9 +310,21 @@ int main(int argc, char **argv)
 
 	switchMode(graph);
 
+#ifdef FEATURE_ENABLE_MEMTRACK
+	mtDump();
+#endif
+
 	runRptMaster(fileTemplate, fileCount, threadCountRouting, graph);
 
+#ifdef FEATURE_ENABLE_MEMTRACK
+	mtDump();
+#endif
+
 	freeGraph(graph);
+
+#ifdef FEATURE_ENABLE_MEMTRACK
+	mtDump();
+#endif
 
 	return 0;
 }

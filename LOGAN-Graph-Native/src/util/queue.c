@@ -5,7 +5,7 @@ Queue *queueAlloc(int sizePower)
 {
 	int size=1<<sizePower;
 
-	Queue *queue=gAlloc(sizeof(Queue)+sizeof(void *)*size);
+	Queue *queue=G_ALLOC(sizeof(Queue)+sizeof(void *)*size, MEMTRACKID_INGRESS_QUEUE);
 
 	queue->size=size;
 	queue->mask=size-1;
@@ -16,7 +16,7 @@ Queue *queueAlloc(int sizePower)
 
 void queueFree(Queue *queue)
 {
-	gFree(queue);
+	G_FREE(queue, sizeof(Queue)+sizeof(void *)*queue->size, MEMTRACKID_INGRESS_QUEUE);
 }
 
 u32 queueTryInsert(Queue *queue, void *entry)

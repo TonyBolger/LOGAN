@@ -117,9 +117,11 @@ SmerEntry *siitInitImplicitTree(SmerEntry *sortedSmers, u32 smerCount)
 }
 
 
-void siitFreeImplicitTree(SmerEntry *smerEntries)
+void siitFreeImplicitTree(SmerEntry *smerEntries, u32 smerCount)
 {
-	smSmerEntryArrayFree(smerEntries);
+	int paddedSmerCount=(smerCount+(NARY-1))&(~(NARY-1));
+
+	smSmerEntryArrayFree(smerEntries, paddedSmerCount);
 }
 
 

@@ -30,7 +30,7 @@ typedef struct memDispenserBlockStr
 
 typedef struct memDispenserStr
 {
-	const char *name;
+	int memTrackerId;
 	struct memDispenserBlockStr *block;
 	u32 blocksize;
 	u32 maxBlocksize;
@@ -40,10 +40,8 @@ typedef struct memDispenserStr
 } MemDispenser;
 
 
-MemDispenser *dispenserAlloc(const char *name, u32 blocksize, u32 maxBlocksize);
+MemDispenser *dispenserAlloc(int memTrackerId, u32 blocksize, u32 maxBlocksize);
 void dispenserFree(MemDispenser *dispenser);
-void dispenserFreeLogged(MemDispenser *dispenser);
-//void dispenserNukeFree(MemDispenser *disp, u8 val);
 
 void dispenserReset(MemDispenser *dispenser);
 

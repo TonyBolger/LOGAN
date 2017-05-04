@@ -42,7 +42,8 @@ void routingBuilderDataHandler(SwqBuffer *swqBuffer, ParallelTaskIngress *ingres
 int parseAndProcess(char *path, int minSeqLength, int recordsToSkip, int recordsToUse,
 		u8 *ioBuffer, int ioBufferRecycleSize, int ioBufferPrimarySize,
 		SwqBuffer *swqBuffers, ParallelTaskIngress *ingressBuffers, int bufferCount,
-		void *handlerContext, void (*handler)(SwqBuffer *swqBuffer, ParallelTaskIngress *ingressBuffer, void *handlerContext));
+		void *handlerContext, void (*handler)(SwqBuffer *swqBuffer, ParallelTaskIngress *ingressBuffer, void *handlerContext),
+		void (*monitor)());
 
 
 #endif
