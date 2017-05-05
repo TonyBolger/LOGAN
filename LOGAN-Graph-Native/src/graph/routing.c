@@ -986,7 +986,7 @@ s32 writeBuildersAsIndirectData_mergeTopArrayUpdates_leaf_accumulateSize(RouteTa
 
 		if(newLeafSize!=oldLeafSize)
 			{
-			LOG(LOG_INFO,"Leaf size %i to %i",oldLeafSize,newLeafSize);
+//			LOG(LOG_INFO,"Leaf size %i to %i",oldLeafSize,newLeafSize);
 			totalSize+=headerSize+newLeafSize;
 			}
 		}
