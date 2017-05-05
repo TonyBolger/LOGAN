@@ -33,6 +33,11 @@
 #define THREAD_INDEXING_STACKSIZE (16*1024*1024)
 #define THREAD_ROUTING_STACKSIZE (16*1024*1024)
 
+#define TR_INGRESS_BLOCKSIZE 10000
+
+#define TR_READBLOCK_LOOKUPS_INFLIGHT 20
+#define TR_READBLOCK_DISPATCHES_INFLIGHT 200
+
 
 #define PAD_1BITLENGTH_BYTE(L) (((L)+7)>>3)
 #define PAD_2BITLENGTH_BYTE(L) (((L)+3)>>2)
@@ -197,6 +202,7 @@ typedef struct swqBufferStr {
 
 
 #include "mem/memTracker.h"
+#include "mem/memSlab.h"
 
 #include "mem/memDispenser.h"
 #include "mem/memPackStack.h"
@@ -207,10 +213,12 @@ typedef struct swqBufferStr {
 #include "util/bloom.h"
 #include "util/intObjectHash.h"
 #include "util/log.h"
+#include "util/misc.h"
 #include "util/pack.h"
 #include "util/queue.h"
 #include "util/smerImplicitTree.h"
 #include "util/varipack.h"
+
 
 #include "task/task.h"
 

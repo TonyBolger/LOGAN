@@ -428,7 +428,7 @@ int scanForCompleteReadDispatchBlocks(RoutingBuilder *rb)
 			}
 		}
 
-	dispenserFree(dispatchReadBlock->disp);
+	dispenserReset(dispatchReadBlock->disp);
 
 	unallocateReadDispatchBlock(dispatchReadBlock);
 	unreserveReadDispatchBlock(rb);

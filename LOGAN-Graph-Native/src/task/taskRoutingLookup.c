@@ -423,11 +423,13 @@ static void unreserveReadLookupBlock(RoutingBuilder *rb)
 void queueReadsForSmerLookup(SwqBuffer *rec, int ingressPosition, int ingressSize, int nodeSize, RoutingBuilder *rb)
 {
 
-	MemDispenser *disp=dispenserAlloc(MEMTRACKID_DISPENSER_ROUTING_LOOKUP, DISPENSER_BLOCKSIZE_MEDIUM, DISPENSER_BLOCKSIZE_HUGE);
+	//MemDispenser *disp=dispenserAlloc(MEMTRACKID_DISPENSER_ROUTING_LOOKUP, DISPENSER_BLOCKSIZE_MEDIUM, DISPENSER_BLOCKSIZE_HUGE);
+	//	readBlock->disp=disp;
 
 //	LOG(LOG_INFO,"DispAlloc %p",disp);
 	RoutingReadLookupBlock *readBlock=allocateReadLookupBlock(rb);
-	readBlock->disp=disp;
+
+	MemDispenser *disp=readBlock->disp;
 
 	//int smerCount=0;
 	int i=0;
@@ -526,8 +528,10 @@ int scanForAndDispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb)
 
 	RoutingReadDispatchBlock *dispatchReadBlock=allocateReadDispatchBlock(rb);
 
-	MemDispenser *disp=dispenserAlloc(MEMTRACKID_DISPENSER_ROUTING_DISPATCH, DISPENSER_BLOCKSIZE_MEDIUM, DISPENSER_BLOCKSIZE_LARGE);
-	dispatchReadBlock->disp=disp;
+	//MemDispenser *disp=dispenserAlloc(MEMTRACKID_DISPENSER_ROUTING_DISPATCH, DISPENSER_BLOCKSIZE_MEDIUM, DISPENSER_BLOCKSIZE_LARGE);
+	//dispatchReadBlock->disp=disp;
+
+	MemDispenser *disp=dispatchReadBlock->disp;
 
 	s32 lastHit=lookupReadBlock->maxReadLength-nodeSize+2; // Allow for F & L
 	s32 maxHits=lastHit+1;
@@ -602,7 +606,7 @@ int scanForAndDispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb)
 	queueReadDispatchBlock(dispatchReadBlock);
 
 	//LOG(LOG_INFO,"Disp free %p",lookupReadBlock->disp);
-	dispenserFree(lookupReadBlock->disp);
+	dispenserReset(lookupReadBlock->disp);
 	unallocateReadLookupBlock(lookupReadBlock);
 	unreserveReadLookupBlock(rb);
 

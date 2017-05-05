@@ -44,6 +44,7 @@ CLI_OBJS += \
 ./bin/cli/common/mem/memDispenser.o \
 ./bin/cli/common/mem/memPackStack.o \
 ./bin/cli/common/mem/memCircHeap.o \
+./bin/cli/common/mem/memSlab.o \
 ./bin/cli/common/mem/memTracker.o \
 ./bin/cli/common/task/task.o \
 ./bin/cli/common/task/taskIndexing.o \
@@ -55,6 +56,7 @@ CLI_OBJS += \
 ./bin/cli/common/util/bloom.o \
 ./bin/cli/common/util/intObjectHash.o \
 ./bin/cli/common/util/log.o \
+./bin/cli/common/util/misc.o \
 ./bin/cli/common/util/pack.o \
 ./bin/cli/common/util/queue.o \
 ./bin/cli/common/util/smerImplicitTree.o \
@@ -84,6 +86,7 @@ JNI_OBJS += \
 ./bin/jni/common/mem/memDispenser.o \
 ./bin/jni/common/mem/memPackStack.o \
 ./bin/jni/common/mem/memCircHeap.o \
+./bin/jni/common/mem/memSlab.o \
 ./bin/jni/common/mem/memTracker.o \
 ./bin/jni/common/task/task.o \
 ./bin/jni/common/task/taskIndexing.o \
@@ -94,6 +97,7 @@ JNI_OBJS += \
 ./bin/jni/common/util/bitPacking.o \
 ./bin/jni/common/util/bloom.o \
 ./bin/jni/common/util/log.o \
+./bin/jni/common/util/misc.o \
 ./bin/jni/common/util/pack.o \
 ./bin/jni/common/util/queue.o \
 ./bin/jni/common/util/smerImplicitTree.o \

@@ -216,14 +216,14 @@ RoutingBuilder *allocRoutingBuilder(Graph *graph, int threads)
 
 	rb->allocatedReadLookupBlocks=0;
 	for(int i=0;i<TR_READBLOCK_LOOKUPS_INFLIGHT;i++)
-		rb->readLookupBlocks[i].disp=NULL;
+		rb->readLookupBlocks[i].disp=dispenserAlloc(MEMTRACKID_DISPENSER_ROUTING_LOOKUP, DISPENSER_BLOCKSIZE_ROUTING_LOOKUP, DISPENSER_BLOCKSIZE_ROUTING_LOOKUP);
 
 	for(int i=0;i<SMER_SLICES;i++)
 		rb->smerEntryLookupPtr[i]=NULL;
 
 	rb->allocatedReadDispatchBlocks=0;
 	for(int i=0;i<TR_READBLOCK_DISPATCHES_INFLIGHT;i++)
-		rb->readDispatchBlocks[i].disp=NULL;
+		rb->readDispatchBlocks[i].disp=dispenserAlloc(MEMTRACKID_DISPENSER_ROUTING_DISPATCH, DISPENSER_BLOCKSIZE_ROUTING_DISPATCH, DISPENSER_BLOCKSIZE_ROUTING_DISPATCH);
 
 	for(int i=0;i<SMER_DISPATCH_GROUPS;i++)
 		{
@@ -239,6 +239,12 @@ RoutingBuilder *allocRoutingBuilder(Graph *graph, int threads)
 void freeRoutingBuilder(RoutingBuilder *rb)
 {
 	dumpUnclean(rb);
+
+	for(int i=0;i<TR_READBLOCK_LOOKUPS_INFLIGHT;i++)
+		dispenserFree(rb->readLookupBlocks[i].disp);
+
+	for(int i=0;i<TR_READBLOCK_DISPATCHES_INFLIGHT;i++)
+		dispenserFree(rb->readDispatchBlocks[i].disp);
 
 	for(int i=0;i<SMER_DISPATCH_GROUPS;i++)
 		freeRoutingDispatchGroupState(rb->dispatchGroupState+i);

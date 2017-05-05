@@ -22,18 +22,6 @@ const u32 OFFSETS[]={801331085, 1760893329, 3608146733, 3782855011,
 
 #define OFFSET_AND_MULT(V,I) (((V)*PRIMES[I])+OFFSETS[I])
 
-u32 nextPowerOf2(u32 in)
-{
-	in--;
-	in|=in>>1;
-	in|=in>>2;
-	in|=in>>4;
-	in|=in>>8;
-	in|=in>>16;
-	in++;
-
-	return in;
-}
 
 
 void initBloom(Bloom *bloom, u32 size, u32 hashes, u32 bitsPerEntry)
@@ -44,7 +32,7 @@ void initBloom(Bloom *bloom, u32 size, u32 hashes, u32 bitsPerEntry)
 	if(hashes>16)
 		hashes=16;
 
-	u32 pSize=nextPowerOf2(size*bitsPerEntry);
+	u32 pSize=nextPowerOf2_32(size*bitsPerEntry);
 
 	bloom->data=calloc(1,pSize>>3);
 	bloom->mask=pSize-1;

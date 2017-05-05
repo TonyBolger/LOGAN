@@ -15,6 +15,12 @@
 #define DISPENSER_BLOCKSIZE_LARGE (1024*1024)
 #define DISPENSER_BLOCKSIZE_HUGE (1024*1024*8)
 
+// 500bp per read, 20bytes per base (8 per smer, forward/reverse)
+#define DISPENSER_BLOCKSIZE_ROUTING_LOOKUP (500L*20*TR_INGRESS_BLOCKSIZE)
+
+// 50 smers per read, 30 bytes per base (8 per smer, forward/reverse, 4 byte read index, 8 byte slice/index)
+#define DISPENSER_BLOCKSIZE_ROUTING_DISPATCH (50L*30*TR_INGRESS_BLOCKSIZE)
+
 /* Structures for tracking Memory Dispensers */
 
 typedef struct memDispenserBlockStr
