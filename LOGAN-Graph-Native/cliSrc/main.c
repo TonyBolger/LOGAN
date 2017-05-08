@@ -62,8 +62,8 @@ void runIptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 
 		if(err)
 			{
-			char errBuf[1000];
-			strerror_r(err,errBuf,1000);
+			char errBuf[ERRORBUF];
+			strerror_r(err,errBuf,ERRORBUF);
 
 			LOG(LOG_CRITICAL,"Error %i (%s) creating worker thread %i",err,errBuf,i);
 			}
@@ -174,8 +174,8 @@ void runRptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 
 		if(err)
 			{
-			char errBuf[1000];
-			strerror_r(err,errBuf,1000);
+			char errBuf[ERRORBUF];
+			strerror_r(err,errBuf,ERRORBUF);
 
 			LOG(LOG_CRITICAL,"Error %i (%s) creating worker thread %i",err,errBuf,i);
 			}

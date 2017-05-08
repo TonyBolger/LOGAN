@@ -20,12 +20,12 @@ void mtInit()
 		__atomic_store_n(allocated+i, 0, __ATOMIC_SEQ_CST);
 }
 
-void mtTrackAlloc(size_t size, int memTrackerId)
+void mtTrackAlloc(size_t size, s16 memTrackerId)
 {
 	__atomic_fetch_add(allocated+memTrackerId, size, __ATOMIC_SEQ_CST);
 }
 
-void mtTrackFree(size_t size, int memTrackerId)
+void mtTrackFree(size_t size, s16 memTrackerId)
 {
 	__atomic_fetch_sub(allocated+memTrackerId, size, __ATOMIC_SEQ_CST);
 }

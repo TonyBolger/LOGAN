@@ -10,6 +10,7 @@
 
 #include <stdlib.h>
 #include <unistd.h>
+#include <errno.h>
 #include <stdio.h>
 #include <string.h>
 #include <alloca.h>
@@ -176,6 +177,7 @@ typedef u32 SmerId;
 #endif
 
 
+#define ERRORBUF 1000
 
 
 // Hack to prevent memcpy version problems on old server versions

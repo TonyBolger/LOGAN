@@ -44,8 +44,8 @@ extern char *MEMTRACKER_NAMES[];
 
 void mtInit();
 
-void mtTrackAlloc(size_t size, int memTrackerId);
-void mtTrackFree(size_t size, int memTrackerId);
+void mtTrackAlloc(size_t size, s16 memTrackerId);
+void mtTrackFree(size_t size, s16 memTrackerId);
 
 void mtDump();
 
