@@ -2,8 +2,7 @@
 #include "common.h"
 
 
-//static
-void allocSlab(Slab *slab, int memTrackerId)
+static void allocSlab(Slab *slab, int memTrackerId)
 {
 	if(slab->blockPtr!=NULL)
 		LOG(LOG_CRITICAL,"Block already mapped");
@@ -25,11 +24,11 @@ void allocSlab(Slab *slab, int memTrackerId)
 
 }
 
-//static
+
 void freeSlab(Slab *slab, int memTrackerId)
 {
 	if(slab->blockPtr==NULL)
-		LOG(LOG_CRITICAL,"Block not mapped");
+		return;
 
 	if(slab->blockPtr==MAP_FAILED)
 		LOG(LOG_CRITICAL,"Block mapped failed");
@@ -70,6 +69,7 @@ Slabocator *allocSlabocator(int minSizeShift, int maxSizeShift, int numBiggestSl
 	slabocator->numBiggestSlabs=numBiggestSlabs;
 	slabocator->slabCount=slabCount;
 
+	slabocator->firstSlab=0;
 	slabocator->currentSlab=0;
 
 	s64 size=2<<minSizeShift;
@@ -91,6 +91,8 @@ Slabocator *allocSlabocator(int minSizeShift, int maxSizeShift, int numBiggestSl
 		slabIndex++;
 		}
 
+	//LOG(LOG_INFO,"Slabocator: Created with %i %i %i (%i) for %s",minSizeShift, maxSizeShift, numBiggestSlabs, slabCount, MEMTRACKER_NAMES[memTrackerId]);
+
 	return slabocator;
 }
 
@@ -100,7 +102,7 @@ void freeSlabocator(Slabocator *slabocator)
 	for(int i=0;i<slabocator->slabCount;i++)
 		{
 		if(slabocator->slabs[i].blockPtr!=NULL)
-			freeSlab(slabocator->slabs[i], slabocator->memTrackerId);
+			freeSlab(slabocator->slabs+i, slabocator->memTrackerId);
 		}
 
 	G_FREE(slabocator, sizeof(Slabocator)+slabocator->slabCount*sizeof(Slab), slabocator->memTrackerId);
@@ -108,25 +110,57 @@ void freeSlabocator(Slabocator *slabocator)
 
 Slab *slabAllocNext(Slabocator *slabocator)
 {
-	int nextSlab=slabocator->currentSlab;
+//	LOG(LOG_INFO,"Upsizing slabocator for %s",MEMTRACKER_NAMES[slabocator->memTrackerId]);
+
+	int nextSlab=slabocator->currentSlab+1;
 
 	if(nextSlab>=slabocator->slabCount)
-		{
+		LOG(LOG_CRITICAL,"Slabocator %s reached slab limit %i", MEMTRACKER_NAMES[slabocator->memTrackerId], slabocator->slabCount);
 
-		}
+	slabocator->currentSlab=nextSlab;
 
-	return NULL;
+	Slab *slab=slabocator->slabs+nextSlab;
+	if(slab->blockPtr==NULL)
+		allocSlab(slab, slabocator->memTrackerId);
+
+	return slab;
 }
 
 
 Slab *slabGetCurrent(Slabocator *slabocator)
 {
+	Slab *slab=slabocator->slabs+slabocator->currentSlab;
+	if(slab->blockPtr==NULL)
+		allocSlab(slab, slabocator->memTrackerId);
 
-	return NULL;
+	return slab;
 }
+
 
 void slabReset(Slabocator *slabocator)
 {
+	s16 firstSlab=0;
 
+	switch(slabocator->policy)
+		{
+		case SLAB_FREEPOLICY_INSTA_SHRINK:
+			firstSlab=0;
+			break;
 
+		case SLAB_FREEPOLICY_INSTA_RACHET:
+			firstSlab=slabocator->currentSlab;
+			break;
+		}
+
+	slabocator->firstSlab=firstSlab;
+	slabocator->currentSlab=firstSlab;
+
+	for(int i=0;i<firstSlab;i++)
+		freeSlab(slabocator->slabs+i,slabocator->memTrackerId);
+
+	if(slabocator->policy & SLAB_FREEPOLICY_NUKE_FROM_ORBIT)
+		freeSlab(slabocator->slabs+firstSlab,slabocator->memTrackerId);
+
+	for(int i=firstSlab+1;i<slabocator->slabCount;i++)
+		freeSlab(slabocator->slabs+i,slabocator->memTrackerId);
 }

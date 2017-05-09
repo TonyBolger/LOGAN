@@ -175,6 +175,8 @@ typedef struct memCricHeapStr
 	MemCircHeapChunkIndex *(*reclaimIndexer)(u8 *data, s64 targetAmount, u8 tag, u8 **tagData, s32 tagDataLength, s32 tagSearchOffset, MemDispenser *disp);
 	void (*relocater)(MemCircHeapChunkIndex *reclaimIndex, u8 tag, u8 **tagData, s32 tagDataLength);
 
+	MemDispenser *gcDisp;
+
 } MemCircHeap;
 
 

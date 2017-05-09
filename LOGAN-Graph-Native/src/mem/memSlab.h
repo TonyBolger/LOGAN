@@ -36,13 +36,14 @@ typedef struct slabocatorStr
 	s16 policy;
 	s16 numBiggestSlabs;
 	s16 slabCount;
+	s16 firstSlab;	// Since last reset
 	s16 currentSlab;
-	s16 _pad;
 
 	Slab slabs[];
 } Slabocator;
 
 
+void freeSlab(Slab *slab, int memTrackerId);
 
 Slabocator *allocSlabocator(int minSizeShift, int maxSizeShift, int maxBiggestSlabs, int memTrackerId, int policy);
 void freeSlabocator(Slabocator *slabocator);

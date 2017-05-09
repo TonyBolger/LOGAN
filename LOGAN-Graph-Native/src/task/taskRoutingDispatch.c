@@ -38,7 +38,7 @@ RoutingIndexedReadReferenceBlock *allocDispatchIndexedIntermediateBlock(MemDispe
 
 RoutingReadReferenceBlockDispatchArray *allocDispatchArray(RoutingReadReferenceBlockDispatchArray *nextPtr)
 {
-	MemDispenser *disp=dispenserAlloc(MEMTRACKID_DISPENSER_ROUTING_DISPATCH_ARRAY, DISPENSER_BLOCKSIZE_MEDIUM, DISPENSER_BLOCKSIZE_LARGE);
+	MemDispenser *disp=dispenserAlloc(MEMTRACKID_DISPENSER_ROUTING_DISPATCH_ARRAY, SLAB_FREEPOLICY_INSTA_SHRINK, DISPENSER_BLOCKSIZE_SMALL, DISPENSER_BLOCKSIZE_LARGE);
 
 	RoutingReadReferenceBlockDispatchArray *array=dAlloc(disp, sizeof(RoutingReadReferenceBlockDispatchArray));
 
@@ -136,7 +136,7 @@ void assignToDispatchArrayEntry(RoutingReadReferenceBlockDispatchArray *array, R
 
 void initRoutingDispatchGroupState(RoutingDispatchGroupState *dispatchGroupState)
 {
-	MemDispenser *disp=dispenserAlloc(MEMTRACKID_DISPENSER_ROUTING_DISPATCH_GROUPSTATE, DISPENSER_BLOCKSIZE_MEDIUM, DISPENSER_BLOCKSIZE_HUGE);
+	MemDispenser *disp=dispenserAlloc(MEMTRACKID_DISPENSER_ROUTING_DISPATCH_GROUPSTATE, SLAB_FREEPOLICY_INSTA_SHRINK, DISPENSER_BLOCKSIZE_MEDIUM, DISPENSER_BLOCKSIZE_HUGE);
 
 	dispatchGroupState->status=0;
 	dispatchGroupState->forceCount=0;
@@ -177,6 +177,7 @@ static RoutingReadReferenceBlockDispatchArray *cleanupRoutingDispatchArrays(Rout
 		if(compCount==0)
 			{
 			*scan=current->nextPtr;
+
 			dispenserFree(current->disp);
 			}
 		else
@@ -193,7 +194,7 @@ void recycleRoutingDispatchGroupState(RoutingDispatchGroupState *dispatchGroupSt
 
 	if(disp==NULL)
 		{
-		disp=dispenserAlloc(MEMTRACKID_DISPENSER_ROUTING_DISPATCH_GROUPSTATE, DISPENSER_BLOCKSIZE_MEDIUM, DISPENSER_BLOCKSIZE_HUGE);
+		disp=dispenserAlloc(MEMTRACKID_DISPENSER_ROUTING_DISPATCH_GROUPSTATE, SLAB_FREEPOLICY_INSTA_SHRINK, DISPENSER_BLOCKSIZE_MEDIUM, DISPENSER_BLOCKSIZE_HUGE);
 		dispatchGroupState->disp=disp;
 		}
 	else
@@ -757,7 +758,7 @@ static int scanForDispatchesForGroups(RoutingBuilder *rb, int startGroup, int en
 				if(dispatchEntry!=NULL)
 					{
 					if(routingDisp==NULL)
-						routingDisp=dispenserAlloc(MEMTRACKID_DISPENSER_ROUTING, DISPENSER_BLOCKSIZE_LARGE, DISPENSER_BLOCKSIZE_HUGE);
+						routingDisp=dispenserAlloc(MEMTRACKID_DISPENSER_ROUTING, SLAB_FREEPOLICY_INSTA_RACHET, DISPENSER_BLOCKSIZE_SMALL, DISPENSER_BLOCKSIZE_HUGE);
 
 					work++;
 

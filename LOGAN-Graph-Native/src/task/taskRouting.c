@@ -12,7 +12,7 @@
 
 static void *trDoRegister(ParallelTask *pt, int workerNo, int totalWorkers)
 {
-	RoutingWorkerState *workerState=gAlloc(sizeof(RoutingWorkerState), MEMTRACKID_ROUTING_WORKERSTATE);
+	RoutingWorkerState *workerState=G_ALLOC(sizeof(RoutingWorkerState), MEMTRACKID_ROUTING_WORKERSTATE);
 
 	workerState->lookupSliceStart=(SMER_SLICES*workerNo)/totalWorkers;
 	workerState->lookupSliceEnd=(SMER_SLICES*(workerNo+1))/totalWorkers;
@@ -34,7 +34,7 @@ static void *trDoRegister(ParallelTask *pt, int workerNo, int totalWorkers)
 
 static void trDoDeregister(ParallelTask *pt, int workerNo, void *wState)
 {
-	gFree(wState, sizeof(RoutingWorkerState), MEMTRACKID_ROUTING_WORKERSTATE);
+	G_FREE(wState, sizeof(RoutingWorkerState), MEMTRACKID_ROUTING_WORKERSTATE);
 }
 
 static int trAllocateIngressSlot(ParallelTask *pt, int workerNo)
@@ -216,14 +216,14 @@ RoutingBuilder *allocRoutingBuilder(Graph *graph, int threads)
 
 	rb->allocatedReadLookupBlocks=0;
 	for(int i=0;i<TR_READBLOCK_LOOKUPS_INFLIGHT;i++)
-		rb->readLookupBlocks[i].disp=dispenserAlloc(MEMTRACKID_DISPENSER_ROUTING_LOOKUP, DISPENSER_BLOCKSIZE_ROUTING_LOOKUP, DISPENSER_BLOCKSIZE_ROUTING_LOOKUP);
+		rb->readLookupBlocks[i].disp=dispenserAlloc(MEMTRACKID_DISPENSER_ROUTING_LOOKUP, SLAB_FREEPOLICY_INSTA_RACHET, DISPENSER_BLOCKSIZE_SMALL, DISPENSER_BLOCKSIZE_HUGE);
 
 	for(int i=0;i<SMER_SLICES;i++)
 		rb->smerEntryLookupPtr[i]=NULL;
 
 	rb->allocatedReadDispatchBlocks=0;
 	for(int i=0;i<TR_READBLOCK_DISPATCHES_INFLIGHT;i++)
-		rb->readDispatchBlocks[i].disp=dispenserAlloc(MEMTRACKID_DISPENSER_ROUTING_DISPATCH, DISPENSER_BLOCKSIZE_ROUTING_DISPATCH, DISPENSER_BLOCKSIZE_ROUTING_DISPATCH);
+		rb->readDispatchBlocks[i].disp=dispenserAlloc(MEMTRACKID_DISPENSER_ROUTING_DISPATCH, SLAB_FREEPOLICY_INSTA_RACHET, DISPENSER_BLOCKSIZE_SMALL, DISPENSER_BLOCKSIZE_HUGE);
 
 	for(int i=0;i<SMER_DISPATCH_GROUPS;i++)
 		{

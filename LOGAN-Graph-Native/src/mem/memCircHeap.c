@@ -292,6 +292,8 @@ MemCircHeap *circHeapAlloc(MemCircHeapChunkIndex *(*reclaimIndexer)(u8 *data, s6
 	circHeap->reclaimIndexer=reclaimIndexer;
 	circHeap->relocater=relocater;
 
+	circHeap->gcDisp=dispenserAlloc(MEMTRACKID_DISPENSER_GARBAGE_COLLECTOR, SLAB_FREEPOLICY_INSTA_SHRINK, DISPENSER_BLOCKSIZE_SMALL, DISPENSER_BLOCKSIZE_HUGE);
+
 	return circHeap;
 }
 
@@ -312,6 +314,8 @@ void circHeapFree(MemCircHeap *circHeap)
 			block=next;
 			}
 		}
+
+	dispenserFree(circHeap->gcDisp);
 
 	G_FREE(circHeap, sizeof(MemCircHeap), MEMTRACKID_HEAP);
 }
@@ -834,12 +838,13 @@ static void circHeapEnsureSpace_generation(MemCircHeap *circHeap, size_t support
 
 static void circHeapEnsureSpace(MemCircHeap *circHeap, size_t newAllocSize)
 {
-	MemDispenser *disp=dispenserAlloc(MEMTRACKID_DISPENSER_GARBAGE_COLLECTOR, DISPENSER_BLOCKSIZE_MEDIUM, DISPENSER_BLOCKSIZE_MEDIUM);
+	MemDispenser *disp=circHeap->gcDisp;
+//			dispenserAlloc(MEMTRACKID_DISPENSER_GARBAGE_COLLECTOR, SLAB_FREEPOLICY_INSTA_SHRINK, DISPENSER_BLOCKSIZE_MEDIUM, DISPENSER_BLOCKSIZE_HUGE);
 
 	circHeapEnsureSpace_generation(circHeap, newAllocSize, 0, disp);
 
-
-	dispenserFree(disp);
+	dispenserReset(disp);
+//	dispenserFree(disp);
 }
 
 
