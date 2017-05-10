@@ -23,6 +23,8 @@
 #include <limits.h>
 #include <stdint.h>
 
+#include <hbwmalloc.h>
+
 
 //#define FEATURE_ENABLE_SMER_STATS
 //#define FEATURE_ENABLE_HEAP_STATS

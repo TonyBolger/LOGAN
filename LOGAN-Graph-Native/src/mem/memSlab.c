@@ -7,6 +7,7 @@ static void allocSlab(Slab *slab, int memTrackerId)
 	if(slab->blockPtr!=NULL)
 		LOG(LOG_CRITICAL,"Block already mapped");
 
+	/*
 	slab->blockPtr=mmap(NULL, slab->size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
 	if(slab->blockPtr==MAP_FAILED)
@@ -16,7 +17,21 @@ static void allocSlab(Slab *slab, int memTrackerId)
 
 		LOG(LOG_CRITICAL,"Block mapping for size %li failed with %s",slab->size, errno);
 		}
+*/
 
+	void *blockPtr=NULL;
+
+	int err=hbw_posix_memalign(&blockPtr, 4096, slab->size);
+
+	if(err)
+		{
+		char errBuf[ERRORBUF];
+		strerror_r(err,errBuf,ERRORBUF);
+
+		LOG(LOG_CRITICAL,"Block mapping for size %li failed with %s",slab->size, errBuf);
+		}
+
+	slab->blockPtr=blockPtr;
 
 #ifdef FEATURE_ENABLE_MEMTRACK
 	mtTrackAlloc(slab->size, memTrackerId);
@@ -33,13 +48,18 @@ void freeSlab(Slab *slab, int memTrackerId)
 	if(slab->blockPtr==MAP_FAILED)
 		LOG(LOG_CRITICAL,"Block mapped failed");
 
+	/*
 	if(munmap(slab->blockPtr, slab->size))
 		{
 		char errBuf[ERRORBUF];
 		strerror_r(errno,errBuf,ERRORBUF);
 
-		LOG(LOG_CRITICAL,"Block unmap failed with %s",slab->size, errno);
+		LOG(LOG_CRITICAL,"Block unmap failed with %s",slab->size, errBuf);
 		}
+*/
+
+
+	hbw_free(slab->blockPtr);
 
 	slab->blockPtr=NULL;
 
