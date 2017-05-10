@@ -292,7 +292,7 @@ MemCircHeap *circHeapAlloc(MemCircHeapChunkIndex *(*reclaimIndexer)(u8 *data, s6
 	circHeap->reclaimIndexer=reclaimIndexer;
 	circHeap->relocater=relocater;
 
-	circHeap->gcDisp=dispenserAlloc(MEMTRACKID_DISPENSER_GARBAGE_COLLECTOR, SLAB_FREEPOLICY_INSTA_SHRINK, DISPENSER_BLOCKSIZE_SMALL, DISPENSER_BLOCKSIZE_HUGE);
+	circHeap->gcDisp=dispenserAlloc(MEMTRACKID_DISPENSER_GARBAGE_COLLECTOR, DISPENSER_BLOCKSIZE_SMALL, DISPENSER_BLOCKSIZE_HUGE);
 
 	return circHeap;
 }

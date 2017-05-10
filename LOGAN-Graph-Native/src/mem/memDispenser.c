@@ -2,32 +2,43 @@
 #include "common.h"
 
 
-static void dispenserBlockInit(MemDispenser *disp, Slab *slab)
+
+static MemDispenserBlock *dispenserBlockAlloc(int memTrackerId, s32 blocksize)
 {
-	disp->blockPtr=slab->blockPtr;
-	disp->blockSize=slab->size;
-	disp->blockAllocated=0;
+	MemDispenserBlock *block=NULL;
+
+	if(sizeof(MemDispenserBlock)&(CACHE_ALIGNMENT_SIZE-1))
+		{
+		LOG(LOG_CRITICAL,"Dispenser block not a multiple of cache alignment size %i vs %i",sizeof(MemDispenserBlock),CACHE_ALIGNMENT_SIZE);
+		}
+
+	block=G_ALLOC_ALIGNED(sizeof(MemDispenserBlock)+blocksize, CACHE_ALIGNMENT_SIZE, memTrackerId);
+
+	block->prev=NULL;
+	block->allocated=0;
+	block->blocksize=blocksize;
+
+//	LOG(LOG_INFO,"AllocDispBlock %p %i",block,blocksize);
+
+	//memset(block->data,0,DISPENSER_BLOCKSIZE);
+
+	return block;
 }
 
 
-MemDispenser *dispenserAlloc(s16 memTrackerId, s16 policy, u32 baseBlockSize, u32 maxBlocksize)
+MemDispenser *dispenserAlloc(int memTrackerId, u32 baseBlocksize, u32 maxBlocksize)
 {
-//	LOG(LOG_INFO,"Allocating Dispenser: %i",memTrackerId);
-	MemDispenser *disp=G_ALLOC(sizeof(MemDispenser),MEMTRACKID_DISPENSER);
+	//LOG(LOG_INFO,"Allocating Dispenser: %s",name);
+	MemDispenser *disp=G_ALLOC(sizeof(MemDispenser), memTrackerId);
 
 	if(disp==NULL)
 		LOG(LOG_CRITICAL,"Failed to alloc dispenser");
 
-	s32 minSizeShift=31-__builtin_clz(nextPowerOf2_32(baseBlockSize));
-	u32 maxSizeShift=31-__builtin_clz(nextPowerOf2_32(maxBlocksize));
+	disp->memTrackerId=memTrackerId;
+	disp->blocksize=baseBlocksize;
+	disp->maxBlocksize=maxBlocksize;
 
-//	LOG(LOG_INFO,"Sizes %i (%i) %i (%i)",baseBlockSize,minSizeShift, maxBlocksize, maxSizeShift);
-
-	Slabocator *slabocator=allocSlabocator(minSizeShift, maxSizeShift, 1, memTrackerId, policy);
-	disp->slabocator=slabocator;
-
-	dispenserBlockInit(disp, slabGetCurrent(slabocator));
-
+	disp->block=dispenserBlockAlloc(memTrackerId, baseBlocksize);
 	disp->allocated=0;
 
 	return disp;
@@ -35,23 +46,59 @@ MemDispenser *dispenserAlloc(s16 memTrackerId, s16 policy, u32 baseBlockSize, u3
 
 void dispenserFree(MemDispenser *disp)
 {
+//	LOG(LOG_INFO,"DispFree %p",disp);
+
 	if(disp==NULL)
 		return;
 
-	freeSlabocator(disp->slabocator);
+	int totalAllocated=0;
 
-	gFree(disp, sizeof(MemDispenser), MEMTRACKID_DISPENSER);
+	MemDispenserBlock *blockPtr=disp->block;
+
+	while(blockPtr!=NULL)
+		{
+		MemDispenserBlock *prevPtr=blockPtr->prev;
+
+		totalAllocated+=blockPtr->allocated;
+
+		if(blockPtr!=NULL)
+			G_FREE(blockPtr, sizeof(MemDispenserBlock)+blockPtr->blocksize, disp->memTrackerId);
+		blockPtr=prevPtr;
+		}
+
+	G_FREE(disp, sizeof(MemDispenser), disp->memTrackerId);
 }
 
 
 void dispenserReset(MemDispenser *disp)
 {
-	//LOG(LOG_INFO,"DispReset %s",MEMTRACKER_NAMES[disp->slabocator->memTrackerId]);
+//	LOG(LOG_INFO,"DispReset %p",dispenser);
 
-	slabReset(disp->slabocator);
-	dispenserBlockInit(disp,slabGetCurrent(disp->slabocator));
+	MemDispenserBlock *blockPtr=disp->block;
 
+	if(blockPtr!=NULL)
+		{
+		blockPtr->allocated=0;
+
+		blockPtr=blockPtr->prev;
+
+		while(blockPtr!=NULL)
+			{
+			MemDispenserBlock *prevPtr=blockPtr->prev;
+
+			if(blockPtr!=NULL)
+				G_FREE(blockPtr, sizeof(MemDispenserBlock)+blockPtr->blocksize, disp->memTrackerId);
+
+			blockPtr=prevPtr;
+			}
+		}
+
+	disp->block->prev=NULL;
 	disp->allocated=0;
+
+//	int i=0;
+//	for(i=0;i<MAX_ALLOCATORS;i++)
+//		dispenser->allocatorUsage[i]=0;
 
 }
 
@@ -70,7 +117,7 @@ static void *dAllocAligned(MemDispenser *disp, size_t allocSize, s32 alignmentMa
 	if(disp->allocated>DISPENSER_MAX)
 		{
 		LOG(LOG_INFO,"Dispenser Overallocation detected - wanted %i\n",(int)allocSize);
-		LOG(LOG_CRITICAL,"Dispenser %s refusing to allocate",MEMTRACKER_NAMES[disp->slabocator->memTrackerId]);
+		LOG(LOG_CRITICAL,"Dispenser %s refusing to allocate",MEMTRACKER_NAMES[disp->memTrackerId]);
 
 		return NULL;
 		}
@@ -79,7 +126,7 @@ static void *dAllocAligned(MemDispenser *disp, size_t allocSize, s32 alignmentMa
 
 	if(alignmentMask>0)
 		{
-		int offset=disp->blockAllocated & alignmentMask;
+		int offset=disp->block->allocated & alignmentMask;
 		if(offset>0)
 			padSize=1+alignmentMask-offset;
 		}
@@ -90,22 +137,49 @@ static void *dAllocAligned(MemDispenser *disp, size_t allocSize, s32 alignmentMa
 
 	int tempAllocSize=allocSize+padSize;
 
-	if(disp->blockPtr == NULL)
-		LOG(LOG_CRITICAL,"Dispenser blockPtr unexpectedly NULL");
-
-	while(disp->blockAllocated+tempAllocSize > disp->blockSize)
+	if(disp->block == NULL || disp->block->allocated+tempAllocSize > disp->block->blocksize)
 		{
-		padSize=0;
+		u32 blocksize=disp==NULL? disp->blocksize: disp->block->blocksize;
 
-		dispenserBlockInit(disp, slabAllocNext(disp->slabocator));
-		//LOG(LOG_INFO,"Block %s expanded to: %i",MEMTRACKER_NAMES[disp->slabocator->memTrackerId],disp->blockSize);
+		if(tempAllocSize>blocksize)
+			{
+			padSize=0;
+
+			while(allocSize>blocksize)
+				{
+				blocksize=blocksize*2;
+				if(blocksize>=disp->maxBlocksize)
+					{
+					LOG(LOG_INFO,"Warning: Block %s expanded to max: %i",MEMTRACKER_NAMES[disp->memTrackerId],disp->maxBlocksize);
+					blocksize=disp->maxBlocksize;
+					break;
+					}
+
+				LOG(LOG_INFO,"Block %s expanded to: %i",MEMTRACKER_NAMES[disp->memTrackerId],blocksize);
+				}
+			}
+
+		MemDispenserBlock *newBlock=dispenserBlockAlloc(disp->memTrackerId, blocksize);
+
+		newBlock->prev=disp->block;
+		disp->block=newBlock;
 		}
 
 	allocSize+=padSize;
 
-	void *usrPtr=disp->blockPtr+disp->blockAllocated+padSize;
+	MemDispenserBlock *block=disp->block;
 
-	disp->blockAllocated+=allocSize;
+	if(block->allocated+allocSize > block->blocksize)
+		{
+		LOG(LOG_INFO,"Dispenser Local overallocation detected - wanted %i\n",(int)allocSize);
+
+		LOG(LOG_CRITICAL,"Dispenser %s refusing to allocate",MEMTRACKER_NAMES[disp->memTrackerId]);
+		return NULL;
+		}
+
+	void *usrPtr=block->data+block->allocated+padSize;
+
+	block->allocated+=allocSize;
 	disp->allocated+=allocSize;
 
 	//memset(usrPtr,0,allocSize);

@@ -469,7 +469,7 @@ JNIEXPORT jobject JNICALL Java_logan_graph_Graph_getLinkedSmer_1Native
 
 	SmerArray *smerArray = &(graph->smerArray);
 
-	MemDispenser *dispenser=dispenserAlloc(MEMTRACKID_DISPENSER_LINKED_SMER, SLAB_FREEPOLICY_INSTA_SHRINK, DISPENSER_BLOCKSIZE_SMALL, DISPENSER_BLOCKSIZE_LARGE);
+	MemDispenser *dispenser=dispenserAlloc(MEMTRACKID_DISPENSER_LINKED_SMER, DISPENSER_BLOCKSIZE_SMALL, DISPENSER_BLOCKSIZE_LARGE);
 
 	SmerLinked *linked=rtGetLinkedSmer(smerArray, (SmerId)jSmerId, dispenser);
 	jobject jObj=NULL;

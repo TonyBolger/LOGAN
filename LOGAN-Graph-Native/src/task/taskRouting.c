@@ -216,14 +216,14 @@ RoutingBuilder *allocRoutingBuilder(Graph *graph, int threads)
 
 	rb->allocatedReadLookupBlocks=0;
 	for(int i=0;i<TR_READBLOCK_LOOKUPS_INFLIGHT;i++)
-		rb->readLookupBlocks[i].disp=dispenserAlloc(MEMTRACKID_DISPENSER_ROUTING_LOOKUP, SLAB_FREEPOLICY_INSTA_RACHET, DISPENSER_BLOCKSIZE_SMALL, DISPENSER_BLOCKSIZE_HUGE);
+		rb->readLookupBlocks[i].disp=dispenserAlloc(MEMTRACKID_DISPENSER_ROUTING_LOOKUP, DISPENSER_BLOCKSIZE_MEDIUM, DISPENSER_BLOCKSIZE_HUGE);
 
 	for(int i=0;i<SMER_SLICES;i++)
 		rb->smerEntryLookupPtr[i]=NULL;
 
 	rb->allocatedReadDispatchBlocks=0;
 	for(int i=0;i<TR_READBLOCK_DISPATCHES_INFLIGHT;i++)
-		rb->readDispatchBlocks[i].disp=dispenserAlloc(MEMTRACKID_DISPENSER_ROUTING_DISPATCH, SLAB_FREEPOLICY_INSTA_RACHET, DISPENSER_BLOCKSIZE_SMALL, DISPENSER_BLOCKSIZE_HUGE);
+		rb->readDispatchBlocks[i].disp=dispenserAlloc(MEMTRACKID_DISPENSER_ROUTING_DISPATCH, DISPENSER_BLOCKSIZE_MEDIUM, DISPENSER_BLOCKSIZE_HUGE);
 
 	for(int i=0;i<SMER_DISPATCH_GROUPS;i++)
 		{

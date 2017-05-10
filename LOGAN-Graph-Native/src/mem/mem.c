@@ -14,7 +14,7 @@ void *gAlloc(size_t size, int memTrackerId)
 	{
 #endif
 
-	void *usrPtr=malloc(size);
+	void *usrPtr=hbw_malloc(size);
 
 	if(usrPtr==NULL)
 		LOG(LOG_CRITICAL,"Failed to allocate %i bytes",size);
@@ -32,12 +32,11 @@ void *gAllocC(size_t size, int memTrackerId)
 	void *gAllocC(size_t size)
 	{
 #endif
-	void *usrPtr=malloc(size);
+	void *usrPtr=hbw_calloc(1,size);
 
 	if(usrPtr==NULL)
 		LOG(LOG_CRITICAL,"Failed to allocate %i bytes",size);
 
-	memset(usrPtr,0,size);
 	return usrPtr;
 }
 
@@ -53,7 +52,7 @@ void *gAllocAligned(size_t size, size_t alignment, int memTrackerId)
 #endif
 
 	void *usrPtr=NULL;
-	if(posix_memalign((void **)&usrPtr, alignment, size)!=0)
+	if(hbw_posix_memalign((void **)&usrPtr, alignment, size)!=0)
 		LOG(LOG_CRITICAL,"Failed to allocate %i bytes with alignment %i",size, alignment);
 
 	return usrPtr;
@@ -72,7 +71,7 @@ void gFree(void *ptr, size_t size, int memTrackerId)
 	if(ptr==NULL)
 		return;
 
-	free(ptr);
+	hbw_free(ptr);
 }
 
 
