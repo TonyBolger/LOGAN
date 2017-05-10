@@ -13,7 +13,7 @@ static void dispenserBlockInit(MemDispenser *disp, Slab *slab)
 MemDispenser *dispenserAlloc(s16 memTrackerId, s16 policy, u32 baseBlockSize, u32 maxBlocksize)
 {
 //	LOG(LOG_INFO,"Allocating Dispenser: %i",memTrackerId);
-	MemDispenser *disp=gAlloc(sizeof(MemDispenser));
+	MemDispenser *disp=G_ALLOC(sizeof(MemDispenser),MEMTRACKID_DISPENSER);
 
 	if(disp==NULL)
 		LOG(LOG_CRITICAL,"Failed to alloc dispenser");
@@ -40,7 +40,7 @@ void dispenserFree(MemDispenser *disp)
 
 	freeSlabocator(disp->slabocator);
 
-	gFree(disp);
+	gFree(disp, sizeof(MemDispenser), MEMTRACKID_DISPENSER);
 }
 
 
