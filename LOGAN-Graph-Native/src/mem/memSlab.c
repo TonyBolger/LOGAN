@@ -19,17 +19,7 @@ static void allocSlab(Slab *slab, int memTrackerId)
 		}
 */
 
-	void *blockPtr=NULL;
-
-	int err=hbw_posix_memalign(&blockPtr, 4096, slab->size);
-
-	if(err)
-		{
-		char errBuf[ERRORBUF];
-		strerror_r(err,errBuf,ERRORBUF);
-
-		LOG(LOG_CRITICAL,"Block mapping for size %li failed with %s",slab->size, errBuf);
-		}
+	void *blockPtr=G_ALLOC_ALIGNED(slab->size, 4096, memTrackerId);
 
 	slab->blockPtr=blockPtr;
 
@@ -58,8 +48,7 @@ void freeSlab(Slab *slab, int memTrackerId)
 		}
 */
 
-
-	hbw_free(slab->blockPtr);
+	G_FREE(slab->blockPtr, slab->size, memTrackerId);
 
 	slab->blockPtr=NULL;
 

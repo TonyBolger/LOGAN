@@ -29,7 +29,7 @@ static MemDispenserBlock *dispenserBlockAlloc(int memTrackerId, s32 blocksize)
 MemDispenser *dispenserAlloc(int memTrackerId, u32 baseBlocksize, u32 maxBlocksize)
 {
 	//LOG(LOG_INFO,"Allocating Dispenser: %s",name);
-	MemDispenser *disp=G_ALLOC(sizeof(MemDispenser), memTrackerId);
+	MemDispenser *disp=G_ALLOC(sizeof(MemDispenser), MEMTRACKID_DISPENSER);
 
 	if(disp==NULL)
 		LOG(LOG_CRITICAL,"Failed to alloc dispenser");

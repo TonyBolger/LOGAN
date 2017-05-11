@@ -1,8 +1,11 @@
 
 #include "common.h"
 
+#ifdef FEATURE_ENABLE_MEMKIND
+#include <hbwmalloc.h>
+#endif
 
-// Centralized Generic Alloc / Realloc / Free
+// Centralized Generic Alloc / Realloc / Free: Delegates to either glibc allocator or libmemkind
 
 #ifdef FEATURE_ENABLE_MEMTRACK
 void *gAlloc(size_t size, int memTrackerId)
@@ -14,7 +17,11 @@ void *gAlloc(size_t size, int memTrackerId)
 	{
 #endif
 
+#ifdef FEATURE_ENABLE_MEMKIND
 	void *usrPtr=hbw_malloc(size);
+#else
+	void *usrPtr=malloc(size);
+#endif
 
 	if(usrPtr==NULL)
 		LOG(LOG_CRITICAL,"Failed to allocate %i bytes",size);
@@ -32,7 +39,12 @@ void *gAllocC(size_t size, int memTrackerId)
 	void *gAllocC(size_t size)
 	{
 #endif
+
+#ifdef FEATURE_ENABLE_MEMKIND
 	void *usrPtr=hbw_calloc(1,size);
+#else
+	void *usrPtr=calloc(1,size);
+#endif
 
 	if(usrPtr==NULL)
 		LOG(LOG_CRITICAL,"Failed to allocate %i bytes",size);
@@ -52,8 +64,20 @@ void *gAllocAligned(size_t size, size_t alignment, int memTrackerId)
 #endif
 
 	void *usrPtr=NULL;
-	if(hbw_posix_memalign((void **)&usrPtr, alignment, size)!=0)
-		LOG(LOG_CRITICAL,"Failed to allocate %i bytes with alignment %i",size, alignment);
+
+#ifdef FEATURE_ENABLE_MEMKIND
+	int err=hbw_posix_memalign((void **)&usrPtr, alignment, size);
+#else
+	int err=posix_memalign((void **)&usrPtr, alignment, size);
+#endif
+
+	if(err)
+		{
+		char errBuf[ERRORBUF];
+		strerror_r(err,errBuf,ERRORBUF);
+
+		LOG(LOG_CRITICAL,"Failed to allocate size %li (alignment %i) with error %s",size, alignment, errBuf);
+		}
 
 	return usrPtr;
 }
@@ -71,15 +95,17 @@ void gFree(void *ptr, size_t size, int memTrackerId)
 	if(ptr==NULL)
 		return;
 
+#ifdef FEATURE_ENABLE_MEMKIND
 	hbw_free(ptr);
+#else
+	free(ptr);
+#endif
 }
 
 
 
 /*
  * Specific allocator for SmerId/SmerEntry/SmerData arrays
- *
- * For now, they just delegates to the malloc/free
  *
  */
 

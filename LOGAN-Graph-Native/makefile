@@ -21,8 +21,10 @@ INC=-I"./src"
 CLI_INC=-I"./cliSrc"
 JNI_INC=-I/usr/lib/jvm/java/include/ -I/usr/lib/jvm/java/include/linux/ -I"./jniSrc" -I"./jniHeaders"
 
+#CLI_LIBS = -lrt -lpthread 
 #CLI_LIBS = -lrt -lpthread -lmemkind
-CLI_LIBS = -lrt -lpthread -lmemkind -lprofiler
+CLI_LIBS = -lrt -lpthread -lprofiler
+#CLI_LIBS = -lrt -lpthread -lmemkind -lprofiler
 
 CLI_OBJS += \
 ./bin/cli/common/graph/graph.o \

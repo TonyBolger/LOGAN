@@ -23,12 +23,12 @@
 #include <limits.h>
 #include <stdint.h>
 
-#include <hbwmalloc.h>
-
 
 //#define FEATURE_ENABLE_SMER_STATS
 //#define FEATURE_ENABLE_HEAP_STATS
-#define FEATURE_ENABLE_MEMTRACK
+//#define FEATURE_ENABLE_MEMTRACK
+//#define FEATURE_ENABLE_MEMKIND
+
 
 #define DEFAULT_SLEEP_NANOS 1000000
 #define DEFAULT_SLEEP_SECS 0
