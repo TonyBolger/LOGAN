@@ -12,6 +12,18 @@ typedef struct routeTableTreeLeafEntryStr
 
 typedef struct routeTableLeafBlockStr
 {
+	u8 leafHeader; // Indicate width of totalSize, upstream Counts, downstream Counts, offsets and entry widths (x 4 bits)
+	u16 totalSize; // (16 bit fixed for now)
+
+	u16 upstreamFirst; // (16 bit fixed for now)
+	u16 upstreamAlloc; // (16 bit fixed for now)
+	u16 downstreamFirst; // (16 bit fixed for now)
+	u16 downstreamAlloc; // (16 bit fixed for now)
+
+	u8 *data;	//s32 upstream offsets, downstream offsets, packed entries(entry count, (downstream, width));
+
+
+	/*
 	s16 offsetAlloc;
 	s16 entryAlloc;
 
@@ -20,6 +32,7 @@ typedef struct routeTableLeafBlockStr
 	s32 upstreamOffset;
 
 	u8 extraData[];
+	*/
 
 	//RouteTableTreeLeafOffset offsets[offsetAlloc]
 	//RouteTableTreeLeafEntry entries[entryAlloc]; // Max is ROUTE_TABLE_TREE_LEAF_ENTRIES
