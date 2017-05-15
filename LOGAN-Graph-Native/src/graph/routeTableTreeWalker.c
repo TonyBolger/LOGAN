@@ -1,7 +1,7 @@
 #include "common.h"
 
 
-
+/*
 
 void initTreeWalker(RouteTableTreeWalker *walker, RouteTableTreeProxy *treeProxy)
 {
@@ -361,3 +361,5 @@ void walkerAppendPreorderedEntries(RouteTableTreeWalker *walker, RouteTableEntry
 	//LOG(LOG_INFO,"Routing Table with %i entries used %i branches and %i leaves",
 //		entryCount,walker->treeProxy->branchArrayProxy.newDataCount,walker->treeProxy->leafArrayProxy.newDataCount);
 }
+
+*/

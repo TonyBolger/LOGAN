@@ -1,7 +1,7 @@
 
 #include "common.h"
 
-
+/*
 s32 getRouteTableTreeLeafSize_Expected(s16 offsetAlloc, s16 entryAlloc)
 {
 	return sizeof(RouteTableTreeLeafBlock)+((s32)offsetAlloc)*sizeof(RouteTableTreeLeafOffset)+((s32)entryAlloc)*sizeof(RouteTableTreeLeafEntry);
@@ -212,18 +212,7 @@ void expandRouteTableTreeLeafProxy(RouteTableTreeProxy *treeProxy, RouteTableTre
 }
 
 
-/*
-void dumpLeafProxy(RouteTableTreeLeafProxy *leafProxy)
-{
-	LOG(LOG_INFO,"Leaf: Index %i Used %i of %i - Datablock %p",leafProxy->lindex,leafProxy->entryCount,leafProxy->entryAlloc,leafProxy->dataBlock);
-	LOG(LOG_INFO,"Upstream %i  BlockAlloc %i",leafProxy->dataBlock->upstream,leafProxy->dataBlock->entryAlloc);
 
-	RouteTableTreeLeafEntry *entryPtr=(RouteTableTreeLeafEntry *)(leafProxy->dataBlock->extraData);
-
-	for(int i=0;i<leafProxy->dataBlock->entryAlloc;i++)
-		LOG(LOG_INFO,"Entry %i has DS: %i W %i",i,entryPtr[i].downstream,entryPtr[i].width);
-}
-*/
 
 
 
@@ -372,7 +361,7 @@ void validateRouteTableTreeLeafOffsets(RouteTableTreeLeafProxy *leafProxy)
 }
 
 
-
+*/
 
 
 

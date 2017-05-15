@@ -10,17 +10,28 @@ typedef struct routeTableTreeLeafEntryStr
 	s32 width;
 } __attribute__((packed)) RouteTableTreeLeafEntry;
 
+typedef struct routeTableTreeLeafEntryBlockStr
+{
+	s16 upstream;
+
+	u16 entryAlloc;
+	u16 entryCount;
+	RouteTableTreeLeafEntry entries[];
+} __attribute__((packed)) RouteTableTreeLeafEntryBlock;
+
 typedef struct routeTableLeafBlockStr
 {
 	u8 leafHeader; // Indicate width of totalSize, upstream Counts, downstream Counts, offsets and entry widths (x 4 bits)
-	u16 totalSize; // (16 bit fixed for now)
+	u16 dataSize; // (16 bit fixed for now)
+
+	s16 parentBrindex;
 
 	u16 upstreamFirst; // (16 bit fixed for now)
 	u16 upstreamAlloc; // (16 bit fixed for now)
 	u16 downstreamFirst; // (16 bit fixed for now)
 	u16 downstreamAlloc; // (16 bit fixed for now)
 
-	u8 *data;	//s32 upstream offsets, downstream offsets, packed entries(entry count, (downstream, width));
+	u8 data[];	//s32 upstream offsets, downstream offsets, packed entries(entry count, (downstream, width));
 
 
 	/*
@@ -45,10 +56,15 @@ struct routeTableTreeLeafProxyStr
 	RouteTableTreeLeafBlock *dataBlock;
 	s16 lindex;
 
-	u16 entryAlloc;
-	u16 entryCount;
+	u16 upstreamAlloc;
+	s32 *upstreamOffsets;
 
+	u16 downstreamAlloc;
+	s32 *downstreamOffsets;
 
+	u16 blockAlloc;
+	u16 blockCount;
+	RouteTableTreeLeafEntryBlock *blocks;
 };
 
 

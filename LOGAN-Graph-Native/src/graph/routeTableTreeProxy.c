@@ -107,7 +107,9 @@ RouteTableTreeLeafProxy *getRouteTableTreeLeafProxy(RouteTableTreeProxy *treePro
 
 //	LOG(LOG_INFO,"GetRouteTableTreeLeaf : %i",lindex);
 
-	getRouteTableTreeLeafProxy_scan(leafProxy->dataBlock, &leafProxy->entryAlloc, &leafProxy->entryCount);
+
+	LOG(LOG_CRITICAL,"PackLeaf: getRouteTableTreeLeafProxy (scan) TODO");
+	//getRouteTableTreeLeafProxy_scan(leafProxy->dataBlock, &leafProxy->entryAlloc, &leafProxy->entryCount);
 
 //	LOG(LOG_INFO,"Got leaf with %i indexes, and %i of %i", leafProxy->dataBlock->offsetAlloc, leafProxy->entryCount, leafProxy->entryAlloc);
 
@@ -404,7 +406,7 @@ RouteTableTreeLeafProxy *treeProxySplitLeaf(RouteTableTreeProxy *treeProxy, Rout
 		 RouteTableTreeLeafProxy **newLeafProxyPtr, s16 *newEntryPositionPtr)
 {
 //	LOG(LOG_INFO,"Leaf Split: %i",leaf->lindex);
-
+/*
 	s32 toKeepHalfEntry=((1+leafProxy->entryCount)/2);
 	s32 toMoveHalfEntry=leafProxy->entryCount-toKeepHalfEntry;
 
@@ -454,6 +456,11 @@ RouteTableTreeLeafProxy *treeProxySplitLeaf(RouteTableTreeProxy *treeProxy, Rout
 		}
 
 	return newLeafProxy;
+	*/
+
+	LOG(LOG_CRITICAL,"PackLeaf: treeProxySplitLeaf TODO");
+
+	return NULL;
 }
 
 
