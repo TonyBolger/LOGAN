@@ -228,6 +228,7 @@ typedef struct swqBufferStr {
 
 #include "graph/smer.h"
 #include "graph/seqTail.h"
+#include "graph/routeTablePacking.h"
 #include "graph/routeTable.h"
 #include "graph/routeTableArray.h"
 #include "graph/routeTableTreeArray.h"

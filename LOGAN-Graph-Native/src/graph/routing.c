@@ -964,6 +964,8 @@ s32 writeBuildersAsIndirectData_mergeTopArrayUpdates_leaf_accumulateSize(RouteTa
 
 	//LOG(LOG_INFO,"New data Alloc %i",leafArrayProxy->newDataAlloc);
 
+	LOG(LOG_CRITICAL,"PackLeaf: writeBuildersAsIndirectData_mergeTopArrayUpdates_leaf_accumulateSize TODO");
+/*
 	for(int i=0;i<leafArrayProxy->newEntriesCount;i++)
 		{
 		int oldLeafSize=0;
@@ -990,7 +992,7 @@ s32 writeBuildersAsIndirectData_mergeTopArrayUpdates_leaf_accumulateSize(RouteTa
 			totalSize+=headerSize+newLeafSize;
 			}
 		}
-
+*/
 	return totalSize;
 }
 
@@ -1003,6 +1005,8 @@ void writeBuildersAsIndirectData_mergeTopArrayUpdates_leaf(RouteTableTreeArrayPr
 
 	u8 *endNewData=newData+newDataSize;
 
+	LOG(LOG_CRITICAL,"PackLeaf: writeBuildersAsIndirectData_mergeTopArrayUpdates_leaf TODO");
+
 	//if(arrayProxy->dataBlock->dataAlloc==0)
 		//{
 		//LOG(LOG_INFO,"New Leaf Array - setting array length to %i",arrayProxy->newDataAlloc);
@@ -1011,7 +1015,7 @@ void writeBuildersAsIndirectData_mergeTopArrayUpdates_leaf(RouteTableTreeArrayPr
 //		arrayProxy->dataBlock->dataAlloc=arrayProxy->newDataAlloc;
 
 		//}
-
+/*
 	for(int i=0;i<leafArrayProxy->newEntriesCount;i++)
 		{
 		RouteTableTreeLeafBlock *oldLeafData=NULL;
@@ -1064,7 +1068,7 @@ void writeBuildersAsIndirectData_mergeTopArrayUpdates_leaf(RouteTableTreeArrayPr
 			memcpy(leafArrayProxy->dataBlock->data[subindex]+headerSize, newLeafData, newLeafSize);
 			}
 		}
-
+*/
 	if(endNewData!=newData)
 		LOG(LOG_CRITICAL,"New Leaf Data doesn't match expected: New: %p vs Expected: %p",newData,endNewData);
 

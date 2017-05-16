@@ -21,10 +21,10 @@ typedef struct routeTableTreeLeafEntryBlockStr
 
 typedef struct routeTableLeafBlockStr
 {
+	s16 parentBrindex;
+
 	u8 leafHeader; // Indicate width of totalSize, upstream Counts, downstream Counts, offsets and entry widths (x 4 bits)
 	u16 dataSize; // (16 bit fixed for now)
-
-	s16 parentBrindex;
 
 	u16 upstreamFirst; // (16 bit fixed for now)
 	u16 upstreamAlloc; // (16 bit fixed for now)

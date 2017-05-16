@@ -1,10 +1,13 @@
 #include "common.h"
 
 
-/*
+
 
 void initTreeWalker(RouteTableTreeWalker *walker, RouteTableTreeProxy *treeProxy)
 {
+	LOG(LOG_CRITICAL,"PackLeaf: initTreeWalker TODO");
+
+	/*
 	walker->treeProxy=treeProxy;
 
 	walker->branchProxy=treeProxy->rootProxy;
@@ -19,12 +22,15 @@ void initTreeWalker(RouteTableTreeWalker *walker, RouteTableTreeProxy *treeProxy
 
 	walker->downstreamOffsetCount=0;
 	walker->downstreamOffsets=NULL;
-
+*/
 }
 
 
 void dumpWalker(RouteTableTreeWalker *walker)
 {
+	LOG(LOG_CRITICAL,"PackLeaf: dumpWalker TODO");
+
+	/*
 	LOG(LOG_INFO,"Walker Dump: Starts");
 
 	if(walker->branchProxy!=NULL)
@@ -74,11 +80,15 @@ void dumpWalker(RouteTableTreeWalker *walker)
 		LOG(LOG_INFO,"Walker DownstreamOffsets: NULL");
 
 	LOG(LOG_INFO,"Walker Dump: Ends");
+	*/
 }
 
 
 void walkerSeekStart(RouteTableTreeWalker *walker)
 {
+	LOG(LOG_CRITICAL,"PackLeaf: walkerSeekStart TODO");
+	/*
+
 	RouteTableTreeBranchProxy *branchProxy=NULL;
 	RouteTableTreeLeafProxy *leafProxy=NULL;
 	s16 branchChildSibdex=0;
@@ -100,10 +110,16 @@ void walkerSeekStart(RouteTableTreeWalker *walker)
 //		LOG(LOG_INFO,"leafEntry -1");
 		walker->leafEntry=-1;
 		}
+
+	*/
 }
 
 void walkerSeekEnd(RouteTableTreeWalker *walker)
 {
+	LOG(LOG_CRITICAL,"PackLeaf: walkerSeekEnd TODO");
+
+	/*
+
 	RouteTableTreeBranchProxy *branchProxy=NULL;
 	RouteTableTreeLeafProxy *leafProxy=NULL;
 	s16 branchChildSibdex=0;
@@ -124,10 +140,15 @@ void walkerSeekEnd(RouteTableTreeWalker *walker)
 //		LOG(LOG_INFO,"leafEntry -1");
 		walker->leafEntry=-1;
 		}
+
+	*/
 }
 
 s32 walkerGetCurrentEntry(RouteTableTreeWalker *walker, s16 *upstream, RouteTableTreeLeafEntry **entry)
 {
+	LOG(LOG_CRITICAL,"PackLeaf: walkerGetCurrentEntry TODO");
+
+	/*
 	if((walker->leafProxy==NULL)||(walker->leafEntry==-1))
 		{
 		*upstream=32767;
@@ -141,6 +162,7 @@ s32 walkerGetCurrentEntry(RouteTableTreeWalker *walker, s16 *upstream, RouteTabl
 	RouteTableTreeLeafEntry *entryPtr=getRouteTableTreeLeaf_EntryPtr(walker->leafProxy->dataBlock);
 
 	*entry=entryPtr+walker->leafEntry;
+*/
 
 	return 1;
 }
@@ -148,6 +170,9 @@ s32 walkerGetCurrentEntry(RouteTableTreeWalker *walker, s16 *upstream, RouteTabl
 
 s32 walkerNextLeaf(RouteTableTreeWalker *walker, s16 *upstream, RouteTableTreeLeafEntry **entry)
 {
+	LOG(LOG_CRITICAL,"PackLeaf: walkerNextLeaf TODO");
+
+	/*
 	RouteTableTreeBranchProxy *branchProxy=walker->branchProxy;
 	s16 branchChildSibdex=walker->branchChildSibdex;
 	RouteTableTreeLeafProxy *leafProxy=walker->leafProxy;
@@ -182,13 +207,16 @@ s32 walkerNextLeaf(RouteTableTreeWalker *walker, s16 *upstream, RouteTableTreeLe
 	*upstream=walker->leafProxy->dataBlock->upstream;
 	RouteTableTreeLeafEntry *entryPtr=getRouteTableTreeLeaf_EntryPtr(walker->leafProxy->dataBlock);
 	*entry=entryPtr+walker->leafEntry;
-
+*/
 	return 1;
 
 }
 
 s32 walkerNextEntry(RouteTableTreeWalker *walker, s16 *upstream, RouteTableTreeLeafEntry **entry, s32 holdUpstream)
 {
+	LOG(LOG_CRITICAL,"PackLeaf: walkerNextEntry TODO");
+
+	/*
 	if((walker->leafProxy==NULL)||(walker->leafEntry==-1))
 		{
 		*upstream=32767;
@@ -252,22 +280,29 @@ s32 walkerNextEntry(RouteTableTreeWalker *walker, s16 *upstream, RouteTableTreeL
 
 	*entry=entryPtr+walker->leafEntry;
 
+*/
+
 	return 1;
 }
 
 
 void walkerResetOffsetArrays(RouteTableTreeWalker *walker)
 {
-//	LOG(LOG_INFO,"Walker Offset Reset %i %i",walker->upstreamOffsetCount, walker->downstreamOffsetCount);
+	LOG(LOG_CRITICAL,"PackLeaf: walkerResetOffsetArrays TODO");
 
+//	LOG(LOG_INFO,"Walker Offset Reset %i %i",walker->upstreamOffsetCount, walker->downstreamOffsetCount);
+/*
 	memset(walker->upstreamOffsets,0,sizeof(s32)*walker->upstreamOffsetCount);
 	memset(walker->downstreamOffsets,0,sizeof(s32)*walker->downstreamOffsetCount);
+	*/
 }
 
 void walkerInitOffsetArrays(RouteTableTreeWalker *walker, s32 upstreamCount, s32 downstreamCount)
 {
-	//LOG(LOG_INFO,"Walker Offset Init %i %i",upstreamCount, downstreamCount);
+	LOG(LOG_CRITICAL,"PackLeaf: walkerInitOffsetArrays TODO");
 
+	//LOG(LOG_INFO,"Walker Offset Init %i %i",upstreamCount, downstreamCount);
+/*
 	s32 *up=dAlloc(walker->treeProxy->disp, sizeof(s32)*upstreamCount);
 	s32 *down=dAlloc(walker->treeProxy->disp, sizeof(s32)*downstreamCount);
 
@@ -279,11 +314,15 @@ void walkerInitOffsetArrays(RouteTableTreeWalker *walker, s32 upstreamCount, s32
 
 	walker->downstreamOffsetCount=downstreamCount;
 	walker->downstreamOffsets=down;
+	*/
 }
 
 
 void walkerAccumulateLeafOffsets(RouteTableTreeWalker *walker)
 {
+	LOG(LOG_CRITICAL,"PackLeaf: walkerAccumulateLeafOffsets TODO");
+
+	/*
 	if(walker->leafProxy==NULL)
 		return;
 
@@ -296,11 +335,16 @@ void walkerAccumulateLeafOffsets(RouteTableTreeWalker *walker)
 
 	for(int i=0;i<commonOffsets;i++)
 		walker->downstreamOffsets[i]+=offsets[i];
+
+		*/
 }
 
 
 void walkerAppendNewLeaf(RouteTableTreeWalker *walker, s16 upstream)
 {
+	LOG(LOG_CRITICAL,"PackLeaf: walkerAppendNewLeaf TODO");
+
+	/*
 	//LOG(LOG_INFO,"WalkerAppendLeaf - new leaf with");
 	RouteTableTreeLeafProxy *leafProxy=allocRouteTableTreeLeafProxy(walker->treeProxy, walker->downstreamOffsetCount, ROUTE_TABLE_TREE_LEAF_ENTRIES_CHUNK);
 
@@ -310,11 +354,15 @@ void walkerAppendNewLeaf(RouteTableTreeWalker *walker, s16 upstream)
 
 	walker->leafProxy=leafProxy;
 	walker->leafEntry=leafProxy->entryCount;
+	*/
 }
 
 
 void walkerAppendPreorderedEntry(RouteTableTreeWalker *walker, RouteTableEntry *entry, int routingTable)
 {
+	LOG(LOG_CRITICAL,"PackLeaf: walkerAppendPreorderedEntry TODO");
+
+	/*
 	s32 upstream=routingTable==ROUTING_TABLE_FORWARD?entry->prefix:entry->suffix;
 	s32 downstream=routingTable==ROUTING_TABLE_FORWARD?entry->suffix:entry->prefix;
 
@@ -347,12 +395,16 @@ void walkerAppendPreorderedEntry(RouteTableTreeWalker *walker, RouteTableEntry *
 	walker->leafEntry=++leafProxy->entryCount;
 
 //	LOG(LOG_INFO,"Appended Leaf Entry %i with up %i down %i width %i",leafProxy->entryCount,upstream, downstream,entry->width);
+ * */
 }
 
 
 
 void walkerAppendPreorderedEntries(RouteTableTreeWalker *walker, RouteTableEntry *entries, u32 entryCount, int routingTable)
 {
+	LOG(LOG_CRITICAL,"PackLeaf: walkerAppendPreorderedEntries TODO");
+
+	/*
 	walkerSeekEnd(walker);
 
 	for(int i=0;i<entryCount;i++)
@@ -360,6 +412,9 @@ void walkerAppendPreorderedEntries(RouteTableTreeWalker *walker, RouteTableEntry
 
 	//LOG(LOG_INFO,"Routing Table with %i entries used %i branches and %i leaves",
 //		entryCount,walker->treeProxy->branchArrayProxy.newDataCount,walker->treeProxy->leafArrayProxy.newDataCount);
+
+
+ */
 }
 
-*/
+

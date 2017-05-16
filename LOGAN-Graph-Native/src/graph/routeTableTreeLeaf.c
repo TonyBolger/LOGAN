@@ -213,11 +213,13 @@ void expandRouteTableTreeLeafProxy(RouteTableTreeProxy *treeProxy, RouteTableTre
 
 
 
-
+*/
 
 
 void dumpLeafBlock(RouteTableTreeLeafBlock *leafBlock)
 {
+
+	/*
 	if(leafBlock!=NULL)
 		{
 		LOG(LOG_INFO,"Leaf (%p): Parent %i, Upstream %i, Upstream Offset %i, Offset Alloc %i, Entry Alloc %i",
@@ -250,10 +252,10 @@ void dumpLeafBlock(RouteTableTreeLeafBlock *leafBlock)
 		}
 	else
 		LOG(LOG_INFO,"Leaf: NULL");
-
+*/
 }
 
-
+/*
 void leafMakeEntryInsertSpace(RouteTableTreeLeafProxy *leaf, s16 entryPosition, s16 entryCount)
 {
 	if((leaf->entryCount+entryCount)>leaf->entryAlloc)

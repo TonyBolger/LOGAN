@@ -1397,14 +1397,14 @@ MemCircHeapChunkIndex *rtReclaimIndexer(u8 *heapDataPtr, s64 targetAmount, u8 ta
 					}
 				else if(topindex<=ROUTE_PSEUDO_INDEX_REVERSE_LEAF_1)
 					{
-					dataSize=getRouteTableTreeLeafSize_Existing((RouteTableTreeLeafBlock *)scanPtr);
+					dataSize=rtpGetPackedSingleBlockSize((RouteTablePackedSingleBlock *)scanPtr);
 
 					if(header & ALLOC_HEADER_LIVE_MASK)
 						subindex=scanTagDataIndexed_1(tagData,smerIndex,topindex-ROUTE_PSEUDO_INDEX_ENTITY_1_ADJUST,subindex,heapDataPtr);
 					}
 				else
 					{
-					dataSize=getRouteTableTreeLeafSize_Existing((RouteTableTreeLeafBlock *)scanPtr);
+					dataSize=rtpGetPackedSingleBlockSize((RouteTablePackedSingleBlock *)scanPtr);
 
 					if(header & ALLOC_HEADER_LIVE_MASK)
 						subindex=scanTagDataIndexed_1(tagData,smerIndex,topindex-ROUTE_PSEUDO_INDEX_LEAF_2_ADJUST,subindex,heapDataPtr);

@@ -47,7 +47,7 @@ void rttInitRouteTableTreeBuilder(RouteTableTreeBuilder *treeBuilder, RouteTable
 
 void rttUpgradeToRouteTableTreeBuilder(RouteTableArrayBuilder *arrayBuilder,  RouteTableTreeBuilder *treeBuilder, s32 sliceIndex, s32 prefixCount, s32 suffixCount, MemDispenser *disp)
 {
-	//LOG(LOG_INFO,"Upgrade");
+	LOG(LOG_INFO,"Upgrade to Tree");
 
 	treeBuilder->disp=arrayBuilder->disp;
 
