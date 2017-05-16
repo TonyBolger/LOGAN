@@ -61,7 +61,7 @@ typedef struct routeTablePackedSingleBlockStr
 //  offsetSize downstreamOffsets[downstreamAlloc]
 //  EntryArray: upstream, entryCount (downstream, width)
 
-} RouteTablePackedSingleBlock;
+} __attribute__((packed)) RouteTablePackedSingleBlock;
 
 
 RouteTableUnpackedEntryArray *rtpInsertNewEntry(RouteTableUnpackedSingleBlock *unpackedBlock, s32 arrayIndex, s32 entryIndex, s32 downstream, s32 width);

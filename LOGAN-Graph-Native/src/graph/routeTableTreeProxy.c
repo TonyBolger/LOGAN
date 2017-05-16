@@ -78,7 +78,7 @@ RouteTableTreeLeafBlock *getRouteTableTreeLeafBlock(RouteTableTreeProxy *treePro
 	RouteTableTreeLeafProxy *leafProxy=getBlockArrayNewEntryProxy(&(treeProxy->leafArrayProxy), lindex);
 
 	if(leafProxy!=NULL)
-		return leafProxy->dataBlock;
+		return leafProxy->leafBlock;
 
 	u8 *data=getBlockArrayExistingEntryData(&(treeProxy->leafArrayProxy), lindex);
 
@@ -102,7 +102,7 @@ RouteTableTreeLeafProxy *getRouteTableTreeLeafProxy(RouteTableTreeProxy *treePro
 
 	leafProxy=dAlloc(treeProxy->disp, sizeof(RouteTableTreeLeafProxy));
 
-	leafProxy->dataBlock=(RouteTableTreeLeafBlock *)data;
+	leafProxy->leafBlock=(RouteTableTreeLeafBlock *)data;
 	leafProxy->lindex=lindex;
 
 //	LOG(LOG_INFO,"GetRouteTableTreeLeaf : %i",lindex);
@@ -596,7 +596,7 @@ void treeProxyInsertLeafChild(RouteTableTreeProxy *treeProxy, RouteTableTreeBran
 	branchMakeChildInsertSpace(parentBranchProxy, childPosition, 1);
 
 	parentBranchProxy->dataBlock->childNindex[childPosition]=LINDEX_TO_NINDEX(childLindex);
-	childLeafProxy->dataBlock->parentBrindex=parentBrindex;
+	childLeafProxy->leafBlock->parentBrindex=parentBrindex;
 
 	*newParentBranchProxyPtr=parentBranchProxy;
 	*newChildPositionPtr=childPosition;

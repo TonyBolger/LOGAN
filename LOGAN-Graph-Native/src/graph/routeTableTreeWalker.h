@@ -12,7 +12,8 @@ typedef struct routeTableTreeWalkerStr
 	RouteTableTreeBranchProxy *branchProxy;
 	s16 branchChildSibdex;
 	RouteTableTreeLeafProxy *leafProxy;
-	s16 leafEntry;
+	s16 leafArrayIndex;
+	s16 leafEntryIndex;
 
 	s32 upstreamOffsetCount;
 	s32 downstreamOffsetCount;

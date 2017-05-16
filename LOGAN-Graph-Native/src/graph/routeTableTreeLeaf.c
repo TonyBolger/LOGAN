@@ -2,27 +2,6 @@
 #include "common.h"
 
 /*
-s32 getRouteTableTreeLeafSize_Expected(s16 offsetAlloc, s16 entryAlloc)
-{
-	return sizeof(RouteTableTreeLeafBlock)+((s32)offsetAlloc)*sizeof(RouteTableTreeLeafOffset)+((s32)entryAlloc)*sizeof(RouteTableTreeLeafEntry);
-}
-
-
-s32 getRouteTableTreeLeafSize_Existing(RouteTableTreeLeafBlock *leafBlock)
-{
-	return sizeof(RouteTableTreeLeafBlock)+((s32)leafBlock->offsetAlloc)*sizeof(RouteTableTreeLeafOffset)+((s32)leafBlock->entryAlloc)*sizeof(RouteTableTreeLeafEntry);
-}
-
-RouteTableTreeLeafOffset *getRouteTableTreeLeaf_OffsetPtr(RouteTableTreeLeafBlock *leafBlock)
-{
-	return (RouteTableTreeLeafOffset *)(leafBlock->extraData);
-}
-
-RouteTableTreeLeafEntry *getRouteTableTreeLeaf_EntryPtr(RouteTableTreeLeafBlock *leafBlock)
-{
-	return (RouteTableTreeLeafEntry *)(leafBlock->extraData+((s32)leafBlock->offsetAlloc)*sizeof(RouteTableTreeLeafOffset));
-}
-
 
 static RouteTableTreeLeafBlock *reallocRouteTableTreeLeafBlockEntries(RouteTableTreeLeafBlock *oldBlock, MemDispenser *disp, s32 offsetAlloc, s32 entryAlloc)
 {
@@ -154,7 +133,7 @@ void getRouteTableTreeLeafProxy_scan(RouteTableTreeLeafBlock *leafBlock, u16 *en
 }
 
 
-
+*/
 
 void flushRouteTableTreeLeafProxy(RouteTableTreeProxy *treeProxy, RouteTableTreeLeafProxy *leafProxy)
 {
@@ -163,7 +142,7 @@ void flushRouteTableTreeLeafProxy(RouteTableTreeProxy *treeProxy, RouteTableTree
 	setBlockArrayEntryProxy(&(treeProxy->leafArrayProxy), leafProxy->lindex, leafProxy, treeProxy->disp);
 }
 
-
+/*
 RouteTableTreeLeafProxy *allocRouteTableTreeLeafProxy(RouteTableTreeProxy *treeProxy, s32 offsetAlloc, s32 entryAlloc)
 {
 	if(entryAlloc<ROUTE_TABLE_TREE_LEAF_ENTRIES_CHUNK)

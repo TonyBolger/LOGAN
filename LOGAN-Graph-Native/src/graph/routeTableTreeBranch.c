@@ -302,7 +302,7 @@ RouteTableTreeBranchProxy *getBranchParent(RouteTableTreeProxy *treeProxy, Route
 
 RouteTableTreeBranchProxy *getLeafParent(RouteTableTreeProxy *treeProxy, RouteTableTreeLeafProxy *childLeafProxy)
 {
-	return getRouteTableTreeBranchProxy(treeProxy, childLeafProxy->dataBlock->parentBrindex);
+	return getRouteTableTreeBranchProxy(treeProxy, childLeafProxy->leafBlock->parentBrindex);
 }
 
 
