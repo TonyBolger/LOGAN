@@ -133,12 +133,9 @@ void walkerSeekEnd(RouteTableTreeWalker *walker)
 
 }
 
-s32 walkerGetCurrentEntry(RouteTableTreeWalker *walker, s16 *upstream, RouteTableTreeLeafEntry **entry)
+s32 walkerGetCurrentEntry(RouteTableTreeWalker *walker, s16 *upstream, RouteTableUnpackedEntry **entry)
 {
-	LOG(LOG_CRITICAL,"PackLeaf: walkerGetCurrentEntry TODO");
-
-	/*
-	if((walker->leafProxy==NULL)||(walker->leafEntry==-1))
+	if((walker->leafProxy==NULL)||(walker->leafArrayIndex==-1)||(walker->leafEntryIndex==-1))
 		{
 		*upstream=32767;
 		*entry=NULL;
@@ -146,18 +143,16 @@ s32 walkerGetCurrentEntry(RouteTableTreeWalker *walker, s16 *upstream, RouteTabl
 		return 0;
 		}
 
-	*upstream=walker->leafProxy->dataBlock->upstream;
+	RouteTableUnpackedEntryArray *array=walker->leafProxy->unpackedBlock->entryArrays[walker->leafArrayIndex];
 
-	RouteTableTreeLeafEntry *entryPtr=getRouteTableTreeLeaf_EntryPtr(walker->leafProxy->dataBlock);
-
-	*entry=entryPtr+walker->leafEntry;
-*/
+	*upstream=array->upstream;
+	*entry=array->entries+walker->leafEntryIndex;
 
 	return 1;
 }
 
 
-s32 walkerNextLeaf(RouteTableTreeWalker *walker, s16 *upstream, RouteTableTreeLeafEntry **entry)
+s32 walkerNextLeaf(RouteTableTreeWalker *walker, s16 *upstream, RouteTableUnpackedEntry **entry)
 {
 	LOG(LOG_CRITICAL,"PackLeaf: walkerNextLeaf TODO");
 
@@ -201,7 +196,7 @@ s32 walkerNextLeaf(RouteTableTreeWalker *walker, s16 *upstream, RouteTableTreeLe
 
 }
 
-s32 walkerNextEntry(RouteTableTreeWalker *walker, s16 *upstream, RouteTableTreeLeafEntry **entry, s32 holdUpstream)
+s32 walkerNextEntry(RouteTableTreeWalker *walker, s16 *upstream, RouteTableUnpackedEntry **entry, s32 holdUpstream)
 {
 	LOG(LOG_CRITICAL,"PackLeaf: walkerNextEntry TODO");
 
@@ -344,51 +339,73 @@ void walkerAppendNewLeaf(RouteTableTreeWalker *walker, s16 upstream)
 
 void walkerAppendPreorderedEntry(RouteTableTreeWalker *walker, RouteTableEntry *entry, int routingTable)
 {
-	LOG(LOG_CRITICAL,"PackLeaf: walkerAppendPreorderedEntry TODO");
-
-	/*
 	s32 upstream=routingTable==ROUTING_TABLE_FORWARD?entry->prefix:entry->suffix;
 	s32 downstream=routingTable==ROUTING_TABLE_FORWARD?entry->suffix:entry->prefix;
 
+	if(walker->leafProxy!=NULL) // Check for space
+		{
+		RouteTableUnpackedSingleBlock *block=walker->leafProxy->unpackedBlock;
+
+		if(walker->leafArrayIndex<0)
+			LOG(LOG_CRITICAL,"Invalid Array Index %i for append- count is %i",walker->leafArrayIndex,block->entryArrayCount);
+
+		if(walker->leafArrayIndex!=(block->entryArrayCount-1))
+			LOG(LOG_CRITICAL,"Invalid Array Index %i for append- count is %i",walker->leafArrayIndex,block->entryArrayCount);
+
+		RouteTableUnpackedEntryArray *array=block->entryArrays[walker->leafArrayIndex];
+		if(array==NULL)
+			LOG(LOG_CRITICAL,"Invalid Null EntryArray at Index %i",walker->leafArrayIndex);
+
+		if((array->upstream!=upstream || array->entryCount==ROUTEPACKING_ENTRYS_MAX) &&
+				block->entryArrayCount>=(ROUTEPACKING_ENTRYARRAYS_MAX-1)) // Not suitable upstream / full array, and no more arrays
+			walker->leafProxy=NULL;
+		}
+
+	if(walker->leafProxy==NULL)
+		{
+		walker->leafProxy=allocRouteTableTreeLeafProxy(walker->treeProxy, walker->treeProxy->upstreamCount, walker->treeProxy->downstreamCount);
+
+		walker->leafArrayIndex=-1;
+		walker->leafEntryIndex=-1;
+		}
+
 	RouteTableTreeLeafProxy *leafProxy=walker->leafProxy;
+	RouteTableUnpackedSingleBlock *block=leafProxy->unpackedBlock;
 
-	if((leafProxy==NULL) || (leafProxy->entryCount>=ROUTE_TABLE_TREE_LEAF_ENTRIES) || (leafProxy->dataBlock->upstream!=upstream))
+	RouteTableUnpackedEntryArray *array=NULL;
+
+	if(walker->leafArrayIndex<0)
 		{
-		walkerAppendNewLeaf(walker, upstream);
-		leafProxy=walker->leafProxy;
+		array=rtpInsertNewEntryArray(block, 0, upstream, ROUTEPACKING_ENTRYS_CHUNK);
+		walker->leafArrayIndex=0;
+		walker->leafEntryIndex=-1;
 		}
-	else if(leafProxy->entryCount>=leafProxy->entryAlloc) // Expand
+	else
 		{
-		expandRouteTableTreeLeafProxy(walker->treeProxy, leafProxy, walker->downstreamOffsetCount);
+		array=block->entryArrays[walker->leafArrayIndex];
+
+		if(array->upstream!=upstream || array->entryCount==ROUTEPACKING_ENTRYS_MAX)
+			{
+			walker->leafArrayIndex++;
+			array=rtpInsertNewEntryArray(block, walker->leafArrayIndex, upstream, ROUTEPACKING_ENTRYS_CHUNK);
+			walker->leafEntryIndex=-1;
+			}
 		}
 
-	u16 entryCount=leafProxy->entryCount;
+	walker->leafEntryIndex++;
 
-	if(downstream>32000 || entry->width>32000)
-		LOG(LOG_CRITICAL,"Cannot append entry with large downstream/width %i %i",downstream, entry->width);
 
-	RouteTableTreeLeafOffset *offsetPtr=getRouteTableTreeLeaf_OffsetPtr(leafProxy->dataBlock);
-	offsetPtr[downstream]+=entry->width;
+	rtpInsertNewEntry(block, walker->leafArrayIndex, walker->leafEntryIndex, downstream, entry->width);
 
-	RouteTableTreeLeafEntry *entryPtr=getRouteTableTreeLeaf_EntryPtr(leafProxy->dataBlock);
+	block->upstreamOffsets[upstream]+=entry->width;
+	block->downstreamOffsets[downstream]+=entry->width;
 
-	entryPtr[entryCount].downstream=downstream;
-	entryPtr[entryCount].width=entry->width;
-
-	leafProxy->dataBlock->upstreamOffset+=entry->width;
-	walker->leafEntry=++leafProxy->entryCount;
-
-//	LOG(LOG_INFO,"Appended Leaf Entry %i with up %i down %i width %i",leafProxy->entryCount,upstream, downstream,entry->width);
- * */
 }
 
 
 
 void walkerAppendPreorderedEntries(RouteTableTreeWalker *walker, RouteTableEntry *entries, u32 entryCount, int routingTable)
 {
-	LOG(LOG_CRITICAL,"PackLeaf: walkerAppendPreorderedEntries TODO");
-
-	/*
 	walkerSeekEnd(walker);
 
 	for(int i=0;i<entryCount;i++)
@@ -398,7 +415,6 @@ void walkerAppendPreorderedEntries(RouteTableTreeWalker *walker, RouteTableEntry
 //		entryCount,walker->treeProxy->branchArrayProxy.newDataCount,walker->treeProxy->leafArrayProxy.newDataCount);
 
 
- */
 }
 
 

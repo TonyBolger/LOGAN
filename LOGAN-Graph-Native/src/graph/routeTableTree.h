@@ -144,7 +144,7 @@ struct routeTableTreeBuilderStr
 
 
 
-void rttInitRouteTableTreeBuilder(RouteTableTreeBuilder *builder, RouteTableTreeTopBlock *top);
+void rttInitRouteTableTreeBuilder(RouteTableTreeBuilder *builder, RouteTableTreeTopBlock *top, s32 prefixCount, s32 suffixCount);
 void rttUpgradeToRouteTableTreeBuilder(RouteTableArrayBuilder *arrayBuilder,  RouteTableTreeBuilder *treeBuilder, s32 sliceIndex, s32 prefixCount, s32 suffixCount, MemDispenser *disp);
 
 void rttDumpRoutingTable(RouteTableTreeBuilder *builder);

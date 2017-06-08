@@ -30,10 +30,10 @@ void dumpWalker(RouteTableTreeWalker *walker);
 void walkerSeekStart(RouteTableTreeWalker *walker);
 void walkerSeekEnd(RouteTableTreeWalker *walker);
 
-s32 walkerGetCurrentEntry(RouteTableTreeWalker *walker, s16 *upstream, RouteTableTreeLeafEntry **entry);
+s32 walkerGetCurrentEntry(RouteTableTreeWalker *walker, s16 *upstream, RouteTableUnpackedEntry **entry);
 
-s32 walkerNextLeaf(RouteTableTreeWalker *walker, s16 *upstream, RouteTableTreeLeafEntry **entry);
-s32 walkerNextEntry(RouteTableTreeWalker *walker, s16 *upstream, RouteTableTreeLeafEntry **entry, s32 holdUpstream);
+s32 walkerNextLeaf(RouteTableTreeWalker *walker, s16 *upstream, RouteTableUnpackedEntry **entry);
+s32 walkerNextEntry(RouteTableTreeWalker *walker, s16 *upstream, RouteTableUnpackedEntry **entry, s32 holdUpstream);
 
 void walkerResetOffsetArrays(RouteTableTreeWalker *walker);
 void walkerInitOffsetArrays(RouteTableTreeWalker *walker, s32 upstreamCount, s32 downstreamCount);

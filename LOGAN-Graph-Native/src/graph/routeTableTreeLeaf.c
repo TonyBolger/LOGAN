@@ -142,29 +142,24 @@ void flushRouteTableTreeLeafProxy(RouteTableTreeProxy *treeProxy, RouteTableTree
 	setBlockArrayEntryProxy(&(treeProxy->leafArrayProxy), leafProxy->lindex, leafProxy, treeProxy->disp);
 }
 
-/*
-RouteTableTreeLeafProxy *allocRouteTableTreeLeafProxy(RouteTableTreeProxy *treeProxy, s32 offsetAlloc, s32 entryAlloc)
-{
-	if(entryAlloc<ROUTE_TABLE_TREE_LEAF_ENTRIES_CHUNK)
-		entryAlloc=ROUTE_TABLE_TREE_LEAF_ENTRIES_CHUNK;
 
-	RouteTableTreeLeafBlock *dataBlock=allocRouteTableTreeLeafBlock(treeProxy->disp, offsetAlloc, entryAlloc);
+RouteTableTreeLeafProxy *allocRouteTableTreeLeafProxy(RouteTableTreeProxy *treeProxy, s32 upstreamOffsetAlloc, s32 downstreamOffsetAlloc)
+{
+	RouteTableUnpackedSingleBlock *unpackedBlock=rtpAllocUnpackedSingleBlock(treeProxy->disp, upstreamOffsetAlloc, downstreamOffsetAlloc, ROUTEPACKING_ENTRYARRAYS_CHUNK);
 
 	RouteTableTreeLeafProxy *proxy=dAlloc(treeProxy->disp, sizeof(RouteTableTreeLeafProxy));
 	s32 lindex=appendBlockArrayEntryProxy(&(treeProxy->leafArrayProxy), proxy, treeProxy->disp);
 
-	proxy->dataBlock=dataBlock;
+	proxy->leafBlock=NULL;
 	proxy->lindex=lindex;
+	proxy->unpackedBlock=unpackedBlock;
 
 //	LOG(LOG_INFO,"AllocRouteTableTreeLeaf : %i",lindex);
-
-	proxy->entryAlloc=entryAlloc;
-	proxy->entryCount=0;
 
 	return proxy;
 }
 
-
+/*
 void ensureRouteTableTreeLeafOffsetCapacity(RouteTableTreeProxy *treeProxy, RouteTableTreeLeafProxy *leafProxy, s32 offsetAlloc)
 {
 	if(leafProxy->dataBlock->offsetAlloc>=offsetAlloc)

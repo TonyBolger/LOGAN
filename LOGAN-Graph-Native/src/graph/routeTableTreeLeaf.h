@@ -1,7 +1,7 @@
 #ifndef __ROUTE_TABLE_TREE_LEAF_H
 #define __ROUTE_TABLE_TREE_LEAF_H
 
-
+/*
 typedef s32 RouteTableTreeLeafOffset;
 
 typedef struct routeTableTreeLeafEntryStr
@@ -18,6 +18,7 @@ typedef struct routeTableTreeLeafEntryBlockStr
 	u16 entryCount;
 	RouteTableTreeLeafEntry entries[];
 } __attribute__((packed)) RouteTableTreeLeafEntryBlock;
+*/
 
 typedef struct routeTableLeafBlockStr
 {
@@ -36,6 +37,8 @@ struct routeTableTreeLeafProxyStr
 
 
 void flushRouteTableTreeLeafProxy(RouteTableTreeProxy *treeProxy, RouteTableTreeLeafProxy *leafProxy);
+RouteTableTreeLeafProxy *allocRouteTableTreeLeafProxy(RouteTableTreeProxy *treeProxy, s32 upstreamOffsetAlloc, s32 downstreamOffsetAlloc);
+
 void dumpLeafBlock(RouteTableTreeLeafBlock *leafBlock);
 
 

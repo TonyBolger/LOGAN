@@ -2,12 +2,14 @@
 #define __ROUTE_TABLE_PACKING_H
 
 
+// Represents a single entry (downstream, width) in an array (which defines the upstream)
 typedef struct routeTableUnpackedEntryStr
 {
 	s32 downstream;
 	s32 width;
 } __attribute__((packed)) RouteTableUnpackedEntry;
 
+// Represents a list of entries (downstream, width) with a common upstream
 typedef struct routeTableUnpackedEntryArrayStr
 {
 	s32 upstream;
@@ -17,6 +19,7 @@ typedef struct routeTableUnpackedEntryArrayStr
 	RouteTableUnpackedEntry entries[];
 } __attribute__((packed)) RouteTableUnpackedEntryArray;
 
+// Represents the unpacked form of leaf or whole routing table
 typedef struct routeTableUnpackedSingleBlockStr
 {
 	MemDispenser *disp;
@@ -30,16 +33,22 @@ typedef struct routeTableUnpackedSingleBlockStr
 	s32 upstreamOffsetAlloc;
 	s32 downstreamOffsetAlloc;
 	s32 entryArrayAlloc;
+	s32 entryArrayCount;
 
 	s32 *upstreamOffsets;
 	s32 *downstreamOffsets;
-	RouteTableUnpackedEntryArray *entryArrays;
+	RouteTableUnpackedEntryArray **entryArrays;
 
 } RouteTableUnpackedSingleBlock;
 
+#define ROUTEPACKING_ENTRYARRAYS_CHUNK 4
+#define ROUTEPACKING_ENTRYARRAYS_MAX 16
+
+#define ROUTEPACKING_ENTRYS_CHUNK 8
+#define ROUTEPACKING_ENTRYS_MAX 1024
 
 
-// Represents part of a single routing table. Used in RouteTableTreeLeaf
+// Represents packed form of a leaf or whole routing table.
 typedef struct routeTablePackedSingleBlockStr
 {
 	//packedSize(8/16 bit)     1
@@ -64,10 +73,18 @@ typedef struct routeTablePackedSingleBlockStr
 } __attribute__((packed)) RouteTablePackedSingleBlock;
 
 
+// Insert new entry (downstream,width) into specified position in specified entryArray
 RouteTableUnpackedEntryArray *rtpInsertNewEntry(RouteTableUnpackedSingleBlock *unpackedBlock, s32 arrayIndex, s32 entryIndex, s32 downstream, s32 width);
-void rtpInsertNewEntryArray(RouteTableUnpackedSingleBlock *unpackedBlock, s32 arrayIndex, s32 upstream, s32 entryAlloc);
+
+// Insert new array (upstream) into a specified position in the block
+RouteTableUnpackedEntryArray *rtpInsertNewEntryArray(RouteTableUnpackedSingleBlock *unpackedBlock, s32 arrayIndex, s32 upstream, s32 entryAlloc);
+
+// Allocate a new (empty) unpackedBlock
+RouteTableUnpackedSingleBlock *rtpAllocUnpackedSingleBlock(MemDispenser *disp, s32 upstreamOffsetAlloc, s32 downstreamOffsetAlloc, s32 entryArrayAlloc);
 
 RouteTableUnpackedSingleBlock *rtpUnpackSingleBlock(RouteTablePackedSingleBlock *packedBlock, MemDispenser *disp);
+
+
 void rtpUpdateUnpackedSingleBlockSize(RouteTableUnpackedSingleBlock *unpackedBlock);
 
 void rtpPackSingleBlock(RouteTableUnpackedSingleBlock *unpackedBlock, RouteTablePackedSingleBlock *packedBlock);

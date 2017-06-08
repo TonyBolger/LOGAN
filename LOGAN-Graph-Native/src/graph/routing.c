@@ -176,7 +176,10 @@ void createBuildersFromIndirectData(RoutingComboBuilder *builder)
 
 //	LOG(LOG_INFO,"Parse Indirect: Building");
 
-	rttInitRouteTableTreeBuilder(treeBuilder, top);
+	s32 prefixCount=getSeqTailTotalTailCount(&(builder->prefixBuilder))+1;
+	s32 suffixCount=getSeqTailTotalTailCount(&(builder->suffixBuilder))+1;
+
+	rttInitRouteTableTreeBuilder(treeBuilder, top, prefixCount, suffixCount);
 
 //	LOG(LOG_INFO,"Parse Indirect: Done");
 }

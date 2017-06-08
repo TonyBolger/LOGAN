@@ -6,9 +6,12 @@
 void initTreeProxy(RouteTableTreeProxy *treeProxy,
 		HeapDataBlock *leafBlock, u8 *leafDataPtr,
 		HeapDataBlock *branchBlock, u8 *branchDataPtr,
+		s32 upstreamCount, s32 downstreamCount,
 		MemDispenser *disp)
 {
 	treeProxy->disp=disp;
+	treeProxy->upstreamCount=upstreamCount;
+	treeProxy->downstreamCount=downstreamCount;
 
 	initBlockArrayProxy(treeProxy, &(treeProxy->leafArrayProxy), leafBlock, leafDataPtr, leafBlock->variant);
 	initBlockArrayProxy(treeProxy, &(treeProxy->branchArrayProxy), branchBlock, branchDataPtr, 0);

@@ -7,6 +7,9 @@ struct routeTableTreeProxyStr
 {
 	MemDispenser *disp;
 
+	s32 upstreamCount;
+	s32 downstreamCount;
+
 	RouteTableTreeArrayProxy leafArrayProxy;
 	RouteTableTreeArrayProxy branchArrayProxy;
 //	RouteTableTreeArrayProxy offsetArrayProxy;
@@ -15,7 +18,7 @@ struct routeTableTreeProxyStr
 };
 
 
-void initTreeProxy(RouteTableTreeProxy *treeProxy, HeapDataBlock *leafBlock, u8 *leafDataPtr, HeapDataBlock *branchBlock, u8 *branchDataPtr, MemDispenser *disp);
+void initTreeProxy(RouteTableTreeProxy *treeProxy, HeapDataBlock *leafBlock, u8 *leafDataPtr, HeapDataBlock *branchBlock, u8 *branchDataPtr, s32 upstreamCount, s32 downstreamCount, MemDispenser *disp);
 
 RouteTableTreeBranchBlock *getRouteTableTreeBranchBlock(RouteTableTreeProxy *treeProxy, s32 brindex);
 RouteTableTreeBranchProxy *getRouteTableTreeBranchProxy(RouteTableTreeProxy *treeProxy, s32 brindex);
