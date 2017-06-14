@@ -23,6 +23,7 @@ typedef struct routeTableTreeLeafEntryBlockStr
 typedef struct routeTableLeafBlockStr
 {
 	s16 parentBrindex;
+
 	u8 *packedBlockData[]; // Contains a RouteTablePackedSingleBlock
 } __attribute__((packed)) RouteTableTreeLeafBlock;
 
@@ -30,6 +31,7 @@ typedef struct routeTableLeafBlockStr
 struct routeTableTreeLeafProxyStr
 {
 	RouteTableTreeLeafBlock *leafBlock;
+	s16 parentBrindex;
 	s16 lindex;
 
 	RouteTableUnpackedSingleBlock *unpackedBlock;
@@ -41,6 +43,7 @@ RouteTableTreeLeafProxy *allocRouteTableTreeLeafProxy(RouteTableTreeProxy *treeP
 
 void dumpLeafBlock(RouteTableTreeLeafBlock *leafBlock);
 
+void dumpLeafProxy(RouteTableTreeLeafProxy *leafProxy);
 
 //void getRouteTableTreeLeafProxy_scan(RouteTableTreeLeafBlock *leafBlock, u16 *entryAllocPtr, u16 *entryCountPtr);
 //RouteTableTreeLeafProxy *allocRouteTableTreeLeafProxy(RouteTableTreeProxy *treeProxy, s32 offsetAlloc, s32 entryAlloc);

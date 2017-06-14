@@ -17,8 +17,13 @@ typedef struct routeTableTreeWalkerStr
 
 	s32 upstreamOffsetCount;
 	s32 downstreamOffsetCount;
-	s32 *upstreamOffsets;
-	s32 *downstreamOffsets;
+
+	s32 *upstreamLeafOffsets;
+	s32 *downstreamLeafOffsets;
+
+	s32 *upstreamEntryOffsets;
+	s32 *downstreamEntryOffsets;
+
 } RouteTableTreeWalker;
 
 
@@ -32,12 +37,19 @@ void walkerSeekEnd(RouteTableTreeWalker *walker);
 
 s32 walkerGetCurrentEntry(RouteTableTreeWalker *walker, s16 *upstream, RouteTableUnpackedEntry **entry);
 
-s32 walkerNextLeaf(RouteTableTreeWalker *walker, s16 *upstream, RouteTableUnpackedEntry **entry);
-s32 walkerNextEntry(RouteTableTreeWalker *walker, s16 *upstream, RouteTableUnpackedEntry **entry, s32 holdUpstream);
+//s32 walkerNextLeaf(RouteTableTreeWalker *walker, s16 *upstream, RouteTableUnpackedEntry **entry);
+//s32 walkerNextEntry(RouteTableTreeWalker *walker, s16 *upstream, RouteTableUnpackedEntry **entry, s32 holdUpstream);
+
+s32 walkerAdvanceToUpstreamThenOffsetThenDownstream(RouteTableTreeWalker *walker, s32 targetUpstream, s32 targetDownstream, s32 targetMinOffset, s32 targetMaxOffset,
+		s32 *upstreamPtr, RouteTableUnpackedEntry **entryPtr, s32 *upstreamOffsetPtr, s32 *downstreamOffsetPtr);
 
 void walkerResetOffsetArrays(RouteTableTreeWalker *walker);
 void walkerInitOffsetArrays(RouteTableTreeWalker *walker, s32 upstreamCount, s32 downstreamCount);
 void walkerAccumulateLeafOffsets(RouteTableTreeWalker *walker) __attribute__((optimize("no-tree-vectorize")));
+
+void walkerMergeRoutes_insertEntry(RouteTableTreeWalker *walker, s32 upstream, s32 downstream);
+void walkerMergeRoutes_widen(RouteTableTreeWalker *walker);
+void walkerMergeRoutes_split(RouteTableTreeWalker *walker, s32 downstream, s32 width1, s32 width2);
 
 void walkerAppendNewLeaf(RouteTableTreeWalker *walker, s16 upstream);
 void walkerAppendPreorderedEntry(RouteTableTreeWalker *walker, RouteTableEntry *entry, int routingTable);

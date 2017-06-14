@@ -221,279 +221,18 @@ RouteTableTreeArrayProxy *rttGetTopArrayByIndex(RouteTableTreeBuilder *builder, 
 
 
 
-static void rttMergeRoutes_insertEntry(RouteTableTreeWalker *walker, s32 upstream, s32 downstream)
-{
-	// New entry, with given up/down and width=1. May require leaf split if full or new leaf if not matching
-
-	/*
-	RouteTableTreeLeafProxy *leafProxy=walker->leafProxy;
-	s16 leafUpstream=-1;
-
-	if(leafProxy==NULL)
-		{
-//		LOG(LOG_INFO,"Entry Insert: No current leaf - need new leaf append");
-
-		leafProxy=allocRouteTableTreeLeafProxy(walker->treeProxy, walker->downstreamOffsetCount, ROUTE_TABLE_TREE_LEAF_ENTRIES_CHUNK);
-		treeProxyAppendLeafChild(walker->treeProxy, walker->branchProxy, leafProxy, &walker->branchProxy, &walker->branchChildSibdex);
-
-		initRouteTableTreeLeafOffsets(leafProxy, upstream);
-
-		leafProxy->entryCount=1;
-
-		walker->leafProxy=leafProxy;
-		walker->leafEntry=0;
-		}
-	else
-		{
-		leafUpstream=leafProxy->dataBlock->upstream;
-
-		//LOG(LOG_INFO,"InsertEntry: Leaf: %i Entry: %i",walker->leafProxy->lindex,walker->leafEntry);
-
-		if(upstream<leafUpstream)
-			{
-//			LOG(LOG_INFO,"Entry Insert: Lower Unmatched upstream %i %i - need new leaf insert",upstream,leafUpstream);
-
-			leafProxy=allocRouteTableTreeLeafProxy(walker->treeProxy, walker->downstreamOffsetCount, ROUTE_TABLE_TREE_LEAF_ENTRIES_CHUNK);
-			treeProxyInsertLeafChild(walker->treeProxy, walker->branchProxy, leafProxy,
-					walker->branchChildSibdex, &walker->branchProxy, &walker->branchChildSibdex);
-
-			initRouteTableTreeLeafOffsets(leafProxy, upstream);
-
-			leafProxy->entryCount=1;
-
-			walker->leafProxy=leafProxy;
-			walker->leafEntry=0;
-
-			//LOG(LOG_INFO,"Entry Insert: Need new leaf %i added to %i",walker->leafProxy->lindex, walker->branchProxy->brindex);
-			}
-		else if(upstream>leafUpstream)
-			{
-//			LOG(LOG_INFO,"Entry Insert: Higher Unmatched upstream %i %i - need new leaf append",upstream,leafUpstream);
-
-			leafProxy=allocRouteTableTreeLeafProxy(walker->treeProxy, walker->downstreamOffsetCount, ROUTE_TABLE_TREE_LEAF_ENTRIES_CHUNK);
-			treeProxyInsertLeafChild(walker->treeProxy, walker->branchProxy, leafProxy,
-					walker->branchChildSibdex+1, &walker->branchProxy, &walker->branchChildSibdex);
-
-			initRouteTableTreeLeafOffsets(leafProxy, upstream);
-
-			leafProxy->entryCount=1;
-
-			walker->leafProxy=leafProxy;
-			walker->leafEntry=0;
-
-			}
-
-		else if(leafProxy->entryCount>=ROUTE_TABLE_TREE_LEAF_ENTRIES)
-			{
-			//s16 leafEntry=walker->leafEntry;
-			//LOG(LOG_INFO,"Entry Insert: Leaf size at maximum - need to split - pos %i",walker->leafEntry);
-
-			RouteTableTreeBranchProxy *targetBranchProxy=NULL;
-			s16 targetBranchChildSibdex=-1;
-			RouteTableTreeLeafProxy *targetLeafProxy=NULL;
-			s16 targetLeafEntry=-1;
-
-//			ensureRouteTableTreeLeafOffsetCapacity(walker->treeProxy, leafProxy, walker->downstreamOffsetCount);
-
-			ensureRouteTableTreeLeafOffsetCapacity(walker->treeProxy, leafProxy, downstream+1);
-
-			//RouteTableTreeLeafProxy *newLeafProxy=
-
-			treeProxySplitLeafInsertChildEntrySpace(walker->treeProxy, walker->branchProxy, walker->branchChildSibdex, walker->leafProxy,
-					walker->leafEntry, 1, &targetBranchProxy, &targetBranchChildSibdex, &targetLeafProxy, &targetLeafEntry);
-
-
-			walker->branchProxy=targetBranchProxy;
-			walker->branchChildSibdex=targetBranchChildSibdex;
-			walker->leafProxy=targetLeafProxy;
-			walker->leafEntry=targetLeafEntry;
-
-			leafProxy=targetLeafProxy;
-			}
-		else
-			{
-			//LOG(LOG_INFO,"Entry Insert: Leaf full - pos %i",walker->leafEntry);
-
-			if(leafProxy->entryCount>=leafProxy->entryAlloc)
-				{
-				//LOG(LOG_INFO,"Entry Insert: Expand");
-				expandRouteTableTreeLeafProxy(walker->treeProxy, leafProxy, walker->downstreamOffsetCount);
-				}
-			else
-				//ensureRouteTableTreeLeafOffsetCapacity(walker->treeProxy, leafProxy, walker->downstreamOffsetCount);
-				ensureRouteTableTreeLeafOffsetCapacity(walker->treeProxy, leafProxy, downstream+1);
-
-			leafMakeEntryInsertSpace(leafProxy, walker->leafEntry, 1);
-			}
-		}
-
-	if(downstream<0)
-		LOG(LOG_CRITICAL,"Insert invalid downstream %i",downstream);
-
-	// Space already made - set entry data
-
-	RouteTableTreeLeafEntry *entryPtr=getRouteTableTreeLeaf_EntryPtr(leafProxy->dataBlock);
-
-	entryPtr[walker->leafEntry].downstream=downstream;
-	entryPtr[walker->leafEntry].width=1;
-
-	leafProxy->dataBlock->upstreamOffset++;
-	getRouteTableTreeLeaf_OffsetPtr(leafProxy->dataBlock)[downstream]++;
-
-	//LOG(LOG_INFO,"Entry Insert: Entry: %i D: %i Width %i (U %i) with %i used of %i",walker->leafEntry, downstream, 1, walker->leafProxy->dataBlock->upstream,walker->leafProxy->entryCount,walker->leafProxy->entryAlloc);
-
-*/
-	//dumpLeafProxy(leafProxy);
-
-	LOG(LOG_CRITICAL,"PackLeaf: rttMergeRoutes_insertEntry TODO");
-}
-
-static void rttMergeRoutes_widen(RouteTableTreeWalker *walker)
-{
-	// Add one to the current entry width. Hopefully width doesn't wrap
-/*
-
-	RouteTableTreeLeafProxy *leafProxy=walker->leafProxy;
-
-	if(leafProxy==NULL)
-		{
-		LOG(LOG_CRITICAL,"Entry Widen: Null leaf, should never happen");
-		}
-
-	if(walker->leafEntry<0)
-		{
-		LOG(LOG_CRITICAL,"Entry Widen: Invalid entry index, should never happen");
-		}
-
-
-	//ensureRouteTableTreeLeafOffsetCapacity(walker->treeProxy, leafProxy, walker->downstreamOffsetCount);
-
-	RouteTableTreeLeafEntry *entryPtr=getRouteTableTreeLeaf_EntryPtr(leafProxy->dataBlock);
-
-	if(entryPtr[walker->leafEntry].downstream<0)
-		{
-		LOG(LOG_CRITICAL,"Entry Widen: Invalid downstream, should never happen");
-		}
-
-	if(entryPtr[walker->leafEntry].width>2000000000)
-		{
-		LOG(LOG_CRITICAL,"Entry Widen: About to wrap width %i",entryPtr[walker->leafEntry].width);
-		}
-
-
-	entryPtr[walker->leafEntry].width++;
-	s32 downstream=entryPtr[walker->leafEntry].downstream;
-
-	//ensureRouteTableTreeLeafOffsetCapacity(walker->treeProxy, leafProxy, walker->downstreamOffsetCount);
-	ensureRouteTableTreeLeafOffsetCapacity(walker->treeProxy, leafProxy, downstream+1);
-
-	leafProxy->dataBlock->upstreamOffset++;
-	getRouteTableTreeLeaf_OffsetPtr(leafProxy->dataBlock)[downstream]++;
-
-	//LOG(LOG_INFO,"Widened %i %i %i (%i %i) to %i",walker->branchProxy->brindex, walker->leafProxy->lindex, walker->leafEntry,
-			//leafProxy->dataBlock->upstream, leafProxy->dataBlock->entries[walker->leafEntry].downstream, leafProxy->dataBlock->entries[walker->leafEntry].width);
-
-	*/
-	LOG(LOG_CRITICAL,"PackLeaf: rttMergeRoutes_widen TODO");
-
-}
-
-static void rttMergeRoutes_split(RouteTableTreeWalker *walker, s32 downstream, s32 width1, s32 width2)
-{
-	// Add split existing route into two, and insert a new route between
-/*
-	RouteTableTreeLeafProxy *leafProxy=walker->leafProxy;
-
-	s16 newEntryCount=leafProxy->entryCount+2;
-
-	if(newEntryCount>ROUTE_TABLE_TREE_LEAF_ENTRIES)
-		{
-		//s16 leafEntry=walker->leafEntry;
-		//LOG(LOG_INFO,"Entry Split: Leaf size at maximum - need to split - pos %i",leafEntry);
-
-		//LOG(LOG_INFO,"Adding downstream %i, with %i vs %i",downstream,width1,width2);
-
-		//LOG(LOG_INFO,"Pre split:");
-		//dumpLeafProxy(leafProxy);
-
-		RouteTableTreeBranchProxy *targetBranchProxy=NULL;
-		s16 targetBranchChildSibdex=-1;
-		RouteTableTreeLeafProxy *targetLeafProxy=NULL;
-		s16 targetLeafEntry=-1;
-
-//		ensureRouteTableTreeLeafOffsetCapacity(walker->treeProxy, leafProxy, walker->downstreamOffsetCount);
-		ensureRouteTableTreeLeafOffsetCapacity(walker->treeProxy, leafProxy, downstream+1);
-
-		//RouteTableTreeLeafProxy *newLeafProxy=
-		treeProxySplitLeafInsertChildEntrySpace(walker->treeProxy, walker->branchProxy, walker->branchChildSibdex, walker->leafProxy,
-				walker->leafEntry, 2, &targetBranchProxy, &targetBranchChildSibdex, &targetLeafProxy, &targetLeafEntry);
-
-		LOG(LOG_INFO,"Post split: Old");
-		dumpLeafProxy(leafProxy);
-
-		LOG(LOG_INFO,"Post split: New");
-		dumpLeafProxy(newLeafProxy);
-
-		LOG(LOG_INFO,"Post split: Target");
-		dumpLeafProxy(targetLeafProxy);
-
-		walker->branchProxy=targetBranchProxy;
-		walker->branchChildSibdex=targetBranchChildSibdex;
-		walker->leafProxy=targetLeafProxy;
-		walker->leafEntry=targetLeafEntry;
-
-		leafProxy=targetLeafProxy;
-//		LOG(LOG_INFO,"Post split: Old");
-//		dumpLeafProxy(leafProxy);
-		}
-	else
-		{
-		if(newEntryCount>leafProxy->entryAlloc)
-			{
-			//LOG(LOG_INFO,"Entry Split: Leaf full - need to expand");
-			expandRouteTableTreeLeafProxy(walker->treeProxy, leafProxy, walker->downstreamOffsetCount);
-			}
-		else
-			//ensureRouteTableTreeLeafOffsetCapacity(walker->treeProxy, leafProxy, walker->downstreamOffsetCount);
-			ensureRouteTableTreeLeafOffsetCapacity(walker->treeProxy, leafProxy, downstream+1);
-
-		//LOG(LOG_INFO,"Entry Split: Easy case");
-		leafMakeEntryInsertSpace(leafProxy, walker->leafEntry, 2);
-
-		}
-
-	//LOG(LOG_INFO,"Pre insert: - %i",walker->leafEntry);
-	//dumpLeafProxy(leafProxy);
-
-	RouteTableTreeLeafEntry *entryPtr=getRouteTableTreeLeaf_EntryPtr(leafProxy->dataBlock);
-
-	s16 splitDownstream=entryPtr[walker->leafEntry].downstream;
-	entryPtr[walker->leafEntry++].width=width1;
-
-	entryPtr[walker->leafEntry].downstream=downstream;
-	entryPtr[walker->leafEntry++].width=1;
-
-	entryPtr[walker->leafEntry].downstream=splitDownstream;
-	entryPtr[walker->leafEntry++].width=width2;
-
-	leafProxy->dataBlock->upstreamOffset++;
-	getRouteTableTreeLeaf_OffsetPtr(leafProxy->dataBlock)[downstream]++;
-
-
-
-	//LOG(LOG_INFO,"Post Insert:");
-	//dumpLeafProxy(leafProxy);
-
-*/
-//	LOG(LOG_INFO,"Entry Split");
-
-	LOG(LOG_CRITICAL,"PackLeaf: rttMergeRoutes_split TODO");
-}
-
-
 
 static void rttMergeRoutes_ordered_forwardSingle(RouteTableTreeBuilder *builder, RouteTableTreeWalker *walker, RoutePatch *patch)
 {
+	s32 targetPrefix=patch->prefixIndex;
+	s32 targetSuffix=patch->suffixIndex;
+	s32 minEdgePosition=(*(patch->rdiPtr))->minEdgePosition;
+	s32 maxEdgePosition=(*(patch->rdiPtr))->maxEdgePosition;
+
+	s32 upstream=-1;
+	RouteTableUnpackedEntry *entry=NULL;
+
+/*
 	s32 targetPrefix=patch->prefixIndex;
 	s32 targetSuffix=patch->suffixIndex;
 	int minEdgePosition=(*(patch->rdiPtr))->minEdgePosition;
@@ -515,7 +254,6 @@ static void rttMergeRoutes_ordered_forwardSingle(RouteTableTreeBuilder *builder,
 //		dumpWalker(walker);
 		}
 
-/*
 	while(res && upstream < targetPrefix) 												// Skip lower upstream (entry at a time)
 		{
 		walker->downstreamOffsets[entry->downstream]+=entry->width;
@@ -526,37 +264,18 @@ static void rttMergeRoutes_ordered_forwardSingle(RouteTableTreeBuilder *builder,
 
 		res=walkerNextEntry(walker, &upstream, &entry, 0);
 		}
-*/
 
 //	int upstreamEdgeOffset=walker->upstreamOffsets[targetPrefix];
 	//int downstreamEdgeOffset=0;
 
 
-//	LOG(LOG_INFO,"OffsetsNow U: %i D: %i",walker->upstreamOffsets[targetPrefix], walker->downstreamOffsets[targetSuffix]);
 
-//	rttDumpRoutingTable(builder);
-
-/*
-	if(entry!=NULL)
-		LOG(LOG_INFO,"Currently at Branch: %i Leaf: %i Entry: %i - Up: %i down: %i Width: %i",walker->branchProxy->brindex, walker->leafProxy->lindex, walker->leafEntry, upstream, entry->downstream, entry->width);
-	else if(walker->leafProxy!=NULL)
-		LOG(LOG_INFO,"Currently at Branch: %i Leaf: %i Entry: %i - Up: %i - NULL ENTRY",walker->branchProxy->brindex, walker->leafProxy->lindex, walker->leafEntry, upstream);
-	else
-		LOG(LOG_INFO,"Empty branch");
-*/
-
-	LOG(LOG_CRITICAL,"PackLeaf: rttMergeRoutes_ordered_forwardSingle (leaf skip) TODO");
-
-	/*
 	while(res && upstream == targetPrefix &&										// Skip earlier upstream (leaf at a time)
 		((walker->upstreamOffsets[targetPrefix]+walker->leafProxy->dataBlock->upstreamOffset) < minEdgePosition))
 		{
 		walkerAccumulateLeafOffsets(walker);
 		res=walkerNextLeaf(walker, &upstream, &entry);
 		}
-
-	*/
-
 
 
 	while(res && upstream == targetPrefix &&
@@ -571,16 +290,7 @@ static void rttMergeRoutes_ordered_forwardSingle(RouteTableTreeBuilder *builder,
 
 		res=walkerNextEntry(walker, &upstream, &entry, 1);
 		}
-/*
-	LOG(LOG_INFO,"OffsetsNow U: %i D: %i",walker->upstreamOffsets[targetPrefix], walker->downstreamOffsets[targetSuffix]);
 
-	if(entry!=NULL)
-		LOG(LOG_INFO,"Currently at Branch: %i Leaf: %i Entry: %i - Up: %i down: %i Width: %i",walker->branchProxy->brindex, walker->leafProxy->lindex, walker->leafEntry, upstream, entry->downstream, entry->width);
-	else if(walker->leafProxy!=NULL)
-		LOG(LOG_INFO,"Currently at Branch: %i Leaf: %i Entry: %i - Up: %i - NULL ENTRY",walker->branchProxy->brindex, walker->leafProxy->lindex, walker->leafEntry, upstream);
-	else
-		LOG(LOG_INFO,"Empty branch");
-*/
 	while(res && upstream == targetPrefix &&
 			(walker->upstreamOffsets[targetPrefix]+entry->width)<=maxEdgePosition && entry->downstream<targetSuffix) // Skip matching upstream with earlier downstream
 		{
@@ -596,18 +306,88 @@ static void rttMergeRoutes_ordered_forwardSingle(RouteTableTreeBuilder *builder,
 //	LOG(LOG_INFO,"FwdDone: %i %i %i %i",walker->branchProxy->brindex,walker->branchChildSibdex,walker->leafEntry, res);
 
 //	LOG(LOG_INFO,"OffsetsNow U: %i D: %i",walker->upstreamOffsets[targetPrefix], walker->downstreamOffsets[targetSuffix]);
-/*
-	if(entry!=NULL)
-		LOG(LOG_INFO,"Currently at Branch: %i Leaf: %i Entry: %i - Up: %i down: %i Width: %i",walker->branchProxy->brindex, walker->leafProxy->lindex, walker->leafEntry, upstream, entry->downstream, entry->width);
-	else if(walker->leafProxy!=NULL)
-		LOG(LOG_INFO,"Currently at Branch: %i Leaf: %i Entry: %i - Up: %i - NULL ENTRY",walker->branchProxy->brindex, walker->leafProxy->lindex, walker->leafEntry, upstream);
-	else
-		LOG(LOG_INFO,"Empty branch");
+
 */
-	s32 upstreamEdgeOffset=walker->upstreamOffsets[targetPrefix];
-	s32 downstreamEdgeOffset=walker->downstreamOffsets[targetSuffix];
+	s32 upstreamEdgeOffset=-1;
+	s32 downstreamEdgeOffset=-1;
+
+	int res=walkerAdvanceToUpstreamThenOffsetThenDownstream(walker, targetPrefix, targetSuffix, minEdgePosition, maxEdgePosition,
+			&upstream, &entry, &upstreamEdgeOffset, &downstreamEdgeOffset);
 
 
+	//LOG(LOG_CRITICAL,"PackLeaf: rttMergeRoutes_ordered_forwardSingle (leaf skip) TODO: Res %i Upstream %i Entry %p",res,upstream,entry);
+
+	if(!res || upstream > targetPrefix || entry == NULL || (entry->downstream!=targetSuffix && upstreamEdgeOffset>=minEdgePosition))
+		{
+		int minMargin=upstreamEdgeOffset-minEdgePosition; // Margin between current position and minimum position: Must be zero or positive
+		int maxMargin=maxEdgePosition-upstreamEdgeOffset; // Margin between current position and maximum position: Must be zero or positive
+
+		if(minMargin<0 || maxMargin<0)
+			{
+			LOG(LOG_INFO,"Failed to add forward route for prefix %i suffix %i",targetPrefix,targetSuffix);
+			LOG(LOG_INFO,"Current edge offset %i minEdgePosition %i maxEdgePosition %i",upstreamEdgeOffset,minEdgePosition,maxEdgePosition);
+			LOG(LOG_CRITICAL,"Negative gap detected in route insert - Min: %i Max: %i",minMargin,maxMargin);
+			}
+
+//		LOG(LOG_INFO,"Handoff %i %i",downstreamEdgeOffset,downstreamEdgeOffset);
+
+		// Map offsets to new entry
+		(*(patch->rdiPtr))->minEdgePosition=downstreamEdgeOffset;
+		(*(patch->rdiPtr))->maxEdgePosition=downstreamEdgeOffset;
+
+		walkerMergeRoutes_insertEntry(walker, targetPrefix, targetSuffix); // targetPrefix,targetSuffix,1
+		}
+	else if(upstream==targetPrefix && entry->downstream==targetSuffix)
+		{
+		int upstreamEdgeOffsetEnd=upstreamEdgeOffset+entry->width;
+
+		// Adjust offsets
+		if(minEdgePosition<upstreamEdgeOffset) // Trim upstream range to entry
+			minEdgePosition=upstreamEdgeOffset;
+
+		if(maxEdgePosition>upstreamEdgeOffsetEnd) // Trim upstream range to entry
+			maxEdgePosition=upstreamEdgeOffsetEnd;
+
+		int minOffset=minEdgePosition-upstreamEdgeOffset; // Offset of minimum position: zero or positive
+		int maxOffset=maxEdgePosition-upstreamEdgeOffset; // Offset of maximum position: zero or positive
+
+		if(minOffset<0 || maxOffset<0 || minOffset>maxOffset)
+			{
+			LOG(LOG_CRITICAL,"Invalid offsets or gap detected in route insert - Min: %i Max: %i",minOffset,maxOffset);
+			}
+
+//		LOG(LOG_INFO,"Handoff %i %i",downstreamEdgeOffset+minOffset,downstreamEdgeOffset+maxOffset);
+
+		// Map offsets to new entry
+		(*(patch->rdiPtr))->minEdgePosition=downstreamEdgeOffset+minOffset;
+		(*(patch->rdiPtr))->maxEdgePosition=downstreamEdgeOffset+maxOffset;
+
+		walkerMergeRoutes_widen(walker); // width ++
+		}
+	else
+		{
+		int targetEdgePosition=entry->downstream>targetSuffix?minEdgePosition:maxEdgePosition; // Early or late split
+
+		int splitWidth1=targetEdgePosition-upstreamEdgeOffset;
+		int splitWidth2=entry->width-splitWidth1;
+
+		if(splitWidth1<=0 || splitWidth2<=0)
+			{
+			LOG(LOG_CRITICAL,"Non-positive split width detected in route insert - Width1: %i Width2: %i from %i",splitWidth1, splitWidth2, entry->width);
+			}
+
+//		LOG(LOG_INFO,"Handoff %i %i",downstreamEdgeOffset,downstreamEdgeOffset);
+
+		// Map offsets
+		(*(patch->rdiPtr))->minEdgePosition=downstreamEdgeOffset;
+		(*(patch->rdiPtr))->maxEdgePosition=downstreamEdgeOffset;
+
+		walkerMergeRoutes_split(walker, targetSuffix, splitWidth1, splitWidth2); // splitWidth1, (targetPrefix, targetSuffix, 1), splitWidth2
+		}
+
+
+
+/*
 	if(!res || upstream > targetPrefix || entry == NULL || (entry->downstream!=targetSuffix && upstreamEdgeOffset>=minEdgePosition)) // No suitable existing entry, but can insert/append here
 		{
 		int minMargin=upstreamEdgeOffset-minEdgePosition; // Margin between current position and minimum position: Must be zero or positive
@@ -685,12 +465,15 @@ static void rttMergeRoutes_ordered_forwardSingle(RouteTableTreeBuilder *builder,
 //	LOG(LOG_INFO,"*****************");
 //	LOG(LOG_INFO,"mergeRoutes_ordered_forwardSingle done");
 //	LOG(LOG_INFO,"*****************");
-
+*/
 }
 
 
 static void rttMergeRoutes_ordered_reverseSingle(RouteTableTreeWalker *walker, RoutePatch *patch)
 {
+	LOG(LOG_CRITICAL,"PackLeaf: rttMergeRoutes_ordered_reverseSingle (leaf skip) TODO");
+
+	/*
 	s32 targetPrefix=patch->prefixIndex;
 	s32 targetSuffix=patch->suffixIndex;
 	int minEdgePosition=(*(patch->rdiPtr))->minEdgePosition;
@@ -701,7 +484,6 @@ static void rttMergeRoutes_ordered_reverseSingle(RouteTableTreeWalker *walker, R
 
 //	LOG(LOG_INFO,"rttMergeRoutes_ordered_reverseSingle %i %i with %i %i",targetPrefix, targetSuffix, minEdgePosition, maxEdgePosition);
 
-	/*
 	int res=walkerGetCurrentEntry(walker, &upstream, &entry);
 	while(res) 												// Skip lower upstream
 		{
@@ -713,7 +495,6 @@ static void rttMergeRoutes_ordered_reverseSingle(RouteTableTreeWalker *walker, R
 		res=walkerNextEntry(walker, &upstream, &entry);
 		}
 	LOG(LOG_CRITICAL,"Done");
-*/
 
 //	LOG(LOG_INFO,"*****************");
 //	LOG(LOG_INFO,"Reverse: Looking for P %i S %i Min %i Max %i", targetPrefix, targetSuffix, minEdgePosition, maxEdgePosition);
@@ -729,7 +510,6 @@ static void rttMergeRoutes_ordered_reverseSingle(RouteTableTreeWalker *walker, R
 //		dumpWalker(walker);
 		}
 
-	/*
 	while(res && upstream < targetSuffix) 												// Skip lower upstream
 		{
 		walker->downstreamOffsets[entry->downstream]+=entry->width;
@@ -740,33 +520,18 @@ static void rttMergeRoutes_ordered_reverseSingle(RouteTableTreeWalker *walker, R
 
 		res=walkerNextEntry(walker, &upstream, &entry, 0);
 		}
-*/
 
 //	int upstreamEdgeOffset=walker->upstreamOffsets[targetPrefix];
 	//int downstreamEdgeOffset=0;
-/*
-	LOG(LOG_INFO,"OffsetsNow U: %i D: %i",walker->upstreamOffsets[targetSuffix], walker->downstreamOffsets[targetPrefix]);
-
-	if(entry!=NULL)
-		LOG(LOG_INFO,"Currently at Branch: %i Leaf: %i Entry: %i - Up: %i down: %i Width: %i",walker->branchProxy->brindex, walker->leafProxy->lindex, walker->leafEntry, upstream, entry->downstream, entry->width);
-	else if(walker->leafProxy!=NULL)
-		LOG(LOG_INFO,"Currently at Branch: %i Leaf: %i Entry: %i - Up: %i - NULL ENTRY",walker->branchProxy->brindex, walker->leafProxy->lindex, walker->leafEntry, upstream);
-	else
-		LOG(LOG_INFO,"Empty branch");
-
-	LOG(LOG_INFO,"Proxy is %p, Block is %p",walker->leafProxy, walker->leafProxy->dataBlock);
-*/
 
 	LOG(LOG_CRITICAL,"PackLeaf: rttMergeRoutes_ordered_reverseSingle (leaf skip) TODO");
 
-	/*
 	while(res && upstream == targetSuffix &&										// Skip earlier upstream (leaf at a time)
 		((walker->upstreamOffsets[targetSuffix]+walker->leafProxy->dataBlock->upstreamOffset) < minEdgePosition))
 		{
 		walkerAccumulateLeafOffsets(walker);
 		res=walkerNextLeaf(walker, &upstream, &entry);
 		}
-*/
 
 
 	while(res && upstream == targetSuffix &&
@@ -781,16 +546,7 @@ static void rttMergeRoutes_ordered_reverseSingle(RouteTableTreeWalker *walker, R
 
 		res=walkerNextEntry(walker, &upstream, &entry, 1);
 		}
-/*
-	LOG(LOG_INFO,"OffsetsNow U: %i D: %i",walker->upstreamOffsets[targetSuffix], walker->downstreamOffsets[targetPrefix]);
 
-	if(entry!=NULL)
-		LOG(LOG_INFO,"Currently at Branch: %i Leaf: %i Entry: %i - Up: %i down: %i Width: %i",walker->branchProxy->brindex, walker->leafProxy->lindex, walker->leafEntry, upstream, entry->downstream, entry->width);
-	else if(walker->leafProxy!=NULL)
-		LOG(LOG_INFO,"Currently at Branch: %i Leaf: %i Entry: %i - Up: %i - NULL ENTRY",walker->branchProxy->brindex, walker->leafProxy->lindex, walker->leafEntry, upstream);
-	else
-		LOG(LOG_INFO,"Empty branch");
-*/
 	while(res && upstream == targetSuffix &&
 			(walker->upstreamOffsets[targetSuffix]+entry->width)<=maxEdgePosition && entry->downstream<targetPrefix) // Skip matching upstream with earlier downstream
 		{
@@ -802,18 +558,6 @@ static void rttMergeRoutes_ordered_reverseSingle(RouteTableTreeWalker *walker, R
 
 		res=walkerNextEntry(walker, &upstream, &entry, 1);
 		}
-/*
-	LOG(LOG_INFO,"FwdDone: %i %i %i %i",walker->branchProxy->brindex,walker->branchChildSibdex,walker->leafEntry, res);
-
-	LOG(LOG_INFO,"OffsetsNow U: %i D: %i",walker->upstreamOffsets[targetSuffix], walker->downstreamOffsets[targetPrefix]);
-
-	if(entry!=NULL)
-		LOG(LOG_INFO,"Currently at Branch: %i Leaf: %i Entry: %i - Up: %i down: %i Width: %i",walker->branchProxy->brindex, walker->leafProxy->lindex, walker->leafEntry, upstream, entry->downstream, entry->width);
-	else if(walker->leafProxy!=NULL)
-		LOG(LOG_INFO,"Currently at Branch: %i Leaf: %i Entry: %i - Up: %i - NULL ENTRY",walker->branchProxy->brindex, walker->leafProxy->lindex, walker->leafEntry, upstream);
-	else
-		LOG(LOG_INFO,"Empty branch");
-*/
 
 	s32 upstreamEdgeOffset=walker->upstreamOffsets[targetSuffix];
 	s32 downstreamEdgeOffset=walker->downstreamOffsets[targetPrefix];
@@ -891,6 +635,10 @@ static void rttMergeRoutes_ordered_reverseSingle(RouteTableTreeWalker *walker, R
 //	LOG(LOG_INFO,"*****************");
 //	LOG(LOG_INFO,"mergeRoutes_ordered_reverseSingle done");
 //	LOG(LOG_INFO,"*****************");
+ *
+ *
+ */
+
 }
 
 

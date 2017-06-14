@@ -1,6 +1,33 @@
 #include "common.h"
 
 
+void rtpDumpUnpackedSingleBlock(RouteTableUnpackedSingleBlock *block)
+{
+	LOG(LOG_INFO,"Begin UnpackedSingleBlock");
+	// Skip packed stuff
+
+	LOG(LOG_INFO,"Upstream Offsets: %i",block->upstreamOffsetAlloc);
+	for(int i=0;i<block->upstreamOffsetAlloc;i++)
+		LOG(LOG_INFO,"%i: %i  ",i,block->upstreamOffsets[i]);
+
+	LOG(LOG_INFO,"Downstream Offsets: %i",block->downstreamOffsetAlloc);
+	for(int i=0;i<block->downstreamOffsetAlloc;i++)
+		LOG(LOG_INFO,"%i: %i  ",i,block->downstreamOffsets[i]);
+
+	LOG(LOG_INFO,"Entry arrays: %i (%i)",block->entryArrayCount, block->entryArrayAlloc);
+	for(int i=0;i<block->entryArrayCount;i++)
+		{
+		LOG(LOG_INFO,"  Entry Array: %i ",i);
+		RouteTableUnpackedEntryArray *array=block->entryArrays[i];
+		LOG(LOG_INFO,"  Upstream %i  Entries: %i (%i)",array->upstream, array->entryCount, array->entryAlloc);
+
+		for(int j=0;j<array->entryCount;j++)
+			LOG(LOG_INFO,"    D: %i  W: %i", array->entries[j].downstream, array->entries[j].width);
+		}
+
+	LOG(LOG_INFO,"End UnpackedSingleBlock");
+}
+
 RouteTableUnpackedEntryArray *rtpInsertNewEntry(RouteTableUnpackedSingleBlock *unpackedBlock, s32 arrayIndex, s32 entryIndex, s32 downstream, s32 width)
 {
 	if(arrayIndex<0 || arrayIndex>unpackedBlock->entryArrayCount)
@@ -25,6 +52,7 @@ RouteTableUnpackedEntryArray *rtpInsertNewEntry(RouteTableUnpackedSingleBlock *u
 
 		memcpy(newArray->entries, array->entries, sizeof(RouteTableUnpackedEntry)*array->entryAlloc);
 
+		//LOG(LOG_INFO,"Resize array to %p",newArray);
 		unpackedBlock->entryArrays[arrayIndex]=newArray;
 		array=newArray;
 		}
@@ -56,8 +84,10 @@ RouteTableUnpackedEntryArray *rtpInsertNewEntryArray(RouteTableUnpackedSingleBlo
 		if(newEntryArrayAlloc==unpackedBlock->entryArrayAlloc)
 			LOG(LOG_CRITICAL,"EntryArrays Cannot Resize: Already at Max");
 
+		//LOG(LOG_INFO,"EntryArrays Resize");
+
 		RouteTableUnpackedEntryArray **newEntryArrays=dAlloc(unpackedBlock->disp, sizeof(RouteTableUnpackedEntryArray *)*newEntryArrayAlloc);
-		memcpy(newEntryArrays, unpackedBlock->entryArrays, unpackedBlock->entryArrayAlloc);
+		memcpy(newEntryArrays, unpackedBlock->entryArrays, sizeof(RouteTableUnpackedEntryArray *)*unpackedBlock->entryArrayAlloc);
 
 		unpackedBlock->entryArrays=newEntryArrays;
 		unpackedBlock->entryArrayAlloc=newEntryArrayAlloc;
@@ -70,6 +100,8 @@ RouteTableUnpackedEntryArray *rtpInsertNewEntryArray(RouteTableUnpackedSingleBlo
 		}
 
 	RouteTableUnpackedEntryArray *array=dAlloc(unpackedBlock->disp, sizeof(RouteTableUnpackedEntryArray)+sizeof(RouteTableUnpackedEntry)*entryAlloc);
+	//LOG(LOG_INFO,"New array to %p",array);
+
 	unpackedBlock->entryArrays[arrayIndex]=array;
 	unpackedBlock->entryArrayCount++;
 

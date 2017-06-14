@@ -133,6 +133,8 @@ void treeProxySeekStart(RouteTableTreeProxy *treeProxy, RouteTableTreeBranchProx
 	s16 childNindex=0;
 	int iter=20;
 
+	LOG(LOG_INFO,"Seek start: Root contains %i",branchProxy->childCount);
+
 	while(branchProxy->childCount>0 && childNindex>=0 && --iter>0)
 		{
 		childNindex=branchProxy->dataBlock->childNindex[0];
@@ -144,6 +146,9 @@ void treeProxySeekStart(RouteTableTreeProxy *treeProxy, RouteTableTreeBranchProx
 
 	if(iter<=0)
 		LOG(LOG_CRITICAL,"Failed to seek start");
+
+	LOG(LOG_INFO,"Seek start %i",childNindex);
+
 
 	if(childNindex<0)
 		{
@@ -248,14 +253,14 @@ void treeProxySplitRoot(RouteTableTreeProxy *treeProxy, s16 childPosition, Route
 
 		if(childNindex<0)
 			{
-			RouteTableTreeLeafBlock *leafBlock=getRouteTableTreeLeafBlock(treeProxy, NINDEX_TO_LINDEX(childNindex));
+			RouteTableTreeLeafProxy *leafProxy=getRouteTableTreeLeafProxy(treeProxy, NINDEX_TO_LINDEX(childNindex));
 
-			if(leafBlock==NULL)
+			if(leafProxy==NULL)
 				{
 				LOG(LOG_CRITICAL,"Failed to find leaf with index %i",childNindex);
 				}
 
-			leafBlock->parentBrindex=branchBrindex1;
+			leafProxy->parentBrindex=branchBrindex1;
 			}
 		else
 			{
@@ -281,14 +286,14 @@ void treeProxySplitRoot(RouteTableTreeProxy *treeProxy, s16 childPosition, Route
 
 		if(childNindex<0)
 			{
-			RouteTableTreeLeafBlock *leafBlock=getRouteTableTreeLeafBlock(treeProxy, NINDEX_TO_LINDEX(childNindex));
+			RouteTableTreeLeafProxy *leafProxy=getRouteTableTreeLeafProxy(treeProxy, NINDEX_TO_LINDEX(childNindex));
 
-			if(leafBlock==NULL)
+			if(leafProxy==NULL)
 				{
 				LOG(LOG_CRITICAL,"Failed to find leaf with index %i",childNindex);
 				}
 
-			leafBlock->parentBrindex=branchBrindex2;
+			leafProxy->parentBrindex=branchBrindex2;
 			}
 		else
 			{
@@ -363,14 +368,14 @@ RouteTableTreeBranchProxy *treeProxySplitBranch(RouteTableTreeProxy *treeProxy, 
 
 		if(childNindex<0)
 			{
-			RouteTableTreeLeafBlock *leafBlock=getRouteTableTreeLeafBlock(treeProxy, NINDEX_TO_LINDEX(childNindex));
+			RouteTableTreeLeafProxy *leafProxy=getRouteTableTreeLeafProxy(treeProxy, NINDEX_TO_LINDEX(childNindex));
 
-			if(leafBlock==NULL)
+			if(leafProxy==NULL)
 				{
 				LOG(LOG_CRITICAL,"Failed to find leaf with index %i",childNindex);
 				}
 
-			leafBlock->parentBrindex=newBranchBrindex;
+			leafProxy->parentBrindex=newBranchBrindex;
 			}
 		else
 			{
@@ -599,7 +604,7 @@ void treeProxyInsertLeafChild(RouteTableTreeProxy *treeProxy, RouteTableTreeBran
 	branchMakeChildInsertSpace(parentBranchProxy, childPosition, 1);
 
 	parentBranchProxy->dataBlock->childNindex[childPosition]=LINDEX_TO_NINDEX(childLindex);
-	childLeafProxy->leafBlock->parentBrindex=parentBrindex;
+	childLeafProxy->parentBrindex=parentBrindex;
 
 	*newParentBranchProxyPtr=parentBranchProxy;
 	*newChildPositionPtr=childPosition;
@@ -635,7 +640,7 @@ RouteTableTreeLeafProxy *treeProxySplitLeafInsertChildEntrySpace(RouteTableTreeP
 	LOG(LOG_INFO,"treeProxySplitLeafInsertChildEntrySpace: New");
 	dumpLeafProxy(newLeaf);
 */
-	leafMakeEntryInsertSpace(childLeafProxy, insertEntryPosition, insertEntryCount);
+	//leafMakeEntryInsertSpace(childLeafProxy, insertEntryPosition, insertEntryCount);
 /*
 	LOG(LOG_INFO,"Post MakeEntryInsertSpace");
 
@@ -728,7 +733,7 @@ s32 getNextLeafSibling(RouteTableTreeProxy *treeProxy, RouteTableTreeBranchProxy
 		}
 
 	sibdex++;
-	if(sibdex<branchProxy->childCount)
+	if(sibdex<branchProxy->childCount) // Same branch, next leaf
 		{
 //		LOG(LOG_INFO,"In branch %i, looking at sib %i giving %i",branch->brindex, sibdex, branch->dataBlock->childNindex[sibdex]);
 
@@ -737,36 +742,25 @@ s32 getNextLeafSibling(RouteTableTreeProxy *treeProxy, RouteTableTreeBranchProxy
 		return 1;
 		}
 
-	if(getNextBranchSibling(treeProxy, &branchProxy)) // Moved branch
+	if(getNextBranchSibling(treeProxy, &branchProxy)) // Attempt to move branch
 		{
 		*branchProxyPtr=branchProxy;
-		if(branchProxy->childCount>0)
+		if(branchProxy->childCount>0) // Non-empty branch
 			{
-//			LOG(LOG_INFO,"Moved to new branch");
-			sibdex=0;
+			*branchChildSibdex=0;
+			*leafProxyPtr=getRouteTableTreeLeafProxy(treeProxy, NINDEX_TO_LINDEX(branchProxy->dataBlock->childNindex[0]));
+			return 1;
 			}
 		else
 			{
 			sibdex=-1;
 			LOG(LOG_CRITICAL,"Moved to empty branch");
+			return 0;
 			}
 		}
 	else
-		sibdex=-1;
+		return 0; // No further branches or leaves - references unchanged
 
-
-	if(sibdex>=0)
-		{
-		//LOG(LOG_INFO,"In branch %i, looking at sib %i giving %i",branch->brindex, sibdex, branch->dataBlock->childNindex[sibdex]);
-
-		*branchChildSibdex=sibdex;
-		*leafProxyPtr=getRouteTableTreeLeafProxy(treeProxy, NINDEX_TO_LINDEX(branchProxy->dataBlock->childNindex[sibdex]));
-		return 1;
-		}
-	else
-		{
-		return 0;
-		}
 
 }
 

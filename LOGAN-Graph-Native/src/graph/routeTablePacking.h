@@ -73,6 +73,8 @@ typedef struct routeTablePackedSingleBlockStr
 } __attribute__((packed)) RouteTablePackedSingleBlock;
 
 
+void rtpDumpUnpackedSingleBlock(RouteTableUnpackedSingleBlock *block);
+
 // Insert new entry (downstream,width) into specified position in specified entryArray
 RouteTableUnpackedEntryArray *rtpInsertNewEntry(RouteTableUnpackedSingleBlock *unpackedBlock, s32 arrayIndex, s32 entryIndex, s32 downstream, s32 width);
 

@@ -192,7 +192,26 @@ void expandRouteTableTreeLeafProxy(RouteTableTreeProxy *treeProxy, RouteTableTre
 
 void dumpLeafBlock(RouteTableTreeLeafBlock *leafBlock)
 {
+	LOG(LOG_CRITICAL,"dumpLeafBlock: TODO");
+}
 
+void dumpLeafProxy(RouteTableTreeLeafProxy *leafProxy)
+{
+	LOG(LOG_INFO,"Dump LeafProxy");
+
+	LOG(LOG_INFO,"Parent Brindex is %i",leafProxy->parentBrindex);
+	LOG(LOG_INFO,"Lindex is %i",leafProxy->lindex);
+
+	if(leafProxy->leafBlock==NULL)
+		LOG(LOG_INFO,"LeafBlock is NULL");
+	else
+		{
+		LOG(LOG_INFO,"LeafBlock is not NULL"); // Could dump
+		}
+
+	rtpDumpUnpackedSingleBlock(leafProxy->unpackedBlock);
+
+	LOG(LOG_INFO,"End Dump LeafProxy");
 	/*
 	if(leafBlock!=NULL)
 		{
