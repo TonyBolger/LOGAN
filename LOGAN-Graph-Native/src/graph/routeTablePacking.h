@@ -75,15 +75,19 @@ typedef struct routeTablePackedSingleBlockStr
 
 void rtpDumpUnpackedSingleBlock(RouteTableUnpackedSingleBlock *block);
 
+void rtpRecalculateUnpackedBlockOffsets(RouteTableUnpackedSingleBlock *unpackedBlock);
+
 // Insert new entry (downstream,width) into specified position in specified entryArray
 RouteTableUnpackedEntryArray *rtpInsertNewEntry(RouteTableUnpackedSingleBlock *unpackedBlock, s32 arrayIndex, s32 entryIndex, s32 downstream, s32 width);
+
+// Insert two new entries (downstream1,width1),(downstream2,width2) into specified position in specified entryArray
+RouteTableUnpackedEntryArray *rtpInsertNewDoubleEntry(RouteTableUnpackedSingleBlock *unpackedBlock, s32 arrayIndex, s32 entryIndex, s32 downstream1, s32 width1, s32 downstream2, s32 width2);
 
 // Insert new array (upstream) into a specified position in the block
 RouteTableUnpackedEntryArray *rtpInsertNewEntryArray(RouteTableUnpackedSingleBlock *unpackedBlock, s32 arrayIndex, s32 upstream, s32 entryAlloc);
 
 // Allocate a new (empty) unpackedBlock
 RouteTableUnpackedSingleBlock *rtpAllocUnpackedSingleBlock(MemDispenser *disp, s32 upstreamOffsetAlloc, s32 downstreamOffsetAlloc, s32 entryArrayAlloc);
-
 RouteTableUnpackedSingleBlock *rtpUnpackSingleBlock(RouteTablePackedSingleBlock *packedBlock, MemDispenser *disp);
 
 

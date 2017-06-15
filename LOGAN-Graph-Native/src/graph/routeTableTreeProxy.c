@@ -214,24 +214,14 @@ void treeProxySeekEnd(RouteTableTreeProxy *treeProxy, RouteTableTreeBranchProxy 
 
 
 
-void treeProxySplitRoot(RouteTableTreeProxy *treeProxy, s16 childPosition, RouteTableTreeBranchProxy **newParentBranchProxyPtr, s16 *newChildPositionPtr)
+static void treeProxySplitRoot(RouteTableTreeProxy *treeProxy, s16 childPosition, RouteTableTreeBranchProxy **newParentBranchProxyPtr, s16 *newChildPositionPtr)
 {
-//	LOG(LOG_INFO,"Root Split");
-
 	RouteTableTreeBranchProxy *rootBranchProxy=treeProxy->rootProxy;
 
 	if(rootBranchProxy->brindex!=BRANCH_NINDEX_ROOT)
 		{
 		LOG(LOG_CRITICAL,"Asked to root-split a non-root node");
 		}
-
-//	LOG(LOG_INFO,"Root %i contains %i of %i",root->brindex, root->childCount, root->childAlloc);
-/*
-	for(int i=0;i<root->childCount;i++)
-		{
-		LOG(LOG_INFO,"Child %i is %i",i,root->dataBlock->childNindex[i]);
-		}
-*/
 
 	s32 firstHalfChild=((1+rootBranchProxy->childCount)/2);
 	s32 secondHalfChild=rootBranchProxy->childCount-firstHalfChild;
@@ -242,23 +232,17 @@ void treeProxySplitRoot(RouteTableTreeProxy *treeProxy, s16 childPosition, Route
 	s32 branchBrindex1=branchProxy1->brindex;
 	s32 branchBrindex2=branchProxy2->brindex;
 
-	//LOG(LOG_INFO,"Split - new branches %i %i",branchBrindex1, branchBrindex2);
-
 	for(int i=0;i<firstHalfChild;i++)
 		{
 		s32 childNindex=rootBranchProxy->dataBlock->childNindex[i];
 		branchProxy1->dataBlock->childNindex[i]=childNindex;
-
-//		LOG(LOG_INFO,"Moving Child %i to %i",childNindex, branchBrindex1);
 
 		if(childNindex<0)
 			{
 			RouteTableTreeLeafProxy *leafProxy=getRouteTableTreeLeafProxy(treeProxy, NINDEX_TO_LINDEX(childNindex));
 
 			if(leafProxy==NULL)
-				{
 				LOG(LOG_CRITICAL,"Failed to find leaf with index %i",childNindex);
-				}
 
 			leafProxy->parentBrindex=branchBrindex1;
 			}
@@ -267,9 +251,7 @@ void treeProxySplitRoot(RouteTableTreeProxy *treeProxy, s16 childPosition, Route
 			RouteTableTreeBranchBlock *branchBlock=getRouteTableTreeBranchBlock(treeProxy, childNindex);
 
 			if(branchBlock==NULL)
-				{
 				LOG(LOG_CRITICAL,"Failed to find branch with index %i",childNindex);
-				}
 
 			branchBlock->parentBrindex=branchBrindex1;
 			}
@@ -282,16 +264,12 @@ void treeProxySplitRoot(RouteTableTreeProxy *treeProxy, s16 childPosition, Route
 		s32 childNindex=rootBranchProxy->dataBlock->childNindex[i+firstHalfChild];
 		branchProxy2->dataBlock->childNindex[i]=childNindex;
 
-//		LOG(LOG_INFO,"Moving Child %i to %i",childNindex, branchBrindex2);
-
 		if(childNindex<0)
 			{
 			RouteTableTreeLeafProxy *leafProxy=getRouteTableTreeLeafProxy(treeProxy, NINDEX_TO_LINDEX(childNindex));
 
 			if(leafProxy==NULL)
-				{
 				LOG(LOG_CRITICAL,"Failed to find leaf with index %i",childNindex);
-				}
 
 			leafProxy->parentBrindex=branchBrindex2;
 			}
@@ -300,9 +278,7 @@ void treeProxySplitRoot(RouteTableTreeProxy *treeProxy, s16 childPosition, Route
 			RouteTableTreeBranchBlock *branchBlock=getRouteTableTreeBranchBlock(treeProxy, childNindex);
 
 			if(branchBlock==NULL)
-				{
 				LOG(LOG_CRITICAL,"Failed to find branch with index %i",childNindex);
-				}
 
 			branchBlock->parentBrindex=branchBrindex2;
 			}
@@ -341,7 +317,7 @@ void treeProxySplitRoot(RouteTableTreeProxy *treeProxy, s16 childPosition, Route
 
 // Split a branch, creating and returning a new sibling which _MUST_ be attached by the caller. Location of an existing child is updated
 
-RouteTableTreeBranchProxy *treeProxySplitBranch(RouteTableTreeProxy *treeProxy, RouteTableTreeBranchProxy *branchProxy, s16 childPosition,
+static RouteTableTreeBranchProxy *treeProxySplitBranch(RouteTableTreeProxy *treeProxy, RouteTableTreeBranchProxy *branchProxy, s16 childPosition,
 		RouteTableTreeBranchProxy **newParentBranchProxyPtr, s16 *newChildPositionPtr)
 {
 //	LOG(LOG_INFO,"Non Root Branch Split: %i",branch->brindex);
@@ -410,65 +386,51 @@ RouteTableTreeBranchProxy *treeProxySplitBranch(RouteTableTreeProxy *treeProxy, 
 
 // Split a leaf, creating and returning a new sibling which _MUST_ be attached by the caller. Location of an existing entry is updated
 
-RouteTableTreeLeafProxy *treeProxySplitLeaf(RouteTableTreeProxy *treeProxy, RouteTableTreeLeafProxy *leafProxy, s16 leafEntryPosition, s16 space,
-		 RouteTableTreeLeafProxy **newLeafProxyPtr, s16 *newEntryPositionPtr)
+static RouteTableTreeLeafProxy *treeProxySplitLeafContents(RouteTableTreeProxy *treeProxy, RouteTableTreeLeafProxy *leafProxy, s16 leafArrayIndex,
+		 RouteTableTreeLeafProxy **updatedLeafProxyPtr, s16 *updatedEntryPositionPtr)
 {
-//	LOG(LOG_INFO,"Leaf Split: %i",leaf->lindex);
-/*
-	s32 toKeepHalfEntry=((1+leafProxy->entryCount)/2);
-	s32 toMoveHalfEntry=leafProxy->entryCount-toKeepHalfEntry;
+	RouteTableUnpackedSingleBlock *oldBlock=leafProxy->unpackedBlock;
 
-	s32 toMoveHalfEntryAlloc=toMoveHalfEntry+space;
+	s32 toKeepHalfArray=((1+oldBlock->entryArrayCount)/2);
+	s32 toMoveHalfArray=oldBlock->entryArrayCount-toKeepHalfArray;
 
-	RouteTableTreeLeafProxy *newLeafProxy=allocRouteTableTreeLeafProxy(treeProxy, leafProxy->dataBlock->offsetAlloc, toMoveHalfEntryAlloc);
+	s32 toMoveHalfEntryAlloc=toMoveHalfArray+ROUTEPACKING_ENTRYARRAYS_CHUNK;
 
-	RouteTableTreeLeafEntry *oldEntryPtr=getRouteTableTreeLeaf_EntryPtr(leafProxy->dataBlock);
-	RouteTableTreeLeafEntry *newEntryPtr=getRouteTableTreeLeaf_EntryPtr(newLeafProxy->dataBlock);
+	RouteTableTreeLeafProxy *newLeafProxy=allocRouteTableTreeLeafProxy(treeProxy, oldBlock->upstreamOffsetAlloc, oldBlock->downstreamOffsetAlloc, toMoveHalfEntryAlloc);
+	RouteTableUnpackedSingleBlock *newBlock=newLeafProxy->unpackedBlock;
 
-	memcpy(newEntryPtr, oldEntryPtr+toKeepHalfEntry, sizeof(RouteTableTreeLeafEntry)*toMoveHalfEntry);
+	RouteTableUnpackedEntryArray **oldEntryArrayPtr=oldBlock->entryArrays;
+	RouteTableUnpackedEntryArray **newEntryArrayPtr=newBlock->entryArrays;
+
+	memcpy(newEntryArrayPtr, oldEntryArrayPtr+toKeepHalfArray, sizeof(RouteTableUnpackedEntryArray *)*toMoveHalfArray);
 
 	//memset(leaf->dataBlock->entries+halfEntry, 0, sizeof(RouteTableTreeLeafEntry)*otherHalfEntry);
 
-	leafProxy->entryCount=toKeepHalfEntry;
-	newLeafProxy->entryCount=toMoveHalfEntry;
+	oldBlock->entryArrayCount=toKeepHalfArray;
+	newBlock->entryArrayCount=toMoveHalfArray;
 
-		//LOG(LOG_INFO,"Clearing New Leaf %i %i",newLeaf->entryCount, newLeaf->entryAlloc);
-	for(int i=newLeafProxy->entryCount; i<newLeafProxy->entryAlloc; i++)
-		{
-		newEntryPtr[i].downstream=-1;
-		newEntryPtr[i].width=0;
-		}
+	for(int i=newBlock->entryArrayCount; i<newBlock->entryArrayAlloc; i++)
+		newBlock->entryArrays[i]=NULL;
 
 	//LOG(LOG_INFO,"Clearing Old Leaf %i %i",leaf->entryCount, leaf->entryAlloc);
-	for(int i=leafProxy->entryCount; i<leafProxy->entryAlloc; i++)
+	for(int i=oldBlock->entryArrayCount; i<oldBlock->entryArrayAlloc; i++)
+		oldBlock->entryArrays[i]=NULL;
+
+	rtpRecalculateUnpackedBlockOffsets(oldBlock);
+	rtpRecalculateUnpackedBlockOffsets(newBlock);
+
+	if(leafArrayIndex<toKeepHalfArray)
 		{
-		oldEntryPtr[i].downstream=-1;
-		oldEntryPtr[i].width=0;
-		}
-
-
-	newLeafProxy->dataBlock->upstream=leafProxy->dataBlock->upstream;
-
-	recalcRouteTableTreeLeafOffsets(leafProxy);
-	recalcRouteTableTreeLeafOffsets(newLeafProxy);
-
-	if(leafEntryPosition<toKeepHalfEntry)
-		{
-		*newLeafProxyPtr=leafProxy;
-		*newEntryPositionPtr=leafEntryPosition;
+		*updatedLeafProxyPtr=leafProxy;
+		*updatedEntryPositionPtr=leafArrayIndex;
 		}
 	else
 		{
-		*newLeafProxyPtr=newLeafProxy;
-		*newEntryPositionPtr=leafEntryPosition-toKeepHalfEntry;
+		*updatedLeafProxyPtr=newLeafProxy;
+		*updatedEntryPositionPtr=leafArrayIndex-toKeepHalfArray;
 		}
 
 	return newLeafProxy;
-	*/
-
-	LOG(LOG_CRITICAL,"PackLeaf: treeProxySplitLeaf TODO");
-
-	return NULL;
 }
 
 
@@ -479,19 +441,8 @@ RouteTableTreeLeafProxy *treeProxySplitLeaf(RouteTableTreeProxy *treeProxy, Rout
 
 
 void treeProxyInsertBranchChild(RouteTableTreeProxy *treeProxy, RouteTableTreeBranchProxy *parentBranchProxy, RouteTableTreeBranchProxy *childBranchProxy, s16 childPosition,
-		RouteTableTreeBranchProxy **newParentBranchProxyPtr, s16 *newChildPositionPtr)
+		RouteTableTreeBranchProxy **updatedParentBranchProxyPtr, s16 *updatedChildPositionPtr)
 {
-//	LOG(LOG_INFO,"Append Branch Child P: %i C: %i",parent->brindex, child->brindex);
-
-/*
-	LOG(LOG_INFO,"Parent %i contains %i of %i",parent->brindex, parent->childCount, parent->childAlloc);
-
-	for(int i=0;i<parent->childCount;i++)
-		{
-		LOG(LOG_INFO,"Child %i is %i",i,parent->dataBlock->childNindex[i]);
-		}
-*/
-
 	if(parentBranchProxy->childCount>=parentBranchProxy->childAlloc) // No Space
 		{
 		if(parentBranchProxy->childAlloc<ROUTE_TABLE_TREE_BRANCH_CHILDREN) // Expand
@@ -500,8 +451,6 @@ void treeProxyInsertBranchChild(RouteTableTreeProxy *treeProxy, RouteTableTreeBr
 			}
 		else if(parentBranchProxy->brindex!=BRANCH_NINDEX_ROOT) // Add sibling
 			{
-//			LOG(LOG_INFO,"AppendBranch %i: Sibling",parent->brindex);
-
 			RouteTableTreeBranchProxy *grandParentBranchProxy;
 			s32 grandParentBrindex=parentBranchProxy->dataBlock->parentBrindex;
 
@@ -521,8 +470,6 @@ void treeProxyInsertBranchChild(RouteTableTreeProxy *treeProxy, RouteTableTreeBr
 			}
 		else	// Split root
 			{
-//			LOG(LOG_INFO,"InsertBranchChild %i: Split Root",parent->brindex);
-
 			treeProxySplitRoot(treeProxy, childPosition, &parentBranchProxy, &childPosition);
 			}
 
@@ -543,26 +490,14 @@ void treeProxyInsertBranchChild(RouteTableTreeProxy *treeProxy, RouteTableTreeBr
 	parentBranchProxy->dataBlock->childNindex[childPosition]=childBrindex;
 	childBranchProxy->dataBlock->parentBrindex=parentBrindex;
 
-	*newParentBranchProxyPtr=parentBranchProxy;
-	*newChildPositionPtr=childPosition;
-/*
-	LOG(LOG_INFO,"ParentNow %i contains %i of %i",parent->brindex, parent->childCount, parent->childAlloc);
-
-	for(int i=0;i<parent->childCount;i++)
-		{
-		LOG(LOG_INFO,"ChildNow %i is %i",i,parent->dataBlock->childNindex[i]);
-		}
-*/
+	*updatedParentBranchProxyPtr=parentBranchProxy;
+	*updatedChildPositionPtr=childPosition;
 }
 
 // Insert the given leaf child into the branch parent, splitting the parent if needed
 void treeProxyInsertLeafChild(RouteTableTreeProxy *treeProxy, RouteTableTreeBranchProxy *parentBranchProxy, RouteTableTreeLeafProxy *childLeafProxy, s16 childPosition,
-		RouteTableTreeBranchProxy **newParentBranchProxyPtr, s16 *newChildPositionPtr)
+		RouteTableTreeBranchProxy **updatedParentBranchProxyPtr, s16 *updatedChildPositionPtr)
 {
-	//LOG(LOG_INFO,"Append Leaf Child P: %i C: %i",parent->brindex, child->lindex);
-
-	//LOG(LOG_INFO,"Parent contains %i of %i",parent->childCount, parent->childAlloc);
-
 	if(parentBranchProxy->childCount>=parentBranchProxy->childAlloc)
 		{
 		if(parentBranchProxy->childAlloc<ROUTE_TABLE_TREE_BRANCH_CHILDREN)
@@ -606,8 +541,8 @@ void treeProxyInsertLeafChild(RouteTableTreeProxy *treeProxy, RouteTableTreeBran
 	parentBranchProxy->dataBlock->childNindex[childPosition]=LINDEX_TO_NINDEX(childLindex);
 	childLeafProxy->parentBrindex=parentBrindex;
 
-	*newParentBranchProxyPtr=parentBranchProxy;
-	*newChildPositionPtr=childPosition;
+	*updatedParentBranchProxyPtr=parentBranchProxy;
+	*updatedChildPositionPtr=childPosition;
 
 //	LOG(LOG_INFO,"leafEntry(childPosition) %i",childPosition);
 }
@@ -622,39 +557,21 @@ void treeProxyAppendLeafChild(RouteTableTreeProxy *treeProxy, RouteTableTreeBran
 }
 
 
-// Split a leaf, allowing space to insert one/two leaf entries at the specified position, returning the entry index of the first space, and providing the new context
+// Split a leaf, allowing space to insert an array at the specified position, returning the entry index of the first space, and providing the new context
 
-RouteTableTreeLeafProxy *treeProxySplitLeafInsertChildEntrySpace(RouteTableTreeProxy *treeProxy, RouteTableTreeBranchProxy *parentBranchProxy,
-		s16 childPosition, RouteTableTreeLeafProxy *childLeafProxy, s16 insertEntryPosition, s16 insertEntryCount,
-		RouteTableTreeBranchProxy **newParentBranchProxyPtr, s16 *newChildPositionPtr, RouteTableTreeLeafProxy **newChildLeafProxyPtr, s16 *newEntryPositionPtr)
+RouteTableTreeLeafProxy *treeProxySplitLeaf(RouteTableTreeProxy *treeProxy, RouteTableTreeBranchProxy *parentBranchProxy,
+		s16 childPosition, RouteTableTreeLeafProxy *childLeafProxy, s16 insertArrayIndex,
+		RouteTableTreeBranchProxy **updatedParentBranchProxyPtr, s16 *updatedChildPositionPtr, RouteTableTreeLeafProxy **updatedChildLeafProxyPtr, s16 *updatedArrayIndexPtr)
 {
 	//RouteTableTreeLeafProxy *oldLeaf=child;
-	RouteTableTreeLeafProxy *newLeafProxy=treeProxySplitLeaf(treeProxy, childLeafProxy, insertEntryPosition, insertEntryCount,  &childLeafProxy, &insertEntryPosition);
+	RouteTableTreeLeafProxy *newLeafProxy=treeProxySplitLeafContents(treeProxy, childLeafProxy, insertArrayIndex,  &childLeafProxy, &insertArrayIndex);
 
-	treeProxyInsertLeafChild(treeProxy, parentBranchProxy, newLeafProxy, childPosition+1, newParentBranchProxyPtr, newChildPositionPtr);
+	treeProxyInsertLeafChild(treeProxy, parentBranchProxy, newLeafProxy, childPosition+1, updatedParentBranchProxyPtr, updatedChildPositionPtr);
 
-	/*
-	LOG(LOG_INFO,"treeProxySplitLeafInsertChildEntrySpace: Old");
-	dumpLeafProxy(oldLeaf);
-
-	LOG(LOG_INFO,"treeProxySplitLeafInsertChildEntrySpace: New");
-	dumpLeafProxy(newLeaf);
-*/
 	//leafMakeEntryInsertSpace(childLeafProxy, insertEntryPosition, insertEntryCount);
-/*
-	LOG(LOG_INFO,"Post MakeEntryInsertSpace");
 
-	LOG(LOG_INFO,"treeProxySplitLeafInsertChildEntrySpace: Old");
-	dumpLeafProxy(oldLeaf);
-
-	LOG(LOG_INFO,"treeProxySplitLeafInsertChildEntrySpace: New");
-	dumpLeafProxy(newLeaf);
-
-	LOG(LOG_INFO,"treeProxySplitLeafInsertChildEntrySpace: Child with Space (%i)",insertEntryPosition);
-	dumpLeafProxy(child);
-*/
-	*newChildLeafProxyPtr=childLeafProxy;
-	*newEntryPositionPtr=insertEntryPosition;
+	*updatedChildLeafProxyPtr=childLeafProxy;
+	*updatedArrayIndexPtr=insertArrayIndex;
 
 	return newLeafProxy;
 }

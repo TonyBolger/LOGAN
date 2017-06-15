@@ -143,9 +143,9 @@ void flushRouteTableTreeLeafProxy(RouteTableTreeProxy *treeProxy, RouteTableTree
 }
 
 
-RouteTableTreeLeafProxy *allocRouteTableTreeLeafProxy(RouteTableTreeProxy *treeProxy, s32 upstreamOffsetAlloc, s32 downstreamOffsetAlloc)
+RouteTableTreeLeafProxy *allocRouteTableTreeLeafProxy(RouteTableTreeProxy *treeProxy, s32 upstreamOffsetAlloc, s32 downstreamOffsetAlloc, s32 entryArrayAlloc)
 {
-	RouteTableUnpackedSingleBlock *unpackedBlock=rtpAllocUnpackedSingleBlock(treeProxy->disp, upstreamOffsetAlloc, downstreamOffsetAlloc, ROUTEPACKING_ENTRYARRAYS_CHUNK);
+	RouteTableUnpackedSingleBlock *unpackedBlock=rtpAllocUnpackedSingleBlock(treeProxy->disp, upstreamOffsetAlloc, downstreamOffsetAlloc, entryArrayAlloc);
 
 	RouteTableTreeLeafProxy *proxy=dAlloc(treeProxy->disp, sizeof(RouteTableTreeLeafProxy));
 	s32 lindex=appendBlockArrayEntryProxy(&(treeProxy->leafArrayProxy), proxy, treeProxy->disp);

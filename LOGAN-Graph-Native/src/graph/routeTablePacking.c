@@ -3,7 +3,7 @@
 
 void rtpDumpUnpackedSingleBlock(RouteTableUnpackedSingleBlock *block)
 {
-	LOG(LOG_INFO,"Begin UnpackedSingleBlock");
+	LOG(LOG_INFO,"Begin UnpackedSingleBlock: %p",block);
 	// Skip packed stuff
 
 	LOG(LOG_INFO,"Upstream Offsets: %i",block->upstreamOffsetAlloc);
@@ -27,6 +27,41 @@ void rtpDumpUnpackedSingleBlock(RouteTableUnpackedSingleBlock *block)
 
 	LOG(LOG_INFO,"End UnpackedSingleBlock");
 }
+
+
+
+void rtpRecalculateUnpackedBlockOffsets(RouteTableUnpackedSingleBlock *unpackedBlock)
+{
+	LOG(LOG_INFO,"rtpRecalculateUnpackedBlockOffsets");
+
+	for(int i=0;i<unpackedBlock->upstreamOffsetAlloc;i++)
+		unpackedBlock->upstreamOffsets[i]=0;
+
+	for(int i=0;i<unpackedBlock->downstreamOffsetAlloc;i++)
+		unpackedBlock->downstreamOffsets[i]=0;
+
+	for(int i=0;i<unpackedBlock->entryArrayCount;i++)
+		{
+		RouteTableUnpackedEntryArray *array=unpackedBlock->entryArrays[i];
+
+		s32 upstreamTotal=0;
+		for(int j=0;j<array->entryCount;j++)
+			{
+			s32 width=array->entries[j].width;
+
+			unpackedBlock->downstreamOffsets[array->entries[j].downstream]+=width;
+			upstreamTotal+=width;
+			}
+
+		unpackedBlock->upstreamOffsets[array->upstream]+=upstreamTotal;
+		}
+
+
+
+}
+
+
+
 
 RouteTableUnpackedEntryArray *rtpInsertNewEntry(RouteTableUnpackedSingleBlock *unpackedBlock, s32 arrayIndex, s32 entryIndex, s32 downstream, s32 width)
 {
@@ -70,6 +105,55 @@ RouteTableUnpackedEntryArray *rtpInsertNewEntry(RouteTableUnpackedSingleBlock *u
 	return array;
 }
 
+
+
+RouteTableUnpackedEntryArray *rtpInsertNewDoubleEntry(RouteTableUnpackedSingleBlock *unpackedBlock, s32 arrayIndex, s32 entryIndex,
+		s32 downstream1, s32 width1, s32 downstream2, s32 width2)
+{
+	if(arrayIndex<0 || arrayIndex>unpackedBlock->entryArrayCount)
+		{
+		LOG(LOG_CRITICAL,"ArrayIndex invalid %i",arrayIndex);
+		}
+
+	RouteTableUnpackedEntryArray *array=unpackedBlock->entryArrays[arrayIndex];
+
+	if((array->entryCount+1)>=array->entryAlloc)
+		{
+		int newEntryAlloc=MIN(array->entryAlloc+ROUTEPACKING_ENTRYS_CHUNK, ROUTEPACKING_ENTRYS_MAX);
+
+		if(newEntryAlloc==array->entryAlloc)
+			LOG(LOG_CRITICAL,"EntryArray Cannot Resize: Already at Max");
+
+		RouteTableUnpackedEntryArray *newArray=dAlloc(unpackedBlock->disp, sizeof(RouteTableUnpackedEntryArray)+sizeof(RouteTableUnpackedEntry)*newEntryAlloc);
+
+		newArray->upstream=array->upstream;
+		newArray->entryAlloc=newEntryAlloc;
+		newArray->entryCount=array->entryCount;
+
+		memcpy(newArray->entries, array->entries, sizeof(RouteTableUnpackedEntry)*array->entryAlloc);
+
+		//LOG(LOG_INFO,"Resize array to %p",newArray);
+		unpackedBlock->entryArrays[arrayIndex]=newArray;
+		array=newArray;
+		}
+
+	if(entryIndex<array->entryCount)
+		{
+		int itemsToMove=array->entryCount-entryIndex;
+		memmove(&(array->entries[entryIndex+2]), &(array->entries[entryIndex]), sizeof(RouteTableUnpackedEntry)*itemsToMove);
+		}
+
+	array->entryCount+=2;
+	array->entries[entryIndex].downstream=downstream1;
+	array->entries[entryIndex].width=width1;
+	entryIndex++;
+	array->entries[entryIndex].downstream=downstream2;
+	array->entries[entryIndex].width=width2;
+
+	return array;
+}
+
+
 RouteTableUnpackedEntryArray *rtpInsertNewEntryArray(RouteTableUnpackedSingleBlock *unpackedBlock, s32 arrayIndex, s32 upstream, s32 entryAlloc)
 {
 	if(arrayIndex<0 || arrayIndex>unpackedBlock->entryArrayCount)
@@ -111,6 +195,9 @@ RouteTableUnpackedEntryArray *rtpInsertNewEntryArray(RouteTableUnpackedSingleBlo
 
 	return array;
 }
+
+
+
 
 RouteTableUnpackedSingleBlock *rtpAllocUnpackedSingleBlock(MemDispenser *disp, s32 upstreamOffsetAlloc, s32 downstreamOffsetAlloc, s32 entryArrayAlloc)
 {
