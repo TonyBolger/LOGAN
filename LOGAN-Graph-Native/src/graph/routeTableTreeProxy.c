@@ -383,7 +383,7 @@ static RouteTableTreeBranchProxy *treeProxySplitBranch(RouteTableTreeProxy *tree
 }
 
 
-
+// Should probably move the unpacked block splitting to routeTablePacking
 // Split a leaf, creating and returning a new sibling which _MUST_ be attached by the caller. Location of an existing entry is updated
 
 static RouteTableTreeLeafProxy *treeProxySplitLeafContents(RouteTableTreeProxy *treeProxy, RouteTableTreeLeafProxy *leafProxy, s16 leafArrayIndex,
@@ -394,9 +394,9 @@ static RouteTableTreeLeafProxy *treeProxySplitLeafContents(RouteTableTreeProxy *
 	s32 toKeepHalfArray=((1+oldBlock->entryArrayCount)/2);
 	s32 toMoveHalfArray=oldBlock->entryArrayCount-toKeepHalfArray;
 
-	s32 toMoveHalfEntryAlloc=toMoveHalfArray+ROUTEPACKING_ENTRYARRAYS_CHUNK;
+	s32 toMoveHalfArrayAlloc=toMoveHalfArray+ROUTEPACKING_ENTRYARRAYS_CHUNK;
 
-	RouteTableTreeLeafProxy *newLeafProxy=allocRouteTableTreeLeafProxy(treeProxy, oldBlock->upstreamOffsetAlloc, oldBlock->downstreamOffsetAlloc, toMoveHalfEntryAlloc);
+	RouteTableTreeLeafProxy *newLeafProxy=allocRouteTableTreeLeafProxy(treeProxy, oldBlock->upstreamOffsetAlloc, oldBlock->downstreamOffsetAlloc, toMoveHalfArrayAlloc);
 	RouteTableUnpackedSingleBlock *newBlock=newLeafProxy->unpackedBlock;
 
 	RouteTableUnpackedEntryArray **oldEntryArrayPtr=oldBlock->entryArrays;

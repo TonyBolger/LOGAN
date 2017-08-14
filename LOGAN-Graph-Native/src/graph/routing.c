@@ -965,37 +965,23 @@ s32 writeBuildersAsIndirectData_mergeTopArrayUpdates_leaf_accumulateSize(RouteTa
 
 	s32 totalSize=0;
 
-	//LOG(LOG_INFO,"New data Alloc %i",leafArrayProxy->newDataAlloc);
-
-	LOG(LOG_CRITICAL,"PackLeaf: writeBuildersAsIndirectData_mergeTopArrayUpdates_leaf_accumulateSize TODO");
-/*
 	for(int i=0;i<leafArrayProxy->newEntriesCount;i++)
 		{
-		int oldLeafSize=0;
+		RouteTableTreeLeafProxy *leafProxy=(RouteTableTreeLeafProxy *)leafArrayProxy->newEntries[i].proxy;
 
-		int subindex=leafArrayProxy->newEntries[i].index;
-		int headerSize=(subindex<ROUTE_TABLE_TREE_SHALLOW_DATA_ARRAY_ENTRIES)?rtGetIndexedBlockHeaderSize_1(indexSize):rtGetIndexedBlockHeaderSize_2(indexSize);
+		rtpUpdateUnpackedSingleBlockPackingInfo(leafProxy->unpackedBlock);
 
-		u8 *oldLeafRawData=getBlockArrayDataEntryRaw(leafArrayProxy, subindex);
+		RouteTablePackingInfo *packingInfo=&(leafProxy->unpackedBlock->packingInfo);
 
-		if(oldLeafRawData!=NULL)
+		if(packingInfo->packedSize!=packingInfo->oldPackedSize)
 			{
-			RouteTableTreeLeafBlock *oldLeafData=(RouteTableTreeLeafBlock *)(oldLeafRawData+headerSize);
-			oldLeafSize=getRouteTableTreeLeafSize_Existing(oldLeafData);
-			}
+			int subindex=leafArrayProxy->newEntries[i].index;
+			int headerSize=(subindex<ROUTE_TABLE_TREE_SHALLOW_DATA_ARRAY_ENTRIES)?rtGetIndexedBlockHeaderSize_1(indexSize):rtGetIndexedBlockHeaderSize_2(indexSize);
 
-		RouteTableTreeLeafProxy *newLeafProxy=(RouteTableTreeLeafProxy *)(leafArrayProxy->newEntries[i].proxy);
-		RouteTableTreeLeafBlock *newLeafData=newLeafProxy->dataBlock;
-
-		int newLeafSize=getRouteTableTreeLeafSize_Existing(newLeafData);
-
-		if(newLeafSize!=oldLeafSize)
-			{
-//			LOG(LOG_INFO,"Leaf size %i to %i",oldLeafSize,newLeafSize);
-			totalSize+=headerSize+newLeafSize;
+			totalSize+=headerSize+packingInfo->packedSize;
 			}
 		}
-*/
+
 	return totalSize;
 }
 

@@ -424,25 +424,6 @@ static void rttMergeRoutes_ordered_reverseSingle(RouteTableTreeWalker *walker, R
 }
 
 
-/*	LOG(LOG_INFO,"Entries: %i %i",forwardRoutePatchCount, reverseRoutePatchCount);
-
-	for(int i=0;i<forwardRoutePatchCount;i++)
-		{
-		LOG(LOG_INFO,"Fwd: P: %i S: %i pos %i %i",
-			forwardRoutePatches[i].prefixIndex,forwardRoutePatches[i].suffixIndex,
-			(*(forwardRoutePatches[i].rdiPtr))->minEdgePosition,
-			(*(forwardRoutePatches[i].rdiPtr))->maxEdgePosition);
-		}
-
-	for(int i=0;i<reverseRoutePatchCount;i++)
-		{
-		LOG(LOG_INFO,"Rev: P: %i S: %i pos %i %i",
-			reverseRoutePatches[i].prefixIndex,reverseRoutePatches[i].suffixIndex,
-			(*(reverseRoutePatches[i].rdiPtr))->minEdgePosition,
-			(*(reverseRoutePatches[i].rdiPtr))->maxEdgePosition);
-		}
-*/
-
 
 
 void rttMergeRoutes(RouteTableTreeBuilder *builder,

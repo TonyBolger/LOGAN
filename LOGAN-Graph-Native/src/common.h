@@ -79,6 +79,11 @@ typedef signed int s32;
 typedef unsigned long long u64;
 typedef signed long long s64;
 
+#define U8MAX 0xFF
+#define U16MAX 0xFFFF
+#define U24MAX 0xFFFFFF
+#define U32MAX 0xFFFFFFFF
+
 #ifndef SMER_BASES
   #define SMER_BASES 23
 //  #define SMER_BASES 21

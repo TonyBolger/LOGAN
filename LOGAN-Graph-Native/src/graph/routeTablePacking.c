@@ -197,6 +197,51 @@ RouteTableUnpackedEntryArray *rtpInsertNewEntryArray(RouteTableUnpackedSingleBlo
 }
 
 
+RouteTableUnpackedEntryArray *rtpSplitArray(RouteTableUnpackedSingleBlock *block, s16 arrayIndex, s16 entryIndex, s16 *updatedArrayIndexPtr, s16 *updatedEntryIndexPtr)
+{
+	LOG(LOG_INFO,"rtpSplitArray");
+
+	RouteTableUnpackedEntryArray *oldArray=block->entryArrays[arrayIndex];
+
+	s32 toKeepHalfEntry=((1+oldArray->entryCount)/2);
+	s32 toMoveHalfEntry=oldArray->entryCount-toKeepHalfEntry;
+
+	s32 toMoveHalfEntryAlloc=toMoveHalfEntry+ROUTEPACKING_ENTRYS_CHUNK;
+
+	RouteTableUnpackedEntryArray *newArray=rtpInsertNewEntryArray(block, arrayIndex+1, oldArray->upstream, toMoveHalfEntryAlloc);
+
+	memcpy(newArray->entries, oldArray->entries+toKeepHalfEntry, sizeof(RouteTableUnpackedEntry)*toMoveHalfEntry);
+
+	oldArray->entryCount=toKeepHalfEntry;
+	newArray->entryCount=toMoveHalfEntry;
+
+	for(int i=newArray->entryCount; i<newArray->entryAlloc; i++)
+		{
+		newArray->entries[i].downstream=-1;
+		newArray->entries[i].width=0;
+		}
+
+	for(int i=oldArray->entryCount; i<oldArray->entryAlloc; i++)
+		{
+		oldArray->entries[i].downstream=-1;
+		oldArray->entries[i].width=0;
+		}
+
+	if(entryIndex<toKeepHalfEntry)
+		{
+		*updatedArrayIndexPtr=arrayIndex;
+		*updatedEntryIndexPtr=entryIndex;
+		}
+	else
+		{
+		*updatedArrayIndexPtr=arrayIndex+1;
+		*updatedEntryIndexPtr=entryIndex-toKeepHalfEntry;
+		}
+
+	return newArray;
+
+}
+
 
 
 RouteTableUnpackedSingleBlock *rtpAllocUnpackedSingleBlock(MemDispenser *disp, s32 upstreamOffsetAlloc, s32 downstreamOffsetAlloc, s32 entryArrayAlloc)
@@ -205,11 +250,8 @@ RouteTableUnpackedSingleBlock *rtpAllocUnpackedSingleBlock(MemDispenser *disp, s
 
 	block->disp=disp;
 
-	block->packedDataSize=0;
-	block->packedUpstreamOffsetFirst=0;
-	block->packedUpstreamOffsetAlloc=0;
-	block->packedDownstreamOffsetFirst=0;
-	block->packedDownstreamOffsetAlloc=0;
+	memset(&(block->packingInfo),0,sizeof(RouteTablePackingInfo));
+
 
 	block->upstreamOffsetAlloc=upstreamOffsetAlloc;
 	block->upstreamOffsets=dAlloc(disp, sizeof(s32)* upstreamOffsetAlloc);
@@ -235,9 +277,126 @@ RouteTableUnpackedSingleBlock *rtpUnpackSingleBlock(RouteTablePackedSingleBlock 
 	return NULL;
 }
 
-void rtpUpdateUnpackedSingleBlockSize(RouteTableUnpackedSingleBlock *unpackedBlock)
+
+static void updatePackingInfoSizeAndHeader(RouteTablePackingInfo *packingInfo)
 {
-	LOG(LOG_CRITICAL,"PackLeaf: rtpUpdateUnpackedSingleBlockSize TODO");
+	int sizeUpstreamRange=packingInfo->packedUpstreamOffsetLast>U8MAX; 			// 0 = u8, 1 = u16
+	int sizeDownstreamRange=packingInfo->packedDownstreamOffsetLast>U8MAX; 		// 0 = u8, 1 = u16
+
+	int sizeOffset=0?0:(32-__builtin_clz(packingInfo->maxOffset))>>3;			// 0 = u8, 1 = u16, 2 = u24, 3 = u32
+
+	int sizeArrayCount=packingInfo->arrayCount>U8MAX;							// 0 = u8, 1 = u16
+
+	int sizeEntryCount=0?0:(32-__builtin_clz(packingInfo->maxEntryCount))>>2;	// 0 = u4, 7 = u32
+
+	int sizeWidth=0?0:(32-__builtin_clz(packingInfo->maxEntryCount));			// 0 = u1, 31 = u32
+
+
+	int packedBytes=1+																							// Minimum 1 byte for packedSize
+		2+(sizeUpstreamRange<<1)+																				// 2 or 4 bytes for UpstreamRange
+		2+(sizeDownstreamRange<<1)+ 																			// 2 or 4 bytes for DownstreamRange
+		((sizeOffset+1)*(packingInfo->packedUpstreamOffsetAlloc+packingInfo->packedDownstreamOffsetAlloc))+		// 1 - 4 bytes for each offset index
+		1+sizeArrayCount;																						// 1 or 2 bytes for ArrayCount
+
+	int arrayBits=
+		(packingInfo->arrayCount*((sizeUpstreamRange<<3)+(sizeEntryCount<<2)+12))+ // 8 or 16 per upstream, plus 4-32 bits per entryCount
+		(packingInfo->entryCount*((sizeDownstreamRange<<3)+sizeWidth+9));		   // 8 or 16 per downstream, plus 1-32 bits per width
+
+	packedBytes+=PAD_1BITLENGTH_BYTE(arrayBits);
+
+	int sizePacked=0;
+
+	if(packedBytes>255)
+		{
+		packedBytes++;
+		sizePacked=1;
+		}
+
+	packingInfo->packedSize=packedBytes;
+
+	packingInfo->blockHeader=
+			(sizeWidth)|				// 0-4
+			(sizeEntryCount<<5)|		// 5-7
+			(sizeArrayCount<<8)|		// 8
+			(sizeOffset<<9)|			// 9-10
+			(sizeDownstreamRange<<11)| 	// 11
+			(sizeUpstreamRange<<12)|	// 12
+			(sizePacked<<13);			// 13
+
+
+}
+
+void rtpUpdateUnpackedSingleBlockPackingInfo(RouteTableUnpackedSingleBlock *block)
+{
+	s32 firstUpstream=INT32_MAX/2;
+	s32 lastUpstream=0;
+
+	s32 firstDownstream=INT32_MAX/2;
+	s32 lastDownstream=0;
+
+	s32 maxOffset=0;
+
+	for(int i=0;i<block->upstreamOffsetAlloc;i++)
+		{
+		s32 offset=block->upstreamOffsets[i];
+
+		if(offset)
+			{
+			firstUpstream=MIN(firstUpstream, i);
+			lastUpstream=MAX(lastUpstream, i);
+			maxOffset=MAX(maxOffset,offset);
+			}
+		}
+
+	for(int i=0;i<block->downstreamOffsetAlloc;i++)
+		{
+		s32 offset=block->downstreamOffsets[i];
+
+		if(offset)
+			{
+			firstDownstream=MIN(firstDownstream, i);
+			lastDownstream=MAX(lastDownstream, i);
+			maxOffset=MAX(maxOffset,offset);
+			}
+		}
+
+	s32 maxEntryCount=0;
+	s32 maxEntryWidth=0;
+
+	s32 arrayCount=block->entryArrayCount;
+	s32 entryCount=0;
+
+	for(int i=0;i<arrayCount;i++)
+		{
+		RouteTableUnpackedEntryArray *array=block->entryArrays[i];
+
+		entryCount+=array->entryCount;
+		maxEntryCount=MAX(maxEntryCount, array->entryCount);
+
+		for(int j=0;j<array->entryCount;j++)
+			maxEntryWidth=MAX(maxEntryWidth, array->entries[j].width);
+		}
+
+	RouteTablePackingInfo *packingInfo=&(block->packingInfo);
+	packingInfo->packedUpstreamOffsetFirst=firstUpstream;
+	packingInfo->packedUpstreamOffsetLast=lastUpstream;
+	packingInfo->packedUpstreamOffsetAlloc=firstUpstream<=lastUpstream?1+lastUpstream-firstUpstream:0;
+
+	packingInfo->packedDownstreamOffsetFirst=firstDownstream;
+	packingInfo->packedDownstreamOffsetLast=lastDownstream;
+	packingInfo->packedDownstreamOffsetAlloc=firstDownstream<=lastDownstream?1+lastDownstream-firstDownstream:0;
+
+	packingInfo->maxOffset=maxOffset;
+
+	packingInfo->arrayCount=arrayCount;
+	packingInfo->entryCount=entryCount;
+
+	packingInfo->maxEntryCount=maxEntryCount;
+	packingInfo->maxEntryWidth=maxEntryWidth;
+
+	updatePackingInfoSizeAndHeader(packingInfo);
+
+	LOG(LOG_CRITICAL,"PackLeaf: rtpUpdateUnpackedSingleBlockSize Size: %i",packingInfo->packedSize);
 }
 
 void rtpPackSingleBlock(RouteTableUnpackedSingleBlock *unpackedBlock, RouteTablePackedSingleBlock *packedBlock)

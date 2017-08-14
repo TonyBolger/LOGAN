@@ -2,6 +2,73 @@
 #define __ROUTE_TABLE_PACKING_H
 
 
+// Represents packed form of a leaf or whole routing table.
+typedef struct routeTablePackedSingleBlockStr
+{
+	//SPARE 					2
+
+	//packedSize(8/16 bit)     1
+	//upstreamRange(8/16 bit)  1
+	//downstreamRange(8/16 bit) 1
+	//offsetSize(8/16/24/32 bit) 2
+	//arrayCountSize(8/16 bit) 1
+
+	//entryCountSize(4-32 bit) 3
+	//widthSize(1-32 bit) 5
+
+	u16 blockHeader; // Indicate size for packedSize, upstream Counts, downstream Counts, offsets, entry count and entry widths
+	u8 data[];	//packedSize, s32 upstream offsets, downstream offsets, packed entries(entry count, (downstream, width));
+
+//	packedSize dataSize;
+
+//  Range of upstream, used to avoid many zero entries in offset array by head/tail trimming. Size determined by max upstream
+//	upstreamRange upstreamFirst;
+//	upstreamRange upstreamAlloc;
+
+//  Range of downstream, used to avoid many zero entries in offset array by head/tail trimming. Size determined by max downstream
+//	downstreamRange downstreamFirst;
+//	downstreamRange downstreamAlloc;
+
+// 	Offset Indexes: Summarises the total width of routes for each upstream/downstream within the ranges. Size determined by max offset
+//  offsetSize upstreamOffsets[upstreamAlloc]
+//  offsetSize downstreamOffsets[downstreamAlloc]
+
+//  Route entries array, each entry uses a common upstream and an array of downstream/width pairs. Sizes determined by array count, max array entries and max width
+//  arrayCountSize: arrayCount;
+//  EntryArray: upstream, entryCountSize: entryCount, (downstream, width)
+
+} __attribute__((packed)) RouteTablePackedSingleBlock;
+
+
+// Represents the
+
+typedef struct routeTablePackingInfoStr
+{
+	s32 oldPackedSize;
+
+	s32 packedSize;
+
+	s32 packedUpstreamOffsetFirst;
+	s32 packedUpstreamOffsetLast;
+	s32 packedUpstreamOffsetAlloc;
+
+	s32 packedDownstreamOffsetFirst;
+	s32 packedDownstreamOffsetLast;
+	s32 packedDownstreamOffsetAlloc;
+
+	s32 maxOffset;
+
+	s32 arrayCount;
+	s32 entryCount;
+
+	s32 maxEntryCount;
+	s32 maxEntryWidth;
+
+	u16 blockHeader;
+} RouteTablePackingInfo;
+
+
+
 // Represents a single entry (downstream, width) in an array (which defines the upstream)
 typedef struct routeTableUnpackedEntryStr
 {
@@ -24,11 +91,7 @@ typedef struct routeTableUnpackedSingleBlockStr
 {
 	MemDispenser *disp;
 
-	s32 packedDataSize;
-	s32 packedUpstreamOffsetFirst;
-	s32 packedUpstreamOffsetAlloc;
-	s32 packedDownstreamOffsetFirst;
-	s32 packedDownstreamOffsetAlloc;
+	RouteTablePackingInfo packingInfo;
 
 	s32 upstreamOffsetAlloc;
 	s32 downstreamOffsetAlloc;
@@ -42,35 +105,12 @@ typedef struct routeTableUnpackedSingleBlockStr
 } RouteTableUnpackedSingleBlock;
 
 #define ROUTEPACKING_ENTRYARRAYS_CHUNK 4
-#define ROUTEPACKING_ENTRYARRAYS_MAX 16
+//#define ROUTEPACKING_ENTRYARRAYS_MAX 16
+#define ROUTEPACKING_ENTRYARRAYS_MAX 64
 
 #define ROUTEPACKING_ENTRYS_CHUNK 8
-#define ROUTEPACKING_ENTRYS_MAX 1024
-
-
-// Represents packed form of a leaf or whole routing table.
-typedef struct routeTablePackedSingleBlockStr
-{
-	//packedSize(8/16 bit)     1
-	//upstreamRange(8/16 bit)  1
-	//downstreamRange(8/16 bit) 1
-	//offsetSize(8/16/24/32 bit) 2
-	//entryCountSize(4-32 bit) 3
-	//widthSize(1-32 bit) 5
-
-	u16 blockHeader; // Indicate size for packedSize, upstream Counts, downstream Counts, offsets, entry count and entry widths
-	u8 data[];	//packedSize, s32 upstream offsets, downstream offsets, packed entries(entry count, (downstream, width));
-
-//	packedSize dataSize;
-//	upstreamRange upstreamFirst;
-//	upstreamRange upstreamAlloc;
-//	downstreamRange downstreamFirst;
-//	downstreamRange downstreamAlloc;
-//  offsetSize upstreamOffsets[upstreamAlloc]
-//  offsetSize downstreamOffsets[downstreamAlloc]
-//  EntryArray: upstream, entryCount (downstream, width)
-
-} __attribute__((packed)) RouteTablePackedSingleBlock;
+//#define ROUTEPACKING_ENTRYS_MAX 1024
+#define ROUTEPACKING_ENTRYS_MAX 16
 
 
 void rtpDumpUnpackedSingleBlock(RouteTableUnpackedSingleBlock *block);
@@ -86,12 +126,15 @@ RouteTableUnpackedEntryArray *rtpInsertNewDoubleEntry(RouteTableUnpackedSingleBl
 // Insert new array (upstream) into a specified position in the block
 RouteTableUnpackedEntryArray *rtpInsertNewEntryArray(RouteTableUnpackedSingleBlock *unpackedBlock, s32 arrayIndex, s32 upstream, s32 entryAlloc);
 
+// Split an existing array
+RouteTableUnpackedEntryArray *rtpSplitArray(RouteTableUnpackedSingleBlock *block, s16 arrayIndex, s16 entryIndex, s16 *updatedArrayIndexPtr, s16 *updatedEntryIndexPtr);
+
 // Allocate a new (empty) unpackedBlock
 RouteTableUnpackedSingleBlock *rtpAllocUnpackedSingleBlock(MemDispenser *disp, s32 upstreamOffsetAlloc, s32 downstreamOffsetAlloc, s32 entryArrayAlloc);
+
 RouteTableUnpackedSingleBlock *rtpUnpackSingleBlock(RouteTablePackedSingleBlock *packedBlock, MemDispenser *disp);
 
-
-void rtpUpdateUnpackedSingleBlockSize(RouteTableUnpackedSingleBlock *unpackedBlock);
+void rtpUpdateUnpackedSingleBlockPackingInfo(RouteTableUnpackedSingleBlock *unpackedBlock);
 
 void rtpPackSingleBlock(RouteTableUnpackedSingleBlock *unpackedBlock, RouteTablePackedSingleBlock *packedBlock);
 
