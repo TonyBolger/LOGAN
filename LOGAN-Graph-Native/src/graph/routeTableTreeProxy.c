@@ -176,6 +176,8 @@ void treeProxySeekEnd(RouteTableTreeProxy *treeProxy, RouteTableTreeBranchProxy 
 
 	s16 childNindex=0;
 
+	LOG(LOG_INFO,"Seek end: Root contains %i",branchProxy->childCount);
+
 	while(branchProxy->childCount>0 && childNindex>=0)
 		{
 		childNindex=branchProxy->dataBlock->childNindex[branchProxy->childCount-1];

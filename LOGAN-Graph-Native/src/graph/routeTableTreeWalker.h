@@ -32,6 +32,8 @@ void initTreeWalker(RouteTableTreeWalker *walker, RouteTableTreeProxy *treeProxy
 
 void dumpWalker(RouteTableTreeWalker *walker);
 
+void walkerAppendNewLeaf(RouteTableTreeWalker *walker);
+
 void walkerSeekStart(RouteTableTreeWalker *walker);
 void walkerSeekEnd(RouteTableTreeWalker *walker);
 
@@ -51,7 +53,6 @@ void walkerMergeRoutes_insertEntry(RouteTableTreeWalker *walker, s32 upstream, s
 void walkerMergeRoutes_widen(RouteTableTreeWalker *walker);
 void walkerMergeRoutes_split(RouteTableTreeWalker *walker, s32 downstream, s32 width1, s32 width2);
 
-void walkerAppendNewLeaf(RouteTableTreeWalker *walker, s16 upstream);
 void walkerAppendPreorderedEntry(RouteTableTreeWalker *walker, RouteTableEntry *entry, int routingTable);
 void walkerAppendPreorderedEntries(RouteTableTreeWalker *walker, RouteTableEntry *entries, u32 entryCount, int routingTable);
 

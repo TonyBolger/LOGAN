@@ -59,7 +59,7 @@ typedef struct routeTablePackingInfoStr
 	s32 maxOffset;
 
 	s32 arrayCount;
-	s32 entryCount;
+	s32 totalEntryCount;
 
 	s32 maxEntryCount;
 	s32 maxEntryWidth;

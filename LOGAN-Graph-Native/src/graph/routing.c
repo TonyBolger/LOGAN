@@ -260,7 +260,7 @@ static int considerUpgradingToTree(RoutingComboBuilder *builder, int newForwardR
 		return 0;
 
 	int existingRoutes=(builder->arrayBuilder->oldForwardEntryCount)+(builder->arrayBuilder->oldReverseEntryCount);
-	int totalRoutes=existingRoutes+newForwardRoutes+newReverseRoutes;
+	int totalRoutes=existingRoutes;//+newForwardRoutes+newReverseRoutes; // Can't tell if new routes are separate entries
 
 	return totalRoutes>ROUTING_TREE_THRESHOLD;
 }
@@ -994,7 +994,7 @@ void writeBuildersAsIndirectData_mergeTopArrayUpdates_leaf(RouteTableTreeArrayPr
 
 	u8 *endNewData=newData+newDataSize;
 
-	LOG(LOG_CRITICAL,"PackLeaf: writeBuildersAsIndirectData_mergeTopArrayUpdates_leaf TODO");
+	//LOG(LOG_CRITICAL,"PackLeaf: writeBuildersAsIndirectData_mergeTopArrayUpdates_leaf TODO");
 
 	//if(arrayProxy->dataBlock->dataAlloc==0)
 		//{
@@ -1004,31 +1004,25 @@ void writeBuildersAsIndirectData_mergeTopArrayUpdates_leaf(RouteTableTreeArrayPr
 //		arrayProxy->dataBlock->dataAlloc=arrayProxy->newDataAlloc;
 
 		//}
-/*
+
 	for(int i=0;i<leafArrayProxy->newEntriesCount;i++)
 		{
-		RouteTableTreeLeafBlock *oldLeafData=NULL;
-		int oldLeafSize=0;
-
 		int subindex=leafArrayProxy->newEntries[i].index;
 		int headerSize=(subindex<ROUTE_TABLE_TREE_SHALLOW_DATA_ARRAY_ENTRIES)?rtGetIndexedBlockHeaderSize_1(indexSize):rtGetIndexedBlockHeaderSize_2(indexSize);
 
-		u8 *oldLeafRawData=getBlockArrayDataEntryRaw(leafArrayProxy, subindex);
-
-		if(oldLeafRawData!=NULL)
-			{
-			oldLeafData=(RouteTableTreeLeafBlock *)(oldLeafRawData+headerSize);
-			oldLeafSize=getRouteTableTreeLeafSize_Existing(oldLeafData);
-			}
-
 		RouteTableTreeLeafProxy *newLeafProxy=(RouteTableTreeLeafProxy *)(leafArrayProxy->newEntries[i].proxy);
-		RouteTableTreeLeafBlock *newLeafData=newLeafProxy->dataBlock;
 
-		int newLeafSize=getRouteTableTreeLeafSize_Existing(newLeafData);
+		RouteTablePackingInfo *packingInfo=&(newLeafProxy->unpackedBlock->packingInfo);
+		int oldPackedSize=packingInfo->oldPackedSize+headerSize;
+		int newPackedSize=packingInfo->packedSize+headerSize;
 
-		if(newLeafSize!=oldLeafSize)
+		//LOG(LOG_CRITICAL,"PackLeaf: writeBuildersAsIndirectData_mergeTopArrayUpdates_leaf Header: %i Old: %i New: %i",headerSize, oldPackedSize, newPackdeSize);
+		
+		if(newPackedSize!=oldPackedSize)
 			{
 //			LOG(LOG_INFO,"Leaf Move/Expand write to %p from %p (%i %i)",newData, oldLeafRawData, newLeafSize, oldLeafSize);
+
+			u8 *oldLeafRawData=getBlockArrayDataEntryRaw(leafArrayProxy, subindex);
 
 			setBlockArrayDataEntryRaw(leafArrayProxy, subindex, newData);
 
@@ -1036,28 +1030,26 @@ void writeBuildersAsIndirectData_mergeTopArrayUpdates_leaf(RouteTableTreeArrayPr
 					rtEncodeEntityBlockHeader_Leaf1(arrayNum==ROUTE_TOPINDEX_REVERSE_LEAF_ARRAY_0, indexSize, sliceIndex, subindex>>ROUTE_TABLE_TREE_DATA_ARRAY_SUBINDEX_SHIFT, newData):
 					rtEncodeEntityBlockHeader_Leaf2(arrayNum==ROUTE_TOPINDEX_REVERSE_LEAF_ARRAY_0, indexSize, sliceIndex, subindex>>ROUTE_TABLE_TREE_DATA_ARRAY_SUBINDEX_SHIFT, newData);
 
-
 			if(newHeaderSize!=headerSize)
 				{
 				LOG(LOG_CRITICAL,"Header size mismatch %i vs %i",headerSize, newHeaderSize);
 				}
 
 			newData+=headerSize;
+			
+			LOG(LOG_CRITICAL,"Leaf write to %p (%i %i)",newData,  newPackedSize, oldPackedSize);
 
-			s32 dataSize=getRouteTableTreeLeafSize_Existing(newLeafData);
-			memcpy(newData, newLeafData, dataSize);
-			newData+=dataSize;
+			newData+=newDataSize;
 
 			rtHeaderMarkDead(oldLeafRawData);
 			}
 		else
 			{
-//			LOG(LOG_INFO,"Leaf rewrite to %p (%i %i)",leafArrayProxy->dataBlock->data[index],  newLeafSize, oldLeafSize);
-
-			memcpy(leafArrayProxy->dataBlock->data[subindex]+headerSize, newLeafData, newLeafSize);
+			LOG(LOG_CRITICAL,"Leaf rewrite to %p (%i %i)",newData,  newPackedSize, oldPackedSize);
 			}
+
 		}
-*/
+
 	if(endNewData!=newData)
 		LOG(LOG_CRITICAL,"New Leaf Data doesn't match expected: New: %p vs Expected: %p",newData,endNewData);
 

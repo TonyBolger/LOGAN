@@ -283,14 +283,20 @@ static void updatePackingInfoSizeAndHeader(RouteTablePackingInfo *packingInfo)
 	int sizeUpstreamRange=packingInfo->packedUpstreamOffsetLast>U8MAX; 			// 0 = u8, 1 = u16
 	int sizeDownstreamRange=packingInfo->packedDownstreamOffsetLast>U8MAX; 		// 0 = u8, 1 = u16
 
-	int sizeOffset=0?0:(32-__builtin_clz(packingInfo->maxOffset))>>3;			// 0 = u8, 1 = u16, 2 = u24, 3 = u32
+	int sizeOffset=0?0:(31-__builtin_clz(packingInfo->maxOffset))>>3;			// 0 = u8, 1 = u16, 2 = u24, 3 = u32
+																				// leading 0s: 31 -> 0 -> 0
+																				// leading 0s: 24 -> 7 -> 0
+																				// leading 0s: 23 -> 8 -> 1
+																				// leading 0s: 16 -> 15 -> 1
+																				// leading 0s: 15 -> 16 -> 2
+																				// leading 0s: 8 -> 23 -> 2
+																				// leading 0s: 7 -> 24 -> 3
 
 	int sizeArrayCount=packingInfo->arrayCount>U8MAX;							// 0 = u8, 1 = u16
 
-	int sizeEntryCount=0?0:(32-__builtin_clz(packingInfo->maxEntryCount))>>2;	// 0 = u4, 7 = u32
+	int sizeEntryCount=0?0:(31-__builtin_clz(packingInfo->maxEntryCount))>>2;	// 0 = u4, 7 = u32
 
-	int sizeWidth=0?0:(32-__builtin_clz(packingInfo->maxEntryCount));			// 0 = u1, 31 = u32
-
+	int sizeWidth=0?0:(31-__builtin_clz(packingInfo->maxEntryWidth));			// 0 = u1, 31 = u32
 
 	int packedBytes=1+																							// Minimum 1 byte for packedSize
 		2+(sizeUpstreamRange<<1)+																				// 2 or 4 bytes for UpstreamRange
@@ -300,7 +306,7 @@ static void updatePackingInfoSizeAndHeader(RouteTablePackingInfo *packingInfo)
 
 	int arrayBits=
 		(packingInfo->arrayCount*((sizeUpstreamRange<<3)+(sizeEntryCount<<2)+12))+ // 8 or 16 per upstream, plus 4-32 bits per entryCount
-		(packingInfo->entryCount*((sizeDownstreamRange<<3)+sizeWidth+9));		   // 8 or 16 per downstream, plus 1-32 bits per width
+		(packingInfo->totalEntryCount*((sizeDownstreamRange<<3)+sizeWidth+9));		   // 8 or 16 per downstream, plus 1-32 bits per width
 
 	packedBytes+=PAD_1BITLENGTH_BYTE(arrayBits);
 
@@ -323,7 +329,12 @@ static void updatePackingInfoSizeAndHeader(RouteTablePackingInfo *packingInfo)
 			(sizeUpstreamRange<<12)|	// 12
 			(sizePacked<<13);			// 13
 
+	LOG(LOG_INFO,"PackedSizes: Pack %i: Up: %i Down: %i Offset: %i Array: %i Entry: %i Width: %i",
+			packedBytes, packingInfo->packedUpstreamOffsetLast, packingInfo->packedDownstreamOffsetLast,
+			packingInfo->maxOffset, packingInfo->arrayCount, packingInfo->maxEntryCount, packingInfo->maxEntryWidth);
 
+	LOG(LOG_INFO,"PackedHeaderSizes: Pack(1x8): %i Up(1x8): %i Down(1x8): %i Offset(2x8): %i Array(1x8): %i Entry(3x4): %i Width(5x1): %i",
+			sizePacked, sizeUpstreamRange, sizeDownstreamRange, sizeOffset, sizeArrayCount, sizeEntryCount, sizeWidth);
 }
 
 void rtpUpdateUnpackedSingleBlockPackingInfo(RouteTableUnpackedSingleBlock *block)
@@ -364,13 +375,13 @@ void rtpUpdateUnpackedSingleBlockPackingInfo(RouteTableUnpackedSingleBlock *bloc
 	s32 maxEntryWidth=0;
 
 	s32 arrayCount=block->entryArrayCount;
-	s32 entryCount=0;
+	s32 totalEntryCount=0;
 
 	for(int i=0;i<arrayCount;i++)
 		{
 		RouteTableUnpackedEntryArray *array=block->entryArrays[i];
 
-		entryCount+=array->entryCount;
+		totalEntryCount+=array->entryCount;
 		maxEntryCount=MAX(maxEntryCount, array->entryCount);
 
 		for(int j=0;j<array->entryCount;j++)
@@ -389,14 +400,14 @@ void rtpUpdateUnpackedSingleBlockPackingInfo(RouteTableUnpackedSingleBlock *bloc
 	packingInfo->maxOffset=maxOffset;
 
 	packingInfo->arrayCount=arrayCount;
-	packingInfo->entryCount=entryCount;
+	packingInfo->totalEntryCount=totalEntryCount;
 
 	packingInfo->maxEntryCount=maxEntryCount;
 	packingInfo->maxEntryWidth=maxEntryWidth;
 
 	updatePackingInfoSizeAndHeader(packingInfo);
 
-	LOG(LOG_CRITICAL,"PackLeaf: rtpUpdateUnpackedSingleBlockSize Size: %i",packingInfo->packedSize);
+	LOG(LOG_INFO,"PackLeaf: rtpUpdateUnpackedSingleBlockSize Size: %i",packingInfo->packedSize);
 }
 
 void rtpPackSingleBlock(RouteTableUnpackedSingleBlock *unpackedBlock, RouteTablePackedSingleBlock *packedBlock)

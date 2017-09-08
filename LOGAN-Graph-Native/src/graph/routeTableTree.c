@@ -78,7 +78,7 @@ void rttUpgradeToRouteTableTreeBuilder(RouteTableArrayBuilder *arrayBuilder,  Ro
 //	LOG(LOG_INFO,"Adding %i reverse entries to tree",arrayBuilder->oldReverseEntryCount);
 	walkerAppendPreorderedEntries(&(treeBuilder->reverseWalker), arrayBuilder->oldReverseEntries, arrayBuilder->oldReverseEntryCount, ROUTING_TABLE_REVERSE);
 
-//	LOG(LOG_INFO,"Upgrade completed");
+	LOG(LOG_INFO,"Upgrade completed F: %i R: %i",arrayBuilder->oldForwardEntryCount,arrayBuilder->oldReverseEntryCount);
 
 	treeBuilder->newEntryCount=arrayBuilder->oldForwardEntryCount+arrayBuilder->oldReverseEntryCount;
 

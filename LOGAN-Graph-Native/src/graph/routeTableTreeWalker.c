@@ -81,6 +81,21 @@ void dumpWalker(RouteTableTreeWalker *walker)
 	*/
 }
 
+void walkerAppendNewLeaf(RouteTableTreeWalker *walker)
+{
+	if(walker->branchProxy==NULL)
+		LOG(LOG_CRITICAL,"Not on a valid branch");
+
+	walker->leafProxy=allocRouteTableTreeLeafProxy(walker->treeProxy, walker->treeProxy->upstreamCount, walker->treeProxy->downstreamCount, ROUTEPACKING_ENTRYARRAYS_CHUNK);
+	s16 childPositionPtr;
+	treeProxyAppendLeafChild(walker->treeProxy, walker->branchProxy, walker->leafProxy, &walker->branchProxy, &childPositionPtr);
+
+	walker->leafArrayIndex=-1;
+	walker->leafEntryIndex=-1;
+}
+
+
+
 
 void walkerSeekStart(RouteTableTreeWalker *walker)
 {
@@ -103,8 +118,7 @@ void walkerSeekStart(RouteTableTreeWalker *walker)
 		}
 	else
 		{
-		walker->leafArrayIndex=-1;
-		walker->leafEntryIndex=-1;
+		walkerAppendNewLeaf(walker);
 		}
 
 }
@@ -361,16 +375,35 @@ s32 walkerAdvanceToUpstreamThenOffsetThenDownstream(RouteTableTreeWalker *walker
 	if(leafProxy==NULL) // Already past end, fail
 		{
 		LOG(LOG_INFO,"Null proxy");
+		return 0;
+		}
+
+	LOG(LOG_INFO,"Check for empty leaf");
+	if(leafProxy->unpackedBlock->entryArrayCount==0) // At empty leaf - may be more robust if after leaf selection
+		{
+		LOG(LOG_INFO,"Found empty leaf");
+
+		walker->leafArrayIndex=0;
+		walker->leafEntryIndex=-1;
+
+		*entryPtr=NULL;
+		*upstreamPtr=-1;
+
+		*upstreamOffsetPtr=0;
+		*downstreamOffsetPtr=walker->downstreamLeafOffsets[targetDownstream];
+
+		LOG(LOG_INFO,"Done, at empty leaf");
 
 		return 0;
 		}
 
+	LOG(LOG_INFO,"Non empty leaf");
 
 	LOG(LOG_INFO,"Advancing to U %i D %i Offset (%i %i)",targetUpstream,targetDownstream,targetMinOffset,targetMaxOffset);
-	dumpLeafProxy(leafProxy);
+//	dumpLeafProxy(leafProxy);
 
 	s32 arrayIndex=leafProxy->unpackedBlock->entryArrayCount-1;
-	s32 upstream=leafProxy->unpackedBlock->entryArrays[arrayIndex]->upstream;
+	s32 upstream=(arrayIndex>=0)?leafProxy->unpackedBlock->entryArrays[arrayIndex]->upstream:-1;
 
 	LOG(LOG_INFO,"About to move leaf (upstream) %i want %i",upstream,targetUpstream);
 
@@ -401,7 +434,7 @@ s32 walkerAdvanceToUpstreamThenOffsetThenDownstream(RouteTableTreeWalker *walker
 		walker->branchChildSibdex=branchChildSibdex;
 		walker->leafProxy=leafProxy;
 
-		dumpLeafProxy(leafProxy);
+//		dumpLeafProxy(leafProxy);
 
 		arrayIndex=leafProxy->unpackedBlock->entryArrayCount-1;
 		upstream=leafProxy->unpackedBlock->entryArrays[arrayIndex]->upstream;
@@ -420,7 +453,6 @@ s32 walkerAdvanceToUpstreamThenOffsetThenDownstream(RouteTableTreeWalker *walker
 	LOG(LOG_INFO,"Array Index %ip",arrayIndex);
 
 	RouteTableUnpackedSingleBlock *block=leafProxy->unpackedBlock;
-
 	upstream=block->entryArrays[arrayIndex]->upstream;
 
 	LOG(LOG_INFO,"About to move array (upstream) %i want %i",upstream,targetUpstream);
@@ -658,9 +690,16 @@ void walkerMergeRoutes_insertEntry(RouteTableTreeWalker *walker, s32 upstream, s
 		{
 		block=walker->leafProxy->unpackedBlock;
 
+
 		if(walker->leafArrayIndex>=block->entryArrayCount)
 			{
-			LOG(LOG_CRITICAL,"ArrayAppend: TODO");
+			if(ensureSpaceForArray(walker))
+				block=walker->leafProxy->unpackedBlock;
+
+			rtpInsertNewEntryArray(block, walker->leafArrayIndex, upstream, ROUTEPACKING_ENTRYS_CHUNK);
+			walker->leafEntryIndex=0;
+
+			LOG(LOG_INFO,"ArrayAppend: %i %i TODO",walker->leafArrayIndex,block->entryArrayCount);
 			}
 		else
 			{
@@ -767,47 +806,6 @@ void walkerMergeRoutes_split(RouteTableTreeWalker *walker, s32 downstream, s32 w
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-void walkerAppendNewLeaf(RouteTableTreeWalker *walker, s16 upstream)
-{
-	LOG(LOG_CRITICAL,"PackLeaf: walkerAppendNewLeaf TODO");
-
-	/*
-	//LOG(LOG_INFO,"WalkerAppendLeaf - new leaf with");
-	RouteTableTreeLeafProxy *leafProxy=allocRouteTableTreeLeafProxy(walker->treeProxy, walker->downstreamOffsetCount, ROUTE_TABLE_TREE_LEAF_ENTRIES_CHUNK);
-
-	treeProxyAppendLeafChild(walker->treeProxy, walker->branchProxy, leafProxy, &walker->branchProxy, &walker->branchChildSibdex);
-	leafProxy->dataBlock->upstream=upstream;
-	leafProxy->dataBlock->upstreamOffset=0;
-
-	walker->leafProxy=leafProxy;
-	walker->leafEntry=leafProxy->entryCount;
-	*/
-}
-
-
 void walkerAppendPreorderedEntry(RouteTableTreeWalker *walker, RouteTableEntry *entry, int routingTable)
 {
 	s32 upstream=routingTable==ROUTING_TABLE_FORWARD?entry->prefix:entry->suffix;
@@ -833,17 +831,7 @@ void walkerAppendPreorderedEntry(RouteTableTreeWalker *walker, RouteTableEntry *
 		}
 
 	if(walker->leafProxy==NULL)
-		{
-		if(walker->branchProxy==NULL)
-			LOG(LOG_CRITICAL,"Not on a valid branch");
-
-		walker->leafProxy=allocRouteTableTreeLeafProxy(walker->treeProxy, walker->treeProxy->upstreamCount, walker->treeProxy->downstreamCount, ROUTEPACKING_ENTRYARRAYS_CHUNK);
-		s16 childPositionPtr;
-		treeProxyAppendLeafChild(walker->treeProxy, walker->branchProxy, walker->leafProxy, &walker->branchProxy, &childPositionPtr);
-
-		walker->leafArrayIndex=-1;
-		walker->leafEntryIndex=-1;
-		}
+		walkerAppendNewLeaf(walker);
 
 	RouteTableTreeLeafProxy *leafProxy=walker->leafProxy;
 	RouteTableUnpackedSingleBlock *block=leafProxy->unpackedBlock;
