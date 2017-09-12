@@ -450,7 +450,7 @@ s32 walkerAdvanceToUpstreamThenOffsetThenDownstream(RouteTableTreeWalker *walker
 		LOG(LOG_CRITICAL,"Empty leaf");
 
 	arrayIndex=0;
-	LOG(LOG_INFO,"Array Index %ip",arrayIndex);
+	LOG(LOG_INFO,"Array Index %i",arrayIndex);
 
 	RouteTableUnpackedSingleBlock *block=leafProxy->unpackedBlock;
 	upstream=block->entryArrays[arrayIndex]->upstream;

@@ -2,12 +2,39 @@
 #define __ROUTE_TABLE_PACKING_H
 
 
+#define RTP_PACKEDHEADER_PAYLOADSIZE_SHIFT 13
+#define RTP_PACKEDHEADER_PAYLOADSIZE_MASK (1<<RTP_PACKEDHEADER_PAYLOADSIZE_SHIFT)
+
+#define RTP_PACKEDHEADER_UPSTREAMRANGESIZE_SHIFT 12
+#define RTP_PACKEDHEADER_UPSTREAMRANGESIZE_MASK (1<<RTP_PACKEDHEADER_UPSTREAMRANGESIZE_SHIFT)
+
+#define RTP_PACKEDHEADER_DOWNSTREAMRANGESIZE_SHIFT 11
+#define RTP_PACKEDHEADER_DOWNSTREAMRANGESIZE_MASK (1<<RTP_PACKEDHEADER_DOWNSTREAMRANGESIZE_SHIFT)
+
+#define RTP_PACKEDHEADER_OFFSETSIZE_SHIFT 9
+#define RTP_PACKEDHEADER_OFFSETSIZE_MASK (3<<RTP_PACKEDHEADER_OFFSETSIZE_SHIFT)
+#define RTP_PACKEDHEADER_OFFSETSIZE_8 (0<<RTP_PACKEDHEADER_OFFSETSIZE_SHIFT)
+#define RTP_PACKEDHEADER_OFFSETSIZE_16 (1<<RTP_PACKEDHEADER_OFFSETSIZE_SHIFT)
+#define RTP_PACKEDHEADER_OFFSETSIZE_24 (2<<RTP_PACKEDHEADER_OFFSETSIZE_SHIFT)
+#define RTP_PACKEDHEADER_OFFSETSIZE_32 (3<<RTP_PACKEDHEADER_OFFSETSIZE_SHIFT)
+
+#define RTP_PACKEDHEADER_ARRAYCOUNTSIZE_SHIFT 8
+#define RTP_PACKEDHEADER_ARRAYCOUNTSIZE_MASK (1<<RTP_PACKEDHEADER_ARRAYCOUNTSIZE_SHIFT)
+
+#define RTP_PACKEDHEADER_ENTRYCOUNTSIZE_SHIFT 5
+#define RTP_PACKEDHEADER_ENTRYCOUNTSIZE_MASK (7<<RTP_PACKEDHEADER_ENTRYCOUNTSIZE_SHIFT)
+
+#define RTP_PACKEDHEADER_WIDTHSIZE_SHIFT 0
+#define RTP_PACKEDHEADER_WIDTHSIZE_MASK (31<<RTP_PACKEDHEADER_WIDTHSIZE_SHIFT)
+
+
+
 // Represents packed form of a leaf or whole routing table.
 typedef struct routeTablePackedSingleBlockStr
 {
 	//SPARE 					2
 
-	//packedSize(8/16 bit)     1
+	//payloadSize(8/16 bit)     1
 	//upstreamRange(8/16 bit)  1
 	//downstreamRange(8/16 bit) 1
 	//offsetSize(8/16/24/32 bit) 2
@@ -16,10 +43,10 @@ typedef struct routeTablePackedSingleBlockStr
 	//entryCountSize(4-32 bit) 3
 	//widthSize(1-32 bit) 5
 
-	u16 blockHeader; // Indicate size for packedSize, upstream Counts, downstream Counts, offsets, entry count and entry widths
-	u8 data[];	//packedSize, s32 upstream offsets, downstream offsets, packed entries(entry count, (downstream, width));
+	u16 blockHeader; // Indicate data-width for payloadSize, upstream Counts, downstream Counts, offsets, entry count and entry widths
+	u8 data[];	//payloadSize, s32 upstream offsets, downstream offsets, packed entries(entry count, (downstream, width));
 
-//	packedSize dataSize;
+//	payloadSize payloadSize;
 
 //  Range of upstream, used to avoid many zero entries in offset array by head/tail trimming. Size determined by max upstream
 //	upstreamRange upstreamFirst;
@@ -44,9 +71,9 @@ typedef struct routeTablePackedSingleBlockStr
 
 typedef struct routeTablePackingInfoStr
 {
-	s32 oldPackedSize;
+	s32 oldPackedSize; // blockHeader + payload
 
-	s32 packedSize;
+	s32 packedSize; // blockHeader + payload
 
 	s32 packedUpstreamOffsetFirst;
 	s32 packedUpstreamOffsetLast;
@@ -65,6 +92,7 @@ typedef struct routeTablePackingInfoStr
 	s32 maxEntryWidth;
 
 	u16 blockHeader;
+	u32 payloadSize;
 } RouteTablePackingInfo;
 
 

@@ -23,8 +23,7 @@ typedef struct routeTableTreeLeafEntryBlockStr
 typedef struct routeTableLeafBlockStr
 {
 	s16 parentBrindex;
-
-	u8 *packedBlockData[]; // Contains a RouteTablePackedSingleBlock
+	u8 packedBlockData[]; // Contains a RouteTablePackedSingleBlock
 } __attribute__((packed)) RouteTableTreeLeafBlock;
 
 

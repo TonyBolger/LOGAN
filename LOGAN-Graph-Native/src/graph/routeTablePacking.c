@@ -274,6 +274,32 @@ RouteTableUnpackedSingleBlock *rtpUnpackSingleBlock(RouteTablePackedSingleBlock 
 {
 	LOG(LOG_CRITICAL,"PackLeaf: rtpUnpackSingleBlock TODO");
 
+
+	/*
+	u8 *dataPtr=packedBlock->data+blockHeader&RTP_PACKEDHEADER_PAYLOADSIZE_MASK?2:1;
+
+	s32 sizeUpstreamRange=blockHeader&RTP_PACKEDHEADER_UPSTREAMRANGESIZE_MASK?2:1;
+	s32 sizeDownstreamRange=blockHeader&RTP_PACKEDHEADER_DOWNSTREAMRANGESIZE_MASK?2:1;
+	s32 sizeOffset=((blockHeader&RTP_PACKEDHEADER_OFFSETSIZE_MASK)>>RTP_PACKEDHEADER_OFFSETSIZE_SHIFT)+1;
+	s32 sizeArrayCount=((blockHeader&RTP_PACKEDHEADER_ARRAYCOUNTSIZE_MASK)>>RTP_PACKEDHEADER_ARRAYCOUNTSIZE_SHIFT)+1;
+
+	s32 upstreamBits=blockHeader & RTP_PACKEDHEADER_UPSTREAMRANGESIZE_MASK?16:8;
+	s32 downstreamBits=blockHeader & RTP_PACKEDHEADER_DOWNSTREAMRANGESIZE_MASK?16:8;
+	s32 entryCountBits=(((blockHeader & RTP_PACKEDHEADER_ENTRYCOUNTSIZE_MASK)>>RTP_PACKEDHEADER_ENTRYCOUNTSIZE_SHIFT)+1)*4;
+	s32 widthBits=(((blockHeader & RTP_PACKEDHEADER_WIDTHSIZE_MASK)>>RTP_PACKEDHEADER_WIDTHSIZE_SHIFT)+1);
+
+	dataPtr+=sizeUpstreamRange;
+	s32 upstreamAlloc=sizeUpstreamRange==1?(*dataPtr):(*((u16 *)(dataPtr)));
+	dataPtr+=sizeUpstreamRange;
+
+	dataPtr+=sizeDownstreamRange;
+	s32 downstreamAlloc=sizeDownstreamRange==1?(*dataPtr):(*((u16 *)(dataPtr)));
+	dataPtr+=sizeDownstreamRange;
+
+	dataPtr+=upstreamAlloc*sizeUpstreamRange;
+	dataPtr+=downstreamAlloc*sizestreamRange;
+*/
+
 	return NULL;
 }
 
@@ -283,7 +309,8 @@ static void updatePackingInfoSizeAndHeader(RouteTablePackingInfo *packingInfo)
 	int sizeUpstreamRange=packingInfo->packedUpstreamOffsetLast>U8MAX; 			// 0 = u8, 1 = u16
 	int sizeDownstreamRange=packingInfo->packedDownstreamOffsetLast>U8MAX; 		// 0 = u8, 1 = u16
 
-	int sizeOffset=0?0:(31-__builtin_clz(packingInfo->maxOffset))>>3;			// 0 = u8, 1 = u16, 2 = u24, 3 = u32
+	int sizeOffset=packingInfo->maxOffset==0?0:(31-__builtin_clz(packingInfo->maxOffset))>>3;
+																				// 0 = u8, 1 = u16, 2 = u24, 3 = u32
 																				// leading 0s: 31 -> 0 -> 0
 																				// leading 0s: 24 -> 7 -> 0
 																				// leading 0s: 23 -> 8 -> 1
@@ -294,11 +321,13 @@ static void updatePackingInfoSizeAndHeader(RouteTablePackingInfo *packingInfo)
 
 	int sizeArrayCount=packingInfo->arrayCount>U8MAX;							// 0 = u8, 1 = u16
 
-	int sizeEntryCount=0?0:(31-__builtin_clz(packingInfo->maxEntryCount))>>2;	// 0 = u4, 7 = u32
+	int sizeEntryCount=packingInfo->maxEntryCount==0?0:(31-__builtin_clz(packingInfo->maxEntryCount))>>2;
+																				// 0 = u4, 7 = u32
 
-	int sizeWidth=0?0:(31-__builtin_clz(packingInfo->maxEntryWidth));			// 0 = u1, 31 = u32
+	int sizeWidth=packingInfo->maxEntryWidth==0?0:(31-__builtin_clz(packingInfo->maxEntryWidth));
+																				// 0 = u1, 31 = u32
 
-	int packedBytes=1+																							// Minimum 1 byte for packedSize
+	int payloadSize=1+																							// Minimum 1 byte for packedSize
 		2+(sizeUpstreamRange<<1)+																				// 2 or 4 bytes for UpstreamRange
 		2+(sizeDownstreamRange<<1)+ 																			// 2 or 4 bytes for DownstreamRange
 		((sizeOffset+1)*(packingInfo->packedUpstreamOffsetAlloc+packingInfo->packedDownstreamOffsetAlloc))+		// 1 - 4 bytes for each offset index
@@ -308,33 +337,34 @@ static void updatePackingInfoSizeAndHeader(RouteTablePackingInfo *packingInfo)
 		(packingInfo->arrayCount*((sizeUpstreamRange<<3)+(sizeEntryCount<<2)+12))+ // 8 or 16 per upstream, plus 4-32 bits per entryCount
 		(packingInfo->totalEntryCount*((sizeDownstreamRange<<3)+sizeWidth+9));		   // 8 or 16 per downstream, plus 1-32 bits per width
 
-	packedBytes+=PAD_1BITLENGTH_BYTE(arrayBits);
+	payloadSize+=PAD_1BITLENGTH_BYTE(arrayBits);
 
-	int sizePacked=0;
+	int sizePayload=0;
 
-	if(packedBytes>255)
+	if(payloadSize>255)
 		{
-		packedBytes++;
-		sizePacked=1;
+		payloadSize++;
+		sizePayload=1;
 		}
 
-	packingInfo->packedSize=packedBytes;
+	packingInfo->payloadSize=payloadSize;
+	packingInfo->packedSize=payloadSize+2; // Add space for 2-byte block header
 
 	packingInfo->blockHeader=
-			(sizeWidth)|				// 0-4
-			(sizeEntryCount<<5)|		// 5-7
-			(sizeArrayCount<<8)|		// 8
-			(sizeOffset<<9)|			// 9-10
-			(sizeDownstreamRange<<11)| 	// 11
-			(sizeUpstreamRange<<12)|	// 12
-			(sizePacked<<13);			// 13
+			(sizeWidth<<RTP_PACKEDHEADER_WIDTHSIZE_SHIFT)|							// 0-4
+			(sizeEntryCount<<RTP_PACKEDHEADER_ENTRYCOUNTSIZE_SHIFT)|				// 5-7
+			(sizeArrayCount<<RTP_PACKEDHEADER_ARRAYCOUNTSIZE_SHIFT)|				// 8
+			(sizeOffset<<RTP_PACKEDHEADER_OFFSETSIZE_SHIFT)|						// 9-10
+			(sizeDownstreamRange<<RTP_PACKEDHEADER_DOWNSTREAMRANGESIZE_SHIFT)| 		// 11
+			(sizeUpstreamRange<<RTP_PACKEDHEADER_UPSTREAMRANGESIZE_SHIFT)|			// 12
+			(sizePayload<<RTP_PACKEDHEADER_PAYLOADSIZE_SHIFT);						// 13
 
-	LOG(LOG_INFO,"PackedSizes: Pack %i: Up: %i Down: %i Offset: %i Array: %i Entry: %i Width: %i",
-			packedBytes, packingInfo->packedUpstreamOffsetLast, packingInfo->packedDownstreamOffsetLast,
+	LOG(LOG_INFO,"PackedSizes: Payload %i: Up: %i Down: %i Offset: %i Array: %i Entry: %i Width: %i",
+			payloadSize, packingInfo->packedUpstreamOffsetLast, packingInfo->packedDownstreamOffsetLast,
 			packingInfo->maxOffset, packingInfo->arrayCount, packingInfo->maxEntryCount, packingInfo->maxEntryWidth);
 
-	LOG(LOG_INFO,"PackedHeaderSizes: Pack(1x8): %i Up(1x8): %i Down(1x8): %i Offset(2x8): %i Array(1x8): %i Entry(3x4): %i Width(5x1): %i",
-			sizePacked, sizeUpstreamRange, sizeDownstreamRange, sizeOffset, sizeArrayCount, sizeEntryCount, sizeWidth);
+	LOG(LOG_INFO,"PackedHeaderSizes: Payload(1x8): %i Up(1x8): %i Down(1x8): %i Offset(2x8): %i Array(1x8): %i Entry(3x4): %i Width(5x1): %i",
+			sizePayload, sizeUpstreamRange, sizeDownstreamRange, sizeOffset, sizeArrayCount, sizeEntryCount, sizeWidth);
 }
 
 void rtpUpdateUnpackedSingleBlockPackingInfo(RouteTableUnpackedSingleBlock *block)
@@ -412,12 +442,241 @@ void rtpUpdateUnpackedSingleBlockPackingInfo(RouteTableUnpackedSingleBlock *bloc
 
 void rtpPackSingleBlock(RouteTableUnpackedSingleBlock *unpackedBlock, RouteTablePackedSingleBlock *packedBlock)
 {
-	LOG(LOG_CRITICAL,"PackLeaf: rtpPackSingleBlock TODO");
+	LOG(LOG_INFO,"PackLeaf: rtpPackSingleBlock start %p",packedBlock);
+
+	RouteTablePackingInfo *packingInfo=&(unpackedBlock->packingInfo);
+
+	u16 blockHeader=packingInfo->blockHeader;
+	packedBlock->blockHeader=blockHeader;
+
+	u8 *dataPtr=packedBlock->data;
+
+	// Section 1: Payload Size
+
+	u32 payloadSize=packingInfo->payloadSize;
+	if(blockHeader & RTP_PACKEDHEADER_PAYLOADSIZE_MASK)	// 2 byte payload size
+		{
+		if(payloadSize<256 || payloadSize>65535)
+			LOG(LOG_CRITICAL, "Invalid payload size %i for 2-byte format",payloadSize);
+
+		*((u16 *)(dataPtr))=(u16)(payloadSize);
+		dataPtr+=2;
+		}
+	else
+		{
+		if(payloadSize>255)
+			LOG(LOG_CRITICAL, "Invalid payload size %i for 1-byte format",payloadSize);
+
+		*(dataPtr++)=(u8)(payloadSize);
+		}
+
+
+	// Section 2: Upstream Ranges
+
+	u32 upstreamFirst=packingInfo->packedUpstreamOffsetFirst;
+	u32 upstreamAlloc=packingInfo->packedUpstreamOffsetAlloc;
+
+	if(blockHeader & RTP_PACKEDHEADER_UPSTREAMRANGESIZE_MASK)	// 2 byte payload size
+		{
+		if(upstreamFirst>65535 || upstreamAlloc>65535)
+			LOG(LOG_CRITICAL, "Invalid upstreamRange %i %i for 2-byte format",upstreamFirst,upstreamAlloc);
+
+		*((u16 *)(dataPtr))=(u16)(upstreamFirst);
+		dataPtr+=2;
+
+		*((u16 *)(dataPtr))=(u16)(upstreamAlloc);
+		dataPtr+=2;
+		}
+	else
+		{
+		if(upstreamFirst>255 || upstreamAlloc>255)
+			LOG(LOG_CRITICAL, "Invalid upstreamRange %i %i for 1-byte format",upstreamFirst,upstreamAlloc);
+
+		*(dataPtr++)=(u8)(upstreamFirst);
+		*(dataPtr++)=(u8)(upstreamAlloc);
+		}
+
+
+	// Section 3: Downstream Ranges
+
+	u32 downstreamFirst=packingInfo->packedDownstreamOffsetFirst;
+	u32 downstreamAlloc=packingInfo->packedDownstreamOffsetAlloc;
+
+	if(blockHeader & RTP_PACKEDHEADER_DOWNSTREAMRANGESIZE_MASK)	// 2 byte payload size
+		{
+		if(downstreamFirst>65535 || downstreamAlloc>65535)
+			LOG(LOG_CRITICAL, "Invalid downstreamRange %i %i for 2-byte format",downstreamFirst,downstreamAlloc);
+
+		*((u16 *)(dataPtr))=(u16)(downstreamFirst);
+		dataPtr+=2;
+
+		*((u16 *)(dataPtr))=(u16)(downstreamAlloc);
+		dataPtr+=2;
+		}
+	else
+		{
+		if(downstreamFirst>255 || downstreamAlloc>255)
+			LOG(LOG_CRITICAL, "Invalid downstreamRange %i %i for 1-byte format",downstreamFirst,downstreamAlloc);
+
+		*(dataPtr++)=(u8)(downstreamFirst);
+		*(dataPtr++)=(u8)(downstreamAlloc);
+		}
+
+
+	// Section 4: Offsets Arrays
+
+	s32 *offsetsPtr=NULL;
+
+	switch(blockHeader & RTP_PACKEDHEADER_OFFSETSIZE_MASK)
+		{
+		case RTP_PACKEDHEADER_OFFSETSIZE_8:
+			offsetsPtr=unpackedBlock->upstreamOffsets+upstreamFirst;
+			for(int i=0;i<upstreamAlloc;i++)
+				{
+				u32 offset=*(offsetsPtr++);
+				*(dataPtr++)=(u8)(offset);
+				}
+
+			offsetsPtr=unpackedBlock->downstreamOffsets+downstreamFirst;
+			for(int i=0;i<downstreamAlloc;i++)
+				{
+				u32 offset=*(offsetsPtr++);
+				*(dataPtr++)=(u8)(offset);
+				}
+
+			break;
+
+		case RTP_PACKEDHEADER_OFFSETSIZE_16:
+			offsetsPtr=unpackedBlock->upstreamOffsets+upstreamFirst;
+			for(int i=0;i<upstreamAlloc;i++)
+				{
+				u32 offset=*(offsetsPtr++);
+				*((u16 *)(dataPtr))=(u16)(offset);
+				dataPtr+=2;
+				}
+
+			offsetsPtr=unpackedBlock->downstreamOffsets+downstreamFirst;
+			for(int i=0;i<downstreamAlloc;i++)
+				{
+				u32 offset=*(offsetsPtr++);
+				*((u16 *)(dataPtr))=(u16)(offset);
+				dataPtr+=2;
+				}
+
+			break;
+
+		case RTP_PACKEDHEADER_OFFSETSIZE_24:
+			offsetsPtr=unpackedBlock->upstreamOffsets+upstreamFirst;
+			for(int i=0;i<upstreamAlloc;i++)
+				{
+				u32 offset=*(offsetsPtr++);
+				*((u16 *)(dataPtr))=(u16)(offset);
+				*(dataPtr+2)=(u8)(offset>>16);
+				dataPtr+=3;
+				}
+
+			offsetsPtr=unpackedBlock->downstreamOffsets+downstreamFirst;
+			for(int i=0;i<downstreamAlloc;i++)
+				{
+				u32 offset=*(offsetsPtr++);
+				*((u16 *)(dataPtr))=(u16)(offset);
+				*(dataPtr+2)=(u8)(offset>>16);
+				dataPtr+=3;
+				}
+
+			break;
+
+		case RTP_PACKEDHEADER_OFFSETSIZE_32:
+			offsetsPtr=unpackedBlock->upstreamOffsets+upstreamFirst;
+			for(int i=0;i<upstreamAlloc;i++)
+				{
+				u32 offset=*(offsetsPtr++);
+				*((u32 *)(dataPtr))=(u32)(offset);
+				dataPtr+=4;
+				}
+
+			offsetsPtr=unpackedBlock->downstreamOffsets+downstreamFirst;
+			for(int i=0;i<downstreamAlloc;i++)
+				{
+				u32 offset=*(offsetsPtr++);
+				*((u32 *)(dataPtr))=(u32)(offset);
+				dataPtr+=4;
+				}
+
+			break;
+		}
+
+
+	// Section 5: Route Array Count
+
+	s32 arrayCount=packingInfo->arrayCount;
+	if(blockHeader & RTP_PACKEDHEADER_ARRAYCOUNTSIZE_MASK)	// 2 byte array count size
+		{
+		if(arrayCount>65535 || arrayCount>65535)
+			LOG(LOG_CRITICAL, "Invalid arrayCount %i for 2-byte format",arrayCount);
+
+		*((u16 *)(dataPtr))=(u16)(arrayCount);
+		dataPtr+=2;
+		}
+	else
+		{
+		if(arrayCount>255)
+			LOG(LOG_CRITICAL, "Invalid arrayCount %i for 1-byte format",arrayCount);
+
+		*(dataPtr++)=(u8)(arrayCount);
+		}
+
+	// Section 6: Route Arrays
+
+	//s32 upstreamBits=upstreamAlloc==0?0:(32-__builtin_clz(upstreamAlloc));
+	//s32 downstreamBits=downstreamAlloc==0?0:(32-__builtin_clz(downstreamAlloc));
+
+	s32 upstreamBits=blockHeader & RTP_PACKEDHEADER_UPSTREAMRANGESIZE_MASK?16:8;
+	s32 downstreamBits=blockHeader & RTP_PACKEDHEADER_DOWNSTREAMRANGESIZE_MASK?16:8;
+
+	s32 entryCountBits=(((blockHeader & RTP_PACKEDHEADER_ENTRYCOUNTSIZE_MASK)>>RTP_PACKEDHEADER_ENTRYCOUNTSIZE_SHIFT)+1)*4;
+	s32 widthBits=(((blockHeader & RTP_PACKEDHEADER_WIDTHSIZE_MASK)>>RTP_PACKEDHEADER_WIDTHSIZE_SHIFT)+1);
+
+	BitPacker bitPacker;
+
+	bpInitPacker(&bitPacker, dataPtr, 0);
+
+	for(int i=0;i<packingInfo->arrayCount;i++)
+		{
+		RouteTableUnpackedEntryArray *array=unpackedBlock->entryArrays[i];
+
+		bpPackBits(&bitPacker, upstreamBits, array->upstream);
+		bpPackBits(&bitPacker, entryCountBits, array->entryCount);
+
+		for(int j=0;j<array->entryCount;j++)
+			{
+			bpPackBits(&bitPacker, downstreamBits, array->entries[j].downstream);
+			bpPackBits(&bitPacker, widthBits, array->entries[j].width);
+			}
+
+		}
+
+	dataPtr=bpPackerGetPaddedPtr(&bitPacker);
+	u32 usedPayloadSize=dataPtr-packedBlock->data;
+
+	if(packingInfo->payloadSize != usedPayloadSize)
+		{
+		LOG(LOG_CRITICAL,"Packed Block did not have payload side %i did not match expected %i",
+				usedPayloadSize, packingInfo->payloadSize);
+		}
+
+	LOG(LOG_INFO,"PackLeaf: rtpPackSingleBlock end");
 }
 
 s32 rtpGetPackedSingleBlockSize(RouteTablePackedSingleBlock *packedBlock)
 {
-	LOG(LOG_CRITICAL,"PackLeaf: rtpGetPackedSingleBlockSize TODO");
+	LOG(LOG_INFO,"PackLeaf: rtpGetPackedSingleBlockSize start %p",packedBlock);
 
-	return 0;
+	u16 blockHeader=packedBlock->blockHeader;
+	s32 payloadSize=(blockHeader&RTP_PACKEDHEADER_PAYLOADSIZE_MASK)?(*((u16 *)(packedBlock->data))):(*((u8 *)(packedBlock->data)));
+	s32 totalSize=payloadSize+2;
+
+	LOG(LOG_INFO,"PackLeaf: rtpGetPackedSingleBlockSize size %i",totalSize);
+
+	return totalSize;
 }

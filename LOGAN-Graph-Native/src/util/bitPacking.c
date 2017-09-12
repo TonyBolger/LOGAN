@@ -71,7 +71,7 @@ void initPacker(BitPacker *packer, u8 *ptr, int position)
 */
 
 
-void initPacker(BitPacker *packer, u8 *ptr, int position)
+void bpInitPacker(BitPacker *packer, u8 *ptr, int position)
 {
 	uintptr_t alignChecker=(uintptr_t)ptr;
 
@@ -83,7 +83,7 @@ void initPacker(BitPacker *packer, u8 *ptr, int position)
 	packer->position=position;
 }
 
-void seekPacker(BitPacker *packer, int position)
+void bpSeekPacker(BitPacker *packer, int position)
 {
 	packer->position+=position;
 }
@@ -131,7 +131,7 @@ void packBits(BitPacker *packer, int count, u32 data)
 }
 */
 
-void packBits(BitPacker *packer, int count, u32 data)
+void bpPackBits(BitPacker *packer, int count, u32 data)
 {
 	if(count==0)
 		return;
@@ -172,8 +172,14 @@ void packBits(BitPacker *packer, int count, u32 data)
 }
 
 
+u8 *bpPackerGetPaddedPtr(BitPacker *packer)
+{
+	u8 *dataPtr=(u8 *)(packer->data);
+	return dataPtr+PAD_1BITLENGTH_BYTE(packer->position);
+}
 
-void initUnpacker(BitUnpacker *unpacker, u8 *ptr, int position)
+
+void bpInitUnpacker(BitUnpacker *unpacker, u8 *ptr, int position)
 {
 	uintptr_t alignChecker=(uintptr_t)ptr;
 
@@ -185,13 +191,13 @@ void initUnpacker(BitUnpacker *unpacker, u8 *ptr, int position)
 	unpacker->position=position;
 }
 
-void seekUnpacker(BitUnpacker *unpacker, int position)
+void bpSeekUnpacker(BitUnpacker *unpacker, int position)
 {
 	unpacker->position+=position;
 }
 
 
-u32 unpackBits(BitUnpacker *unpacker, int count)
+u32 bpUnpackBits(BitUnpacker *unpacker, int count)
 {
 	if(count==0)
 		return 0;
@@ -229,8 +235,15 @@ u32 unpackBits(BitUnpacker *unpacker, int count)
 	return out;
 }
 
+u8 *bpUnpackerGetPaddedPtr(BitUnpacker *unpacker)
+{
+	u8 *dataPtr=(u8 *)(unpacker->data);
+	return dataPtr+PAD_1BITLENGTH_BYTE(unpacker->position);
+}
 
-u32 bitsRequired(u32 value)
+
+
+u32 bpBitsRequired(u32 value)
 {
 	if(value==0)
 		return 1;

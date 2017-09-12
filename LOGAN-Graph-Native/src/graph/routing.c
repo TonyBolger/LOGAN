@@ -978,7 +978,7 @@ s32 writeBuildersAsIndirectData_mergeTopArrayUpdates_leaf_accumulateSize(RouteTa
 			int subindex=leafArrayProxy->newEntries[i].index;
 			int headerSize=(subindex<ROUTE_TABLE_TREE_SHALLOW_DATA_ARRAY_ENTRIES)?rtGetIndexedBlockHeaderSize_1(indexSize):rtGetIndexedBlockHeaderSize_2(indexSize);
 
-			totalSize+=headerSize+packingInfo->packedSize;
+			totalSize+=headerSize+sizeof(RouteTableTreeLeafBlock)+packingInfo->packedSize;
 			}
 		}
 
@@ -1013,16 +1013,18 @@ void writeBuildersAsIndirectData_mergeTopArrayUpdates_leaf(RouteTableTreeArrayPr
 		RouteTableTreeLeafProxy *newLeafProxy=(RouteTableTreeLeafProxy *)(leafArrayProxy->newEntries[i].proxy);
 
 		RouteTablePackingInfo *packingInfo=&(newLeafProxy->unpackedBlock->packingInfo);
-		int oldPackedSize=packingInfo->oldPackedSize+headerSize;
-		int newPackedSize=packingInfo->packedSize+headerSize;
+		int oldBlockSize=packingInfo->oldPackedSize+headerSize;
+		int newBlockSize=packingInfo->packedSize+headerSize;
 
 		//LOG(LOG_CRITICAL,"PackLeaf: writeBuildersAsIndirectData_mergeTopArrayUpdates_leaf Header: %i Old: %i New: %i",headerSize, oldPackedSize, newPackdeSize);
 		
-		if(newPackedSize!=oldPackedSize)
-			{
-//			LOG(LOG_INFO,"Leaf Move/Expand write to %p from %p (%i %i)",newData, oldLeafRawData, newLeafSize, oldLeafSize);
+		u8 *oldLeafRawData=getBlockArrayDataEntryRaw(leafArrayProxy, subindex);
 
-			u8 *oldLeafRawData=getBlockArrayDataEntryRaw(leafArrayProxy, subindex);
+		if(newBlockSize!=oldBlockSize)
+			{
+			LOG(LOG_INFO,"Leaf write to %p (%i %i)",newData,  newBlockSize, oldBlockSize);
+
+//			LOG(LOG_INFO,"Leaf Move/Expand write to %p from %p (%i %i)",newData, oldLeafRawData, newLeafSize, oldLeafSize);
 
 			setBlockArrayDataEntryRaw(leafArrayProxy, subindex, newData);
 
@@ -1037,15 +1039,22 @@ void writeBuildersAsIndirectData_mergeTopArrayUpdates_leaf(RouteTableTreeArrayPr
 
 			newData+=headerSize;
 			
-			LOG(LOG_CRITICAL,"Leaf write to %p (%i %i)",newData,  newPackedSize, oldPackedSize);
+			RouteTableTreeLeafBlock *leafBlock=(RouteTableTreeLeafBlock *)newData;
+			leafBlock->parentBrindex=newLeafProxy->parentBrindex;
 
-			newData+=newDataSize;
+			rtpPackSingleBlock(newLeafProxy->unpackedBlock, (RouteTablePackedSingleBlock *)(&(leafBlock->packedBlockData)));
+
+			newData+=sizeof(RouteTableTreeLeafBlock)+packingInfo->packedSize;
 
 			rtHeaderMarkDead(oldLeafRawData);
 			}
 		else
 			{
-			LOG(LOG_CRITICAL,"Leaf rewrite to %p (%i %i)",newData,  newPackedSize, oldPackedSize);
+			LOG(LOG_INFO,"Leaf rewrite to %p (%i %i)",newData,  newBlockSize, oldBlockSize);
+
+			RouteTableTreeLeafBlock *leafBlock=(RouteTableTreeLeafBlock *)(oldLeafRawData+headerSize);
+
+			rtpPackSingleBlock(newLeafProxy->unpackedBlock, (RouteTablePackedSingleBlock *)(&(leafBlock->packedBlockData)));
 			}
 
 		}

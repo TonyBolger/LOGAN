@@ -158,13 +158,13 @@ static void rtaUnpackRoutes(u8 *data, int prefixBits, int suffixBits, int widthB
 	int maxPrefix=0,maxSuffix=0,maxWidth=0;
 
 	BitUnpacker unpacker;
-	initUnpacker(&unpacker, data, 0);
+	bpInitUnpacker(&unpacker, data, 0);
 
 	for(int i=0;i<forwardEntryCount;i++)
 		{
-		s32 prefix=unpackBits(&unpacker, prefixBits);
-		s32 suffix=unpackBits(&unpacker, suffixBits);
-		s32 width=unpackBits(&unpacker, widthBits)+1;
+		s32 prefix=bpUnpackBits(&unpacker, prefixBits);
+		s32 suffix=bpUnpackBits(&unpacker, suffixBits);
+		s32 width=bpUnpackBits(&unpacker, widthBits)+1;
 
 		if(prefix<0 || suffix<0 || width<0)
 			{
@@ -182,9 +182,9 @@ static void rtaUnpackRoutes(u8 *data, int prefixBits, int suffixBits, int widthB
 
 	for(int i=0;i<reverseEntryCount;i++)
 		{
-		s32 prefix=unpackBits(&unpacker, prefixBits);
-		s32 suffix=unpackBits(&unpacker, suffixBits);
-		s32 width=unpackBits(&unpacker, widthBits)+1;
+		s32 prefix=bpUnpackBits(&unpacker, prefixBits);
+		s32 suffix=bpUnpackBits(&unpacker, suffixBits);
+		s32 width=bpUnpackBits(&unpacker, widthBits)+1;
 
 		if(prefix<0 || suffix<0 || width<0)
 			{
@@ -327,9 +327,9 @@ void rtaDumpRoutingTableArray(RouteTableArrayBuilder *builder)
 
 u8 *rtaWriteRouteTableArrayBuilderPackedData(RouteTableArrayBuilder *builder, u8 *data)
 {
-	u32 prefixBits=bitsRequired(builder->maxPrefix);
-	u32 suffixBits=bitsRequired(builder->maxSuffix);
-	u32 widthBits=bitsRequired(builder->maxWidth-1);
+	u32 prefixBits=bpBitsRequired(builder->maxPrefix);
+	u32 suffixBits=bpBitsRequired(builder->maxSuffix);
+	u32 widthBits=bpBitsRequired(builder->maxWidth-1);
 
 	if(prefixBits==15 || suffixBits==15 || widthBits==63)
 		{
@@ -371,25 +371,25 @@ u8 *rtaWriteRouteTableArrayBuilderPackedData(RouteTableArrayBuilder *builder, u8
 	data+=headerSize;
 
 	BitPacker packer;
-	initPacker(&packer, data, 0);
+	bpInitPacker(&packer, data, 0);
 
 	for(int i=0;i<forwardEntryCount;i++)
 		{
 //		if(forwardEntryCount>1000)
 //			LOG(LOG_INFO,"Forward Route - P: %i %i %i", forwardEntries[i].prefix, forwardEntries[i].suffix,  forwardEntries[i].width);
 
-		packBits(&packer, prefixBits, forwardEntries[i].prefix);
-		packBits(&packer, suffixBits, forwardEntries[i].suffix);
-		packBits(&packer, widthBits, forwardEntries[i].width-1);
+		bpPackBits(&packer, prefixBits, forwardEntries[i].prefix);
+		bpPackBits(&packer, suffixBits, forwardEntries[i].suffix);
+		bpPackBits(&packer, widthBits, forwardEntries[i].width-1);
 		}
 	for(int i=0;i<reverseEntryCount;i++)
 		{
 //		if(reverseEntryCount>1000)
 //			LOG(LOG_INFO,"Reverse Route - P: %i %i %i", reverseEntries[i].prefix, reverseEntries[i].suffix,  reverseEntries[i].width);
 
-		packBits(&packer, prefixBits, reverseEntries[i].prefix);
-		packBits(&packer, suffixBits, reverseEntries[i].suffix);
-		packBits(&packer, widthBits, reverseEntries[i].width-1);
+		bpPackBits(&packer, prefixBits, reverseEntries[i].prefix);
+		bpPackBits(&packer, suffixBits, reverseEntries[i].suffix);
+		bpPackBits(&packer, widthBits, reverseEntries[i].width-1);
 		}
 
 	int tableSize=PAD_1BITLENGTH_BYTE((prefixBits+suffixBits+widthBits)*(forwardEntryCount+reverseEntryCount));
@@ -886,9 +886,9 @@ void rtaMergeRoutes(RouteTableArrayBuilder *builder, RoutePatch *forwardRoutePat
 
 	builder->maxWidth=maxWidth;
 
-	u32 prefixBits=bitsRequired(builder->maxPrefix);
-	u32 suffixBits=bitsRequired(builder->maxSuffix);
-	u32 widthBits=bitsRequired(builder->maxWidth-1);
+	u32 prefixBits=bpBitsRequired(builder->maxPrefix);
+	u32 suffixBits=bpBitsRequired(builder->maxSuffix);
+	u32 widthBits=bpBitsRequired(builder->maxWidth-1);
 
 	int headerSize=getRouteTableHeaderSize(prefixBits,suffixBits,widthBits,forwardCount,reverseCount);
 	int tableSize=PAD_1BITLENGTH_BYTE((prefixBits+suffixBits+widthBits)*(forwardCount+reverseCount));

@@ -21,14 +21,16 @@ typedef struct bitUnpackerStr {
 	int position;
 } BitUnpacker;
 
-void initPacker(BitPacker *packer, u8 *ptr, int position);
-void seekPacker(BitPacker *packer, int position);
-void packBits(BitPacker *packer, int count, u32 data);
+void bpInitPacker(BitPacker *packer, u8 *ptr, int position);
+void bpSeekPacker(BitPacker *packer, int position);
+void bpPackBits(BitPacker *packer, int count, u32 data);
+u8 *bpPackerGetPaddedPtr(BitPacker *packer);
 
-void initUnpacker(BitUnpacker *unpacker, u8 *ptr, int position);
-void seekUnpacker(BitUnpacker *unpacker, int position);
-u32 unpackBits(BitUnpacker *unpacker, int count);
+void bpInitUnpacker(BitUnpacker *unpacker, u8 *ptr, int position);
+void bpSeekUnpacker(BitUnpacker *unpacker, int position);
+u32 bpUnpackBits(BitUnpacker *unpacker, int count);
+u8 *bpUnpackerGetPaddedPtr(BitUnpacker *unpacker);
 
-u32 bitsRequired(u32 value);
+u32 bpBitsRequired(u32 value);
 
 #endif
