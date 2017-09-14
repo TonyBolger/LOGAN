@@ -54,6 +54,7 @@ CLI_OBJS += \
 ./bin/cli/common/task/taskRouting.o \
 ./bin/cli/common/task/taskRoutingLookup.o \
 ./bin/cli/common/task/taskRoutingDispatch.o \
+./bin/cli/common/util/arrayPacking.o \
 ./bin/cli/common/util/bitMap.o \
 ./bin/cli/common/util/bitPacking.o \
 ./bin/cli/common/util/bloom.o \
@@ -97,6 +98,7 @@ JNI_OBJS += \
 ./bin/jni/common/task/taskRouting.o \
 ./bin/jni/common/task/taskRoutingLookup.o \
 ./bin/jni/common/task/taskRoutingDispatch.o \
+./bin/jni/common/util/arrayPacking.o \
 ./bin/jni/common/util/bitMap.o \
 ./bin/jni/common/util/bitPacking.o \
 ./bin/jni/common/util/bloom.o \

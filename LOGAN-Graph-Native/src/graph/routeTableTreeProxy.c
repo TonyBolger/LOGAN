@@ -6,12 +6,11 @@
 void initTreeProxy(RouteTableTreeProxy *treeProxy,
 		HeapDataBlock *leafBlock, u8 *leafDataPtr,
 		HeapDataBlock *branchBlock, u8 *branchDataPtr,
-		s32 upstreamCount, s32 downstreamCount,
 		MemDispenser *disp)
 {
 	treeProxy->disp=disp;
-	treeProxy->upstreamCount=upstreamCount;
-	treeProxy->downstreamCount=downstreamCount;
+	treeProxy->upstreamCount=0;
+	treeProxy->downstreamCount=0;
 
 	initBlockArrayProxy(treeProxy, &(treeProxy->leafArrayProxy), leafBlock, leafDataPtr, leafBlock->variant);
 	initBlockArrayProxy(treeProxy, &(treeProxy->branchArrayProxy), branchBlock, branchDataPtr, 0);
@@ -23,6 +22,11 @@ void initTreeProxy(RouteTableTreeProxy *treeProxy,
 
 }
 
+void updateTreeProxyTailCounts(RouteTableTreeProxy *treeProxy, s32 upstreamCount, s32 downstreamCount)
+{
+	treeProxy->upstreamCount=upstreamCount;
+	treeProxy->downstreamCount=downstreamCount;
+}
 
 
 RouteTableTreeBranchBlock *getRouteTableTreeBranchBlock(RouteTableTreeProxy *treeProxy, s32 brindex)
@@ -106,15 +110,23 @@ RouteTableTreeLeafProxy *getRouteTableTreeLeafProxy(RouteTableTreeProxy *treePro
 	leafProxy=dAlloc(treeProxy->disp, sizeof(RouteTableTreeLeafProxy));
 
 	leafProxy->leafBlock=(RouteTableTreeLeafBlock *)data;
+	leafProxy->parentBrindex=leafProxy->leafBlock->parentBrindex;
 	leafProxy->lindex=lindex;
+	//leafProxy->status=LEAFPROXY_STATUS_FULLYPACKED;
+
 
 //	LOG(LOG_INFO,"GetRouteTableTreeLeaf : %i",lindex);
 
+	LOG(LOG_INFO,"PackLeaf: getRouteTableTreeLeafProxy %i from %p",lindex, data);
 
-	LOG(LOG_CRITICAL,"PackLeaf: getRouteTableTreeLeafProxy (scan) TODO");
-	//getRouteTableTreeLeafProxy_scan(leafProxy->dataBlock, &leafProxy->entryAlloc, &leafProxy->entryCount);
+	leafProxy->unpackedBlock=rtpUnpackSingleBlock((RouteTablePackedSingleBlock *)(leafProxy->leafBlock->packedBlockData),
+			treeProxy->disp, treeProxy->upstreamCount, treeProxy->downstreamCount);
+	leafProxy->status=LEAFPROXY_STATUS_FULLYUNPACKED;
 
-//	LOG(LOG_INFO,"Got leaf with %i indexes, and %i of %i", leafProxy->dataBlock->offsetAlloc, leafProxy->entryCount, leafProxy->entryAlloc);
+
+	flushRouteTableTreeLeafProxy(treeProxy, leafProxy);
+
+	dumpLeafProxy(leafProxy);
 
 	return leafProxy;
 }

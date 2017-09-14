@@ -217,6 +217,7 @@ typedef struct swqBufferStr {
 #include "mem/memPackStack.h"
 #include "mem/memCircHeap.h"
 
+#include "util/arrayPacking.h"
 #include "util/bitMap.h"
 #include "util/bitPacking.h"
 #include "util/bloom.h"

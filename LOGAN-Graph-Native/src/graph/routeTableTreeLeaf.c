@@ -139,19 +139,23 @@ void flushRouteTableTreeLeafProxy(RouteTableTreeProxy *treeProxy, RouteTableTree
 {
 //	LOG(LOG_INFO,"Flush %i to %p (%i)",leafProxy->lindex, leafProxy->dataBlock, leafProxy->dataBlock->entryAlloc);
 
+	leafProxy->status=LEAFPROXY_STATUS_DIRTY;
 	setBlockArrayEntryProxy(&(treeProxy->leafArrayProxy), leafProxy->lindex, leafProxy, treeProxy->disp);
 }
 
 
 RouteTableTreeLeafProxy *allocRouteTableTreeLeafProxy(RouteTableTreeProxy *treeProxy, s32 upstreamOffsetAlloc, s32 downstreamOffsetAlloc, s32 entryArrayAlloc)
 {
-	RouteTableUnpackedSingleBlock *unpackedBlock=rtpAllocUnpackedSingleBlock(treeProxy->disp, upstreamOffsetAlloc, downstreamOffsetAlloc, entryArrayAlloc);
+	RouteTableUnpackedSingleBlock *unpackedBlock=rtpAllocUnpackedSingleBlock(treeProxy->disp, upstreamOffsetAlloc, downstreamOffsetAlloc);
+	rtpAllocUnpackedSingleBlockEntryArray(unpackedBlock, entryArrayAlloc);
 
 	RouteTableTreeLeafProxy *proxy=dAlloc(treeProxy->disp, sizeof(RouteTableTreeLeafProxy));
 	s32 lindex=appendBlockArrayEntryProxy(&(treeProxy->leafArrayProxy), proxy, treeProxy->disp);
 
 	proxy->leafBlock=NULL;
 	proxy->lindex=lindex;
+
+	proxy->status=LEAFPROXY_STATUS_FULLYUNPACKED;
 	proxy->unpackedBlock=unpackedBlock;
 
 //	LOG(LOG_INFO,"AllocRouteTableTreeLeaf : %i",lindex);
@@ -192,7 +196,8 @@ void expandRouteTableTreeLeafProxy(RouteTableTreeProxy *treeProxy, RouteTableTre
 
 void dumpLeafBlock(RouteTableTreeLeafBlock *leafBlock)
 {
-	LOG(LOG_CRITICAL,"dumpLeafBlock: TODO");
+	LOG(LOG_INFO,"LeafBlock: Parent Brindex is %i",leafBlock->parentBrindex);
+
 }
 
 void dumpLeafProxy(RouteTableTreeLeafProxy *leafProxy)
@@ -202,11 +207,14 @@ void dumpLeafProxy(RouteTableTreeLeafProxy *leafProxy)
 	LOG(LOG_INFO,"Parent Brindex is %i",leafProxy->parentBrindex);
 	LOG(LOG_INFO,"Lindex is %i",leafProxy->lindex);
 
+	LOG(LOG_INFO,"Status is %i",leafProxy->status);
+
 	if(leafProxy->leafBlock==NULL)
 		LOG(LOG_INFO,"LeafBlock is NULL");
 	else
 		{
 		LOG(LOG_INFO,"LeafBlock is not NULL"); // Could dump
+		dumpLeafBlock(leafProxy->leafBlock);
 		}
 
 	rtpDumpUnpackedSingleBlock(leafProxy->unpackedBlock);

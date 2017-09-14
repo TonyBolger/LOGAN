@@ -27,12 +27,18 @@ typedef struct routeTableLeafBlockStr
 } __attribute__((packed)) RouteTableTreeLeafBlock;
 
 
+#define LEAFPROXY_STATUS_FULLYPACKED 0
+#define LEAFPROXY_STATUS_OFFSETS 1
+#define LEAFPROXY_STATUS_FULLYUNPACKED 2
+#define LEAFPROXY_STATUS_DIRTY 3
+
 struct routeTableTreeLeafProxyStr
 {
 	RouteTableTreeLeafBlock *leafBlock;
 	s16 parentBrindex;
 	s16 lindex;
 
+	s32 status;
 	RouteTableUnpackedSingleBlock *unpackedBlock;
 };
 

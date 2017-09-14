@@ -1586,9 +1586,9 @@ void rtRelocater(MemCircHeapChunkIndex *index, u8 tag, u8 **tagData, s32 tagData
 							index->entries[i].index, index->entries[i].topindex,
 							index->entries[i].subindex, index->entries[i].size);
 
-
+*/
 					LOG(LOG_INFO,"Moving to %p from %p (%i) size %i Array Header %i ArrayBlock %p",newChunk, array->data[subindex], subindex, size, headerSize, arrayBlockPtr);
-					*/
+
 					memmove(newChunk,array->data[subindex],size);
 					array->data[subindex]=newChunk;
 					}

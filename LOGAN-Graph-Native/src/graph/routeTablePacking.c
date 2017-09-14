@@ -65,12 +65,19 @@ void rtpRecalculateUnpackedBlockOffsets(RouteTableUnpackedSingleBlock *unpackedB
 
 RouteTableUnpackedEntryArray *rtpInsertNewEntry(RouteTableUnpackedSingleBlock *unpackedBlock, s32 arrayIndex, s32 entryIndex, s32 downstream, s32 width)
 {
+	LOG(LOG_INFO,"rtpInsertNewEntry");
+
 	if(arrayIndex<0 || arrayIndex>unpackedBlock->entryArrayCount)
 		{
 		LOG(LOG_CRITICAL,"ArrayIndex invalid %i",arrayIndex);
 		}
 
 	RouteTableUnpackedEntryArray *array=unpackedBlock->entryArrays[arrayIndex];
+
+	if((entryIndex<array->entryCount) && array->entries[entryIndex].downstream==downstream)
+		{
+		LOG(LOG_CRITICAL,"Refusing to insert unnecessary entry");
+		}
 
 	if(array->entryCount>=array->entryAlloc)
 		{
@@ -87,7 +94,7 @@ RouteTableUnpackedEntryArray *rtpInsertNewEntry(RouteTableUnpackedSingleBlock *u
 
 		memcpy(newArray->entries, array->entries, sizeof(RouteTableUnpackedEntry)*array->entryAlloc);
 
-		//LOG(LOG_INFO,"Resize array to %p",newArray);
+		LOG(LOG_INFO,"Resize array to %p",newArray);
 		unpackedBlock->entryArrays[arrayIndex]=newArray;
 		array=newArray;
 		}
@@ -110,6 +117,8 @@ RouteTableUnpackedEntryArray *rtpInsertNewEntry(RouteTableUnpackedSingleBlock *u
 RouteTableUnpackedEntryArray *rtpInsertNewDoubleEntry(RouteTableUnpackedSingleBlock *unpackedBlock, s32 arrayIndex, s32 entryIndex,
 		s32 downstream1, s32 width1, s32 downstream2, s32 width2)
 {
+	LOG(LOG_INFO,"rtpInsertNewDoubleEntry");
+
 	if(arrayIndex<0 || arrayIndex>unpackedBlock->entryArrayCount)
 		{
 		LOG(LOG_CRITICAL,"ArrayIndex invalid %i",arrayIndex);
@@ -244,14 +253,13 @@ RouteTableUnpackedEntryArray *rtpSplitArray(RouteTableUnpackedSingleBlock *block
 
 
 
-RouteTableUnpackedSingleBlock *rtpAllocUnpackedSingleBlock(MemDispenser *disp, s32 upstreamOffsetAlloc, s32 downstreamOffsetAlloc, s32 entryArrayAlloc)
+RouteTableUnpackedSingleBlock *rtpAllocUnpackedSingleBlock(MemDispenser *disp, s32 upstreamOffsetAlloc, s32 downstreamOffsetAlloc)
 {
 	RouteTableUnpackedSingleBlock *block=dAlloc(disp, sizeof(RouteTableUnpackedSingleBlock));
 
 	block->disp=disp;
 
 	memset(&(block->packingInfo),0,sizeof(RouteTablePackingInfo));
-
 
 	block->upstreamOffsetAlloc=upstreamOffsetAlloc;
 	block->upstreamOffsets=dAlloc(disp, sizeof(s32)* upstreamOffsetAlloc);
@@ -261,46 +269,119 @@ RouteTableUnpackedSingleBlock *rtpAllocUnpackedSingleBlock(MemDispenser *disp, s
 	block->downstreamOffsets=dAlloc(disp, sizeof(s32)* downstreamOffsetAlloc);
 	memset(block->downstreamOffsets, 0, sizeof(s32)*downstreamOffsetAlloc);
 
-	block->entryArrayAlloc=entryArrayAlloc;
-	block->entryArrays=dAlloc(disp, sizeof(RouteTableUnpackedEntryArray *)* entryArrayAlloc);
-	memset(block->entryArrays, 0, sizeof(RouteTableUnpackedEntryArray *)* entryArrayAlloc);
-
+	block->entryArrayAlloc=0;
+	block->entryArrays=NULL;
 	block->entryArrayCount=0;
 
 	return block;
 }
 
-RouteTableUnpackedSingleBlock *rtpUnpackSingleBlock(RouteTablePackedSingleBlock *packedBlock, MemDispenser *disp)
+
+void rtpAllocUnpackedSingleBlockEntryArray(RouteTableUnpackedSingleBlock *block, s32 entryArrayAlloc)
 {
-	LOG(LOG_CRITICAL,"PackLeaf: rtpUnpackSingleBlock TODO");
+	block->entryArrayAlloc=entryArrayAlloc;
+	block->entryArrays=dAlloc(block->disp, sizeof(RouteTableUnpackedEntryArray *)* entryArrayAlloc);
+	memset(block->entryArrays, 0, sizeof(RouteTableUnpackedEntryArray *)* entryArrayAlloc);
+
+	block->entryArrayCount=0;
+
+}
 
 
-	/*
-	u8 *dataPtr=packedBlock->data+blockHeader&RTP_PACKEDHEADER_PAYLOADSIZE_MASK?2:1;
+
+
+RouteTableUnpackedSingleBlock *rtpUnpackSingleBlock(RouteTablePackedSingleBlock *packedBlock, MemDispenser *disp, s32 upstreamOffsetAlloc, s32 downstreamOffsetAlloc)
+{
+	LOG(LOG_INFO,"PackLeaf: rtpUnpackSingleBlock %p (%i %i)", packedBlock, upstreamOffsetAlloc, downstreamOffsetAlloc);
+
+	u16 blockHeader=packedBlock->blockHeader;
+	u8 *dataPtr=packedBlock->data;
+
+	s32 sizePayloadSize=((blockHeader&RTP_PACKEDHEADER_PAYLOADSIZE_MASK)?2:1);
+	s32 payloadSize=sizePayloadSize==1?(*dataPtr):(*((u16 *)(dataPtr)));
+	dataPtr+=sizePayloadSize;
+
+	LOG(LOG_INFO,"After PayloadSize: %i",(dataPtr-packedBlock->data));
 
 	s32 sizeUpstreamRange=blockHeader&RTP_PACKEDHEADER_UPSTREAMRANGESIZE_MASK?2:1;
 	s32 sizeDownstreamRange=blockHeader&RTP_PACKEDHEADER_DOWNSTREAMRANGESIZE_MASK?2:1;
+
 	s32 sizeOffset=((blockHeader&RTP_PACKEDHEADER_OFFSETSIZE_MASK)>>RTP_PACKEDHEADER_OFFSETSIZE_SHIFT)+1;
 	s32 sizeArrayCount=((blockHeader&RTP_PACKEDHEADER_ARRAYCOUNTSIZE_MASK)>>RTP_PACKEDHEADER_ARRAYCOUNTSIZE_SHIFT)+1;
+
+	s32 upstreamFirst=sizeUpstreamRange==1?(*dataPtr):(*((u16 *)(dataPtr)));
+	dataPtr+=sizeUpstreamRange;
+	s32 upstreamAlloc=sizeUpstreamRange==1?(*dataPtr):(*((u16 *)(dataPtr)));
+	dataPtr+=sizeUpstreamRange;
+
+//	LOG(LOG_INFO,"After UpRange: %i",(dataPtr-packedBlock->data));
+
+	s32 downstreamFirst=sizeDownstreamRange==1?(*dataPtr):(*((u16 *)(dataPtr)));
+	dataPtr+=sizeDownstreamRange;
+	s32 downstreamAlloc=sizeDownstreamRange==1?(*dataPtr):(*((u16 *)(dataPtr)));
+	dataPtr+=sizeDownstreamRange;
+
+//	LOG(LOG_INFO,"After DownRange: %i",(dataPtr-packedBlock->data));
+
+	upstreamOffsetAlloc=MAX(upstreamFirst+upstreamAlloc, upstreamOffsetAlloc);
+	downstreamOffsetAlloc=MAX(downstreamFirst+downstreamAlloc, downstreamOffsetAlloc);
+
+	RouteTableUnpackedSingleBlock *unpackedBlock=rtpAllocUnpackedSingleBlock(disp, upstreamOffsetAlloc, downstreamOffsetAlloc);
+
+	dataPtr=apUnpackArray(dataPtr, (u32 *)(unpackedBlock->upstreamOffsets+upstreamFirst), sizeOffset, upstreamAlloc);
+//	LOG(LOG_INFO,"After UpOffsets: %i",(dataPtr-packedBlock->data));
+
+	dataPtr=apUnpackArray(dataPtr, (u32 *)(unpackedBlock->downstreamOffsets+downstreamFirst), sizeOffset, downstreamAlloc);
+//	LOG(LOG_INFO,"After DownOffsets: %i",(dataPtr-packedBlock->data));
+
+	s32 arrayCount=sizeArrayCount==1?(*dataPtr):(*((u16 *)(dataPtr)));
+	dataPtr+=sizeArrayCount;
+//	LOG(LOG_INFO,"After ArrayCount: %i",(dataPtr-packedBlock->data));
+
 
 	s32 upstreamBits=blockHeader & RTP_PACKEDHEADER_UPSTREAMRANGESIZE_MASK?16:8;
 	s32 downstreamBits=blockHeader & RTP_PACKEDHEADER_DOWNSTREAMRANGESIZE_MASK?16:8;
 	s32 entryCountBits=(((blockHeader & RTP_PACKEDHEADER_ENTRYCOUNTSIZE_MASK)>>RTP_PACKEDHEADER_ENTRYCOUNTSIZE_SHIFT)+1)*4;
 	s32 widthBits=(((blockHeader & RTP_PACKEDHEADER_WIDTHSIZE_MASK)>>RTP_PACKEDHEADER_WIDTHSIZE_SHIFT)+1);
 
-	dataPtr+=sizeUpstreamRange;
-	s32 upstreamAlloc=sizeUpstreamRange==1?(*dataPtr):(*((u16 *)(dataPtr)));
-	dataPtr+=sizeUpstreamRange;
+	BitUnpacker bitUnpacker;
 
-	dataPtr+=sizeDownstreamRange;
-	s32 downstreamAlloc=sizeDownstreamRange==1?(*dataPtr):(*((u16 *)(dataPtr)));
-	dataPtr+=sizeDownstreamRange;
+	bpInitUnpacker(&bitUnpacker, dataPtr, 0);
 
-	dataPtr+=upstreamAlloc*sizeUpstreamRange;
-	dataPtr+=downstreamAlloc*sizestreamRange;
-*/
+	for(int i=0;i<arrayCount;i++)
+		{
+		u32 upstream=bpUnpackBits(&bitUnpacker, upstreamBits);
+		u32 entryCount=bpUnpackBits(&bitUnpacker, entryCountBits);
 
-	return NULL;
+		RouteTableUnpackedEntryArray *array=rtpInsertNewEntryArray(unpackedBlock, i, upstream, entryCount);
+		array->entryCount=entryCount;
+
+		for(int j=0;j<entryCount;j++)
+			{
+			array->entries[j].downstream=bpUnpackBits(&bitUnpacker, downstreamBits);
+			array->entries[j].width=bpUnpackBits(&bitUnpacker, widthBits);
+			}
+		}
+
+	dataPtr=bpUnpackerGetPaddedPtr(&bitUnpacker);
+
+//	LOG(LOG_INFO, "Sizes: Payload %i UpRange %i DownRange %i Offsets %i ArrayCount %i", sizePayloadSize, sizeUpstreamRange, sizeDownstreamRange, sizeOffset, sizeArrayCount);
+//	LOG(LOG_INFO, "BitSizes: Up %i Down %i EntryCount %i Width %i", upstreamBits, downstreamBits, entryCountBits, widthBits);
+
+//	LOG(LOG_INFO, "Payload %i Upstream %i %i Downstream %i %i Arrays %i", payloadSize, upstreamFirst, upstreamAlloc, downstreamFirst, downstreamAlloc, arrayCount);
+
+
+	u32 usedPayloadSize=dataPtr-packedBlock->data;
+
+	if(payloadSize != usedPayloadSize)
+		{
+		LOG(LOG_CRITICAL,"Packed Block payload side %i did not match expected %i",
+				usedPayloadSize, payloadSize);
+		}
+
+//	LOG(LOG_CRITICAL,"PackLeaf: rtpUnpackSingleBlock TODO");
+
+	return unpackedBlock;
 }
 
 
@@ -442,7 +523,7 @@ void rtpUpdateUnpackedSingleBlockPackingInfo(RouteTableUnpackedSingleBlock *bloc
 
 void rtpPackSingleBlock(RouteTableUnpackedSingleBlock *unpackedBlock, RouteTablePackedSingleBlock *packedBlock)
 {
-	LOG(LOG_INFO,"PackLeaf: rtpPackSingleBlock start %p",packedBlock);
+	LOG(LOG_INFO,"PackLeaf: rtpPackSingleBlock start %p to %p",unpackedBlock, packedBlock);
 
 	RouteTablePackingInfo *packingInfo=&(unpackedBlock->packingInfo);
 
@@ -525,87 +606,9 @@ void rtpPackSingleBlock(RouteTableUnpackedSingleBlock *unpackedBlock, RouteTable
 
 	// Section 4: Offsets Arrays
 
-	s32 *offsetsPtr=NULL;
-
-	switch(blockHeader & RTP_PACKEDHEADER_OFFSETSIZE_MASK)
-		{
-		case RTP_PACKEDHEADER_OFFSETSIZE_8:
-			offsetsPtr=unpackedBlock->upstreamOffsets+upstreamFirst;
-			for(int i=0;i<upstreamAlloc;i++)
-				{
-				u32 offset=*(offsetsPtr++);
-				*(dataPtr++)=(u8)(offset);
-				}
-
-			offsetsPtr=unpackedBlock->downstreamOffsets+downstreamFirst;
-			for(int i=0;i<downstreamAlloc;i++)
-				{
-				u32 offset=*(offsetsPtr++);
-				*(dataPtr++)=(u8)(offset);
-				}
-
-			break;
-
-		case RTP_PACKEDHEADER_OFFSETSIZE_16:
-			offsetsPtr=unpackedBlock->upstreamOffsets+upstreamFirst;
-			for(int i=0;i<upstreamAlloc;i++)
-				{
-				u32 offset=*(offsetsPtr++);
-				*((u16 *)(dataPtr))=(u16)(offset);
-				dataPtr+=2;
-				}
-
-			offsetsPtr=unpackedBlock->downstreamOffsets+downstreamFirst;
-			for(int i=0;i<downstreamAlloc;i++)
-				{
-				u32 offset=*(offsetsPtr++);
-				*((u16 *)(dataPtr))=(u16)(offset);
-				dataPtr+=2;
-				}
-
-			break;
-
-		case RTP_PACKEDHEADER_OFFSETSIZE_24:
-			offsetsPtr=unpackedBlock->upstreamOffsets+upstreamFirst;
-			for(int i=0;i<upstreamAlloc;i++)
-				{
-				u32 offset=*(offsetsPtr++);
-				*((u16 *)(dataPtr))=(u16)(offset);
-				*(dataPtr+2)=(u8)(offset>>16);
-				dataPtr+=3;
-				}
-
-			offsetsPtr=unpackedBlock->downstreamOffsets+downstreamFirst;
-			for(int i=0;i<downstreamAlloc;i++)
-				{
-				u32 offset=*(offsetsPtr++);
-				*((u16 *)(dataPtr))=(u16)(offset);
-				*(dataPtr+2)=(u8)(offset>>16);
-				dataPtr+=3;
-				}
-
-			break;
-
-		case RTP_PACKEDHEADER_OFFSETSIZE_32:
-			offsetsPtr=unpackedBlock->upstreamOffsets+upstreamFirst;
-			for(int i=0;i<upstreamAlloc;i++)
-				{
-				u32 offset=*(offsetsPtr++);
-				*((u32 *)(dataPtr))=(u32)(offset);
-				dataPtr+=4;
-				}
-
-			offsetsPtr=unpackedBlock->downstreamOffsets+downstreamFirst;
-			for(int i=0;i<downstreamAlloc;i++)
-				{
-				u32 offset=*(offsetsPtr++);
-				*((u32 *)(dataPtr))=(u32)(offset);
-				dataPtr+=4;
-				}
-
-			break;
-		}
-
+	int bytesPerOffset = ((blockHeader & RTP_PACKEDHEADER_OFFSETSIZE_MASK)>>RTP_PACKEDHEADER_OFFSETSIZE_SHIFT)+1;
+	dataPtr=apPackArray(dataPtr, (u32 *)(unpackedBlock->upstreamOffsets+upstreamFirst), bytesPerOffset, upstreamAlloc);
+	dataPtr=apPackArray(dataPtr, (u32 *)(unpackedBlock->downstreamOffsets+downstreamFirst), bytesPerOffset, downstreamAlloc);
 
 	// Section 5: Route Array Count
 
@@ -661,7 +664,7 @@ void rtpPackSingleBlock(RouteTableUnpackedSingleBlock *unpackedBlock, RouteTable
 
 	if(packingInfo->payloadSize != usedPayloadSize)
 		{
-		LOG(LOG_CRITICAL,"Packed Block did not have payload side %i did not match expected %i",
+		LOG(LOG_CRITICAL,"Packed Block payload side %i did not match expected %i",
 				usedPayloadSize, packingInfo->payloadSize);
 		}
 
@@ -670,13 +673,13 @@ void rtpPackSingleBlock(RouteTableUnpackedSingleBlock *unpackedBlock, RouteTable
 
 s32 rtpGetPackedSingleBlockSize(RouteTablePackedSingleBlock *packedBlock)
 {
-	LOG(LOG_INFO,"PackLeaf: rtpGetPackedSingleBlockSize start %p",packedBlock);
+//	LOG(LOG_INFO,"PackLeaf: rtpGetPackedSingleBlockSize start %p",packedBlock);
 
 	u16 blockHeader=packedBlock->blockHeader;
 	s32 payloadSize=(blockHeader&RTP_PACKEDHEADER_PAYLOADSIZE_MASK)?(*((u16 *)(packedBlock->data))):(*((u8 *)(packedBlock->data)));
 	s32 totalSize=payloadSize+2;
 
-	LOG(LOG_INFO,"PackLeaf: rtpGetPackedSingleBlockSize size %i",totalSize);
+//	LOG(LOG_INFO,"PackLeaf: rtpGetPackedSingleBlockSize size %i",totalSize);
 
 	return totalSize;
 }

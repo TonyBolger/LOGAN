@@ -6,7 +6,7 @@
 
 
 
-void rttInitRouteTableTreeBuilder(RouteTableTreeBuilder *treeBuilder, RouteTableTreeTopBlock *top, s32 prefixCount, s32 suffixCount)
+void rttInitRouteTableTreeBuilder(RouteTableTreeBuilder *treeBuilder, RouteTableTreeTopBlock *top)
 {
 //	LOG(LOG_INFO,"Regular");
 
@@ -22,13 +22,13 @@ void rttInitRouteTableTreeBuilder(RouteTableTreeBuilder *treeBuilder, RouteTable
 	initTreeProxy(&(treeBuilder->forwardProxy),
 			&(treeBuilder->dataBlocks[ROUTE_TOPINDEX_FORWARD_LEAF_ARRAY_0]),top->data[ROUTE_TOPINDEX_FORWARD_LEAF_ARRAY_0],
 			&(treeBuilder->dataBlocks[ROUTE_TOPINDEX_FORWARD_BRANCH_ARRAY_0]),top->data[ROUTE_TOPINDEX_FORWARD_BRANCH_ARRAY_0],
-			prefixCount, suffixCount, treeBuilder->disp);
+			treeBuilder->disp);
 
 	//LOG(LOG_INFO,"rttInitRouteTableTreeBuilder: Reverse %p %p %p",top->data[ROUTE_TOPINDEX_REVERSE_LEAF],top->data[ROUTE_TOPINDEX_REVERSE_LEAF],top->data[ROUTE_TOPINDEX_REVERSE_OFFSET]);
 	initTreeProxy(&(treeBuilder->reverseProxy),
 			&(treeBuilder->dataBlocks[ROUTE_TOPINDEX_REVERSE_LEAF_ARRAY_0]),top->data[ROUTE_TOPINDEX_REVERSE_LEAF_ARRAY_0],
 			&(treeBuilder->dataBlocks[ROUTE_TOPINDEX_REVERSE_BRANCH_ARRAY_0]),top->data[ROUTE_TOPINDEX_REVERSE_BRANCH_ARRAY_0],
-			suffixCount, prefixCount, treeBuilder->disp);
+			treeBuilder->disp);
 
 
 
@@ -57,12 +57,16 @@ void rttUpgradeToRouteTableTreeBuilder(RouteTableArrayBuilder *arrayBuilder,  Ro
 	initTreeProxy(&(treeBuilder->forwardProxy),
 			&(treeBuilder->dataBlocks[ROUTE_TOPINDEX_FORWARD_LEAF_ARRAY_0]),NULL,
 			&(treeBuilder->dataBlocks[ROUTE_TOPINDEX_FORWARD_BRANCH_ARRAY_0]),NULL,
-			prefixCount, suffixCount, disp);
+			disp);
+
+	updateTreeProxyTailCounts(&(treeBuilder->forwardProxy),prefixCount, suffixCount);
 
 	initTreeProxy(&(treeBuilder->reverseProxy),
 			&(treeBuilder->dataBlocks[ROUTE_TOPINDEX_REVERSE_LEAF_ARRAY_0]),NULL,
 			&(treeBuilder->dataBlocks[ROUTE_TOPINDEX_REVERSE_BRANCH_ARRAY_0]),NULL,
-			suffixCount, prefixCount, disp);
+			disp);
+
+	updateTreeProxyTailCounts(&(treeBuilder->reverseProxy),suffixCount, prefixCount);
 
 	initTreeWalker(&(treeBuilder->forwardWalker), &(treeBuilder->forwardProxy));
 	walkerInitOffsetArrays(&(treeBuilder->forwardWalker), prefixCount, suffixCount);
@@ -86,6 +90,11 @@ void rttUpgradeToRouteTableTreeBuilder(RouteTableArrayBuilder *arrayBuilder,  Ro
 }
 
 
+void rttUpdateRouteTableTreeBuilderTailCounts(RouteTableTreeBuilder *builder, s32 prefixCount, s32 suffixCount)
+{
+	updateTreeProxyTailCounts(&(builder->forwardProxy), prefixCount, suffixCount);
+	updateTreeProxyTailCounts(&(builder->reverseProxy), suffixCount, prefixCount);
+}
 
 
 int dumpRoutingTableTree_ArrayProxy(RouteTableTreeArrayProxy *arrayProxy, char *name)
@@ -232,6 +241,8 @@ static void rttMergeRoutes_ordered_forwardSingle(RouteTableTreeBuilder *builder,
 	s32 upstream=-1;
 	RouteTableUnpackedEntry *entry=NULL;
 
+	LOG(LOG_INFO,"Forward Route Patch: %i %i (%i %i)",targetPrefix, targetSuffix, minEdgePosition, maxEdgePosition);
+
 /*
 
 	while(res && upstream < targetPrefix) 												// Skip lower upstream (entry at a time)
@@ -342,6 +353,8 @@ static void rttMergeRoutes_ordered_reverseSingle(RouteTableTreeWalker *walker, R
 
 	s32 upstream=-1;
 	RouteTableUnpackedEntry *entry=NULL;
+
+	LOG(LOG_INFO,"Reverse Route Patch: %i %i (%i %i)",targetPrefix, targetSuffix, minEdgePosition, maxEdgePosition);
 
 	s32 upstreamEdgeOffset=-1;
 	s32 downstreamEdgeOffset=-1;
