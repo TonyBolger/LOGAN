@@ -369,62 +369,25 @@ void walkerTransferOffsetsLeafToEntry(RouteTableTreeWalker *walker)
 	memcpy(walker->downstreamEntryOffsets, walker->downstreamLeafOffsets, sizeof(s32)*walker->downstreamOffsetCount);
 }
 
-// Move to last entry that has upstream<=targetUpstream, and upstreamOffset<=targetOffset
 
-s32 walkerAdvanceToUpstreamThenOffsetThenDownstream(RouteTableTreeWalker *walker, s32 targetUpstream, s32 targetDownstream, s32 targetMinOffset, s32 targetMaxOffset,
-		s32 *upstreamPtr, RouteTableUnpackedEntry **entryPtr, s32 *upstreamOffsetPtr, s32 *downstreamOffsetPtr)
+
+// walkerAdvance Helpers
+
+static s32 walkerAdvanceGetLastUpstream(RouteTableTreeWalker *walker)
 {
-	LOG(LOG_INFO,"walkerAdvanceToUpstreamThenOffsetThenDownstream BEGINS");
+	RouteTableUnpackedSingleBlock *block=walker->leafProxy->unpackedBlock;
 
-	RouteTableTreeBranchProxy *branchProxy=walker->branchProxy;
-	s16 branchChildSibdex=walker->branchChildSibdex;
-	RouteTableTreeLeafProxy *leafProxy=walker->leafProxy;
+	s32 arrayIndex=block->entryArrayCount-1;
 
-	if(leafProxy==NULL) // Already past end, fail
+	return (arrayIndex>=0)?block->entryArrays[arrayIndex]->upstream:-1;
+}
+
+static s32 walkerAdvanceToNextNonEmptyLeaf(RouteTableTreeWalker *walker)
+{
+	int entryArrayCount=0;
+	do
 		{
-		//LOG(LOG_INFO,"Null proxy");
-		return 0;
-		}
-
-	LOG(LOG_INFO,"Check for empty leaf");
-	if(leafProxy->unpackedBlock->entryArrayCount==0) // At empty leaf - may be more robust if after leaf selection
-		{
-		LOG(LOG_INFO,"Found empty leaf");
-
-		walker->leafArrayIndex=0;
-		walker->leafEntryIndex=-1;
-
-		*entryPtr=NULL;
-		*upstreamPtr=-1;
-
-		*upstreamOffsetPtr=0;
-		*downstreamOffsetPtr=walker->downstreamLeafOffsets[targetDownstream];
-
-		LOG(LOG_INFO,"Done, at empty leaf");
-
-		return 0;
-		}
-
-	LOG(LOG_INFO,"Non empty leaf");
-
-//	LOG(LOG_INFO,"Advancing to U %i D %i Offset (%i %i)",targetUpstream,targetDownstream,targetMinOffset,targetMaxOffset);
-//	dumpLeafProxy(leafProxy);
-
-	s32 arrayIndex=leafProxy->unpackedBlock->entryArrayCount-1;
-	s32 upstream=(arrayIndex>=0)?leafProxy->unpackedBlock->entryArrays[arrayIndex]->upstream:-1;
-
-	LOG(LOG_INFO,"About to move leaf (upstream) %i want %i",upstream,targetUpstream);
-
-	while(upstream < targetUpstream) // One leaf at a time, for upstream
-		{
-		LOG(LOG_INFO,"Moving one leaf");
-
-		dumpLeafProxy(leafProxy);
-
-
-		walkerApplyLeafOffsets(walker, leafProxy);
-
-		if(!getNextLeafSibling(walker->treeProxy, &branchProxy, &branchChildSibdex, &leafProxy)) // No more leaves
+		if(!getNextLeafSibling(walker->treeProxy, &(walker->branchProxy), &(walker->branchChildSibdex), &(walker->leafProxy))) // No more leaves
 			{
 			LOG(LOG_INFO,"No more leaves");
 
@@ -432,186 +395,198 @@ s32 walkerAdvanceToUpstreamThenOffsetThenDownstream(RouteTableTreeWalker *walker
 			walker->leafArrayIndex=-1;
 			walker->leafEntryIndex=-1;
 
+			return 0;
+			}
+
+		entryArrayCount=walker->leafProxy->unpackedBlock->entryArrayCount;
+
+		if(entryArrayCount==0)
+			LOG(LOG_INFO,"Advancing past empty leaf");
+		}
+	while(entryArrayCount==0);
+
+	walker->leafArrayIndex=0;
+	walker->leafEntryIndex=0;
+
+	return 1;
+}
+
+static s32 walkerAdvanceNextArray(RouteTableTreeWalker *walker)
+{
+	int nextArrayIndex=walker->leafArrayIndex+1;
+
+	if(nextArrayIndex>=walker->leafProxy->unpackedBlock->entryArrayCount)
+		return walkerAdvanceToNextNonEmptyLeaf(walker);
+
+	walker->leafArrayIndex=nextArrayIndex;
+	walker->leafEntryIndex=0;
+
+	return 1;
+}
+
+s32 walkerAdvanceNextEntry(RouteTableTreeWalker *walker)
+{
+	int nextEntryIndex=walker->leafEntryIndex+1;
+
+	if(nextEntryIndex>=walker->leafProxy->unpackedBlock->entryArrays[walker->leafArrayIndex]->entryCount)
+		return walkerAdvanceNextArray(walker);
+
+	walker->leafEntryIndex=nextEntryIndex;
+	return 1;
+}
+
+
+// Move to last entry that has upstream<=targetUpstream, minOffset<=upstreamOffset<=maxOffset, and if possible downstream<=targetDownstream
+
+s32 walkerAdvanceToUpstreamThenOffsetThenDownstream(RouteTableTreeWalker *walker, s32 targetUpstream, s32 targetDownstream, s32 targetMinOffset, s32 targetMaxOffset,
+		s32 *upstreamPtr, RouteTableUnpackedEntry **entryPtr, s32 *upstreamOffsetPtr, s32 *downstreamOffsetPtr)
+{
+	LOG(LOG_INFO,"walkerAdvanceToUpstreamThenOffsetThenDownstream BEGINS");
+
+	if(walker->leafProxy==NULL) // Already past end, fail
+		{
+		//LOG(LOG_INFO,"Null proxy");
+		return 0;
+		}
+
+	LOG(LOG_INFO,"Starting at leaf");
+	dumpLeafProxy(walker->leafProxy);
+
+//	LOG(LOG_INFO,"Advancing to U %i D %i Offset (%i %i)",targetUpstream,targetDownstream,targetMinOffset,targetMaxOffset);
+//	dumpLeafProxy(leafProxy);
+
+	s32 upstream=walkerAdvanceGetLastUpstream(walker);
+
+	while(upstream < targetUpstream) // One leaf at a time, for upstream
+		{
+		LOG(LOG_INFO,"About to move leaf (upstream) %i want %i",upstream,targetUpstream);
+
+		walkerApplyLeafOffsets(walker, walker->leafProxy);
+
+		if(!walkerAdvanceToNextNonEmptyLeaf(walker))
+			{
+			LOG(LOG_INFO,"No more leaves");
+
 			*entryPtr=NULL;
 			*upstreamPtr=-1;
-
 			*upstreamOffsetPtr=0;
 			*downstreamOffsetPtr=walker->downstreamLeafOffsets[targetDownstream];
 
 			return 0;
 			}
 
-		walker->branchProxy=branchProxy;
-		walker->branchChildSibdex=branchChildSibdex;
-		walker->leafProxy=leafProxy;
-
-//		dumpLeafProxy(leafProxy);
-
-		arrayIndex=leafProxy->unpackedBlock->entryArrayCount-1;
-		upstream=leafProxy->unpackedBlock->entryArrays[arrayIndex]->upstream;
+		upstream=walkerAdvanceGetLastUpstream(walker);
 		}
 
-
 	walkerTransferOffsetsLeafToEntry(walker);
+	upstream=walker->leafProxy->unpackedBlock->entryArrays[walker->leafArrayIndex]->upstream;
 
-	if(leafProxy->unpackedBlock->entryArrays==NULL)
-		LOG(LOG_CRITICAL,"Null leaf arrays");
-
-	if(leafProxy->unpackedBlock->entryArrayCount==0)
-		LOG(LOG_CRITICAL,"Empty leaf");
-
-	arrayIndex=0;
-	LOG(LOG_INFO,"Array Index %i",arrayIndex);
-
-	RouteTableUnpackedSingleBlock *block=leafProxy->unpackedBlock;
-
-	LOG(LOG_INFO,"Block is %p",block);
-	LOG(LOG_INFO,"EntryArrays are %p",block->entryArrays);
-	LOG(LOG_INFO,"EntryArray is %p",block->entryArrays[arrayIndex]);
-
-	upstream=block->entryArrays[arrayIndex]->upstream;
-
-	LOG(LOG_INFO,"About to move array (upstream) %i want %i",upstream,targetUpstream);
+	LOG(LOG_INFO,"Now at leaf");
+	dumpLeafProxy(walker->leafProxy);
 
 	while(upstream < targetUpstream) // One array at a time, for upstream
 		{
-		LOG(LOG_INFO,"Moving one array");
+		LOG(LOG_INFO,"About to move array (upstream) %i want %i",upstream,targetUpstream);
 
-		walkerApplyArrayOffsets(walker, leafProxy, arrayIndex);
+		walkerApplyArrayOffsets(walker, walker->leafProxy, walker->leafArrayIndex);
 
-		arrayIndex++;
-		if(arrayIndex>=block->entryArrayCount)
+		if(!walkerAdvanceNextArray(walker))
 			{
-			LOG(LOG_INFO,"No more arrays");
-
-			walker->leafArrayIndex=arrayIndex;
-			walker->leafEntryIndex=-1;
+			LOG(LOG_INFO,"No more arrays/leaves");
 
 			*entryPtr=NULL;
 			*upstreamPtr=-1;
-
 			*upstreamOffsetPtr=0;
-			*downstreamOffsetPtr=walker->downstreamEntryOffsets[targetDownstream];
+			*downstreamOffsetPtr=walker->downstreamLeafOffsets[targetDownstream];
 
 			return 0;
 			}
 
-		upstream=block->entryArrays[arrayIndex]->upstream;
+		upstream=walker->leafProxy->unpackedBlock->entryArrays[walker->leafArrayIndex]->upstream;
 		}
 
 	s32 currentUpstreamOffset=walker->upstreamEntryOffsets[upstream];
 
-	RouteTableUnpackedEntryArray *array=block->entryArrays[arrayIndex];
-	s32 entryIndex=0;
+	RouteTableUnpackedEntry *entry=walker->leafProxy->unpackedBlock->entryArrays[walker->leafArrayIndex]->entries+walker->leafEntryIndex;
 
-	s32 downstream=array->entries[entryIndex].downstream;
-	s32 snoopUpstreamOffset=currentUpstreamOffset+array->entries[entryIndex].width;
+	s32 snoopUpstreamOffset=currentUpstreamOffset+entry->width;
 
-	LOG(LOG_INFO,"About to move entry (offset) At %i Next %i Want %i",currentUpstreamOffset,snoopUpstreamOffset,targetMinOffset);
+	LOG(LOG_INFO,"Before entry (offset) moves Up %i (%i) Down %i (%i) Offset %i (%i %i) Width %i",
+			upstream, targetUpstream, entry->downstream, targetDownstream, currentUpstreamOffset, targetMinOffset, targetMaxOffset, entry->width);
 
-
-	while(upstream == targetUpstream && snoopUpstreamOffset<=targetMinOffset) // One entry at a time (second comparison <=)
+	while(upstream == targetUpstream && snoopUpstreamOffset<targetMinOffset) // One entry at a time (second comparison <=)
 		{
-		if(snoopUpstreamOffset==targetMinOffset && downstream==targetDownstream) // Handle possible append case
-			break;
+//		if(snoopUpstreamOffset==targetMinOffset && entry->downstream==targetDownstream) // Handle possible append case
+//			break;
+
+		LOG(LOG_INFO,"About to move entry (offset) At %i Next %i Want %i",currentUpstreamOffset,snoopUpstreamOffset,targetMinOffset);
 
 		currentUpstreamOffset=snoopUpstreamOffset;
-		walker->downstreamLeafOffsets[downstream]+=array->entries[entryIndex].width;
+		walker->downstreamLeafOffsets[entry->downstream]+=entry->width;
 
-		entryIndex++;
-
-		if(entryIndex>=array->entryCount) // Ran out of entries
+		if(!walkerAdvanceNextEntry(walker))
 			{
-			s32 snoopArrayIndex=arrayIndex+1; // Consider moving array
-			if(snoopArrayIndex<block->entryArrayCount && block->entryArrays[snoopArrayIndex]->upstream==upstream)
-				{
-				LOG(LOG_INFO,"No more entries - next array. New is %i (offset %i)",snoopArrayIndex, currentUpstreamOffset);
+			LOG(LOG_INFO,"No more arrays/leaves/entries");
 
-				arrayIndex++;
-				array=block->entryArrays[arrayIndex];
-				entryIndex=0;
-				}
-			else
-				{
-				LOG(LOG_INFO,"No more entries");
+			*entryPtr=NULL;
+			*upstreamPtr=-1;
+			*upstreamOffsetPtr=0;
+			walker->upstreamEntryOffsets[upstream]=currentUpstreamOffset;
 
-				walker->leafArrayIndex=arrayIndex;
-				walker->leafEntryIndex=entryIndex;
+			*downstreamOffsetPtr=walker->downstreamLeafOffsets[targetDownstream];
 
-				*entryPtr=NULL;
-				*upstreamPtr=-1;
-
-				*upstreamOffsetPtr=currentUpstreamOffset;
-				walker->upstreamEntryOffsets[upstream]=currentUpstreamOffset;
-
-				*downstreamOffsetPtr=walker->downstreamEntryOffsets[targetDownstream];
-
-				return 0;
-				}
+			return 0;
 			}
 
-		snoopUpstreamOffset=currentUpstreamOffset+array->entries[entryIndex].width;
-		downstream=array->entries[entryIndex].downstream;
+		upstream=walker->leafProxy->unpackedBlock->entryArrays[walker->leafArrayIndex]->upstream;
+		entry=walker->leafProxy->unpackedBlock->entryArrays[walker->leafArrayIndex]->entries+walker->leafEntryIndex;
+
+		snoopUpstreamOffset=currentUpstreamOffset+entry->width;
 		}
-
-
-
-	LOG(LOG_INFO,"About to move array (downstream) At %i Next %i Want %i",currentUpstreamOffset,snoopUpstreamOffset,targetMinOffset);
 
 	//walker->upstreamOffsets[targetPrefix]+entry->width)<=maxEdgePosition && entry->downstream<targetSuffix
 
-	while(upstream == targetUpstream && snoopUpstreamOffset<=targetMaxOffset && downstream < targetDownstream)
+	LOG(LOG_INFO,"Before entry (downstream) moves Up %i (%i) Down %i (%i) Offset %i (%i %i) Width %i",
+			upstream, targetUpstream, entry->downstream, targetDownstream, currentUpstreamOffset, targetMinOffset, targetMaxOffset, entry->width);
+
+	while(upstream == targetUpstream && snoopUpstreamOffset<=targetMaxOffset && entry->downstream < targetDownstream)
 		{
+		LOG(LOG_INFO,"About to move entry (downstream) At %i Next %i Want %i",currentUpstreamOffset,snoopUpstreamOffset,targetMinOffset);
+
 		currentUpstreamOffset=snoopUpstreamOffset;
-		walker->downstreamLeafOffsets[downstream]+=array->entries[entryIndex].width;
+		walker->downstreamLeafOffsets[entry->downstream]+=entry->width;
 
-		entryIndex++;
-
-		if(entryIndex>=array->entryCount)
+		if(!walkerAdvanceNextEntry(walker))
 			{
-			s32 snoopArrayIndex=arrayIndex+1; // Consider moving array
-			if(snoopArrayIndex<block->entryArrayCount && block->entryArrays[snoopArrayIndex]->upstream==upstream)
-				{
-				LOG(LOG_INFO,"No more entries - next array");
+			LOG(LOG_INFO,"No more arrays/leaves/entries");
 
-				arrayIndex++;
-				array=block->entryArrays[arrayIndex];
-				entryIndex=0;
-				}
-			else
-				{
-				LOG(LOG_INFO,"No more entries");
+			LOG(LOG_INFO,"Final position Up %i (%i) Down %i (%i) Offset %i (%i %i) Width %i",
+					upstream, targetUpstream, entry->downstream, targetDownstream, currentUpstreamOffset, targetMinOffset, targetMaxOffset, entry->width);
 
-				walker->leafArrayIndex=arrayIndex;
-				walker->leafEntryIndex=entryIndex;
 
-				*entryPtr=NULL;
-				*upstreamPtr=-1;
+			*entryPtr=NULL;
+			*upstreamPtr=-1;
+			*upstreamOffsetPtr=0;
+			walker->upstreamEntryOffsets[upstream]=currentUpstreamOffset;
 
-				*upstreamOffsetPtr=currentUpstreamOffset;
-				walker->upstreamEntryOffsets[upstream]=currentUpstreamOffset;
+			*downstreamOffsetPtr=walker->downstreamLeafOffsets[targetDownstream];
 
-				*downstreamOffsetPtr=walker->downstreamEntryOffsets[targetDownstream];
-
-				return 0;
-				}
+			return 0;
 			}
 
-		snoopUpstreamOffset=currentUpstreamOffset+array->entries[entryIndex].width;
-		downstream=array->entries[entryIndex].downstream;
+		upstream=walker->leafProxy->unpackedBlock->entryArrays[walker->leafArrayIndex]->upstream;
+		entry=walker->leafProxy->unpackedBlock->entryArrays[walker->leafArrayIndex]->entries+walker->leafEntryIndex;
+
+		snoopUpstreamOffset=currentUpstreamOffset+entry->width;
 		}
 
 	LOG(LOG_INFO,"After all moves Up %i (%i) Down %i (%i) Offset %i (%i %i) Width %i",
-			upstream, targetUpstream, downstream, targetDownstream, currentUpstreamOffset, targetMinOffset, targetMaxOffset, array->entries[entryIndex].width);
+			upstream, targetUpstream, entry->downstream, targetDownstream, currentUpstreamOffset, targetMinOffset, targetMaxOffset, entry->width);
 
-	LOG(LOG_INFO,"Indexes are %i %i",arrayIndex,entryIndex);
+	LOG(LOG_INFO,"Indexes are %i %i",walker->leafArrayIndex,walker->leafEntryIndex);
 
-	walker->leafArrayIndex=arrayIndex;
-	walker->leafEntryIndex=entryIndex;
-
-	*entryPtr=&(array->entries[entryIndex]);
+	*entryPtr=entry;
 	*upstreamPtr=upstream;
-
 	*upstreamOffsetPtr=currentUpstreamOffset;
 	walker->upstreamEntryOffsets[upstream]=currentUpstreamOffset;
 
