@@ -47,7 +47,6 @@ s32 walkerAdvanceToUpstreamThenOffsetThenDownstream(RouteTableTreeWalker *walker
 
 void walkerResetOffsetArrays(RouteTableTreeWalker *walker);
 void walkerInitOffsetArrays(RouteTableTreeWalker *walker, s32 upstreamCount, s32 downstreamCount);
-void walkerAccumulateLeafOffsets(RouteTableTreeWalker *walker) __attribute__((optimize("no-tree-vectorize")));
 
 void walkerMergeRoutes_insertEntry(RouteTableTreeWalker *walker, s32 upstream, s32 downstream);
 void walkerMergeRoutes_widen(RouteTableTreeWalker *walker);

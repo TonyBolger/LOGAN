@@ -47,7 +47,7 @@ void rttInitRouteTableTreeBuilder(RouteTableTreeBuilder *treeBuilder, RouteTable
 
 void rttUpgradeToRouteTableTreeBuilder(RouteTableArrayBuilder *arrayBuilder,  RouteTableTreeBuilder *treeBuilder, s32 sliceIndex, s32 prefixCount, s32 suffixCount, MemDispenser *disp)
 {
-	LOG(LOG_INFO,"Upgrade to Tree");
+//	LOG(LOG_INFO,"Upgrade to Tree");
 
 	treeBuilder->disp=arrayBuilder->disp;
 
@@ -82,7 +82,7 @@ void rttUpgradeToRouteTableTreeBuilder(RouteTableArrayBuilder *arrayBuilder,  Ro
 //	LOG(LOG_INFO,"Adding %i reverse entries to tree",arrayBuilder->oldReverseEntryCount);
 	walkerAppendPreorderedEntries(&(treeBuilder->reverseWalker), arrayBuilder->oldReverseEntries, arrayBuilder->oldReverseEntryCount, ROUTING_TABLE_REVERSE);
 
-	LOG(LOG_INFO,"Upgrade completed F: %i R: %i",arrayBuilder->oldForwardEntryCount,arrayBuilder->oldReverseEntryCount);
+//	LOG(LOG_INFO,"Upgrade completed F: %i R: %i",arrayBuilder->oldForwardEntryCount,arrayBuilder->oldReverseEntryCount);
 
 	treeBuilder->newEntryCount=arrayBuilder->oldForwardEntryCount+arrayBuilder->oldReverseEntryCount;
 
@@ -241,7 +241,7 @@ static void rttMergeRoutes_ordered_forwardSingle(RouteTableTreeBuilder *builder,
 	s32 upstream=-1;
 	RouteTableUnpackedEntry *entry=NULL;
 
-	LOG(LOG_INFO,"Forward Route Patch: %i %i (%i %i)",targetPrefix, targetSuffix, minEdgePosition, maxEdgePosition);
+//	LOG(LOG_INFO,"Forward Route Patch: %i %i (%i %i)",targetPrefix, targetSuffix, minEdgePosition, maxEdgePosition);
 
 /*
 
@@ -354,7 +354,7 @@ static void rttMergeRoutes_ordered_reverseSingle(RouteTableTreeWalker *walker, R
 	s32 upstream=-1;
 	RouteTableUnpackedEntry *entry=NULL;
 
-	LOG(LOG_INFO,"Reverse Route Patch: %i %i (%i %i)",targetPrefix, targetSuffix, minEdgePosition, maxEdgePosition);
+//	LOG(LOG_INFO,"Reverse Route Patch: %i %i (%i %i)",targetPrefix, targetSuffix, minEdgePosition, maxEdgePosition);
 
 	s32 upstreamEdgeOffset=-1;
 	s32 downstreamEdgeOffset=-1;

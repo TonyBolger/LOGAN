@@ -117,7 +117,7 @@ RouteTableTreeLeafProxy *getRouteTableTreeLeafProxy(RouteTableTreeProxy *treePro
 
 //	LOG(LOG_INFO,"GetRouteTableTreeLeaf : %i",lindex);
 
-	LOG(LOG_INFO,"PackLeaf: getRouteTableTreeLeafProxy %i from %p",lindex, data);
+//	LOG(LOG_INFO,"PackLeaf: getRouteTableTreeLeafProxy %i from %p",lindex, data);
 
 	leafProxy->unpackedBlock=rtpUnpackSingleBlock((RouteTablePackedSingleBlock *)(leafProxy->leafBlock->packedBlockData),
 			treeProxy->disp, treeProxy->upstreamCount, treeProxy->downstreamCount);
@@ -126,7 +126,7 @@ RouteTableTreeLeafProxy *getRouteTableTreeLeafProxy(RouteTableTreeProxy *treePro
 
 	flushRouteTableTreeLeafProxy(treeProxy, leafProxy);
 
-	dumpLeafProxy(leafProxy);
+//	dumpLeafProxy(leafProxy);
 
 	return leafProxy;
 }
@@ -145,7 +145,7 @@ void treeProxySeekStart(RouteTableTreeProxy *treeProxy, RouteTableTreeBranchProx
 	s16 childNindex=0;
 	int iter=20;
 
-	LOG(LOG_INFO,"Seek start: Root contains %i",branchProxy->childCount);
+//	LOG(LOG_INFO,"Seek start: Root contains %i",branchProxy->childCount);
 
 	while(branchProxy->childCount>0 && childNindex>=0 && --iter>0)
 		{
@@ -159,7 +159,7 @@ void treeProxySeekStart(RouteTableTreeProxy *treeProxy, RouteTableTreeBranchProx
 	if(iter<=0)
 		LOG(LOG_CRITICAL,"Failed to seek start");
 
-	LOG(LOG_INFO,"Seek start %i",childNindex);
+//	LOG(LOG_INFO,"Seek start %i",childNindex);
 
 
 	if(childNindex<0)
@@ -188,7 +188,7 @@ void treeProxySeekEnd(RouteTableTreeProxy *treeProxy, RouteTableTreeBranchProxy 
 
 	s16 childNindex=0;
 
-	LOG(LOG_INFO,"Seek end: Root contains %i",branchProxy->childCount);
+//	LOG(LOG_INFO,"Seek end: Root contains %i",branchProxy->childCount);
 
 	while(branchProxy->childCount>0 && childNindex>=0)
 		{

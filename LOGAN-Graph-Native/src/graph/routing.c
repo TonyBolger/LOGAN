@@ -1009,7 +1009,7 @@ void writeBuildersAsIndirectData_mergeTopArrayUpdates_leaf(RouteTableTreeArrayPr
 
 		RouteTableTreeLeafProxy *newLeafProxy=(RouteTableTreeLeafProxy *)(leafArrayProxy->newEntries[i].proxy);
 
-		dumpLeafProxy(newLeafProxy);
+//		dumpLeafProxy(newLeafProxy);
 
 		RouteTablePackingInfo *packingInfo=&(newLeafProxy->unpackedBlock->packingInfo);
 		int oldBlockSize=packingInfo->oldPackedSize+headerSize;
@@ -1021,7 +1021,7 @@ void writeBuildersAsIndirectData_mergeTopArrayUpdates_leaf(RouteTableTreeArrayPr
 
 		if(newBlockSize!=oldBlockSize)
 			{
-			LOG(LOG_INFO,"Leaf write to %p (%i %i)",newData,  newBlockSize, oldBlockSize);
+//			LOG(LOG_INFO,"Leaf write to %p (%i %i)",newData,  newBlockSize, oldBlockSize);
 
 //			LOG(LOG_INFO,"Leaf Move/Expand write to %p from %p (%i %i)",newData, oldLeafRawData, newLeafSize, oldLeafSize);
 
@@ -1049,7 +1049,7 @@ void writeBuildersAsIndirectData_mergeTopArrayUpdates_leaf(RouteTableTreeArrayPr
 			}
 		else
 			{
-			LOG(LOG_INFO,"Leaf rewrite to %p (%i %i)",newData,  newBlockSize, oldBlockSize);
+//			LOG(LOG_INFO,"Leaf rewrite to %p (%i %i)",newData,  newBlockSize, oldBlockSize);
 
 			RouteTableTreeLeafBlock *leafBlock=(RouteTableTreeLeafBlock *)(oldLeafRawData+headerSize);
 
@@ -1404,20 +1404,20 @@ int rtRouteReadsForSmer(RoutingIndexedReadReferenceBlock *rdi, SmerArraySlice *s
 		//LOG(LOG_INFO,"Prefix Old %i New %i",routingBuilder.prefixBuilder.oldTailCount,routingBuilder.prefixBuilder.newTailCount);
 		//LOG(LOG_INFO,"Suffix Old %i New %i",routingBuilder.suffixBuilder.oldTailCount,routingBuilder.suffixBuilder.newTailCount);
 
-		LOG(LOG_INFO,"Upgrade: Tail counts are %i %i",prefixCount, suffixCount);
+//		LOG(LOG_INFO,"Upgrade: Tail counts are %i %i",prefixCount, suffixCount);
 
 		upgradeToTree(&routingBuilder, prefixCount, suffixCount);
 		}
 	else if(routingBuilder.treeBuilder!=NULL) // Hackish but needed since tail counts change
 		{
-		LOG(LOG_INFO,"NonUpgrade: Tail counts are %i %i",prefixCount, suffixCount);
+//		LOG(LOG_INFO,"NonUpgrade: Tail counts are %i %i",prefixCount, suffixCount);
 		rttUpdateRouteTableTreeBuilderTailCounts(routingBuilder.treeBuilder, prefixCount, suffixCount);
 
 		}
 
 	if(routingBuilder.treeBuilder!=NULL)
 		{
-		LOG(LOG_INFO,"Existing: Tail counts are %i %i",prefixCount, suffixCount);
+//		LOG(LOG_INFO,"Existing: Tail counts are %i %i",prefixCount, suffixCount);
 
 		rttMergeRoutes(routingBuilder.treeBuilder, forwardPatches, reversePatches, forwardCount, reverseCount, prefixCount, suffixCount, orderedDispatches, disp);
 		writeBuildersAsIndirectData(&routingBuilder, sliceTag, sliceIndex,circHeap);
