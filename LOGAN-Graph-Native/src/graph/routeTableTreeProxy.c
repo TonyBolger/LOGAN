@@ -123,7 +123,6 @@ RouteTableTreeLeafProxy *getRouteTableTreeLeafProxy(RouteTableTreeProxy *treePro
 			treeProxy->disp, treeProxy->upstreamCount, treeProxy->downstreamCount);
 	leafProxy->status=LEAFPROXY_STATUS_FULLYUNPACKED;
 
-
 	flushRouteTableTreeLeafProxy(treeProxy, leafProxy);
 
 //	dumpLeafProxy(leafProxy);

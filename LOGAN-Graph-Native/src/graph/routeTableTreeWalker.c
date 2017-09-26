@@ -340,24 +340,13 @@ static s32 walkerAdvanceToNextEntry(RouteTableTreeWalker *walker, s32 targetUpst
 
 
 
-// Move to last entry that has upstream<=targetUpstream, minOffset<=upstreamOffset<=maxOffset, and if possible downstream<=targetDownstream
-
-s32 walkerAdvanceToUpstreamThenOffsetThenDownstream(RouteTableTreeWalker *walker, s32 targetUpstream, s32 targetDownstream, s32 targetMinOffset, s32 targetMaxOffset,
+s32 walkerAdvanceToUpstreamThenOffsetThenDownstream_1(RouteTableTreeWalker *walker, s32 targetUpstream, s32 targetDownstream, s32 targetMinOffset, s32 targetMaxOffset,
 		s32 *upstreamPtr, RouteTableUnpackedEntry **entryPtr, s32 *upstreamOffsetPtr, s32 *downstreamOffsetPtr)
 {
 //	LOG(LOG_INFO,"walkerAdvanceToUpstreamThenOffsetThenDownstream BEGINS");
 
 	if(walker->leafProxy==NULL) // Already past end, fail
-		{
-		//LOG(LOG_INFO,"Null proxy");
 		return 0;
-		}
-
-	//LOG(LOG_INFO,"Starting at leaf");
-//	dumpLeafProxy(walker->leafProxy);
-
-//	LOG(LOG_INFO,"Advancing to U %i D %i Offset (%i %i)",targetUpstream,targetDownstream,targetMinOffset,targetMaxOffset);
-//	dumpLeafProxy(leafProxy);
 
 	s32 upstream=walkerAdvanceGetLastUpstream(walker);
 
@@ -376,14 +365,195 @@ s32 walkerAdvanceToUpstreamThenOffsetThenDownstream(RouteTableTreeWalker *walker
 
 	while(upstream < targetUpstream) // One leaf at a time, for upstream
 		{
-//		LOG(LOG_INFO,"About to move leaf (upstream) %i want %i",upstream,targetUpstream);
-
 		walkerApplyLeafOffsets(walker, walker->leafProxy);
 
 		if(!walkerAdvanceToNextNonEmptyLeaf(walker))
 			{
-//			LOG(LOG_INFO,"No more leaves");
+			walker->leafArrayIndex=walker->leafProxy->unpackedBlock->entryArrayCount;
+			walker->leafEntryIndex=-1;
 
+			*entryPtr=NULL;
+			*upstreamPtr=upstream;
+			*upstreamOffsetPtr=walker->upstreamLeafOffsets[targetUpstream];
+			*downstreamOffsetPtr=walker->downstreamLeafOffsets[targetDownstream];
+
+			return 0;
+			}
+
+		upstream=walkerAdvanceGetLastUpstream(walker);
+		}
+
+	walkerTransferOffsetsLeafToEntry(walker);
+
+	return 1;
+}
+
+s32 walkerAdvanceToUpstreamThenOffsetThenDownstream_2(RouteTableTreeWalker *walker, s32 targetUpstream, s32 targetDownstream, s32 targetMinOffset, s32 targetMaxOffset,
+		s32 *upstreamPtr, RouteTableUnpackedEntry **entryPtr, s32 *upstreamOffsetPtr, s32 *downstreamOffsetPtr)
+{
+	s32	upstream=walker->leafProxy->unpackedBlock->entryArrays[walker->leafArrayIndex]->upstream;
+
+	while(upstream < targetUpstream) // One array at a time, for upstream
+		{
+		walkerApplyArrayOffsets(walker, walker->leafProxy, walker->leafArrayIndex);
+
+		if(!walkerAdvanceToNextArray(walker))
+			{
+			*entryPtr=NULL;
+			*upstreamPtr=upstream;
+			*upstreamOffsetPtr=walker->upstreamEntryOffsets[targetUpstream];
+			*downstreamOffsetPtr=walker->downstreamEntryOffsets[targetDownstream];
+
+			return 0;
+			}
+
+		upstream=walker->leafProxy->unpackedBlock->entryArrays[walker->leafArrayIndex]->upstream;
+		}
+
+	return 1;
+}
+
+s32 walkerAdvanceToUpstreamThenOffsetThenDownstream_3(RouteTableTreeWalker *walker, s32 targetUpstream, s32 targetDownstream, s32 targetMinOffset, s32 targetMaxOffset,
+		s32 *upstreamPtr, RouteTableUnpackedEntry **entryPtr, s32 *upstreamOffsetPtr, s32 *downstreamOffsetPtr)
+{
+	s32	upstream=walker->leafProxy->unpackedBlock->entryArrays[walker->leafArrayIndex]->upstream;
+
+	s32 currentUpstreamOffset=walker->upstreamEntryOffsets[targetUpstream];
+
+	RouteTableUnpackedEntry *entry=walker->leafProxy->unpackedBlock->entryArrays[walker->leafArrayIndex]->entries+walker->leafEntryIndex;
+
+	s32 snoopUpstreamOffset=currentUpstreamOffset+entry->width;
+
+	while(upstream == targetUpstream && snoopUpstreamOffset<=targetMinOffset) // One entry at a time
+		{
+		if(snoopUpstreamOffset==targetMinOffset && entry->downstream == targetDownstream)
+			break;
+
+		currentUpstreamOffset=snoopUpstreamOffset;
+		walker->downstreamEntryOffsets[entry->downstream]+=entry->width;
+
+		if(!walkerAdvanceToNextEntry(walker, targetUpstream))
+			{
+			*entryPtr=NULL;
+			*upstreamPtr=targetUpstream;
+			*upstreamOffsetPtr=currentUpstreamOffset;
+			walker->upstreamEntryOffsets[targetUpstream]=currentUpstreamOffset;
+
+			*downstreamOffsetPtr=walker->downstreamEntryOffsets[targetDownstream];
+
+			return 0;
+			}
+
+		upstream=walker->leafProxy->unpackedBlock->entryArrays[walker->leafArrayIndex]->upstream;
+		entry=walker->leafProxy->unpackedBlock->entryArrays[walker->leafArrayIndex]->entries+walker->leafEntryIndex;
+
+		snoopUpstreamOffset=currentUpstreamOffset+entry->width;
+		}
+
+	walker->upstreamEntryOffsets[targetUpstream]=currentUpstreamOffset;
+
+	return 1;
+}
+
+s32 walkerAdvanceToUpstreamThenOffsetThenDownstream_4(RouteTableTreeWalker *walker, s32 targetUpstream, s32 targetDownstream, s32 targetMinOffset, s32 targetMaxOffset,
+		s32 *upstreamPtr, RouteTableUnpackedEntry **entryPtr, s32 *upstreamOffsetPtr, s32 *downstreamOffsetPtr)
+{
+	s32 upstream=walker->leafProxy->unpackedBlock->entryArrays[walker->leafArrayIndex]->upstream;
+	RouteTableUnpackedEntry *entry=walker->leafProxy->unpackedBlock->entryArrays[walker->leafArrayIndex]->entries+walker->leafEntryIndex;
+
+	s32 currentUpstreamOffset=walker->upstreamEntryOffsets[targetUpstream];
+
+	s32 snoopUpstreamOffset=currentUpstreamOffset+entry->width;
+
+
+	// Current position is valid, but possibly suboptimal
+
+	while(upstream == targetUpstream && snoopUpstreamOffset<=targetMaxOffset && entry->downstream < targetDownstream)
+		{
+		currentUpstreamOffset=snoopUpstreamOffset;
+		walker->downstreamEntryOffsets[entry->downstream]+=entry->width;
+
+		if(!walkerAdvanceToNextEntry(walker, targetUpstream))
+			{
+			*entryPtr=NULL;
+			*upstreamPtr=targetUpstream;
+			*upstreamOffsetPtr=currentUpstreamOffset;
+			walker->upstreamEntryOffsets[targetUpstream]=currentUpstreamOffset;
+
+			*downstreamOffsetPtr=walker->downstreamEntryOffsets[targetDownstream];
+
+			return 0;
+			}
+
+		upstream=walker->leafProxy->unpackedBlock->entryArrays[walker->leafArrayIndex]->upstream;
+		entry=walker->leafProxy->unpackedBlock->entryArrays[walker->leafArrayIndex]->entries+walker->leafEntryIndex;
+
+		snoopUpstreamOffset=currentUpstreamOffset+entry->width;
+		}
+
+	*entryPtr=entry;
+	*upstreamPtr=upstream;
+	*upstreamOffsetPtr=currentUpstreamOffset;
+	walker->upstreamEntryOffsets[targetUpstream]=currentUpstreamOffset;
+
+	*downstreamOffsetPtr=walker->downstreamEntryOffsets[targetDownstream];
+
+	return 1;
+}
+
+s32 walkerAdvanceToUpstreamThenOffsetThenDownstream(RouteTableTreeWalker *walker, s32 targetUpstream, s32 targetDownstream, s32 targetMinOffset, s32 targetMaxOffset,
+		s32 *upstreamPtr, RouteTableUnpackedEntry **entryPtr, s32 *upstreamOffsetPtr, s32 *downstreamOffsetPtr)
+{
+	if(!walkerAdvanceToUpstreamThenOffsetThenDownstream_1(walker, targetUpstream, targetDownstream, targetMinOffset, targetMaxOffset,
+			upstreamPtr, entryPtr, upstreamOffsetPtr, downstreamOffsetPtr))
+		return 0;
+
+	if(!walkerAdvanceToUpstreamThenOffsetThenDownstream_2(walker, targetUpstream, targetDownstream, targetMinOffset, targetMaxOffset,
+			upstreamPtr, entryPtr, upstreamOffsetPtr, downstreamOffsetPtr))
+		return 0;
+
+	if(!walkerAdvanceToUpstreamThenOffsetThenDownstream_3(walker, targetUpstream, targetDownstream, targetMinOffset, targetMaxOffset,
+			upstreamPtr, entryPtr, upstreamOffsetPtr, downstreamOffsetPtr))
+		return 0;
+
+	return walkerAdvanceToUpstreamThenOffsetThenDownstream_4(walker, targetUpstream, targetDownstream, targetMinOffset, targetMaxOffset,
+			upstreamPtr, entryPtr, upstreamOffsetPtr, downstreamOffsetPtr);
+
+
+}
+
+
+// Move to last entry that has upstream<=targetUpstream, minOffset<=upstreamOffset<=maxOffset, and if possible downstream<=targetDownstream
+
+s32 walkerAdvanceToUpstreamThenOffsetThenDownstream_AIO(RouteTableTreeWalker *walker, s32 targetUpstream, s32 targetDownstream, s32 targetMinOffset, s32 targetMaxOffset,
+		s32 *upstreamPtr, RouteTableUnpackedEntry **entryPtr, s32 *upstreamOffsetPtr, s32 *downstreamOffsetPtr)
+{
+//	LOG(LOG_INFO,"walkerAdvanceToUpstreamThenOffsetThenDownstream BEGINS");
+
+	if(walker->leafProxy==NULL) // Already past end, fail
+		return 0;
+
+	s32 upstream=walkerAdvanceGetLastUpstream(walker);
+
+	if(upstream==-1)
+		{
+		walker->leafArrayIndex=walker->leafProxy->unpackedBlock->entryArrayCount;
+		walker->leafEntryIndex=-1;
+
+		*entryPtr=NULL;
+		*upstreamPtr=upstream;
+		*upstreamOffsetPtr=0;
+		*downstreamOffsetPtr=0;
+
+		return 0;
+		}
+
+	while(upstream < targetUpstream) // One leaf at a time, for upstream
+		{
+		walkerApplyLeafOffsets(walker, walker->leafProxy);
+
+		if(!walkerAdvanceToNextNonEmptyLeaf(walker))
+			{
 			walker->leafArrayIndex=walker->leafProxy->unpackedBlock->entryArrayCount;
 			walker->leafEntryIndex=-1;
 
@@ -401,19 +571,12 @@ s32 walkerAdvanceToUpstreamThenOffsetThenDownstream(RouteTableTreeWalker *walker
 	walkerTransferOffsetsLeafToEntry(walker);
 	upstream=walker->leafProxy->unpackedBlock->entryArrays[walker->leafArrayIndex]->upstream;
 
-//	LOG(LOG_INFO,"Now at leaf");
-//	dumpLeafProxy(walker->leafProxy);
-
 	while(upstream < targetUpstream) // One array at a time, for upstream
 		{
-//		LOG(LOG_INFO,"About to move array (upstream) %i want %i",upstream,targetUpstream);
-
 		walkerApplyArrayOffsets(walker, walker->leafProxy, walker->leafArrayIndex);
 
 		if(!walkerAdvanceToNextArray(walker))
 			{
-//			LOG(LOG_INFO,"No more arrays/leaves");
-
 			*entryPtr=NULL;
 			*upstreamPtr=upstream;
 			*upstreamOffsetPtr=walker->upstreamEntryOffsets[targetUpstream];
@@ -431,28 +594,16 @@ s32 walkerAdvanceToUpstreamThenOffsetThenDownstream(RouteTableTreeWalker *walker
 
 	s32 snoopUpstreamOffset=currentUpstreamOffset+entry->width;
 
-//	LOG(LOG_INFO,"Before entry (offset) moves Up %i (%i) Down %i (%i) Offset %i (%i %i) Width %i",
-//			upstream, targetUpstream, entry->downstream, targetDownstream, currentUpstreamOffset, targetMinOffset, targetMaxOffset, entry->width);
-
 	while(upstream == targetUpstream && snoopUpstreamOffset<=targetMinOffset) // One entry at a time
 		{
 		if(snoopUpstreamOffset==targetMinOffset && entry->downstream == targetDownstream)
 			break;
 
-//		LOG(LOG_INFO,"About to move entry (offset) At %i Next %i Want %i",currentUpstreamOffset,snoopUpstreamOffset,targetMinOffset);
-
 		currentUpstreamOffset=snoopUpstreamOffset;
 		walker->downstreamEntryOffsets[entry->downstream]+=entry->width;
 
 		if(!walkerAdvanceToNextEntry(walker, targetUpstream))
 			{
-//			LOG(LOG_INFO,"No more arrays/leaves/entries (offset)");
-
-//			LOG(LOG_INFO,"Status: Up %i (%i) Down %i (%i) Offset %i (%i %i)",
-//				upstream, targetUpstream, entry->downstream, targetDownstream, currentUpstreamOffset, targetMinOffset, targetMaxOffset);
-
-//			LOG(LOG_INFO,"Walker Indexes are %i %i",walker->leafArrayIndex,walker->leafEntryIndex);
-
 			*entryPtr=NULL;
 			*upstreamPtr=targetUpstream;
 			*upstreamOffsetPtr=currentUpstreamOffset;
@@ -468,35 +619,16 @@ s32 walkerAdvanceToUpstreamThenOffsetThenDownstream(RouteTableTreeWalker *walker
 
 		snoopUpstreamOffset=currentUpstreamOffset+entry->width;
 		}
-
-
-	//walker->upstreamOffsets[targetPrefix]+entry->width)<=maxEdgePosition && entry->downstream<targetSuffix
-
-//	LOG(LOG_INFO,"Before entry (downstream) moves Up %i (%i) Down %i (%i) Offset %i (%i %i) Width %i",
-//			upstream, targetUpstream, entry->downstream, targetDownstream, currentUpstreamOffset, targetMinOffset, targetMaxOffset, entry->width);
-
-//	LOG(LOG_INFO,"Snoop now %i",snoopUpstreamOffset);
 
 	// Current position is valid, but possibly suboptimal
 
 	while(upstream == targetUpstream && snoopUpstreamOffset<=targetMaxOffset && entry->downstream < targetDownstream)
 		{
-//		LOG(LOG_INFO,"About to move entry (downstream) At %i Next %i Want %i",currentUpstreamOffset,snoopUpstreamOffset,targetMinOffset);
-
-//		LOG(LOG_INFO,"Premove Walker Indexes are %i %i",walker->leafArrayIndex,walker->leafEntryIndex);
-
 		currentUpstreamOffset=snoopUpstreamOffset;
 		walker->downstreamEntryOffsets[entry->downstream]+=entry->width;
 
 		if(!walkerAdvanceToNextEntry(walker, targetUpstream))
 			{
-//			LOG(LOG_INFO,"No more suitable arrays/leaves/entries (downstream)");
-
-//			LOG(LOG_INFO,"Status: Up %i (%i) Down %i (%i) Offset %i (%i %i)",
-//				upstream, targetUpstream, entry->downstream, targetDownstream, currentUpstreamOffset, targetMinOffset, targetMaxOffset);
-
-//			LOG(LOG_INFO,"Walker Indexes are %i %i",walker->leafArrayIndex,walker->leafEntryIndex);
-
 			*entryPtr=NULL;
 			*upstreamPtr=targetUpstream;
 			*upstreamOffsetPtr=currentUpstreamOffset;
@@ -512,11 +644,6 @@ s32 walkerAdvanceToUpstreamThenOffsetThenDownstream(RouteTableTreeWalker *walker
 
 		snoopUpstreamOffset=currentUpstreamOffset+entry->width;
 		}
-
-//	LOG(LOG_INFO,"After all moves Up %i (%i) Down %i (%i) Offset %i (%i %i) Width %i",
-//			upstream, targetUpstream, entry->downstream, targetDownstream, currentUpstreamOffset, targetMinOffset, targetMaxOffset, entry->width);
-
-//	LOG(LOG_INFO,"Walker Indexes are %i %i",walker->leafArrayIndex,walker->leafEntryIndex);
 
 	*entryPtr=entry;
 	*upstreamPtr=upstream;

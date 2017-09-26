@@ -446,6 +446,8 @@ void rttMergeRoutes(RouteTableTreeBuilder *builder,
 
 	// Forward Routes
 
+	//LOG(LOG_INFO,"rttMergeRoutes: %i %i",forwardRoutePatchCount, reverseRoutePatchCount);
+
 	if(forwardRoutePatchCount>0)
 		{
 		RouteTableTreeWalker *walker=&(builder->forwardWalker);
@@ -454,7 +456,7 @@ void rttMergeRoutes(RouteTableTreeBuilder *builder,
 
 		RoutePatch *patchPtr=forwardRoutePatches;
 		RoutePatch *patchEnd=patchPtr+forwardRoutePatchCount;
-		RoutePatch *patchPeekPtr=NULL;
+/*		RoutePatch *patchPeekPtr=NULL;
 
 		while(patchPtr<patchEnd)
 			{
@@ -483,8 +485,18 @@ void rttMergeRoutes(RouteTableTreeBuilder *builder,
 				patchPtr++;
 				}
 			}
-		}
+			*/
 
+		while(patchPtr<patchEnd)
+			{
+			walkerSeekStart(walker);
+			rttMergeRoutes_ordered_forwardSingle(builder, walker, patchPtr);
+			walkerResetOffsetArrays(walker);
+
+			*(orderedDispatches++)=*(patchPtr->rdiPtr);
+			patchPtr++;
+			}
+		}
 
 	// Reverse Routes
 
@@ -496,7 +508,18 @@ void rttMergeRoutes(RouteTableTreeBuilder *builder,
 
 		RoutePatch *patchPtr=reverseRoutePatches;
 		RoutePatch *patchEnd=patchPtr+reverseRoutePatchCount;
-		RoutePatch *patchPeekPtr=NULL;
+
+		while(patchPtr<patchEnd)
+			{
+			walkerSeekStart(walker);
+			rttMergeRoutes_ordered_reverseSingle(walker, patchPtr);
+			walkerResetOffsetArrays(walker);
+
+			*(orderedDispatches++)=*(patchPtr->rdiPtr);
+			patchPtr++;
+			}
+
+/*		RoutePatch *patchPeekPtr=NULL;
 
 		while(patchPtr<patchEnd)
 			{
@@ -525,6 +548,8 @@ void rttMergeRoutes(RouteTableTreeBuilder *builder,
 				patchPtr++;
 				}
 			}
+*/
+
 
 		}
 
