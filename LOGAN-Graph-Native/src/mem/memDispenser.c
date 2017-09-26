@@ -66,7 +66,7 @@ void dispenserFree(MemDispenser *disp)
 		blockPtr=prevPtr;
 		}
 
-	G_FREE(disp, sizeof(MemDispenser), disp->memTrackerId);
+	G_FREE(disp, sizeof(MemDispenser), MEMTRACKID_DISPENSER);
 }
 
 

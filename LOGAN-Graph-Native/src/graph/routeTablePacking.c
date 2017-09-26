@@ -690,7 +690,9 @@ s32 rtpGetPackedSingleBlockSize(RouteTablePackedSingleBlock *packedBlock)
 //	LOG(LOG_INFO,"PackLeaf: rtpGetPackedSingleBlockSize start %p",packedBlock);
 
 	u16 blockHeader=packedBlock->blockHeader;
-	s32 payloadSize=(blockHeader&RTP_PACKEDHEADER_PAYLOADSIZE_MASK)?(*((u16 *)(packedBlock->data))):(*((u8 *)(packedBlock->data)));
+	u8 *dataPtr=packedBlock->data;
+
+	s32 payloadSize=(blockHeader&RTP_PACKEDHEADER_PAYLOADSIZE_MASK)?(*((u16 *)(dataPtr))):(*((u8 *)(dataPtr)));
 	s32 totalSize=payloadSize+2;
 
 //	LOG(LOG_INFO,"PackLeaf: rtpGetPackedSingleBlockSize size %i",totalSize);

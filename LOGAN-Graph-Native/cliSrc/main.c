@@ -318,6 +318,9 @@ int main(int argc, char **argv)
 
 #ifdef FEATURE_ENABLE_MEMTRACK
 	mtDump();
+//	LOG(LOG_INFO,"Graph construction complete");
+//	sleep(60);
+
 #endif
 
 	freeGraph(graph);
