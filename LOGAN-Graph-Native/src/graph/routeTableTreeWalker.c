@@ -107,10 +107,18 @@ void walkerSeekStart(RouteTableTreeWalker *walker)
 	walker->leafProxy=leafProxy;
 
 	if(leafProxy==NULL)
+		{
 		walkerAppendNewLeaf(walker);
+		leafProxy=walker->leafProxy;
+		}
 
 	walker->leafArrayIndex=0;
 	walker->leafEntryIndex=0;
+
+//	if(leafProxy->unpackedBlock->entryArrays!=NULL)
+		walker->leafEntryArray=leafProxy->unpackedBlock->entryArrays[walker->leafArrayIndex];
+//	else
+	//	walker->leafEntryArray=NULL;
 
 }
 
@@ -136,6 +144,8 @@ void walkerSeekEnd(RouteTableTreeWalker *walker)
 		{
 		walker->leafArrayIndex=-1;
 		walker->leafEntryIndex=-1;
+
+		walker->leafEntryArray=NULL;
 		}
 
 }
@@ -166,12 +176,12 @@ static s32 ensureSpaceForArray(RouteTableTreeWalker *walker)
 	if(block->entryArrayCount>=ROUTEPACKING_ENTRYARRAYS_MAX)
 		{
 //		LOG(LOG_INFO,"ensureSpaceForArray");
-		flushRouteTableTreeLeafProxy(walker->treeProxy, walker->leafProxy);
+		rttlMarkDirty(walker->treeProxy, walker->leafProxy);
 
 		RouteTableTreeLeafProxy *newLeafProxy=treeProxySplitLeaf(walker->treeProxy, walker->branchProxy, walker->branchChildSibdex, walker->leafProxy, walker->leafArrayIndex,
 				&walker->branchProxy, &walker->branchChildSibdex, &walker->leafProxy, &walker->leafArrayIndex);
 
-		flushRouteTableTreeLeafProxy(walker->treeProxy, newLeafProxy);
+		rttlMarkDirty(walker->treeProxy, newLeafProxy);
 
 		return 1;
 		}
@@ -286,6 +296,8 @@ static s32 walkerAdvanceToNextNonEmptyLeaf(RouteTableTreeWalker *walker)
 	walker->leafArrayIndex=0;
 	walker->leafEntryIndex=0;
 
+	walker->leafEntryArray=walker->leafProxy->unpackedBlock->entryArrays[walker->leafArrayIndex];
+
 	return 1;
 }
 
@@ -299,40 +311,113 @@ static s32 walkerAdvanceToNextArray(RouteTableTreeWalker *walker)
 		return walkerAdvanceToNextNonEmptyLeaf(walker);
 
 	walker->leafEntryIndex=0;
+	walker->leafEntryArray=walker->leafProxy->unpackedBlock->entryArrays[walker->leafArrayIndex];
 
 	return 1;
 }
 
-static s32 walkerAdvanceToNextEntry(RouteTableTreeWalker *walker, s32 targetUpstream)
+
+
+
+
+static s32 walkerAdvanceToNextNonEmptyLeaf_targetUpstream(RouteTableTreeWalker *walker, s32 targetUpstream)
 {
-//	LOG(LOG_INFO,"walkerAdvanceToNextEntry");
+//	LOG(LOG_INFO,"walkerAdvanceToNextNonEmptyLeaf");
 
-	walker->leafEntryIndex++;
+	RouteTableTreeBranchProxy *branchProxy=walker->branchProxy;
+	RouteTableTreeLeafProxy *leafProxy=walker->leafProxy;
+	s16 branchChildSibdex=walker->branchChildSibdex;
 
-	if(walker->leafEntryIndex>=walker->leafProxy->unpackedBlock->entryArrays[walker->leafArrayIndex]->entryCount)
+	RouteTableUnpackedSingleBlock *unpackedBlock=NULL;
+	int entryArrayCount=0;
+	do
 		{
-		RouteTableTreeBranchProxy *branchProxy=walker->branchProxy;
-		s16 branchChildSibdex=walker->branchChildSibdex;
-		RouteTableTreeLeafProxy *leafProxy=walker->leafProxy;
-		s16 leafArrayIndex=walker->leafArrayIndex;
-		s16 leafEntryIndex=walker->leafEntryIndex;
-
-		int res=walkerAdvanceToNextArray(walker);
-
-		if(!res || walker->leafProxy->unpackedBlock->entryArrays[walker->leafArrayIndex]->upstream>targetUpstream) // Past upstream, undo and fail
+		if(!getNextLeafSibling(walker->treeProxy, &branchProxy, &branchChildSibdex, &leafProxy)) // No more leaves
 			{
-			walker->branchProxy=branchProxy;
-			walker->branchChildSibdex=branchChildSibdex;
-			walker->leafProxy=leafProxy;
-			walker->leafArrayIndex=leafArrayIndex;
-			walker->leafEntryIndex=leafEntryIndex;
-
-//			LOG(LOG_INFO,"walkerAdvanceToNextEntry - undo");
-
+//			LOG(LOG_INFO,"No more leaves");
 			return 0;
 			}
 
-//		LOG(LOG_INFO,"walkerAdvanceToNextEntry - moved array/leaf");
+		unpackedBlock=leafProxy->unpackedBlock;
+		entryArrayCount=unpackedBlock->entryArrayCount;
+
+		if(entryArrayCount==0)
+			LOG(LOG_INFO,"Advancing past empty leaf");
+		}
+	while(entryArrayCount==0);
+
+	// First shouldn't happen
+	if(entryArrayCount == 0 || unpackedBlock->entryArrays[0]->upstream>targetUpstream)
+		return 0;
+
+	walker->branchProxy=branchProxy;
+	walker->leafProxy=leafProxy;
+	walker->branchChildSibdex=branchChildSibdex;
+
+	walker->leafArrayIndex=0;
+	walker->leafEntryIndex=0;
+
+	walker->leafEntryArray=unpackedBlock->entryArrays[0];
+
+	return 1;
+}
+
+
+static s32 walkerAdvanceToNextArray_targetUpstream(RouteTableTreeWalker *walker, s32 targetUpstream)
+{
+//	LOG(LOG_INFO,"walkerAdvanceToNextArray");
+
+	s16 leafArrayIndex=walker->leafArrayIndex+1;
+
+	if(leafArrayIndex>=walker->leafProxy->unpackedBlock->entryArrayCount)
+		return walkerAdvanceToNextNonEmptyLeaf_targetUpstream(walker, targetUpstream);
+	else
+		{
+		RouteTableUnpackedEntryArray *leafEntryArray=walker->leafProxy->unpackedBlock->entryArrays[leafArrayIndex];
+
+		if(leafEntryArray->upstream>targetUpstream)
+			return 0;
+
+		walker->leafArrayIndex=leafArrayIndex;
+		walker->leafEntryIndex=0;
+		walker->leafEntryArray=leafEntryArray;
+
+		return 1;
+		}
+}
+
+
+static s32 walkerAdvanceToNextEntry_targetUpstream(RouteTableTreeWalker *walker, s32 targetUpstream)
+{
+	walker->leafEntryIndex++;
+
+	if(walker->leafEntryIndex>=walker->leafEntryArray->entryCount)
+		{
+		return walkerAdvanceToNextArray_targetUpstream(walker, targetUpstream);
+
+/*
+		RouteTableTreeBranchProxy *branchProxy=walker->branchProxy;
+		RouteTableTreeLeafProxy *leafProxy=walker->leafProxy;
+		RouteTableUnpackedEntryArray *leafEntryArray=walker->leafEntryArray;
+
+		s16 branchChildSibdex=walker->branchChildSibdex;
+		s16 leafArrayIndex=walker->leafArrayIndex;
+		s16 leafEntryIndex=walker->leafEntryIndex;
+
+		int res=walkerAdvanceToNextArray_targetUpstream(walker, targetUpstream);
+
+		if(!res || walker->leafEntryArray->upstream>targetUpstream) // Past upstream, undo and fail
+			{
+			walker->branchProxy=branchProxy;
+			walker->leafProxy=leafProxy;
+			walker->leafEntryArray=leafEntryArray;
+
+			walker->branchChildSibdex=branchChildSibdex;
+			walker->leafArrayIndex=leafArrayIndex;
+			walker->leafEntryIndex=leafEntryIndex;
+			return 0;
+			}
+*/
 		}
 
 	return 1;
@@ -371,6 +456,7 @@ s32 walkerAdvanceToUpstreamThenOffsetThenDownstream_1(RouteTableTreeWalker *walk
 			{
 			walker->leafArrayIndex=walker->leafProxy->unpackedBlock->entryArrayCount;
 			walker->leafEntryIndex=-1;
+			walker->leafEntryArray=NULL;
 
 			*entryPtr=NULL;
 			*upstreamPtr=upstream;
@@ -391,7 +477,7 @@ s32 walkerAdvanceToUpstreamThenOffsetThenDownstream_1(RouteTableTreeWalker *walk
 s32 walkerAdvanceToUpstreamThenOffsetThenDownstream_2(RouteTableTreeWalker *walker, s32 targetUpstream, s32 targetDownstream, s32 targetMinOffset, s32 targetMaxOffset,
 		s32 *upstreamPtr, RouteTableUnpackedEntry **entryPtr, s32 *upstreamOffsetPtr, s32 *downstreamOffsetPtr)
 {
-	s32	upstream=walker->leafProxy->unpackedBlock->entryArrays[walker->leafArrayIndex]->upstream;
+	s32	upstream=walker->leafEntryArray->upstream;
 
 	while(upstream < targetUpstream) // One array at a time, for upstream
 		{
@@ -407,7 +493,7 @@ s32 walkerAdvanceToUpstreamThenOffsetThenDownstream_2(RouteTableTreeWalker *walk
 			return 0;
 			}
 
-		upstream=walker->leafProxy->unpackedBlock->entryArrays[walker->leafArrayIndex]->upstream;
+		upstream=walker->leafEntryArray->upstream;
 		}
 
 	return 1;
@@ -416,11 +502,11 @@ s32 walkerAdvanceToUpstreamThenOffsetThenDownstream_2(RouteTableTreeWalker *walk
 s32 walkerAdvanceToUpstreamThenOffsetThenDownstream_3(RouteTableTreeWalker *walker, s32 targetUpstream, s32 targetDownstream, s32 targetMinOffset, s32 targetMaxOffset,
 		s32 *upstreamPtr, RouteTableUnpackedEntry **entryPtr, s32 *upstreamOffsetPtr, s32 *downstreamOffsetPtr)
 {
-	s32	upstream=walker->leafProxy->unpackedBlock->entryArrays[walker->leafArrayIndex]->upstream;
+	s32	upstream=walker->leafEntryArray->upstream;
 
 	s32 currentUpstreamOffset=walker->upstreamEntryOffsets[targetUpstream];
 
-	RouteTableUnpackedEntry *entry=walker->leafProxy->unpackedBlock->entryArrays[walker->leafArrayIndex]->entries+walker->leafEntryIndex;
+	RouteTableUnpackedEntry *entry=walker->leafEntryArray->entries+walker->leafEntryIndex;
 
 	s32 snoopUpstreamOffset=currentUpstreamOffset+entry->width;
 
@@ -432,7 +518,7 @@ s32 walkerAdvanceToUpstreamThenOffsetThenDownstream_3(RouteTableTreeWalker *walk
 		currentUpstreamOffset=snoopUpstreamOffset;
 		walker->downstreamEntryOffsets[entry->downstream]+=entry->width;
 
-		if(!walkerAdvanceToNextEntry(walker, targetUpstream))
+		if(!walkerAdvanceToNextEntry_targetUpstream(walker, targetUpstream))
 			{
 			*entryPtr=NULL;
 			*upstreamPtr=targetUpstream;
@@ -444,8 +530,8 @@ s32 walkerAdvanceToUpstreamThenOffsetThenDownstream_3(RouteTableTreeWalker *walk
 			return 0;
 			}
 
-		upstream=walker->leafProxy->unpackedBlock->entryArrays[walker->leafArrayIndex]->upstream;
-		entry=walker->leafProxy->unpackedBlock->entryArrays[walker->leafArrayIndex]->entries+walker->leafEntryIndex;
+		upstream=walker->leafEntryArray->upstream;
+		entry=walker->leafEntryArray->entries+walker->leafEntryIndex;
 
 		snoopUpstreamOffset=currentUpstreamOffset+entry->width;
 		}
@@ -458,8 +544,8 @@ s32 walkerAdvanceToUpstreamThenOffsetThenDownstream_3(RouteTableTreeWalker *walk
 s32 walkerAdvanceToUpstreamThenOffsetThenDownstream_4(RouteTableTreeWalker *walker, s32 targetUpstream, s32 targetDownstream, s32 targetMinOffset, s32 targetMaxOffset,
 		s32 *upstreamPtr, RouteTableUnpackedEntry **entryPtr, s32 *upstreamOffsetPtr, s32 *downstreamOffsetPtr)
 {
-	s32 upstream=walker->leafProxy->unpackedBlock->entryArrays[walker->leafArrayIndex]->upstream;
-	RouteTableUnpackedEntry *entry=walker->leafProxy->unpackedBlock->entryArrays[walker->leafArrayIndex]->entries+walker->leafEntryIndex;
+	s32 upstream=walker->leafEntryArray->upstream;
+	RouteTableUnpackedEntry *entry=walker->leafEntryArray->entries+walker->leafEntryIndex;
 
 	s32 currentUpstreamOffset=walker->upstreamEntryOffsets[targetUpstream];
 
@@ -473,7 +559,7 @@ s32 walkerAdvanceToUpstreamThenOffsetThenDownstream_4(RouteTableTreeWalker *walk
 		currentUpstreamOffset=snoopUpstreamOffset;
 		walker->downstreamEntryOffsets[entry->downstream]+=entry->width;
 
-		if(!walkerAdvanceToNextEntry(walker, targetUpstream))
+		if(!walkerAdvanceToNextEntry_targetUpstream(walker, targetUpstream))
 			{
 			*entryPtr=NULL;
 			*upstreamPtr=targetUpstream;
@@ -485,8 +571,8 @@ s32 walkerAdvanceToUpstreamThenOffsetThenDownstream_4(RouteTableTreeWalker *walk
 			return 0;
 			}
 
-		upstream=walker->leafProxy->unpackedBlock->entryArrays[walker->leafArrayIndex]->upstream;
-		entry=walker->leafProxy->unpackedBlock->entryArrays[walker->leafArrayIndex]->entries+walker->leafEntryIndex;
+		upstream=walker->leafEntryArray->upstream;
+		entry=walker->leafEntryArray->entries+walker->leafEntryIndex;
 
 		snoopUpstreamOffset=currentUpstreamOffset+entry->width;
 		}
@@ -602,7 +688,7 @@ s32 walkerAdvanceToUpstreamThenOffsetThenDownstream_AIO(RouteTableTreeWalker *wa
 		currentUpstreamOffset=snoopUpstreamOffset;
 		walker->downstreamEntryOffsets[entry->downstream]+=entry->width;
 
-		if(!walkerAdvanceToNextEntry(walker, targetUpstream))
+		if(!walkerAdvanceToNextEntry_targetUpstream(walker, targetUpstream))
 			{
 			*entryPtr=NULL;
 			*upstreamPtr=targetUpstream;
@@ -627,7 +713,7 @@ s32 walkerAdvanceToUpstreamThenOffsetThenDownstream_AIO(RouteTableTreeWalker *wa
 		currentUpstreamOffset=snoopUpstreamOffset;
 		walker->downstreamEntryOffsets[entry->downstream]+=entry->width;
 
-		if(!walkerAdvanceToNextEntry(walker, targetUpstream))
+		if(!walkerAdvanceToNextEntry_targetUpstream(walker, targetUpstream))
 			{
 			*entryPtr=NULL;
 			*upstreamPtr=targetUpstream;
@@ -790,7 +876,7 @@ void walkerMergeRoutes_insertEntry(RouteTableTreeWalker *walker, s32 upstream, s
 	block->downstreamOffsets[downstream]++;
 
 	if(leafProxy->status!=LEAFPROXY_STATUS_DIRTY)
-		flushRouteTableTreeLeafProxy(walker->treeProxy, leafProxy);
+		rttlMarkDirty(walker->treeProxy, leafProxy);
 }
 
 
@@ -848,7 +934,7 @@ void walkerMergeRoutes_widen(RouteTableTreeWalker *walker)
 	block->downstreamOffsets[downstream]++;
 
 	if(leafProxy->status!=LEAFPROXY_STATUS_DIRTY)
-		flushRouteTableTreeLeafProxy(walker->treeProxy, leafProxy);
+		rttlMarkDirty(walker->treeProxy, leafProxy);
 }
 
 void walkerMergeRoutes_split(RouteTableTreeWalker *walker, s32 downstream, s32 width1, s32 width2)
@@ -880,7 +966,7 @@ void walkerMergeRoutes_split(RouteTableTreeWalker *walker, s32 downstream, s32 w
 	leafProxy->unpackedBlock->downstreamOffsets[downstream]++;
 
 	if(leafProxy->status!=LEAFPROXY_STATUS_DIRTY)
-		flushRouteTableTreeLeafProxy(walker->treeProxy, leafProxy);
+		rttlMarkDirty(walker->treeProxy, leafProxy);
 }
 
 
@@ -945,7 +1031,7 @@ void walkerAppendPreorderedEntry(RouteTableTreeWalker *walker, RouteTableEntry *
 	block->downstreamOffsets[downstream]+=entry->width;
 
 	if(leafProxy->status!=LEAFPROXY_STATUS_DIRTY)
-		flushRouteTableTreeLeafProxy(walker->treeProxy, leafProxy);
+		rttlMarkDirty(walker->treeProxy, leafProxy);
 }
 
 

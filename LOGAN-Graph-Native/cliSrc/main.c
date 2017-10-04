@@ -287,6 +287,7 @@ int main(int argc, char **argv)
 		}
 
 #ifdef FEATURE_ENABLE_MEMTRACK
+	mtInit();
 	mtDump();
 #endif
 

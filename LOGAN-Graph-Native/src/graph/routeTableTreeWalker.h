@@ -10,8 +10,10 @@ typedef struct routeTableTreeWalkerStr
 
 	// Current Position
 	RouteTableTreeBranchProxy *branchProxy;
-	s16 branchChildSibdex;
 	RouteTableTreeLeafProxy *leafProxy;
+	RouteTableUnpackedEntryArray *leafEntryArray;
+
+	s16 branchChildSibdex;
 	s16 leafArrayIndex;
 	s16 leafEntryIndex;
 

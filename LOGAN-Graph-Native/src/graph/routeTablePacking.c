@@ -301,6 +301,57 @@ void rtpAllocUnpackedSingleBlockEntryArray(RouteTableUnpackedSingleBlock *block,
 
 }
 
+/*
+RouteTableUnpackedSingleBlock *rtpUnpackSingleBlockOffsets(RouteTablePackedSingleBlock *packedBlock, MemDispenser *disp, s32 upstreamOffsetAlloc, s32 downstreamOffsetAlloc)
+{
+
+	u16 blockHeader=packedBlock->blockHeader;
+	u8 *dataPtr=packedBlock->data;
+
+	s32 sizePayloadSize=((blockHeader&RTP_PACKEDHEADER_PAYLOADSIZE_MASK)?2:1);
+	s32 payloadSize=sizePayloadSize==1?(*dataPtr):(*((u16 *)(dataPtr)));
+	dataPtr+=sizePayloadSize;
+
+//	LOG(LOG_INFO,"After PayloadSize: %i",(dataPtr-packedBlock->data));
+
+	s32 sizeUpstreamRange=blockHeader&RTP_PACKEDHEADER_UPSTREAMRANGESIZE_MASK?2:1;
+	s32 sizeDownstreamRange=blockHeader&RTP_PACKEDHEADER_DOWNSTREAMRANGESIZE_MASK?2:1;
+
+	s32 sizeOffset=((blockHeader&RTP_PACKEDHEADER_OFFSETSIZE_MASK)>>RTP_PACKEDHEADER_OFFSETSIZE_SHIFT)+1;
+	s32 sizeArrayCount=((blockHeader&RTP_PACKEDHEADER_ARRAYCOUNTSIZE_MASK)>>RTP_PACKEDHEADER_ARRAYCOUNTSIZE_SHIFT)+1;
+
+	s32 upstreamFirst=sizeUpstreamRange==1?(*dataPtr):(*((u16 *)(dataPtr)));
+	dataPtr+=sizeUpstreamRange;
+	s32 upstreamAlloc=sizeUpstreamRange==1?(*dataPtr):(*((u16 *)(dataPtr)));
+	dataPtr+=sizeUpstreamRange;
+
+//	LOG(LOG_INFO,"After UpRange: %i",(dataPtr-packedBlock->data));
+
+	s32 downstreamFirst=sizeDownstreamRange==1?(*dataPtr):(*((u16 *)(dataPtr)));
+	dataPtr+=sizeDownstreamRange;
+	s32 downstreamAlloc=sizeDownstreamRange==1?(*dataPtr):(*((u16 *)(dataPtr)));
+	dataPtr+=sizeDownstreamRange;
+
+//	LOG(LOG_INFO,"After DownRange: %i",(dataPtr-packedBlock->data));
+
+	upstreamOffsetAlloc=MAX(upstreamFirst+upstreamAlloc, upstreamOffsetAlloc);
+	downstreamOffsetAlloc=MAX(downstreamFirst+downstreamAlloc, downstreamOffsetAlloc);
+
+	RouteTableUnpackedSingleBlock *unpackedBlock=rtpAllocUnpackedSingleBlock(disp, upstreamOffsetAlloc, downstreamOffsetAlloc);
+
+	dataPtr=apUnpackArray(dataPtr, (u32 *)(unpackedBlock->upstreamOffsets+upstreamFirst), sizeOffset, upstreamAlloc);
+//	LOG(LOG_INFO,"After UpOffsets: %i",(dataPtr-packedBlock->data));
+
+	dataPtr=apUnpackArray(dataPtr, (u32 *)(unpackedBlock->downstreamOffsets+downstreamFirst), sizeOffset, downstreamAlloc);
+//	LOG(LOG_INFO,"After DownOffsets: %i",(dataPtr-packedBlock->data));
+
+	s32 arrayCount=sizeArrayCount==1?(*dataPtr):(*((u16 *)(dataPtr)));
+	dataPtr+=sizeArrayCount;
+//	LOG(LOG_INFO,"After ArrayCount: %i",(dataPtr-packedBlock->data));
+
+	return unpackedBlock;
+}
+*/
 
 
 
@@ -392,6 +443,8 @@ RouteTableUnpackedSingleBlock *rtpUnpackSingleBlock(RouteTablePackedSingleBlock 
 		LOG(LOG_CRITICAL,"Packed Block payload side %i did not match expected %i",
 				usedPayloadSize, payloadSize);
 		}
+
+	unpackedBlock->packingInfo.oldPackedSize=payloadSize+2;
 
 //	LOG(LOG_CRITICAL,"PackLeaf: rtpUnpackSingleBlock TODO");
 

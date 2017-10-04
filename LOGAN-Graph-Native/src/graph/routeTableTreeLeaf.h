@@ -43,7 +43,10 @@ struct routeTableTreeLeafProxyStr
 };
 
 
-void flushRouteTableTreeLeafProxy(RouteTableTreeProxy *treeProxy, RouteTableTreeLeafProxy *leafProxy);
+void rttlEnsureOffsetUnpacked(RouteTableTreeProxy *treeProxy, RouteTableTreeLeafProxy *leafProxy);
+void rttlEnsureFullyUnpacked(RouteTableTreeProxy *treeProxy, RouteTableTreeLeafProxy *leafProxy);
+void rttlMarkDirty(RouteTableTreeProxy *treeProxy, RouteTableTreeLeafProxy *leafProxy);
+
 RouteTableTreeLeafProxy *allocRouteTableTreeLeafProxy(RouteTableTreeProxy *treeProxy, s32 upstreamOffsetAlloc, s32 downstreamOffsetAlloc, s32 entryArrayAlloc);
 
 void dumpLeafBlock(RouteTableTreeLeafBlock *leafBlock);
