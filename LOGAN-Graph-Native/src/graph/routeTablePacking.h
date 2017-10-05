@@ -126,18 +126,26 @@ typedef struct routeTableUnpackedSingleBlockStr
 	s32 entryArrayAlloc;
 	s32 entryArrayCount;
 
-	s32 *upstreamOffsets;
-	s32 *downstreamOffsets;
+	s32 *upstreamLeafOffsets;
+	s32 *downstreamLeafOffsets;
 	RouteTableUnpackedEntryArray **entryArrays;
 
 } RouteTableUnpackedSingleBlock;
 
 #define ROUTEPACKING_ENTRYARRAYS_CHUNK 4
+// Max allowed during table -> tree upgrade
+#define ROUTEPACKING_ENTRYARRAYS_UPGRADE_MAX 16
+
+// Max allowed normally
 //#define ROUTEPACKING_ENTRYARRAYS_MAX 16
 #define ROUTEPACKING_ENTRYARRAYS_MAX 64
 //#define ROUTEPACKING_ENTRYARRAYS_MAX 256
 
 #define ROUTEPACKING_ENTRYS_CHUNK 8
+// Max allowed during table -> tree upgrade
+#define ROUTEPACKING_ENTRYS_UPGRADE_MAX 16
+
+// Max allowed normally
 //#define ROUTEPACKING_ENTRYS_MAX 16
 #define ROUTEPACKING_ENTRYS_MAX 64
 //#define ROUTEPACKING_ENTRYS_MAX 256

@@ -8,11 +8,11 @@ void rtpDumpUnpackedSingleBlock(RouteTableUnpackedSingleBlock *block)
 
 	LOG(LOG_INFO,"Upstream Offsets: %i",block->upstreamOffsetAlloc);
 	for(int i=0;i<block->upstreamOffsetAlloc;i++)
-		LOG(LOG_INFO,"%i: %i  ",i,block->upstreamOffsets[i]);
+		LOG(LOG_INFO,"%i: %i  ",i,block->upstreamLeafOffsets[i]);
 
 	LOG(LOG_INFO,"Downstream Offsets: %i",block->downstreamOffsetAlloc);
 	for(int i=0;i<block->downstreamOffsetAlloc;i++)
-		LOG(LOG_INFO,"%i: %i  ",i,block->downstreamOffsets[i]);
+		LOG(LOG_INFO,"%i: %i  ",i,block->downstreamLeafOffsets[i]);
 
 	LOG(LOG_INFO,"Entry arrays: %i (%i)",block->entryArrayCount, block->entryArrayAlloc);
 	for(int i=0;i<block->entryArrayCount;i++)
@@ -35,10 +35,10 @@ void rtpRecalculateUnpackedBlockOffsets(RouteTableUnpackedSingleBlock *unpackedB
 //	LOG(LOG_INFO,"rtpRecalculateUnpackedBlockOffsets");
 
 	for(int i=0;i<unpackedBlock->upstreamOffsetAlloc;i++)
-		unpackedBlock->upstreamOffsets[i]=0;
+		unpackedBlock->upstreamLeafOffsets[i]=0;
 
 	for(int i=0;i<unpackedBlock->downstreamOffsetAlloc;i++)
-		unpackedBlock->downstreamOffsets[i]=0;
+		unpackedBlock->downstreamLeafOffsets[i]=0;
 
 	for(int i=0;i<unpackedBlock->entryArrayCount;i++)
 		{
@@ -49,11 +49,11 @@ void rtpRecalculateUnpackedBlockOffsets(RouteTableUnpackedSingleBlock *unpackedB
 			{
 			s32 width=array->entries[j].width;
 
-			unpackedBlock->downstreamOffsets[array->entries[j].downstream]+=width;
+			unpackedBlock->downstreamLeafOffsets[array->entries[j].downstream]+=width;
 			upstreamTotal+=width;
 			}
 
-		unpackedBlock->upstreamOffsets[array->upstream]+=upstreamTotal;
+		unpackedBlock->upstreamLeafOffsets[array->upstream]+=upstreamTotal;
 		}
 
 
@@ -276,12 +276,12 @@ RouteTableUnpackedSingleBlock *rtpAllocUnpackedSingleBlock(MemDispenser *disp, s
 	memset(&(block->packingInfo),0,sizeof(RouteTablePackingInfo));
 
 	block->upstreamOffsetAlloc=upstreamOffsetAlloc;
-	block->upstreamOffsets=dAlloc(disp, sizeof(s32)* upstreamOffsetAlloc);
-	memset(block->upstreamOffsets, 0, sizeof(s32)*upstreamOffsetAlloc);
+	block->upstreamLeafOffsets=dAlloc(disp, sizeof(s32)* upstreamOffsetAlloc);
+	memset(block->upstreamLeafOffsets, 0, sizeof(s32)*upstreamOffsetAlloc);
 
 	block->downstreamOffsetAlloc=downstreamOffsetAlloc;
-	block->downstreamOffsets=dAlloc(disp, sizeof(s32)* downstreamOffsetAlloc);
-	memset(block->downstreamOffsets, 0, sizeof(s32)*downstreamOffsetAlloc);
+	block->downstreamLeafOffsets=dAlloc(disp, sizeof(s32)* downstreamOffsetAlloc);
+	memset(block->downstreamLeafOffsets, 0, sizeof(s32)*downstreamOffsetAlloc);
 
 	block->entryArrayAlloc=0;
 	block->entryArrays=NULL;
@@ -393,10 +393,10 @@ RouteTableUnpackedSingleBlock *rtpUnpackSingleBlock(RouteTablePackedSingleBlock 
 
 	RouteTableUnpackedSingleBlock *unpackedBlock=rtpAllocUnpackedSingleBlock(disp, upstreamOffsetAlloc, downstreamOffsetAlloc);
 
-	dataPtr=apUnpackArray(dataPtr, (u32 *)(unpackedBlock->upstreamOffsets+upstreamFirst), sizeOffset, upstreamAlloc);
+	dataPtr=apUnpackArray(dataPtr, (u32 *)(unpackedBlock->upstreamLeafOffsets+upstreamFirst), sizeOffset, upstreamAlloc);
 //	LOG(LOG_INFO,"After UpOffsets: %i",(dataPtr-packedBlock->data));
 
-	dataPtr=apUnpackArray(dataPtr, (u32 *)(unpackedBlock->downstreamOffsets+downstreamFirst), sizeOffset, downstreamAlloc);
+	dataPtr=apUnpackArray(dataPtr, (u32 *)(unpackedBlock->downstreamLeafOffsets+downstreamFirst), sizeOffset, downstreamAlloc);
 //	LOG(LOG_INFO,"After DownOffsets: %i",(dataPtr-packedBlock->data));
 
 	s32 arrayCount=sizeArrayCount==1?(*dataPtr):(*((u16 *)(dataPtr)));
@@ -527,7 +527,7 @@ void rtpUpdateUnpackedSingleBlockPackingInfo(RouteTableUnpackedSingleBlock *bloc
 
 	for(int i=0;i<block->upstreamOffsetAlloc;i++)
 		{
-		s32 offset=block->upstreamOffsets[i];
+		s32 offset=block->upstreamLeafOffsets[i];
 
 		if(offset)
 			{
@@ -539,7 +539,7 @@ void rtpUpdateUnpackedSingleBlockPackingInfo(RouteTableUnpackedSingleBlock *bloc
 
 	for(int i=0;i<block->downstreamOffsetAlloc;i++)
 		{
-		s32 offset=block->downstreamOffsets[i];
+		s32 offset=block->downstreamLeafOffsets[i];
 
 		if(offset)
 			{
@@ -674,8 +674,8 @@ void rtpPackSingleBlock(RouteTableUnpackedSingleBlock *unpackedBlock, RouteTable
 	// Section 4: Offsets Arrays
 
 	int bytesPerOffset = ((blockHeader & RTP_PACKEDHEADER_OFFSETSIZE_MASK)>>RTP_PACKEDHEADER_OFFSETSIZE_SHIFT)+1;
-	dataPtr=apPackArray(dataPtr, (u32 *)(unpackedBlock->upstreamOffsets+upstreamFirst), bytesPerOffset, upstreamAlloc);
-	dataPtr=apPackArray(dataPtr, (u32 *)(unpackedBlock->downstreamOffsets+downstreamFirst), bytesPerOffset, downstreamAlloc);
+	dataPtr=apPackArray(dataPtr, (u32 *)(unpackedBlock->upstreamLeafOffsets+upstreamFirst), bytesPerOffset, upstreamAlloc);
+	dataPtr=apPackArray(dataPtr, (u32 *)(unpackedBlock->downstreamLeafOffsets+downstreamFirst), bytesPerOffset, downstreamAlloc);
 
 	// Section 5: Route Array Count
 
