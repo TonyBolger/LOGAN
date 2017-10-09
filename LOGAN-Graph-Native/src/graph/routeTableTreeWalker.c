@@ -262,24 +262,18 @@ void walkerTransferOffsetsLeafToEntry(RouteTableTreeWalker *walker)
 static s32 walkerAdvanceGetLastUpstream(RouteTableTreeWalker *walker)
 {
 	RouteTableUnpackedSingleBlock *block=walker->leafProxy->unpackedBlock;
-
-	rttlEnsureFullyUnpacked(walker->treeProxy, walker->leafProxy);
-
-
-	s32 arrayIndex=block->entryArrayCount-1;
-
-	return (arrayIndex>=0)?block->entryArrays[arrayIndex]->upstream:-1;
-
 /*
+	rttlEnsureFullyUnpacked(walker->treeProxy, walker->leafProxy);
+	s32 arrayIndex=block->entryArrayCount-1;
+	return (arrayIndex>=0)?block->entryArrays[arrayIndex]->upstream:-1;
+*/
+
 	for(int i=block->upstreamOffsetAlloc;i>0;--i)
 		{
 		if(block->upstreamLeafOffsets[i]>0)
 			return i;
 		}
-
 	return -1;
-
-	 */
 }
 
 static s32 walkerAdvanceToNextLeaf(RouteTableTreeWalker *walker, s32 ensureUnpacked)
@@ -428,7 +422,9 @@ s32 walkerAdvanceToUpstreamThenOffsetThenDownstream_1(RouteTableTreeWalker *walk
 
 		if(!walkerAdvanceToNextLeaf(walker, 0))
 			{
-			walker->leafArrayIndex=0;
+			rttlEnsureFullyUnpacked(walker->treeProxy, walker->leafProxy);
+
+			walker->leafArrayIndex=walker->leafProxy->unpackedBlock->entryArrayCount;
 			walker->leafEntryIndex=-1;
 			walker->leafEntryArray=NULL;
 
