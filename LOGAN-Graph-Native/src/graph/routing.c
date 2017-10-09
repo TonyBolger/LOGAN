@@ -2,31 +2,6 @@
 
 
 
-static int forwardPrefixSorter(const void *a, const void *b)
-{
-	RoutePatch *pa=(RoutePatch *)a;
-	RoutePatch *pb=(RoutePatch *)b;
-
-	int diff=pa->prefixIndex-pb->prefixIndex;
-	if(diff)
-		return diff;
-
-	return pa->rdiPtr-pb->rdiPtr;
-}
-
-static int reverseSuffixSorter(const void *a, const void *b)
-{
-	RoutePatch *pa=(RoutePatch *)a;
-	RoutePatch *pb=(RoutePatch *)b;
-
-	int diff=pa->suffixIndex-pb->suffixIndex;
-	if(diff)
-		return diff;
-
-	return pa->rdiPtr-pb->rdiPtr;
-}
-
-
 
 
 
@@ -1196,12 +1171,202 @@ static void writeBuildersAsIndirectData(RoutingComboBuilder *routingBuilder, u8 
 
 
 
+static int forwardPrefixSorter(const void *a, const void *b)
+{
+	RoutePatch *pa=(RoutePatch *)a;
+	RoutePatch *pb=(RoutePatch *)b;
+
+	int diff=pa->prefixIndex-pb->prefixIndex;
+	if(diff)
+		return diff;
+
+	return pa->rdiPtr-pb->rdiPtr;
+}
+
+static int reverseSuffixSorter(const void *a, const void *b)
+{
+	RoutePatch *pa=(RoutePatch *)a;
+	RoutePatch *pb=(RoutePatch *)b;
+
+	int diff=pa->suffixIndex-pb->suffixIndex;
+	if(diff)
+		return diff;
+
+	return pa->rdiPtr-pb->rdiPtr;
+}
+
+
+
+
+void dumpRoutePatches(char *label, RoutePatch *patches, s32 patchCount)
+{
+	LOG(LOG_INFO,"%s Patches: %i",label, patchCount);
+
+	for(int i=0;i<patchCount;i++)
+		LOG(LOG_INFO, "Patch %i: %i <-> %i [%i:%i]",i, patches[i].prefixIndex, patches[i].suffixIndex,
+				(*(patches[i].rdiPtr))->minEdgePosition, (*(patches[i].rdiPtr))->maxEdgePosition);
+
+}
+
+
+// Case 1: { [10:10] , [5:5] } -> { [5:5], [11:11] }
+// Case 2: { [10:10] , [5:5], [11:12] } -> { [5:5], [11:11], [11:12] }
+// Case 3: { [10:10] , [5:5], [1:1] } -> { [1:1], [6:6], [12:12] }
+// Case 4: { [1:1]A, [1:1]B } -> { [1:1]A, [1:1]B }
+// Case 5: { [1:10]A, [1:1]B } -> { [1:1]B, [2:11]B }
+
+static RoutePatch *reorderForwardPatches(RoutePatch *forwardPatches, s32 forwardCount, MemDispenser *disp)
+{
+	qsort(forwardPatches, forwardCount, sizeof(RoutePatch), forwardPrefixSorter);
+
+	//dumpRoutePatches("Forward", forwardPatches, forwardCount);
+
+	int firstPrefix=forwardPatches[0].prefixIndex;
+	int firstPosition=0;
+
+	//int dumpFlag=0;
+
+	for(int i=1; i<forwardCount;i++)
+		{
+		if(firstPrefix!=forwardPatches[i].prefixIndex) 			// Range from firstPosition to i-1
+			{
+			int lastPosition=i-1;
+
+			if(firstPosition<lastPosition)
+				{
+				for (int j = lastPosition; j>firstPosition; --j)
+					{
+					int swap = 0;
+					for (int k = firstPosition; k<j; k++)
+						{
+						int minEarlier=(*(forwardPatches[k].rdiPtr))->minEdgePosition;
+						int maxLater=(*(forwardPatches[k+1].rdiPtr))->maxEdgePosition;
+
+						if(maxLater<=minEarlier)
+							{
+							swap=1;
+							/*
+							if(dumpFlag==0)
+								{
+								LOG(LOG_INFO,"Reorder needed. Original:");
+								dumpRoutePatches("Forward", forwardPatches, forwardCount);
+								dumpFlag=1;
+								}
+*/
+//							LOG(LOG_INFO,"Swapping %i and %i",k,k+1);
+
+							RoutingReadData *rdiPtr=(*(forwardPatches[k].rdiPtr));
+							rdiPtr->minEdgePosition++;
+							rdiPtr->maxEdgePosition++;
+
+							RoutePatch tmpPatch=forwardPatches[k];
+							forwardPatches[k]=forwardPatches[k+1];
+							forwardPatches[k+1]=tmpPatch;
+							}
+						}
+					if(!swap)
+						break;
+					}
+				}
+
+			firstPrefix=forwardPatches[i].prefixIndex;
+			firstPosition=i;
+			}
+		}
+
+	/*
+	if(dumpFlag)
+		{
+		LOG(LOG_INFO,"Reordered as:");
+		dumpRoutePatches("Forward", forwardPatches, forwardCount);
+		LOG(LOG_CRITICAL,"TODO");
+		}
+*/
+
+	return forwardPatches;
+}
+
+static RoutePatch *reorderReversePatches(RoutePatch *reversePatches, s32 reverseCount, MemDispenser *disp)
+{
+	qsort(reversePatches, reverseCount, sizeof(RoutePatch), reverseSuffixSorter);
+	//dumpRoutePatches("Reverse", reversePatches, reverseCount);
+
+	int firstSuffix=reversePatches[0].suffixIndex;
+	int firstPosition=0;
+
+	//int dumpFlag=0;
+
+	for(int i=1; i<reverseCount;i++)
+		{
+		if(firstSuffix!=reversePatches[i].suffixIndex) 			// Range from firstPosition to i-1
+			{
+			int lastPosition=i-1;
+
+			if(firstPosition<lastPosition)
+				{
+				for (int j = lastPosition; j>firstPosition; --j)
+					{
+					int swap = 0;
+					for (int k = firstPosition; k<j; k++)
+						{
+						int minEarlier=(*(reversePatches[k].rdiPtr))->minEdgePosition;
+						int maxLater=(*(reversePatches[k+1].rdiPtr))->maxEdgePosition;
+
+						if(maxLater<=minEarlier)
+							{
+							swap=1;
+							/*
+							if(dumpFlag==0)
+								{
+								LOG(LOG_INFO,"Reorder needed. Original:");
+								dumpRoutePatches("Reverse", reversePatches, reverseCount);
+								dumpFlag=1;
+								}
+*/
+//							LOG(LOG_INFO,"Swapping %i and %i",k,k+1);
+
+							RoutingReadData *rdiPtr=(*(reversePatches[k].rdiPtr));
+							rdiPtr->minEdgePosition++;
+							rdiPtr->maxEdgePosition++;
+
+							RoutePatch tmpPatch=reversePatches[k];
+							reversePatches[k]=reversePatches[k+1];
+							reversePatches[k+1]=tmpPatch;
+							}
+						}
+					if(!swap)
+						break;
+					}
+				}
+
+			firstSuffix=reversePatches[i].suffixIndex;
+			firstPosition=i;
+			}
+		}
+
+	/*
+	if(dumpFlag)
+		{
+		LOG(LOG_INFO,"Reordered as:");
+		dumpRoutePatches("Forward", forwardPatches, forwardCount);
+		LOG(LOG_CRITICAL,"TODO");
+		}
+*/
+	return reversePatches;
+}
+
+
+
+
 static void createRoutePatches(RoutingIndexedReadReferenceBlock *rdi, int entryCount,
 		SeqTailBuilder *prefixBuilder, SeqTailBuilder *suffixBuilder,
-		RoutePatch *forwardPatches, RoutePatch *reversePatches,
-		int *forwardCountPtr, int *reverseCountPtr)
+		RoutePatch **forwardPatchesPtr, RoutePatch **reversePatchesPtr,
+		int *forwardCountPtr, int *reverseCountPtr, MemDispenser *disp)
 {
 	int forwardCount=0, reverseCount=0;
+
+	RoutePatch *forwardPatches=dAlloc(disp,sizeof(RoutePatch)*entryCount);
+	RoutePatch *reversePatches=dAlloc(disp,sizeof(RoutePatch)*entryCount);
 
 	for(int i=0;i<entryCount;i++)
 	{
@@ -1236,23 +1401,13 @@ static void createRoutePatches(RoutingIndexedReadReferenceBlock *rdi, int entryC
 			{
 //				smerId=currFmer;
 
-				/*
-				if(smerId==49511689627288L)
-					{
-					LOG(LOG_INFO,"Adding forward route to %li",currFmer);
-					LOG(LOG_INFO,"Existing Prefixes: %i Suffixes: %i", prefixBuilder.oldTailCount, suffixBuilder.oldTailCount);
-
-					dump=1;
-					}
-*/
-
 				SmerId prefixSmer=rdd->indexedData[index+1].rsmer; // Previous smer in read, reversed
 				SmerId suffixSmer=rdd->indexedData[index-1].fsmer; // Next smer in read
 
 				int prefixLength=rdd->indexedData[index].readIndex-rdd->indexedData[index+1].readIndex;
 				int suffixLength=rdd->indexedData[index-1].readIndex-rdd->indexedData[index].readIndex;
 
-				forwardPatches[forwardCount].next=NULL;
+//				forwardPatches[forwardCount].next=NULL;
 				forwardPatches[forwardCount].rdiPtr=rdi->entries+i;
 //				forwardPatches[forwardCount].rdiIndex=i;
 
@@ -1278,26 +1433,13 @@ static void createRoutePatches(RoutingIndexedReadReferenceBlock *rdi, int entryC
 			}
 		else	// Reverse-complement Read Orientation
 			{
-//				smerId=currRmer;
-
-				/*
-				if(smerId==49511689627288L)
-					{
-					LOG(LOG_INFO,"Adding reverse route to %li",currRmer);
-					LOG(LOG_INFO,"Existing Prefixes: %i Suffixes: %i", prefixBuilder.oldTailCount, suffixBuilder.oldTailCount);
-
-					dump=1;
-					}
-*/
-
 				SmerId prefixSmer=rdd->indexedData[index-1].fsmer; // Next smer in read
 				SmerId suffixSmer=rdd->indexedData[index+1].rsmer; // Previous smer in read, reversed
-
 
 				int prefixLength=rdd->indexedData[index-1].readIndex-rdd->indexedData[index].readIndex;
 				int suffixLength=rdd->indexedData[index].readIndex-rdd->indexedData[index+1].readIndex;
 
-				reversePatches[reverseCount].next=NULL;
+//				reversePatches[reverseCount].next=NULL;
 				reversePatches[reverseCount].rdiPtr=rdi->entries+i;
 //				reversePatches[reverseCount].rdiIndex=i;
 
@@ -1322,18 +1464,22 @@ static void createRoutePatches(RoutingIndexedReadReferenceBlock *rdi, int entryC
 			}
 	}
 
-	// Then sort new forward and reverse routes, if more than one
+	// Then order new forward and reverse routes, if more than one
 
 	if(forwardCount>1)
-		qsort(forwardPatches, forwardCount, sizeof(RoutePatch), forwardPrefixSorter);
+		forwardPatches=reorderForwardPatches(forwardPatches, forwardCount, disp);
 
 	if(reverseCount>1)
-		qsort(reversePatches, reverseCount, sizeof(RoutePatch), reverseSuffixSorter);
+		reversePatches=reorderReversePatches(reversePatches, reverseCount, disp);
+
+	*forwardPatchesPtr=forwardPatches;
+	*reversePatchesPtr=reversePatches;
 
 	*forwardCountPtr=forwardCount;
 	*reverseCountPtr=reverseCount;
 
 }
+
 
 
 
@@ -1387,14 +1533,14 @@ int rtRouteReadsForSmer(RoutingIndexedReadReferenceBlock *rdi, SmerArraySlice *s
 
 	int entryCount=rdi->entryCount;
 
+	RoutePatch *forwardPatches=NULL;
+	RoutePatch *reversePatches=NULL;
+
 	int forwardCount=0;
 	int reverseCount=0;
 
-	RoutePatch *forwardPatches=dAlloc(disp,sizeof(RoutePatch)*entryCount);
-	RoutePatch *reversePatches=dAlloc(disp,sizeof(RoutePatch)*entryCount);
-
 	createRoutePatches(rdi, entryCount, &(routingBuilder.prefixBuilder), &(routingBuilder.suffixBuilder),
-			forwardPatches, reversePatches, &forwardCount, &reverseCount);
+			&forwardPatches, &reversePatches, &forwardCount, &reverseCount, disp);
 
 	s32 prefixCount=getSeqTailTotalTailCount(&(routingBuilder.prefixBuilder))+1;
 	s32 suffixCount=getSeqTailTotalTailCount(&(routingBuilder.suffixBuilder))+1;
@@ -1410,9 +1556,7 @@ int rtRouteReadsForSmer(RoutingIndexedReadReferenceBlock *rdi, SmerArraySlice *s
 		}
 	else if(routingBuilder.treeBuilder!=NULL) // Hackish but needed since tail counts change
 		{
-//		LOG(LOG_INFO,"NonUpgrade: Tail counts are %i %i",prefixCount, suffixCount);
 		rttUpdateRouteTableTreeBuilderTailCounts(routingBuilder.treeBuilder, prefixCount, suffixCount);
-
 		}
 
 	if(routingBuilder.treeBuilder!=NULL)

@@ -39,7 +39,7 @@ typedef struct routingReadDataStr {
 
 typedef struct routePatchStr
 {
-	struct routePatchStr *next;
+	//struct routePatchStr *next;
 	RoutingReadData **rdiPtr; // Needs double ptr to enable sorting by inbound position
 
 	s32 prefixIndex;

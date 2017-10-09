@@ -86,7 +86,7 @@ RouteTableUnpackedEntryArray *rtpInsertNewEntry(RouteTableUnpackedSingleBlock *u
 		if(newEntryAlloc==array->entryAlloc)
 			LOG(LOG_CRITICAL,"EntryArray Cannot Resize: Already at Max");
 
-		RouteTableUnpackedEntryArray *newArray=dAlloc(unpackedBlock->disp, sizeof(RouteTableUnpackedEntryArray)+sizeof(RouteTableUnpackedEntry)*newEntryAlloc);
+		RouteTableUnpackedEntryArray *newArray=dAllocQuadAligned(unpackedBlock->disp, sizeof(RouteTableUnpackedEntryArray)+sizeof(RouteTableUnpackedEntry)*newEntryAlloc);
 
 		newArray->upstream=array->upstream;
 		newArray->entryAlloc=newEntryAlloc;
@@ -133,7 +133,7 @@ RouteTableUnpackedEntryArray *rtpInsertNewDoubleEntry(RouteTableUnpackedSingleBl
 		if(newEntryAlloc==array->entryAlloc)
 			LOG(LOG_CRITICAL,"EntryArray Cannot Resize: Already at Max");
 
-		RouteTableUnpackedEntryArray *newArray=dAlloc(unpackedBlock->disp, sizeof(RouteTableUnpackedEntryArray)+sizeof(RouteTableUnpackedEntry)*newEntryAlloc);
+		RouteTableUnpackedEntryArray *newArray=dAllocQuadAligned(unpackedBlock->disp, sizeof(RouteTableUnpackedEntryArray)+sizeof(RouteTableUnpackedEntry)*newEntryAlloc);
 
 		newArray->upstream=array->upstream;
 		newArray->entryAlloc=newEntryAlloc;
@@ -179,7 +179,7 @@ RouteTableUnpackedEntryArray *rtpInsertNewEntryArray(RouteTableUnpackedSingleBlo
 
 		//LOG(LOG_INFO,"EntryArrays Resize");
 
-		RouteTableUnpackedEntryArray **newEntryArrays=dAlloc(unpackedBlock->disp, sizeof(RouteTableUnpackedEntryArray *)*newEntryArrayAlloc);
+		RouteTableUnpackedEntryArray **newEntryArrays=dAllocQuadAligned(unpackedBlock->disp, sizeof(RouteTableUnpackedEntryArray *)*newEntryArrayAlloc);
 		memcpy(newEntryArrays, unpackedBlock->entryArrays, sizeof(RouteTableUnpackedEntryArray *)*unpackedBlock->entryArrayAlloc);
 
 		unpackedBlock->entryArrays=newEntryArrays;
@@ -192,7 +192,7 @@ RouteTableUnpackedEntryArray *rtpInsertNewEntryArray(RouteTableUnpackedSingleBlo
 		memmove(&(unpackedBlock->entryArrays[arrayIndex+1]), &(unpackedBlock->entryArrays[arrayIndex]), sizeof(RouteTableUnpackedEntryArray *)*itemsToMove);
 		}
 
-	RouteTableUnpackedEntryArray *array=dAlloc(unpackedBlock->disp, sizeof(RouteTableUnpackedEntryArray)+sizeof(RouteTableUnpackedEntry)*entryAlloc);
+	RouteTableUnpackedEntryArray *array=dAllocQuadAligned(unpackedBlock->disp, sizeof(RouteTableUnpackedEntryArray)+sizeof(RouteTableUnpackedEntry)*entryAlloc);
 	//LOG(LOG_INFO,"New array to %p",array);
 
 	unpackedBlock->entryArrays[arrayIndex]=array;
@@ -294,11 +294,10 @@ RouteTableUnpackedSingleBlock *rtpAllocUnpackedSingleBlock(MemDispenser *disp, s
 void rtpAllocUnpackedSingleBlockEntryArray(RouteTableUnpackedSingleBlock *block, s32 entryArrayAlloc)
 {
 	block->entryArrayAlloc=entryArrayAlloc;
-	block->entryArrays=dAlloc(block->disp, sizeof(RouteTableUnpackedEntryArray *)* entryArrayAlloc);
+	block->entryArrays=dAllocQuadAligned(block->disp, sizeof(RouteTableUnpackedEntryArray *)* entryArrayAlloc);
 	memset(block->entryArrays, 0, sizeof(RouteTableUnpackedEntryArray *)* entryArrayAlloc);
 
 	block->entryArrayCount=0;
-
 }
 /*
 
