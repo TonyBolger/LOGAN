@@ -43,7 +43,7 @@ struct routeTableTreeLeafProxyStr
 };
 
 
-void rttlEnsureOffsetUnpacked(RouteTableTreeProxy *treeProxy, RouteTableTreeLeafProxy *leafProxy);
+//void rttlEnsureOffsetUnpacked(RouteTableTreeProxy *treeProxy, RouteTableTreeLeafProxy *leafProxy);
 void rttlEnsureFullyUnpacked(RouteTableTreeProxy *treeProxy, RouteTableTreeLeafProxy *leafProxy);
 void rttlMarkDirty(RouteTableTreeProxy *treeProxy, RouteTableTreeLeafProxy *leafProxy);
 

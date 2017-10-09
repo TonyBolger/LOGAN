@@ -67,7 +67,7 @@ typedef struct routeTablePackedSingleBlockStr
 } __attribute__((packed)) RouteTablePackedSingleBlock;
 
 
-// Represents the
+// Represents the information necessary to choose unpack->pack parameters
 
 typedef struct routeTablePackingInfoStr
 {
@@ -96,6 +96,28 @@ typedef struct routeTablePackingInfoStr
 } RouteTablePackingInfo;
 
 
+// Represents the information transferred between initial (header + offsetArrays) and later (entryArrays) unpacking
+
+typedef struct routeTableUnpackingInfoStr
+{
+	s32 sizePayloadSize;
+	s32 sizeUpstreamRange;
+	s32 sizeDownstreamRange;
+	s32 sizeOffset;
+	s32 sizeArrayCount;
+
+	s32 payloadSize;
+
+	s32 upstreamOffsetAlloc;
+	s32 downstreamOffsetAlloc;
+
+	u8 *entryArrayDataPtr;
+
+} RouteTableUnpackingInfo;
+
+
+
+
 
 // Represents a single entry (downstream, width) in an array (which defines the upstream)
 typedef struct routeTableUnpackedEntryStr
@@ -119,6 +141,7 @@ typedef struct routeTableUnpackedSingleBlockStr
 {
 	MemDispenser *disp;
 
+	RouteTableUnpackingInfo unpackingInfo;
 	RouteTablePackingInfo packingInfo;
 
 	s32 upstreamOffsetAlloc;
@@ -174,7 +197,13 @@ RouteTableUnpackedSingleBlock *rtpAllocUnpackedSingleBlock(MemDispenser *disp, s
 // Allocate a new entryArray in an unpackedBlock
 void rtpAllocUnpackedSingleBlockEntryArray(RouteTableUnpackedSingleBlock *block, s32 entryArrayAlloc);
 
-RouteTableUnpackedSingleBlock *rtpUnpackSingleBlock(RouteTablePackedSingleBlock *packedBlock, MemDispenser *disp, s32 upstreamOffsetAlloc, s32 downstreamOffsetAlloc);
+// Unpack header and offset arrays
+RouteTableUnpackedSingleBlock *rtpUnpackSingleBlockHeaderAndOffsets(RouteTablePackedSingleBlock *packedBlock, MemDispenser *disp, s32 upstreamOffsetAlloc, s32 downstreamOffsetAlloc);
+
+// Unpack entry arrays
+void rtpUnpackSingleBlockEntryArrays(RouteTablePackedSingleBlock *packedBlock, RouteTableUnpackedSingleBlock *unpackedBlock);
+
+//RouteTableUnpackedSingleBlock *rtpUnpackSingleBlock(RouteTablePackedSingleBlock *packedBlock, MemDispenser *disp, s32 upstreamOffsetAlloc, s32 downstreamOffsetAlloc);
 
 void rtpUpdateUnpackedSingleBlockPackingInfo(RouteTableUnpackedSingleBlock *unpackedBlock);
 

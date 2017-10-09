@@ -135,9 +135,21 @@ void getRouteTableTreeLeafProxy_scan(RouteTableTreeLeafBlock *leafBlock, u16 *en
 
 */
 
+void rttlEnsureFullyUnpacked(RouteTableTreeProxy *treeProxy, RouteTableTreeLeafProxy *leafProxy)
+{
+	if(leafProxy->status==LEAFPROXY_STATUS_OFFSETS)
+		{
+		rtpUnpackSingleBlockEntryArrays((RouteTablePackedSingleBlock *)(leafProxy->leafBlock->packedBlockData), leafProxy->unpackedBlock);
+		leafProxy->status=LEAFPROXY_STATUS_FULLYUNPACKED;
+		}
+
+}
+
 void rttlMarkDirty(RouteTableTreeProxy *treeProxy, RouteTableTreeLeafProxy *leafProxy)
 {
 //	LOG(LOG_INFO,"Flush %i to %p (%i)",leafProxy->lindex, leafProxy->dataBlock, leafProxy->dataBlock->entryAlloc);
+
+	rttlEnsureFullyUnpacked(treeProxy,leafProxy);
 
 	leafProxy->status=LEAFPROXY_STATUS_DIRTY;
 	setBlockArrayEntryProxy(&(treeProxy->leafArrayProxy), leafProxy->lindex, leafProxy, treeProxy->disp);
