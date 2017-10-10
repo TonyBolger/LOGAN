@@ -443,6 +443,7 @@ void rttMergeRoutes(RouteTableTreeBuilder *builder,
 		RoutePatch *forwardRoutePatches, RoutePatch *reverseRoutePatches, s32 forwardRoutePatchCount, s32 reverseRoutePatchCount,
 		s32 prefixCount, s32 suffixCount, RoutingReadData **orderedDispatches, MemDispenser *disp)
 {
+	rttUpdateRouteTableTreeBuilderTailCounts(builder, prefixCount, suffixCount);
 
 	// Forward Routes
 

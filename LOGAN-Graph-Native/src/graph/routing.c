@@ -1215,11 +1215,45 @@ void dumpRoutePatches(char *label, RoutePatch *patches, s32 patchCount)
 // Case 4: { [1:1]A, [1:1]B } -> { [1:1]A, [1:1]B }
 // Case 5: { [1:10]A, [1:1]B } -> { [1:1]B, [2:11]B }
 
+
+static void reorderForwardPatchRange(RoutePatch *forwardPatches, int firstPosition, int lastPosition)
+{
+	LOG(LOG_INFO,"First / Last %i %i",firstPosition, lastPosition);
+
+	for (int j = lastPosition-1; j>firstPosition; --j)
+		{
+		int swap = 0;
+		for (int k = firstPosition; k<j; k++)
+			{
+			LOG(LOG_INFO,"Compare %i %i",k, k+1);
+
+			int minEarlier=(*(forwardPatches[k].rdiPtr))->minEdgePosition;
+			int maxLater=(*(forwardPatches[k+1].rdiPtr))->maxEdgePosition;
+
+			if(maxLater<=minEarlier)
+				{
+				swap=1;
+				RoutingReadData *rdiPtr=(*(forwardPatches[k].rdiPtr));
+				rdiPtr->minEdgePosition++;
+				rdiPtr->maxEdgePosition++;
+
+				RoutePatch tmpPatch=forwardPatches[k];
+				forwardPatches[k]=forwardPatches[k+1];
+				forwardPatches[k+1]=tmpPatch;
+				}
+			}
+		if(!swap)
+			break;
+		}
+
+}
+
+
 static RoutePatch *reorderForwardPatches(RoutePatch *forwardPatches, s32 forwardCount, MemDispenser *disp)
 {
 	qsort(forwardPatches, forwardCount, sizeof(RoutePatch), forwardPrefixSorter);
 
-	//dumpRoutePatches("Forward", forwardPatches, forwardCount);
+	dumpRoutePatches("Forward", forwardPatches, forwardCount);
 
 	int firstPrefix=forwardPatches[0].prefixIndex;
 	int firstPosition=0;
@@ -1230,58 +1264,19 @@ static RoutePatch *reorderForwardPatches(RoutePatch *forwardPatches, s32 forward
 		{
 		if(firstPrefix!=forwardPatches[i].prefixIndex) 			// Range from firstPosition to i-1
 			{
-			int lastPosition=i-1;
-
-			if(firstPosition<lastPosition)
-				{
-				for (int j = lastPosition; j>firstPosition; --j)
-					{
-					int swap = 0;
-					for (int k = firstPosition; k<j; k++)
-						{
-						int minEarlier=(*(forwardPatches[k].rdiPtr))->minEdgePosition;
-						int maxLater=(*(forwardPatches[k+1].rdiPtr))->maxEdgePosition;
-
-						if(maxLater<=minEarlier)
-							{
-							swap=1;
-							/*
-							if(dumpFlag==0)
-								{
-								LOG(LOG_INFO,"Reorder needed. Original:");
-								dumpRoutePatches("Forward", forwardPatches, forwardCount);
-								dumpFlag=1;
-								}
-*/
-//							LOG(LOG_INFO,"Swapping %i and %i",k,k+1);
-
-							RoutingReadData *rdiPtr=(*(forwardPatches[k].rdiPtr));
-							rdiPtr->minEdgePosition++;
-							rdiPtr->maxEdgePosition++;
-
-							RoutePatch tmpPatch=forwardPatches[k];
-							forwardPatches[k]=forwardPatches[k+1];
-							forwardPatches[k+1]=tmpPatch;
-							}
-						}
-					if(!swap)
-						break;
-					}
-				}
+			if(firstPosition<i-1)
+				reorderForwardPatchRange(forwardPatches, firstPosition, i);
 
 			firstPrefix=forwardPatches[i].prefixIndex;
 			firstPosition=i;
 			}
 		}
 
-	/*
-	if(dumpFlag)
-		{
-		LOG(LOG_INFO,"Reordered as:");
-		dumpRoutePatches("Forward", forwardPatches, forwardCount);
-		LOG(LOG_CRITICAL,"TODO");
-		}
-*/
+	if(firstPosition<forwardCount-1)
+		reorderForwardPatchRange(forwardPatches, firstPosition, forwardCount);
+
+	LOG(LOG_INFO,"Reordered as:");
+	dumpRoutePatches("Forward", forwardPatches, forwardCount);
 
 	return forwardPatches;
 }
@@ -1554,15 +1549,9 @@ int rtRouteReadsForSmer(RoutingIndexedReadReferenceBlock *rdi, SmerArraySlice *s
 
 		upgradeToTree(&routingBuilder, prefixCount, suffixCount);
 		}
-	else if(routingBuilder.treeBuilder!=NULL) // Hackish but needed since tail counts change
-		{
-		rttUpdateRouteTableTreeBuilderTailCounts(routingBuilder.treeBuilder, prefixCount, suffixCount);
-		}
 
 	if(routingBuilder.treeBuilder!=NULL)
 		{
-//		LOG(LOG_INFO,"Existing: Tail counts are %i %i",prefixCount, suffixCount);
-
 		rttMergeRoutes(routingBuilder.treeBuilder, forwardPatches, reversePatches, forwardCount, reverseCount, prefixCount, suffixCount, orderedDispatches, disp);
 		writeBuildersAsIndirectData(&routingBuilder, sliceTag, sliceIndex,circHeap);
 		}
