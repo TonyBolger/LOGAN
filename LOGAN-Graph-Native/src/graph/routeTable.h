@@ -190,7 +190,7 @@ s32 rtDecodeIndexedBlockHeaderSize(u8 *data);
 MemCircHeapChunkIndex *rtReclaimIndexer(u8 *data, s64 targetAmount, u8 tag, u8 **tagData, s32 tagDataLength, s32 tagSearchOffset, MemDispenser *disp);
 void rtRelocater(MemCircHeapChunkIndex *index, u8 tag, u8 **tagData, s32 tagDataLength);
 
-void initHeapDataBlock(HeapDataBlock *block, s32 sliceIndex);
+void rtInitHeapDataBlock(HeapDataBlock *block, s32 sliceIndex);
 
 
 

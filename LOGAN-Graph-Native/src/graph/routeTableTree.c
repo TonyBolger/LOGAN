@@ -34,9 +34,9 @@ void rttInitRouteTableTreeBuilder(RouteTableTreeBuilder *treeBuilder, RouteTable
 
 
 	//LOG(LOG_INFO,"rttInitRouteTableTreeBuilder");
-	initTreeWalker(&(treeBuilder->forwardWalker), &(treeBuilder->forwardProxy));
+	rttwInitTreeWalker(&(treeBuilder->forwardWalker), &(treeBuilder->forwardProxy));
 	//LOG(LOG_INFO,"rttInitRouteTableTreeBuilder");
-	initTreeWalker(&(treeBuilder->reverseWalker), &(treeBuilder->reverseProxy));
+	rttwInitTreeWalker(&(treeBuilder->reverseWalker), &(treeBuilder->reverseProxy));
 
 //	LOG(LOG_INFO,"Forward: %i Leaves, %i Branches", treeBuilder->forwardProxy.leafArrayProxy.dataCount, treeBuilder->forwardProxy.branchArrayProxy.dataCount);
 	//LOG(LOG_INFO,"Reverse: %i Leaves, %i Branches", treeBuilder->reverseProxy.leafArrayProxy.dataCount, treeBuilder->reverseProxy.branchArrayProxy.dataCount);
@@ -52,7 +52,7 @@ void rttUpgradeToRouteTableTreeBuilder(RouteTableArrayBuilder *arrayBuilder,  Ro
 	treeBuilder->disp=arrayBuilder->disp;
 
 	for(int i=0;i<ROUTE_TOPINDEX_MAX;i++)
-		initHeapDataBlock(treeBuilder->dataBlocks+i, sliceIndex);
+		rtInitHeapDataBlock(treeBuilder->dataBlocks+i, sliceIndex);
 
 	initTreeProxy(&(treeBuilder->forwardProxy),
 			&(treeBuilder->dataBlocks[ROUTE_TOPINDEX_FORWARD_LEAF_ARRAY_0]),NULL,
@@ -68,19 +68,19 @@ void rttUpgradeToRouteTableTreeBuilder(RouteTableArrayBuilder *arrayBuilder,  Ro
 
 	updateTreeProxyTailCounts(&(treeBuilder->reverseProxy),suffixCount, prefixCount);
 
-	initTreeWalker(&(treeBuilder->forwardWalker), &(treeBuilder->forwardProxy));
-	walkerInitOffsetArrays(&(treeBuilder->forwardWalker), prefixCount, suffixCount);
+	rttwInitTreeWalker(&(treeBuilder->forwardWalker), &(treeBuilder->forwardProxy));
+	rttwInitOffsetArrays(&(treeBuilder->forwardWalker), prefixCount, suffixCount);
 
-	initTreeWalker(&(treeBuilder->reverseWalker), &(treeBuilder->reverseProxy));
-	walkerInitOffsetArrays(&(treeBuilder->reverseWalker), suffixCount, prefixCount);
+	rttwInitTreeWalker(&(treeBuilder->reverseWalker), &(treeBuilder->reverseProxy));
+	rttwInitOffsetArrays(&(treeBuilder->reverseWalker), suffixCount, prefixCount);
 
 	//LOG(LOG_INFO,"Upgrading tree with %i forward entries and %i reverse entries to tree",arrayBuilder->oldForwardEntryCount, arrayBuilder->oldReverseEntryCount);
 
 //	LOG(LOG_INFO,"Adding %i forward entries to tree",arrayBuilder->oldForwardEntryCount);
-	walkerAppendPreorderedEntries(&(treeBuilder->forwardWalker), arrayBuilder->oldForwardEntries, arrayBuilder->oldForwardEntryCount, ROUTING_TABLE_FORWARD);
+	rttwAppendPreorderedEntries(&(treeBuilder->forwardWalker), arrayBuilder->oldForwardEntries, arrayBuilder->oldForwardEntryCount, ROUTING_TABLE_FORWARD);
 
 //	LOG(LOG_INFO,"Adding %i reverse entries to tree",arrayBuilder->oldReverseEntryCount);
-	walkerAppendPreorderedEntries(&(treeBuilder->reverseWalker), arrayBuilder->oldReverseEntries, arrayBuilder->oldReverseEntryCount, ROUTING_TABLE_REVERSE);
+	rttwAppendPreorderedEntries(&(treeBuilder->reverseWalker), arrayBuilder->oldReverseEntries, arrayBuilder->oldReverseEntryCount, ROUTING_TABLE_REVERSE);
 
 //	LOG(LOG_INFO,"Upgrade completed F: %i R: %i",arrayBuilder->oldForwardEntryCount,arrayBuilder->oldReverseEntryCount);
 
@@ -265,7 +265,7 @@ static void rttMergeRoutes_ordered_forwardSingle(RouteTableTreeBuilder *builder,
 	s32 upstreamEdgeOffset=-1;
 	s32 downstreamEdgeOffset=-1;
 
-	int res=walkerAdvanceToUpstreamThenOffsetThenDownstream(walker, targetPrefix, targetSuffix, minEdgePosition, maxEdgePosition,
+	int res=rttwAdvanceToUpstreamThenOffsetThenDownstream(walker, targetPrefix, targetSuffix, minEdgePosition, maxEdgePosition,
 			&upstream, &entry, &upstreamEdgeOffset, &downstreamEdgeOffset);
 
 
@@ -289,7 +289,7 @@ static void rttMergeRoutes_ordered_forwardSingle(RouteTableTreeBuilder *builder,
 		(*(patch->rdiPtr))->minEdgePosition=downstreamEdgeOffset;
 		(*(patch->rdiPtr))->maxEdgePosition=downstreamEdgeOffset;
 
-		walkerMergeRoutes_insertEntry(walker, targetPrefix, targetSuffix); // targetPrefix,targetSuffix,1
+		rttwMergeRoutes_insertEntry(walker, targetPrefix, targetSuffix); // targetPrefix,targetSuffix,1
 		}
 	else if(upstream==targetPrefix && entry->downstream==targetSuffix)
 		{
@@ -316,7 +316,7 @@ static void rttMergeRoutes_ordered_forwardSingle(RouteTableTreeBuilder *builder,
 		(*(patch->rdiPtr))->minEdgePosition=downstreamEdgeOffset+minOffset;
 		(*(patch->rdiPtr))->maxEdgePosition=downstreamEdgeOffset+maxOffset;
 
-		walkerMergeRoutes_widen(walker); // width ++
+		rttwMergeRoutes_widen(walker); // width ++
 		}
 	else
 		{
@@ -336,7 +336,7 @@ static void rttMergeRoutes_ordered_forwardSingle(RouteTableTreeBuilder *builder,
 		(*(patch->rdiPtr))->minEdgePosition=downstreamEdgeOffset;
 		(*(patch->rdiPtr))->maxEdgePosition=downstreamEdgeOffset;
 
-		walkerMergeRoutes_split(walker, targetSuffix, splitWidth1, splitWidth2); // splitWidth1, (targetPrefix, targetSuffix, 1), splitWidth2
+		rttwMergeRoutes_split(walker, targetSuffix, splitWidth1, splitWidth2); // splitWidth1, (targetPrefix, targetSuffix, 1), splitWidth2
 		}
 
 
@@ -359,7 +359,7 @@ static void rttMergeRoutes_ordered_reverseSingle(RouteTableTreeWalker *walker, R
 	s32 upstreamEdgeOffset=-1;
 	s32 downstreamEdgeOffset=-1;
 
-	int res=walkerAdvanceToUpstreamThenOffsetThenDownstream(walker, targetSuffix, targetPrefix, minEdgePosition, maxEdgePosition,
+	int res=rttwAdvanceToUpstreamThenOffsetThenDownstream(walker, targetSuffix, targetPrefix, minEdgePosition, maxEdgePosition,
 			&upstream, &entry, &upstreamEdgeOffset, &downstreamEdgeOffset);
 
 
@@ -381,7 +381,7 @@ static void rttMergeRoutes_ordered_reverseSingle(RouteTableTreeWalker *walker, R
 		(*(patch->rdiPtr))->minEdgePosition=downstreamEdgeOffset;
 		(*(patch->rdiPtr))->maxEdgePosition=downstreamEdgeOffset;
 
-		walkerMergeRoutes_insertEntry(walker, targetSuffix, targetPrefix);
+		rttwMergeRoutes_insertEntry(walker, targetSuffix, targetPrefix);
 	}
 
 	else if(upstream==targetSuffix && entry->downstream==targetPrefix) // Existing entry suitable, widen
@@ -409,7 +409,7 @@ static void rttMergeRoutes_ordered_reverseSingle(RouteTableTreeWalker *walker, R
 		(*(patch->rdiPtr))->minEdgePosition=downstreamEdgeOffset+minOffset;
 		(*(patch->rdiPtr))->maxEdgePosition=downstreamEdgeOffset+maxOffset;
 
-		walkerMergeRoutes_widen(walker); // width ++
+		rttwMergeRoutes_widen(walker); // width ++
 		}
 	else // Existing entry unsuitable, split and insert
 		{
@@ -429,7 +429,7 @@ static void rttMergeRoutes_ordered_reverseSingle(RouteTableTreeWalker *walker, R
 		(*(patch->rdiPtr))->minEdgePosition=downstreamEdgeOffset;
 		(*(patch->rdiPtr))->maxEdgePosition=downstreamEdgeOffset;
 
-		walkerMergeRoutes_split(walker, targetPrefix, splitWidth1, splitWidth2); // splitWidth1, (targetPrefix, targetSuffix, 1), splitWidth2
+		rttwMergeRoutes_split(walker, targetPrefix, splitWidth1, splitWidth2); // splitWidth1, (targetPrefix, targetSuffix, 1), splitWidth2
 
 		}
 
@@ -452,7 +452,7 @@ void rttMergeRoutes(RouteTableTreeBuilder *builder,
 		{
 		RouteTableTreeWalker *walker=&(builder->forwardWalker);
 
-		walkerInitOffsetArrays(walker, prefixCount, suffixCount);
+		rttwInitOffsetArrays(walker, prefixCount, suffixCount);
 
 		RoutePatch *patchPtr=forwardRoutePatches;
 		RoutePatch *patchEnd=patchPtr+forwardRoutePatchCount;
@@ -489,9 +489,9 @@ void rttMergeRoutes(RouteTableTreeBuilder *builder,
 
 		while(patchPtr<patchEnd)
 			{
-			walkerSeekStart(walker);
+			rttwSeekStart(walker);
 			rttMergeRoutes_ordered_forwardSingle(builder, walker, patchPtr);
-			walkerResetOffsetArrays(walker);
+			rttwResetOffsetArrays(walker);
 
 			*(orderedDispatches++)=*(patchPtr->rdiPtr);
 			patchPtr++;
@@ -504,16 +504,16 @@ void rttMergeRoutes(RouteTableTreeBuilder *builder,
 		{
 		RouteTableTreeWalker *walker=&(builder->reverseWalker);
 
-		walkerInitOffsetArrays(walker, suffixCount, prefixCount);
+		rttwInitOffsetArrays(walker, suffixCount, prefixCount);
 
 		RoutePatch *patchPtr=reverseRoutePatches;
 		RoutePatch *patchEnd=patchPtr+reverseRoutePatchCount;
 
 		while(patchPtr<patchEnd)
 			{
-			walkerSeekStart(walker);
+			rttwSeekStart(walker);
 			rttMergeRoutes_ordered_reverseSingle(walker, patchPtr);
-			walkerResetOffsetArrays(walker);
+			rttwResetOffsetArrays(walker);
 
 			*(orderedDispatches++)=*(patchPtr->rdiPtr);
 			patchPtr++;

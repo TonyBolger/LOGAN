@@ -9,7 +9,7 @@
 
 static void createBuildersFromNullData(RoutingComboBuilder *builder)
 {
-	initHeapDataBlock(&(builder->combinedDataBlock), builder->sliceIndex);
+	rtInitHeapDataBlock(&(builder->combinedDataBlock), builder->sliceIndex);
 
 	builder->combinedDataPtr=NULL;
 
@@ -43,7 +43,7 @@ static void createBuildersFromDirectData(RoutingComboBuilder *builder)
 	s32 headerSize=rtGetGapBlockHeaderSize();
 	u8 *afterHeader=data+headerSize;
 
-	initHeapDataBlock(&(builder->combinedDataBlock), builder->sliceIndex);
+	rtInitHeapDataBlock(&(builder->combinedDataBlock), builder->sliceIndex);
 
 	builder->combinedDataBlock.headerSize=headerSize;
 	builder->combinedDataPtr=data;
@@ -75,12 +75,12 @@ void createBuildersFromIndirectData(RoutingComboBuilder *builder)
 	s32 topHeaderSize=rtGetGapBlockHeaderSize();
 
 	builder->arrayBuilder=NULL;
-	initHeapDataBlock(&(builder->combinedDataBlock), builder->sliceIndex);
+	rtInitHeapDataBlock(&(builder->combinedDataBlock), builder->sliceIndex);
 
 	builder->combinedDataPtr=NULL;
 
 	builder->treeBuilder=dAlloc(builder->disp, sizeof(RouteTableTreeBuilder));
-	initHeapDataBlock(&(builder->topDataBlock), builder->sliceIndex);
+	rtInitHeapDataBlock(&(builder->topDataBlock), builder->sliceIndex);
 
 	builder->topDataBlock.headerSize=topHeaderSize;
 	builder->topDataBlock.dataSize=sizeof(RouteTableTreeTopBlock);
@@ -101,7 +101,7 @@ void createBuildersFromIndirectData(RoutingComboBuilder *builder)
 
 	for(int i=0;i<ROUTE_TOPINDEX_MAX;i++)
 		{
-		initHeapDataBlock(treeBuilder->dataBlocks+i, builder->sliceIndex);
+		rtInitHeapDataBlock(treeBuilder->dataBlocks+i, builder->sliceIndex);
 
 		if(top->data[i]!=NULL && (!rtHeaderIsLive(*(top->data[i]))))
 			{
@@ -246,7 +246,7 @@ static void upgradeToTree(RoutingComboBuilder *builder, s32 prefixCount, s32 suf
 	builder->treeBuilder=treeBuilder;
 
 	builder->topDataPtr=NULL;
-	initHeapDataBlock(&(builder->topDataBlock), builder->sliceIndex);
+	rtInitHeapDataBlock(&(builder->topDataBlock), builder->sliceIndex);
 
 	rttUpgradeToRouteTableTreeBuilder(builder->arrayBuilder,  builder->treeBuilder, builder->sliceIndex, prefixCount, suffixCount, builder->disp);
 
@@ -1070,7 +1070,7 @@ static void writeBuildersAsIndirectData(RoutingComboBuilder *routingBuilder, u8 
 
 	HeapDataBlock neededBlocks[ROUTE_TOPINDEX_MAX];
 	for(int i=0;i<ROUTE_TOPINDEX_MAX;i++)
-		initHeapDataBlock(neededBlocks+i, sliceIndex);
+		rtInitHeapDataBlock(neededBlocks+i, sliceIndex);
 
 	int totalNeededSize=writeBuildersAsIndirectData_calcTailAndArraySpace(routingBuilder, indexSize, neededBlocks);
 

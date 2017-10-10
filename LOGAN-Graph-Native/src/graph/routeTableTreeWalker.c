@@ -3,7 +3,7 @@
 
 
 
-void initTreeWalker(RouteTableTreeWalker *walker, RouteTableTreeProxy *treeProxy)
+void rttwInitTreeWalker(RouteTableTreeWalker *walker, RouteTableTreeProxy *treeProxy)
 {
 	walker->treeProxy=treeProxy;
 
@@ -24,7 +24,7 @@ void initTreeWalker(RouteTableTreeWalker *walker, RouteTableTreeProxy *treeProxy
 }
 
 
-void dumpWalker(RouteTableTreeWalker *walker)
+void rttwDumpWalker(RouteTableTreeWalker *walker)
 {
 	LOG(LOG_CRITICAL,"PackLeaf: dumpWalker TODO");
 
@@ -81,7 +81,7 @@ void dumpWalker(RouteTableTreeWalker *walker)
 	*/
 }
 
-void walkerAppendNewLeaf(RouteTableTreeWalker *walker)
+void rttwAppendNewLeaf(RouteTableTreeWalker *walker)
 {
 	if(walker->branchProxy==NULL)
 		LOG(LOG_CRITICAL,"Not on a valid branch");
@@ -94,7 +94,7 @@ void walkerAppendNewLeaf(RouteTableTreeWalker *walker)
 }
 
 
-void walkerSeekStart(RouteTableTreeWalker *walker)
+void rttwSeekStart(RouteTableTreeWalker *walker)
 {
 	RouteTableTreeBranchProxy *branchProxy=NULL;
 	RouteTableTreeLeafProxy *leafProxy=NULL;
@@ -108,7 +108,7 @@ void walkerSeekStart(RouteTableTreeWalker *walker)
 
 	if(leafProxy==NULL)
 		{
-		walkerAppendNewLeaf(walker);
+		rttwAppendNewLeaf(walker);
 		leafProxy=walker->leafProxy;
 		}
 
@@ -117,7 +117,7 @@ void walkerSeekStart(RouteTableTreeWalker *walker)
 	walker->leafEntryArray=NULL;
 }
 
-void walkerSeekEnd(RouteTableTreeWalker *walker)
+void rttwSeekEnd(RouteTableTreeWalker *walker)
 {
 	RouteTableTreeBranchProxy *branchProxy=NULL;
 	RouteTableTreeLeafProxy *leafProxy=NULL;
@@ -145,7 +145,7 @@ void walkerSeekEnd(RouteTableTreeWalker *walker)
 
 }
 
-s32 walkerGetCurrentEntry(RouteTableTreeWalker *walker, s16 *upstream, RouteTableUnpackedEntry **entry)
+s32 rttwGetCurrentEntry(RouteTableTreeWalker *walker, s16 *upstream, RouteTableUnpackedEntry **entry)
 {
 	if((walker->leafProxy==NULL)||(walker->leafArrayIndex==-1)||(walker->leafEntryIndex==-1))
 		{
@@ -248,8 +248,7 @@ static void walkerApplyArrayOffsets(RouteTableTreeWalker *walker, RouteTableTree
 
 }
 
-//static
-void walkerTransferOffsetsLeafToEntry(RouteTableTreeWalker *walker)
+static void walkerTransferOffsetsLeafToEntry(RouteTableTreeWalker *walker)
 {
 	memcpy(walker->upstreamEntryOffsets, walker->upstreamLeafOffsets, sizeof(s32)*walker->upstreamOffsetCount);
 	memcpy(walker->downstreamEntryOffsets, walker->downstreamLeafOffsets, sizeof(s32)*walker->downstreamOffsetCount);
@@ -397,7 +396,7 @@ static s32 walkerAdvanceToNextEntry_targetUpstream(RouteTableTreeWalker *walker,
 
 // Split version: For profiling of each step
 
-s32 walkerAdvanceToUpstreamThenOffsetThenDownstream_1(RouteTableTreeWalker *walker, s32 targetUpstream, s32 targetDownstream, s32 targetMinOffset, s32 targetMaxOffset,
+static s32 walkerAdvanceToUpstreamThenOffsetThenDownstream_1(RouteTableTreeWalker *walker, s32 targetUpstream, s32 targetDownstream, s32 targetMinOffset, s32 targetMaxOffset,
 		s32 *upstreamPtr, RouteTableUnpackedEntry **entryPtr, s32 *upstreamOffsetPtr, s32 *downstreamOffsetPtr)
 {
 //	LOG(LOG_INFO,"walkerAdvanceToUpstreamThenOffsetThenDownstream BEGINS");
@@ -448,7 +447,7 @@ s32 walkerAdvanceToUpstreamThenOffsetThenDownstream_1(RouteTableTreeWalker *walk
 	return 1;
 }
 
-s32 walkerAdvanceToUpstreamThenOffsetThenDownstream_2(RouteTableTreeWalker *walker, s32 targetUpstream, s32 targetDownstream, s32 targetMinOffset, s32 targetMaxOffset,
+static s32 walkerAdvanceToUpstreamThenOffsetThenDownstream_2(RouteTableTreeWalker *walker, s32 targetUpstream, s32 targetDownstream, s32 targetMinOffset, s32 targetMaxOffset,
 		s32 *upstreamPtr, RouteTableUnpackedEntry **entryPtr, s32 *upstreamOffsetPtr, s32 *downstreamOffsetPtr)
 {
 	rttlEnsureFullyUnpacked(walker->treeProxy, walker->leafProxy);
@@ -476,7 +475,7 @@ s32 walkerAdvanceToUpstreamThenOffsetThenDownstream_2(RouteTableTreeWalker *walk
 	return 1;
 }
 
-s32 walkerAdvanceToUpstreamThenOffsetThenDownstream_3(RouteTableTreeWalker *walker, s32 targetUpstream, s32 targetDownstream, s32 targetMinOffset, s32 targetMaxOffset,
+static s32 walkerAdvanceToUpstreamThenOffsetThenDownstream_3(RouteTableTreeWalker *walker, s32 targetUpstream, s32 targetDownstream, s32 targetMinOffset, s32 targetMaxOffset,
 		s32 *upstreamPtr, RouteTableUnpackedEntry **entryPtr, s32 *upstreamOffsetPtr, s32 *downstreamOffsetPtr)
 {
 	s32	upstream=walker->leafEntryArray->upstream;
@@ -523,7 +522,7 @@ s32 walkerAdvanceToUpstreamThenOffsetThenDownstream_3(RouteTableTreeWalker *walk
 	return 1;
 }
 
-s32 walkerAdvanceToUpstreamThenOffsetThenDownstream_4(RouteTableTreeWalker *walker, s32 targetUpstream, s32 targetDownstream, s32 targetMinOffset, s32 targetMaxOffset,
+static s32 walkerAdvanceToUpstreamThenOffsetThenDownstream_4(RouteTableTreeWalker *walker, s32 targetUpstream, s32 targetDownstream, s32 targetMinOffset, s32 targetMaxOffset,
 		s32 *upstreamPtr, RouteTableUnpackedEntry **entryPtr, s32 *upstreamOffsetPtr, s32 *downstreamOffsetPtr)
 {
 	s32 upstream=walker->leafEntryArray->upstream;
@@ -574,7 +573,7 @@ s32 walkerAdvanceToUpstreamThenOffsetThenDownstream_4(RouteTableTreeWalker *walk
 	return 1;
 }
 
-s32 walkerAdvanceToUpstreamThenOffsetThenDownstream(RouteTableTreeWalker *walker, s32 targetUpstream, s32 targetDownstream, s32 targetMinOffset, s32 targetMaxOffset,
+s32 rttwAdvanceToUpstreamThenOffsetThenDownstream(RouteTableTreeWalker *walker, s32 targetUpstream, s32 targetDownstream, s32 targetMinOffset, s32 targetMaxOffset,
 		s32 *upstreamPtr, RouteTableUnpackedEntry **entryPtr, s32 *upstreamOffsetPtr, s32 *downstreamOffsetPtr)
 {
 	if(!walkerAdvanceToUpstreamThenOffsetThenDownstream_1(walker, targetUpstream, targetDownstream, targetMinOffset, targetMaxOffset,
@@ -598,7 +597,7 @@ s32 walkerAdvanceToUpstreamThenOffsetThenDownstream(RouteTableTreeWalker *walker
 
 // Move to last entry that has upstream<=targetUpstream, minOffset<=upstreamOffset<=maxOffset, and if possible downstream<=targetDownstream
 
-s32 walkerAdvanceToUpstreamThenOffsetThenDownstream(RouteTableTreeWalker *walker, s32 targetUpstream, s32 targetDownstream, s32 targetMinOffset, s32 targetMaxOffset,
+s32 rttwAdvanceToUpstreamThenOffsetThenDownstream(RouteTableTreeWalker *walker, s32 targetUpstream, s32 targetDownstream, s32 targetMinOffset, s32 targetMaxOffset,
 		s32 *upstreamPtr, RouteTableUnpackedEntry **entryPtr, s32 *upstreamOffsetPtr, s32 *downstreamOffsetPtr)
 {
 //	LOG(LOG_CRITICAL,"walkerAdvanceToUpstreamThenOffsetThenDownstream disabled");
@@ -767,7 +766,7 @@ s32 walkerAdvanceToUpstreamThenOffsetThenDownstream(RouteTableTreeWalker *walker
 
 
 
-void walkerResetOffsetArrays(RouteTableTreeWalker *walker)
+void rttwResetOffsetArrays(RouteTableTreeWalker *walker)
 {
 	memset(walker->upstreamLeafOffsets,0,sizeof(s32)*walker->upstreamOffsetCount);
 	memset(walker->downstreamLeafOffsets,0,sizeof(s32)*walker->downstreamOffsetCount);
@@ -777,7 +776,7 @@ void walkerResetOffsetArrays(RouteTableTreeWalker *walker)
 
 }
 
-void walkerInitOffsetArrays(RouteTableTreeWalker *walker, s32 upstreamCount, s32 downstreamCount)
+void rttwInitOffsetArrays(RouteTableTreeWalker *walker, s32 upstreamCount, s32 downstreamCount)
 {
 	s32 *upLeaf=dAlloc(walker->treeProxy->disp, sizeof(s32)*upstreamCount);
 	s32 *downLeaf=dAlloc(walker->treeProxy->disp, sizeof(s32)*downstreamCount);
@@ -804,7 +803,7 @@ void walkerInitOffsetArrays(RouteTableTreeWalker *walker, s32 upstreamCount, s32
 
 
 
-void walkerMergeRoutes_insertEntry(RouteTableTreeWalker *walker, s32 upstream, s32 downstream)
+void rttwMergeRoutes_insertEntry(RouteTableTreeWalker *walker, s32 upstream, s32 downstream)
 {
 	// New entry, with given up/down and width=1. May require array/leaf/branch split if full or new leaf if not matching
 
@@ -904,7 +903,7 @@ void walkerMergeRoutes_insertEntry(RouteTableTreeWalker *walker, s32 upstream, s
 }
 
 
-void walkerMergeRoutes_widen(RouteTableTreeWalker *walker)
+void rttwMergeRoutes_widen(RouteTableTreeWalker *walker)
 {
 //	LOG(LOG_INFO,"walkerMergeRoutes_widen");
 
@@ -961,7 +960,7 @@ void walkerMergeRoutes_widen(RouteTableTreeWalker *walker)
 		rttlMarkDirty(walker->treeProxy, leafProxy);
 }
 
-void walkerMergeRoutes_split(RouteTableTreeWalker *walker, s32 downstream, s32 width1, s32 width2)
+void rttwMergeRoutes_split(RouteTableTreeWalker *walker, s32 downstream, s32 width1, s32 width2)
 {
 	// Add split existing route into two, and insert a new route between
 
@@ -995,7 +994,7 @@ void walkerMergeRoutes_split(RouteTableTreeWalker *walker, s32 downstream, s32 w
 
 
 
-void walkerAppendPreorderedEntry(RouteTableTreeWalker *walker, RouteTableEntry *entry, int routingTable)
+void rttwAppendPreorderedEntry(RouteTableTreeWalker *walker, RouteTableEntry *entry, int routingTable)
 {
 	s32 upstream=routingTable==ROUTING_TABLE_FORWARD?entry->prefix:entry->suffix;
 	s32 downstream=routingTable==ROUTING_TABLE_FORWARD?entry->suffix:entry->prefix;
@@ -1020,7 +1019,7 @@ void walkerAppendPreorderedEntry(RouteTableTreeWalker *walker, RouteTableEntry *
 		}
 
 	if(walker->leafProxy==NULL)
-		walkerAppendNewLeaf(walker);
+		rttwAppendNewLeaf(walker);
 
 	RouteTableTreeLeafProxy *leafProxy=walker->leafProxy;
 	RouteTableUnpackedSingleBlock *block=leafProxy->unpackedBlock;
@@ -1060,12 +1059,12 @@ void walkerAppendPreorderedEntry(RouteTableTreeWalker *walker, RouteTableEntry *
 
 
 
-void walkerAppendPreorderedEntries(RouteTableTreeWalker *walker, RouteTableEntry *entries, u32 entryCount, int routingTable)
+void rttwAppendPreorderedEntries(RouteTableTreeWalker *walker, RouteTableEntry *entries, u32 entryCount, int routingTable)
 {
-	walkerSeekEnd(walker);
+	rttwSeekEnd(walker);
 
 	for(int i=0;i<entryCount;i++)
-		walkerAppendPreorderedEntry(walker,entries+i, routingTable);
+		rttwAppendPreorderedEntry(walker,entries+i, routingTable);
 
 	//LOG(LOG_INFO,"Routing Table with %i entries used %i branches and %i leaves",
 //		entryCount,walker->treeProxy->branchArrayProxy.newDataCount,walker->treeProxy->leafArrayProxy.newDataCount);

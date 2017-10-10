@@ -1607,7 +1607,7 @@ void rtRelocater(MemCircHeapChunkIndex *index, u8 tag, u8 **tagData, s32 tagData
 }
 
 
-void initHeapDataBlock(HeapDataBlock *block, s32 sliceIndex)
+void rtInitHeapDataBlock(HeapDataBlock *block, s32 sliceIndex)
 {
 	memset(block, 0, sizeof(HeapDataBlock));
 	block->sliceIndex=sliceIndex;
