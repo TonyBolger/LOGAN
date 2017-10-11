@@ -301,28 +301,24 @@ s32 rtaGetRouteTableArrayBuilderPackedSize(RouteTableArrayBuilder *builder)
 	return builder->totalPackedSize;
 }
 
+static void rtaDumpRoutingTableArray_single(char *name, RouteTableEntry *entries, int entryCount)
+{
+	LOG(LOG_INFO,"%s Routes %i",name, entryCount);
+
+	for(int i=0;i<entryCount;i++)
+		LOG(LOG_INFO,"%i Route - P: %i S: %i W: %i", entries[i].prefix, entries[i].suffix, entries[i].width);
+
+}
+
 void rtaDumpRoutingTableArray(RouteTableArrayBuilder *builder)
 {
 	LOG(LOG_INFO,"Header: %i %i %i", builder->maxPrefix, builder->maxSuffix, builder->maxWidth);
 
-	LOG(LOG_INFO,"Old Forward Routes %i",builder->oldForwardEntryCount);
-	for(int i=0;i<builder->oldForwardEntryCount;i++)
-		LOG(LOG_INFO,"OldForward Route - P: %i S: %i W: %i", builder->oldForwardEntries[i].prefix, builder->oldForwardEntries[i].suffix,  builder->oldForwardEntries[i].width);
+	rtaDumpRoutingTableArray_single("Old Forward", builder->oldForwardEntries, builder->oldForwardEntryCount);
+	rtaDumpRoutingTableArray_single("New Forward", builder->newForwardEntries, builder->newForwardEntryCount);
 
-	LOG(LOG_INFO,"New Forward Routes %i",builder->newForwardEntryCount);
-	for(int i=0;i<builder->newForwardEntryCount;i++)
-		LOG(LOG_INFO,"NewForward Route - P: %i S: %i W: %i", builder->newForwardEntries[i].prefix, builder->newForwardEntries[i].suffix,  builder->newForwardEntries[i].width);
-
-
-	LOG(LOG_INFO,"Old Reverse Routes %i",builder->oldReverseEntryCount);
-	for(int i=0;i<builder->oldReverseEntryCount;i++)
-		LOG(LOG_INFO,"OldReverse Route - P: %i S: %i W: %i", builder->oldReverseEntries[i].prefix, builder->oldReverseEntries[i].suffix,  builder->oldReverseEntries[i].width);
-
-	LOG(LOG_INFO,"New Reverse Routes %i",builder->newReverseEntryCount);
-	for(int i=0;i<builder->newReverseEntryCount;i++)
-		LOG(LOG_INFO,"NewReverse Route - P: %i S: %i W: %i", builder->newReverseEntries[i].prefix, builder->newReverseEntries[i].suffix,  builder->newReverseEntries[i].width);
-
-
+	rtaDumpRoutingTableArray_single("Old Reverse", builder->oldReverseEntries, builder->oldReverseEntryCount);
+	rtaDumpRoutingTableArray_single("New Reverse", builder->newReverseEntries, builder->newReverseEntryCount);
 }
 
 u8 *rtaWriteRouteTableArrayBuilderPackedData(RouteTableArrayBuilder *builder, u8 *data)
@@ -919,56 +915,17 @@ void rtaMergeRoutes(RouteTableArrayBuilder *builder, RoutePatch *forwardRoutePat
 
 	int maxEntries=MAX(maxForwardEntries,maxReverseEntries);
 
+	RouteTableEntry *bufferMulti=dAlloc(disp, maxEntries*sizeof(RoutePatch));
+
 	RouteTableEntry *buffer1=dAlloc(disp, maxEntries*sizeof(RoutePatch));
 	RouteTableEntry *buffer2=dAlloc(disp, maxEntries*sizeof(RoutePatch));
 
 	int forwardCount=builder->oldForwardEntryCount;
 	int reverseCount=builder->oldReverseEntryCount;
 
-	// Forward Routes
 
-	/*
-	if(forwardRoutePatchCount>0)
-		{
-		RouteTableEntry *srcBuffer=builder->oldForwardEntries;
-		RouteTableEntry *srcBufferEnd=builder->oldForwardEntries+builder->oldForwardEntryCount;
 
-		RouteTableEntry *destBuffer=buffer1;
-		RouteTableEntry *destBufferEnd=NULL;
 
-		RoutePatch *patchPtr=forwardRoutePatches;
-
-		if(forwardRoutePatchCount>1)
-			{
-			memset(prefixOffsets, 0, sizeof(s32)*(prefixCount));
-			memset(suffixOffsets, 0, sizeof(s32)*(suffixCount));
-
-			destBufferEnd=rtaMergeRoutes_ordered_forwardMulti(builder, srcBuffer, srcBufferEnd, destBuffer, patchPtr, forwardRoutePatchCount,
-					prefixOffsets, suffixOffsets, &maxWidth);
-			}
-		else
-			destBufferEnd=rtaMergeRoutes_ordered_forwardSingle(builder, srcBuffer, srcBufferEnd, destBuffer, patchPtr, &maxWidth);
-
-		for(int i=0;i<forwardRoutePatchCount;i++)
-			{
-			*(orderedDispatches++)=*(patchPtr->rdiPtr);
-			patchPtr++;
-			}
-
-		forwardCount=destBufferEnd-destBuffer;
-
-		builder->newForwardEntryCount=forwardCount;
-		builder->newForwardEntries=dAlloc(disp, forwardCount*sizeof(RouteTableEntry));
-
-		memcpy(builder->newForwardEntries, destBuffer, forwardCount*sizeof(RouteTableEntry));
-
-//		LOG(LOG_INFO,"Was %i Now %i",builder->oldForwardEntryCount,forwardCount);
-
-//		if(forwardCount>0)
-//			LOG(LOG_INFO,"FirstRev: P: %i S: %i W: %i",builder->newForwardEntries[0].prefix,builder->newForwardEntries[0].suffix,builder->newForwardEntries[0].width);
-		}
-
-*/
 
 	if(forwardRoutePatchCount>0)
 		{
@@ -986,7 +943,7 @@ void rtaMergeRoutes(RouteTableArrayBuilder *builder, RoutePatch *forwardRoutePat
 
 		while(patchPtr<patchEnd)
 			{
-			int targetUpstream=patchPtr->suffixIndex;
+			int targetUpstream=patchPtr->prefixIndex;
 			patchPeekPtr=patchPtr+1;
 
 			if(patchPeekPtr<patchEnd && patchPeekPtr->prefixIndex==targetUpstream)
@@ -1034,6 +991,74 @@ void rtaMergeRoutes(RouteTableArrayBuilder *builder, RoutePatch *forwardRoutePat
 		//if(forwardCount>0)
 //			LOG(LOG_INFO,"FirstRev: P: %i S: %i W: %i",builder->newForwardEntries[0].prefix,builder->newForwardEntries[0].suffix,builder->newForwardEntries[0].width);
 		}
+
+
+	// Forward Routes
+
+	if(forwardRoutePatchCount>1)
+		{
+		RouteTableEntry *srcBuffer=builder->oldForwardEntries;
+		RouteTableEntry *srcBufferEnd=builder->oldForwardEntries+builder->oldForwardEntryCount;
+
+		RoutePatch *patchPtr=forwardRoutePatches;
+
+		if(forwardRoutePatchCount>1)
+			{
+			LOG(LOG_INFO,"Testing Multi");
+
+			s32 *prefixOffsets=NULL, *suffixOffsets=NULL;
+
+			prefixOffsets=dAlloc(disp, sizeof(s32)*(prefixCount));
+			suffixOffsets=dAlloc(disp, sizeof(s32)*(suffixCount));
+
+			memset(prefixOffsets, 0, sizeof(s32)*(prefixCount));
+			memset(suffixOffsets, 0, sizeof(s32)*(suffixCount));
+
+			RouteTableEntry *multiBufferEnd=rtaMergeRoutes_ordered_forwardMulti(builder, srcBuffer, srcBufferEnd, bufferMulti, patchPtr, forwardRoutePatchCount,
+					prefixOffsets, suffixOffsets, &maxWidth);
+
+			LOG(LOG_INFO,"Multi done");
+
+			int multiCount=multiBufferEnd-bufferMulti;
+
+			if(multiCount!=builder->newForwardEntryCount)
+				LOG(LOG_CRITICAL,"Entry Count Mismatch %i vs %i");
+
+			if(memcmp(bufferMulti, builder->newForwardEntries, multiCount*sizeof(RouteTableEntry)))
+				{
+				LOG(LOG_INFO,"Entry Data Mismatch");
+
+				rtaDumpRoutingTableArray_single("Multi", bufferMulti, multiCount);
+				rtaDumpRoutingTableArray_single("Single", builder->newForwardEntries, builder->newForwardEntryCount);
+
+				LOG(LOG_CRITICAL,"Giving up");
+				}
+
+			LOG(LOG_INFO,"Multi OK");
+			}
+/*		else
+			destBufferEnd=rtaMergeRoutes_ordered_forwardSingle(builder, srcBuffer, srcBufferEnd, destBuffer, patchPtr, &maxWidth);
+
+		for(int i=0;i<forwardRoutePatchCount;i++)
+			{
+			*(orderedDispatches++)=*(patchPtr->rdiPtr);
+			patchPtr++;
+			}
+
+		forwardCount=destBufferEnd-destBuffer;
+
+		builder->newForwardEntryCount=forwardCount;
+		builder->newForwardEntries=dAlloc(disp, forwardCount*sizeof(RouteTableEntry));
+*/
+
+//		memcpy(builder->newForwardEntries, destBuffer, forwardCount*sizeof(RouteTableEntry));
+
+//		LOG(LOG_INFO,"Was %i Now %i",builder->oldForwardEntryCount,forwardCount);
+
+//		if(forwardCount>0)
+//			LOG(LOG_INFO,"FirstRev: P: %i S: %i W: %i",builder->newForwardEntries[0].prefix,builder->newForwardEntries[0].suffix,builder->newForwardEntries[0].width);
+		}
+
 
 
 
