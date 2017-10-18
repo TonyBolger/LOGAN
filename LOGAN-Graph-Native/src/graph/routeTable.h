@@ -192,7 +192,7 @@ void rtRelocater(MemCircHeapChunkIndex *index, u8 tag, u8 **tagData, s32 tagData
 
 void rtInitHeapDataBlock(HeapDataBlock *block, s32 sliceIndex);
 
-
+RoutePatch *rtCloneRoutePatches(MemDispenser *disp, RoutePatch *inPatches, s32 inPatchCount);
 
 
 #endif

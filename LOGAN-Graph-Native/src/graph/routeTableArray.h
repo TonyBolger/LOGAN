@@ -31,6 +31,26 @@ struct routeTableArrayBuilderStr
 
 };
 
+typedef struct routeTableArrayInputBufferStr
+{
+	 RouteTableEntry *oldEntryPtr;
+	 RouteTableEntry *oldEntryPtrEnd;
+
+	 RouteTableEntry *newEntryPtr;
+
+	 s32 oldPrefix;
+	 s32 oldSuffix;
+	 s32 oldWidth;
+
+	 s32 newPrefix;
+	 s32 newSuffix;
+	 s32 newWidth;
+
+	 s32 maxWidth;
+} RouteTableArrayBuffer;
+
+
+
 
 u8 *rtaScanRouteTableArray(u8 *data);
 u8 *rtaInitRouteTableArrayBuilder(RouteTableArrayBuilder *builder, u8 *data, MemDispenser *disp);

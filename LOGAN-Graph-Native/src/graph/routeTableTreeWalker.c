@@ -26,59 +26,7 @@ void rttwInitTreeWalker(RouteTableTreeWalker *walker, RouteTableTreeProxy *treeP
 
 void rttwDumpWalker(RouteTableTreeWalker *walker)
 {
-	LOG(LOG_CRITICAL,"PackLeaf: dumpWalker TODO");
-
-	/*
-	LOG(LOG_INFO,"Walker Dump: Starts");
-
-	if(walker->branchProxy!=NULL)
-		{
-		LOG(LOG_INFO,"Branch: %i ",walker->branchProxy->brindex);
-
-		}
-	else
-		LOG(LOG_INFO,"Branch: NULL");
-
-	if(walker->leafProxy!=NULL)
-		{
-		LOG(LOG_INFO,"Leaf: %i Entry: %i",walker->leafProxy->lindex, walker->leafEntry);
-		dumpLeafBlock(walker->leafProxy->dataBlock);
-		}
-	else
-		LOG(LOG_INFO,"Leaf: NULL");
-
-	if(walker->upstreamOffsets!=NULL)
-		{
-		LOGS(LOG_INFO,"Walker UpstreamOffsets: ");
-
-		for(int j=0;j<walker->upstreamOffsetCount;j++)
-			{
-			LOGS(LOG_INFO,"%i ",walker->upstreamOffsets[j]);
-			if((j&0x1F)==0x1F)
-				LOGN(LOG_INFO,"");
-			}
-		LOGN(LOG_INFO,"");
-		}
-	else
-		LOG(LOG_INFO,"Walker UpstreamOffsets: NULL");
-
-	if(walker->downstreamOffsets!=NULL)
-		{
-		LOGS(LOG_INFO,"Walker DownstreamOffsets: ");
-
-		for(int j=0;j<walker->downstreamOffsetCount;j++)
-			{
-			LOGS(LOG_INFO,"%i ",walker->downstreamOffsets[j]);
-			if((j&0x1F)==0x1F)
-				LOGN(LOG_INFO,"");
-			}
-		LOGN(LOG_INFO,"");
-		}
-	else
-		LOG(LOG_INFO,"Walker DownstreamOffsets: NULL");
-
-	LOG(LOG_INFO,"Walker Dump: Ends");
-	*/
+	LOG(LOG_CRITICAL,"rttwDumpWalker TODO");
 }
 
 void rttwAppendNewLeaf(RouteTableTreeWalker *walker)
@@ -671,7 +619,7 @@ s32 rttwAdvanceToUpstreamThenOffsetThenDownstream(RouteTableTreeWalker *walker, 
 		upstream=walker->leafEntryArray->upstream;
 		}
 
-	//  BEGIN walkerAdvanceToUpstreamThenOffsetThenDownstream_4
+	//  BEGIN walkerAdvanceToUpstreamThenOffsetThenDownstream_3
 
 	s32 currentUpstreamOffset=walker->upstreamEntryOffsets[targetUpstream];
 
