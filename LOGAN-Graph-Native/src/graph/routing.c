@@ -1233,12 +1233,25 @@ static void reorderForwardPatchRange(RoutePatch *forwardPatches, int firstPositi
 			int minEarlier=(*(forwardPatches[k].rdiPtr))->minEdgePosition;
 			int minLater=(*(forwardPatches[k+1].rdiPtr))->minEdgePosition;
 
-			if(minLater<=minEarlier || (minLater==minEarlier && dsLater<dsEarlier))
+			int maxEarlier=(*(forwardPatches[k].rdiPtr))->maxEdgePosition;
+			int maxLater=(*(forwardPatches[k+1].rdiPtr))->maxEdgePosition;
+
+			if(maxLater<=minEarlier) // Swap incompatible groups based on position
 				{
 				swap=1;
 				RoutingReadData *rdiPtr=(*(forwardPatches[k].rdiPtr));
 				rdiPtr->minEdgePosition++;
 				rdiPtr->maxEdgePosition++;
+
+				RoutePatch tmpPatch=forwardPatches[k];
+				forwardPatches[k]=forwardPatches[k+1];
+				forwardPatches[k+1]=tmpPatch;
+				}
+			else if(minLater==minEarlier && maxLater == maxEarlier+1 && dsLater<dsEarlier) // Swap compatible groups based on downstream
+				{
+				swap=1;
+				(*(forwardPatches[k].rdiPtr))->maxEdgePosition++;
+				(*(forwardPatches[k+1].rdiPtr))->maxEdgePosition--;
 
 				RoutePatch tmpPatch=forwardPatches[k];
 				forwardPatches[k]=forwardPatches[k+1];
@@ -1256,7 +1269,8 @@ static RoutePatch *reorderForwardPatches(RoutePatch *forwardPatches, s32 forward
 {
 	qsort(forwardPatches, forwardCount, sizeof(RoutePatch), forwardPrefixSorter);
 
-	//dumpRoutePatches("Forward", forwardPatches, forwardCount);
+//	LOG(LOG_INFO,"Before reorder");
+//	dumpRoutePatches("Forward", forwardPatches, forwardCount);
 
 	int firstPrefix=forwardPatches[0].prefixIndex;
 	int firstPosition=0;
@@ -1276,6 +1290,9 @@ static RoutePatch *reorderForwardPatches(RoutePatch *forwardPatches, s32 forward
 	if(firstPosition<forwardCount-1)
 		reorderForwardPatchRange(forwardPatches, firstPosition, forwardCount);
 
+//	LOG(LOG_INFO,"After reorder");
+//	dumpRoutePatches("Forward", forwardPatches, forwardCount);
+
 	return forwardPatches;
 }
 
@@ -1293,7 +1310,10 @@ static void reorderReversePatchRange(RoutePatch *reversePatches, int firstPositi
 			int minEarlier=(*(reversePatches[k].rdiPtr))->minEdgePosition;
 			int minLater=(*(reversePatches[k+1].rdiPtr))->minEdgePosition;
 
-			if(minLater<=minEarlier || (minLater==minEarlier && dsLater<dsEarlier))
+			int maxEarlier=(*(reversePatches[k].rdiPtr))->maxEdgePosition;
+			int maxLater=(*(reversePatches[k+1].rdiPtr))->maxEdgePosition;
+
+			if(maxLater<=minEarlier) // Swap incompatible groups based on position
 				{
 				swap=1;
 				RoutingReadData *rdiPtr=(*(reversePatches[k].rdiPtr));
@@ -1304,6 +1324,17 @@ static void reorderReversePatchRange(RoutePatch *reversePatches, int firstPositi
 				reversePatches[k]=reversePatches[k+1];
 				reversePatches[k+1]=tmpPatch;
 				}
+			else if(minLater==minEarlier && maxLater == maxEarlier+1 && dsLater<dsEarlier) // Swap compatible groups based on downstream
+				{
+				swap=1;
+				(*(reversePatches[k].rdiPtr))->maxEdgePosition++;
+				(*(reversePatches[k+1].rdiPtr))->maxEdgePosition--;
+
+				RoutePatch tmpPatch=reversePatches[k];
+				reversePatches[k]=reversePatches[k+1];
+				reversePatches[k+1]=tmpPatch;
+				}
+
 			}
 		if(!swap)
 			break;
@@ -1316,7 +1347,6 @@ static void reorderReversePatchRange(RoutePatch *reversePatches, int firstPositi
 static RoutePatch *reorderReversePatches(RoutePatch *reversePatches, s32 reverseCount, MemDispenser *disp)
 {
 	qsort(reversePatches, reverseCount, sizeof(RoutePatch), reverseSuffixSorter);
-	//dumpRoutePatches("Reverse", reversePatches, reverseCount);
 
 	int firstSuffix=reversePatches[0].suffixIndex;
 	int firstPosition=0;
