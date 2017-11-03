@@ -12,7 +12,7 @@
 
 static void *trDoRegister(ParallelTask *pt, int workerNo, int totalWorkers)
 {
-	RoutingWorkerState *workerState=gAlloc(sizeof(RoutingWorkerState), MEMTRACKID_ROUTING_WORKERSTATE);
+	RoutingWorkerState *workerState=G_ALLOC(sizeof(RoutingWorkerState), MEMTRACKID_ROUTING_WORKERSTATE);
 
 	workerState->lookupSliceStart=(SMER_SLICES*workerNo)/totalWorkers;
 	workerState->lookupSliceEnd=(SMER_SLICES*(workerNo+1))/totalWorkers;
@@ -34,7 +34,7 @@ static void *trDoRegister(ParallelTask *pt, int workerNo, int totalWorkers)
 
 static void trDoDeregister(ParallelTask *pt, int workerNo, void *wState)
 {
-	gFree(wState, sizeof(RoutingWorkerState), MEMTRACKID_ROUTING_WORKERSTATE);
+	G_FREE(wState, sizeof(RoutingWorkerState), MEMTRACKID_ROUTING_WORKERSTATE);
 }
 
 static int trAllocateIngressSlot(ParallelTask *pt, int workerNo)

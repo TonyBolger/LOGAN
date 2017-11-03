@@ -254,7 +254,7 @@ static int considerUpgradingToTree(RoutingComboBuilder *builder, int newForwardR
 		return 0;
 
 	int existingRoutes=(builder->arrayBuilder->oldForwardEntryCount)+(builder->arrayBuilder->oldReverseEntryCount);
-	int totalRoutes=existingRoutes+newForwardRoutes+newReverseRoutes;
+	int totalRoutes=existingRoutes;//+newForwardRoutes+newReverseRoutes;
 
 	return totalRoutes>ROUTING_TREE_THRESHOLD;
 }

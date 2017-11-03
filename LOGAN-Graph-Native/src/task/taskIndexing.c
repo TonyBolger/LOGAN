@@ -46,7 +46,7 @@ static int tiDoIngress(ParallelTask *pt, int workerNo, void *workerState, void *
 		smAddPathSmers(smerMap, currentRec->length, packedSeq, nodeSize, sparseness);
 		}
 
-	gFree(packedSeq, paddedLength, MEMTRACKID_INDEXING_PACKSEQ);
+	G_FREE(packedSeq, paddedLength, MEMTRACKID_INDEXING_PACKSEQ);
 
 	return 1;
 }

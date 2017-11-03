@@ -139,7 +139,7 @@ static void processReadFiles(JNIEnv *env, jobjectArray jFilePaths, void *handler
 		freeSequenceBuffer(swqBuffer+i);
 		}
 
-	gFree(ioBuffer, FASTQ_IO_RECYCLE_BUFFER+FASTQ_IO_PRIMARY_BUFFER, MEMTRACKID_IOBUF);
+	G_FREE(ioBuffer, FASTQ_IO_RECYCLE_BUFFER+FASTQ_IO_PRIMARY_BUFFER, MEMTRACKID_IOBUF);
 }
 
 
@@ -622,7 +622,7 @@ JNIEXPORT jlong JNICALL Java_logan_graph_Graph_alloc_1Native(
 {
 	logInit();
 
-	GraphJni *jni=gAlloc(sizeof(GraphJni), MEMTRACKID_GRAPH);
+	GraphJni *jni=G_ALLOC(sizeof(GraphJni), MEMTRACKID_GRAPH);
 
 	if (prepareJniRefs(env, jni) != 0)
 		return 0;
@@ -641,7 +641,7 @@ JNIEXPORT void JNICALL Java_logan_graph_Graph_free_1Native(
 
 	cleanupJniRefs(env, graph->userPtr);
 
-	gFree(graph->userPtr, sizeof(GraphJni), MEMTRACKID_GRAPH);
+	G_FREE(graph->userPtr, sizeof(GraphJni), MEMTRACKID_GRAPH);
 	graph->userPtr=NULL;
 
 	freeGraph(graph);
