@@ -9,7 +9,7 @@
 
 static void createBuildersFromNullData(RoutingComboBuilder *builder)
 {
-	initHeapDataBlock(&(builder->combinedDataBlock), builder->sliceIndex);
+	rtInitHeapDataBlock(&(builder->combinedDataBlock), builder->sliceIndex);
 
 	builder->combinedDataPtr=NULL;
 
@@ -43,7 +43,7 @@ static void createBuildersFromDirectData(RoutingComboBuilder *builder)
 	s32 headerSize=rtGetGapBlockHeaderSize();
 	u8 *afterHeader=data+headerSize;
 
-	initHeapDataBlock(&(builder->combinedDataBlock), builder->sliceIndex);
+	rtInitHeapDataBlock(&(builder->combinedDataBlock), builder->sliceIndex);
 
 	builder->combinedDataBlock.headerSize=headerSize;
 	builder->combinedDataPtr=data;
@@ -75,12 +75,12 @@ void createBuildersFromIndirectData(RoutingComboBuilder *builder)
 	s32 topHeaderSize=rtGetGapBlockHeaderSize();
 
 	builder->arrayBuilder=NULL;
-	initHeapDataBlock(&(builder->combinedDataBlock), builder->sliceIndex);
+	rtInitHeapDataBlock(&(builder->combinedDataBlock), builder->sliceIndex);
 
 	builder->combinedDataPtr=NULL;
 
 	builder->treeBuilder=dAlloc(builder->disp, sizeof(RouteTableTreeBuilder));
-	initHeapDataBlock(&(builder->topDataBlock), builder->sliceIndex);
+	rtInitHeapDataBlock(&(builder->topDataBlock), builder->sliceIndex);
 
 	builder->topDataBlock.headerSize=topHeaderSize;
 	builder->topDataBlock.dataSize=sizeof(RouteTableTreeTopBlock);
@@ -101,7 +101,7 @@ void createBuildersFromIndirectData(RoutingComboBuilder *builder)
 
 	for(int i=0;i<ROUTE_TOPINDEX_MAX;i++)
 		{
-		initHeapDataBlock(treeBuilder->dataBlocks+i, builder->sliceIndex);
+		rtInitHeapDataBlock(treeBuilder->dataBlocks+i, builder->sliceIndex);
 
 		if(top->data[i]!=NULL && (!rtHeaderIsLive(*(top->data[i]))))
 			{
@@ -246,7 +246,7 @@ static void upgradeToTree(RoutingComboBuilder *builder, s32 prefixCount, s32 suf
 	builder->treeBuilder=treeBuilder;
 
 	builder->topDataPtr=NULL;
-	initHeapDataBlock(&(builder->topDataBlock), builder->sliceIndex);
+	rtInitHeapDataBlock(&(builder->topDataBlock), builder->sliceIndex);
 
 	rttUpgradeToRouteTableTreeBuilder(builder->arrayBuilder,  builder->treeBuilder, builder->sliceIndex, prefixCount, suffixCount, builder->disp);
 
@@ -1070,7 +1070,7 @@ static void writeBuildersAsIndirectData(RoutingComboBuilder *routingBuilder, u8 
 
 	HeapDataBlock neededBlocks[ROUTE_TOPINDEX_MAX];
 	for(int i=0;i<ROUTE_TOPINDEX_MAX;i++)
-		initHeapDataBlock(neededBlocks+i, sliceIndex);
+		rtInitHeapDataBlock(neededBlocks+i, sliceIndex);
 
 	int totalNeededSize=writeBuildersAsIndirectData_calcTailAndArraySpace(routingBuilder, indexSize, neededBlocks);
 
@@ -1215,143 +1215,157 @@ void dumpRoutePatches(char *label, RoutePatch *patches, s32 patchCount)
 // Case 4: { [1:1]A, [1:1]B } -> { [1:1]A, [1:1]B }
 // Case 5: { [1:10]A, [1:1]B } -> { [1:1]B, [2:11]B }
 
+
+static void reorderForwardPatchRange(RoutePatch *forwardPatches, int firstPosition, int lastPosition)
+{
+//	LOG(LOG_INFO,"First / Last %i %i",firstPosition, lastPosition);
+
+	for (int j = lastPosition-1; j>firstPosition; --j)
+		{
+		int swap = 0;
+		for (int k = firstPosition; k<j; k++)
+			{
+//			LOG(LOG_INFO,"Compare %i %i",k, k+1);
+
+			int dsEarlier=forwardPatches[k].suffixIndex;
+			int dsLater=forwardPatches[k+1].suffixIndex;
+
+			int minEarlier=(*(forwardPatches[k].rdiPtr))->minEdgePosition;
+			int minLater=(*(forwardPatches[k+1].rdiPtr))->minEdgePosition;
+
+			int maxEarlier=(*(forwardPatches[k].rdiPtr))->maxEdgePosition;
+			int maxLater=(*(forwardPatches[k+1].rdiPtr))->maxEdgePosition;
+
+			if(maxLater<=minEarlier) // Swap incompatible groups based on position
+				{
+				swap=1;
+				RoutingReadData *rdiPtr=(*(forwardPatches[k].rdiPtr));
+				rdiPtr->minEdgePosition++;
+				rdiPtr->maxEdgePosition++;
+
+				RoutePatch tmpPatch=forwardPatches[k];
+				forwardPatches[k]=forwardPatches[k+1];
+				forwardPatches[k+1]=tmpPatch;
+				}
+			else if(minLater==minEarlier && maxLater == maxEarlier+1 && dsLater<dsEarlier) // Swap compatible groups based on downstream
+				{
+				swap=1;
+				(*(forwardPatches[k].rdiPtr))->maxEdgePosition++;
+				(*(forwardPatches[k+1].rdiPtr))->maxEdgePosition--;
+
+				RoutePatch tmpPatch=forwardPatches[k];
+				forwardPatches[k]=forwardPatches[k+1];
+				forwardPatches[k+1]=tmpPatch;
+				}
+			}
+		if(!swap)
+			break;
+		}
+
+}
+
+
 static RoutePatch *reorderForwardPatches(RoutePatch *forwardPatches, s32 forwardCount, MemDispenser *disp)
 {
 	qsort(forwardPatches, forwardCount, sizeof(RoutePatch), forwardPrefixSorter);
 
-	//dumpRoutePatches("Forward", forwardPatches, forwardCount);
+//	LOG(LOG_INFO,"Before reorder");
+//	dumpRoutePatches("Forward", forwardPatches, forwardCount);
 
 	int firstPrefix=forwardPatches[0].prefixIndex;
 	int firstPosition=0;
-
-	//int dumpFlag=0;
 
 	for(int i=1; i<forwardCount;i++)
 		{
 		if(firstPrefix!=forwardPatches[i].prefixIndex) 			// Range from firstPosition to i-1
 			{
-			int lastPosition=i-1;
-
-			if(firstPosition<lastPosition)
-				{
-				for (int j = lastPosition; j>firstPosition; --j)
-					{
-					int swap = 0;
-					for (int k = firstPosition; k<j; k++)
-						{
-						int minEarlier=(*(forwardPatches[k].rdiPtr))->minEdgePosition;
-						int maxLater=(*(forwardPatches[k+1].rdiPtr))->maxEdgePosition;
-
-						if(maxLater<=minEarlier)
-							{
-							swap=1;
-							/*
-							if(dumpFlag==0)
-								{
-								LOG(LOG_INFO,"Reorder needed. Original:");
-								dumpRoutePatches("Forward", forwardPatches, forwardCount);
-								dumpFlag=1;
-								}
-*/
-//							LOG(LOG_INFO,"Swapping %i and %i",k,k+1);
-
-							RoutingReadData *rdiPtr=(*(forwardPatches[k].rdiPtr));
-							rdiPtr->minEdgePosition++;
-							rdiPtr->maxEdgePosition++;
-
-							RoutePatch tmpPatch=forwardPatches[k];
-							forwardPatches[k]=forwardPatches[k+1];
-							forwardPatches[k+1]=tmpPatch;
-							}
-						}
-					if(!swap)
-						break;
-					}
-				}
+			if(firstPosition<i-1)
+				reorderForwardPatchRange(forwardPatches, firstPosition, i);
 
 			firstPrefix=forwardPatches[i].prefixIndex;
 			firstPosition=i;
 			}
 		}
 
-	/*
-	if(dumpFlag)
-		{
-		LOG(LOG_INFO,"Reordered as:");
-		dumpRoutePatches("Forward", forwardPatches, forwardCount);
-		LOG(LOG_CRITICAL,"TODO");
-		}
-*/
+	if(firstPosition<forwardCount-1)
+		reorderForwardPatchRange(forwardPatches, firstPosition, forwardCount);
+
+//	LOG(LOG_INFO,"After reorder");
+//	dumpRoutePatches("Forward", forwardPatches, forwardCount);
 
 	return forwardPatches;
 }
 
+
+static void reorderReversePatchRange(RoutePatch *reversePatches, int firstPosition, int lastPosition)
+{
+	for (int j = lastPosition-1; j>firstPosition; --j)
+		{
+		int swap = 0;
+		for (int k = firstPosition; k<j; k++)
+			{
+			int dsEarlier=reversePatches[k].prefixIndex;
+			int dsLater=reversePatches[k+1].prefixIndex;
+
+			int minEarlier=(*(reversePatches[k].rdiPtr))->minEdgePosition;
+			int minLater=(*(reversePatches[k+1].rdiPtr))->minEdgePosition;
+
+			int maxEarlier=(*(reversePatches[k].rdiPtr))->maxEdgePosition;
+			int maxLater=(*(reversePatches[k+1].rdiPtr))->maxEdgePosition;
+
+			if(maxLater<=minEarlier) // Swap incompatible groups based on position
+				{
+				swap=1;
+				RoutingReadData *rdiPtr=(*(reversePatches[k].rdiPtr));
+				rdiPtr->minEdgePosition++;
+				rdiPtr->maxEdgePosition++;
+
+				RoutePatch tmpPatch=reversePatches[k];
+				reversePatches[k]=reversePatches[k+1];
+				reversePatches[k+1]=tmpPatch;
+				}
+			else if(minLater==minEarlier && maxLater == maxEarlier+1 && dsLater<dsEarlier) // Swap compatible groups based on downstream
+				{
+				swap=1;
+				(*(reversePatches[k].rdiPtr))->maxEdgePosition++;
+				(*(reversePatches[k+1].rdiPtr))->maxEdgePosition--;
+
+				RoutePatch tmpPatch=reversePatches[k];
+				reversePatches[k]=reversePatches[k+1];
+				reversePatches[k+1]=tmpPatch;
+				}
+
+			}
+		if(!swap)
+			break;
+		}
+
+}
+
+
+
 static RoutePatch *reorderReversePatches(RoutePatch *reversePatches, s32 reverseCount, MemDispenser *disp)
 {
 	qsort(reversePatches, reverseCount, sizeof(RoutePatch), reverseSuffixSorter);
-	//dumpRoutePatches("Reverse", reversePatches, reverseCount);
 
 	int firstSuffix=reversePatches[0].suffixIndex;
 	int firstPosition=0;
-
-	//int dumpFlag=0;
 
 	for(int i=1; i<reverseCount;i++)
 		{
 		if(firstSuffix!=reversePatches[i].suffixIndex) 			// Range from firstPosition to i-1
 			{
-			int lastPosition=i-1;
-
-			if(firstPosition<lastPosition)
-				{
-				for (int j = lastPosition; j>firstPosition; --j)
-					{
-					int swap = 0;
-					for (int k = firstPosition; k<j; k++)
-						{
-						int minEarlier=(*(reversePatches[k].rdiPtr))->minEdgePosition;
-						int maxLater=(*(reversePatches[k+1].rdiPtr))->maxEdgePosition;
-
-						if(maxLater<=minEarlier)
-							{
-							swap=1;
-							/*
-							if(dumpFlag==0)
-								{
-								LOG(LOG_INFO,"Reorder needed. Original:");
-								dumpRoutePatches("Reverse", reversePatches, reverseCount);
-								dumpFlag=1;
-								}
-*/
-//							LOG(LOG_INFO,"Swapping %i and %i",k,k+1);
-
-							RoutingReadData *rdiPtr=(*(reversePatches[k].rdiPtr));
-							rdiPtr->minEdgePosition++;
-							rdiPtr->maxEdgePosition++;
-
-							RoutePatch tmpPatch=reversePatches[k];
-							reversePatches[k]=reversePatches[k+1];
-							reversePatches[k+1]=tmpPatch;
-							}
-						}
-					if(!swap)
-						break;
-					}
-				}
+			if(firstPosition<i-1)
+				reorderReversePatchRange(reversePatches, firstPosition, i);
 
 			firstSuffix=reversePatches[i].suffixIndex;
 			firstPosition=i;
 			}
 		}
 
-	/*
-	if(dumpFlag)
-		{
-		LOG(LOG_INFO,"Reordered as:");
-		dumpRoutePatches("Forward", forwardPatches, forwardCount);
-		LOG(LOG_CRITICAL,"TODO");
-		}
-*/
+	if(firstPosition<reverseCount-1)
+		reorderReversePatchRange(reversePatches, firstPosition, reverseCount);
+
 	return reversePatches;
 }
 
@@ -1554,20 +1568,46 @@ int rtRouteReadsForSmer(RoutingIndexedReadReferenceBlock *rdi, SmerArraySlice *s
 
 		upgradeToTree(&routingBuilder, prefixCount, suffixCount);
 		}
-	else if(routingBuilder.treeBuilder!=NULL) // Hackish but needed since tail counts change
-		{
-		rttUpdateRouteTableTreeBuilderTailCounts(routingBuilder.treeBuilder, prefixCount, suffixCount);
-		}
 
 	if(routingBuilder.treeBuilder!=NULL)
 		{
-//		LOG(LOG_INFO,"Existing: Tail counts are %i %i",prefixCount, suffixCount);
+		/*
+		if(rdi->entryCount>0)
+			{
+			RoutingReadData *rdd=rdi->entries[0];
+			int index=rdd->indexCount;
+			SmerId currFmer=rdd->indexedData[index].fsmer;
+			SmerId currRmer=rdd->indexedData[index].rsmer;
 
+			SmerId currSmer=currFmer<currRmer?currFmer:currRmer;
+			char buffer[SMER_BASES+1]={0};
+			unpackSmer(currSmer, buffer);
+
+			LOG(LOG_INFO,"ROUTEMERGE\t%s\tTREE\tFORWARD\t%i",buffer,forwardCount);
+			LOG(LOG_INFO,"ROUTEMERGE\t%s\tTREE\tREVERSE\t%i",buffer,reverseCount);
+			}
+*/
 		rttMergeRoutes(routingBuilder.treeBuilder, forwardPatches, reversePatches, forwardCount, reverseCount, prefixCount, suffixCount, orderedDispatches, disp);
 		writeBuildersAsIndirectData(&routingBuilder, sliceTag, sliceIndex,circHeap);
 		}
 	else
 		{
+		/*
+		if(rdi->entryCount>0)
+			{
+			RoutingReadData *rdd=rdi->entries[0];
+			int index=rdd->indexCount;
+			SmerId currFmer=rdd->indexedData[index].fsmer;
+			SmerId currRmer=rdd->indexedData[index].rsmer;
+
+			SmerId currSmer=currFmer<currRmer?currFmer:currRmer;
+			char buffer[SMER_BASES+1]={0};
+			unpackSmer(currSmer, buffer);
+
+			LOG(LOG_INFO,"ROUTEMERGE\t%s\tARRAY\tFORWARD\t%i",buffer,forwardCount);
+			LOG(LOG_INFO,"ROUTEMERGE\t%s\tARRAY\tREVERSE\t%i",buffer,reverseCount);
+			}
+*/
 		rtaMergeRoutes(routingBuilder.arrayBuilder, forwardPatches, reversePatches, forwardCount, reverseCount, prefixCount, suffixCount, orderedDispatches, disp);
 		writeBuildersAsDirectData(&routingBuilder, sliceTag, sliceIndex, circHeap);
 		}

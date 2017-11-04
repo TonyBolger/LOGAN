@@ -30,32 +30,32 @@ typedef struct routeTableTreeWalkerStr
 
 
 
-void initTreeWalker(RouteTableTreeWalker *walker, RouteTableTreeProxy *treeProxy);
+void rttwInitTreeWalker(RouteTableTreeWalker *walker, RouteTableTreeProxy *treeProxy);
 
-void dumpWalker(RouteTableTreeWalker *walker);
+void rttwDumpWalker(RouteTableTreeWalker *walker);
 
-void walkerAppendNewLeaf(RouteTableTreeWalker *walker);
+void rttwAppendNewLeaf(RouteTableTreeWalker *walker);
 
-void walkerSeekStart(RouteTableTreeWalker *walker);
-void walkerSeekEnd(RouteTableTreeWalker *walker);
+void rttwSeekStart(RouteTableTreeWalker *walker);
+void rttwSeekEnd(RouteTableTreeWalker *walker);
 
-s32 walkerGetCurrentEntry(RouteTableTreeWalker *walker, s16 *upstream, RouteTableUnpackedEntry **entry);
+s32 rttwGetCurrentEntry(RouteTableTreeWalker *walker, s16 *upstream, RouteTableUnpackedEntry **entry);
 
 //s32 walkerNextLeaf(RouteTableTreeWalker *walker, s16 *upstream, RouteTableUnpackedEntry **entry);
 //s32 walkerNextEntry(RouteTableTreeWalker *walker, s16 *upstream, RouteTableUnpackedEntry **entry, s32 holdUpstream);
 
-s32 walkerAdvanceToUpstreamThenOffsetThenDownstream(RouteTableTreeWalker *walker, s32 targetUpstream, s32 targetDownstream, s32 targetMinOffset, s32 targetMaxOffset,
+s32 rttwAdvanceToUpstreamThenOffsetThenDownstream(RouteTableTreeWalker *walker, s32 targetUpstream, s32 targetDownstream, s32 targetMinOffset, s32 targetMaxOffset,
 		s32 *upstreamPtr, RouteTableUnpackedEntry **entryPtr, s32 *upstreamOffsetPtr, s32 *downstreamOffsetPtr);
 
-void walkerResetOffsetArrays(RouteTableTreeWalker *walker);
-void walkerInitOffsetArrays(RouteTableTreeWalker *walker, s32 upstreamCount, s32 downstreamCount);
+void rttwResetOffsetArrays(RouteTableTreeWalker *walker);
+void rttwInitOffsetArrays(RouteTableTreeWalker *walker, s32 upstreamCount, s32 downstreamCount);
 
-void walkerMergeRoutes_insertEntry(RouteTableTreeWalker *walker, s32 upstream, s32 downstream);
-void walkerMergeRoutes_widen(RouteTableTreeWalker *walker);
-void walkerMergeRoutes_split(RouteTableTreeWalker *walker, s32 downstream, s32 width1, s32 width2);
+void rttwMergeRoutes_insertEntry(RouteTableTreeWalker *walker, s32 upstream, s32 downstream);
+void rttwMergeRoutes_widen(RouteTableTreeWalker *walker);
+void rttwMergeRoutes_split(RouteTableTreeWalker *walker, s32 downstream, s32 width1, s32 width2);
 
-void walkerAppendPreorderedEntry(RouteTableTreeWalker *walker, RouteTableEntry *entry, int routingTable);
-void walkerAppendPreorderedEntries(RouteTableTreeWalker *walker, RouteTableEntry *entries, u32 entryCount, int routingTable);
+void rttwAppendPreorderedEntry(RouteTableTreeWalker *walker, RouteTableEntry *entry, int routingTable);
+void rttwAppendPreorderedEntries(RouteTableTreeWalker *walker, RouteTableEntry *entries, u32 entryCount, int routingTable);
 
 
 #endif

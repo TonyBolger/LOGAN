@@ -301,28 +301,24 @@ s32 rtaGetRouteTableArrayBuilderPackedSize(RouteTableArrayBuilder *builder)
 	return builder->totalPackedSize;
 }
 
+static void rtaDumpRoutingTableArray_single(char *name, RouteTableEntry *entries, int entryCount)
+{
+	LOG(LOG_INFO,"%s Routes %i at %p",name, entryCount, entries);
+
+	for(int i=0;i<entryCount;i++)
+		LOG(LOG_INFO,"%i Route - P: %i S: %i W: %i", i, entries[i].prefix, entries[i].suffix, entries[i].width);
+
+}
+
 void rtaDumpRoutingTableArray(RouteTableArrayBuilder *builder)
 {
 	LOG(LOG_INFO,"Header: %i %i %i", builder->maxPrefix, builder->maxSuffix, builder->maxWidth);
 
-	LOG(LOG_INFO,"Old Forward Routes %i",builder->oldForwardEntryCount);
-	for(int i=0;i<builder->oldForwardEntryCount;i++)
-		LOG(LOG_INFO,"OldForward Route - P: %i S: %i W: %i", builder->oldForwardEntries[i].prefix, builder->oldForwardEntries[i].suffix,  builder->oldForwardEntries[i].width);
+	rtaDumpRoutingTableArray_single("Old Forward", builder->oldForwardEntries, builder->oldForwardEntryCount);
+	rtaDumpRoutingTableArray_single("New Forward", builder->newForwardEntries, builder->newForwardEntryCount);
 
-	LOG(LOG_INFO,"New Forward Routes %i",builder->newForwardEntryCount);
-	for(int i=0;i<builder->newForwardEntryCount;i++)
-		LOG(LOG_INFO,"NewForward Route - P: %i S: %i W: %i", builder->newForwardEntries[i].prefix, builder->newForwardEntries[i].suffix,  builder->newForwardEntries[i].width);
-
-
-	LOG(LOG_INFO,"Old Reverse Routes %i",builder->oldReverseEntryCount);
-	for(int i=0;i<builder->oldReverseEntryCount;i++)
-		LOG(LOG_INFO,"OldReverse Route - P: %i S: %i W: %i", builder->oldReverseEntries[i].prefix, builder->oldReverseEntries[i].suffix,  builder->oldReverseEntries[i].width);
-
-	LOG(LOG_INFO,"New Reverse Routes %i",builder->newReverseEntryCount);
-	for(int i=0;i<builder->newReverseEntryCount;i++)
-		LOG(LOG_INFO,"NewReverse Route - P: %i S: %i W: %i", builder->newReverseEntries[i].prefix, builder->newReverseEntries[i].suffix,  builder->newReverseEntries[i].width);
-
-
+	rtaDumpRoutingTableArray_single("Old Reverse", builder->oldReverseEntries, builder->oldReverseEntryCount);
+	rtaDumpRoutingTableArray_single("New Reverse", builder->newReverseEntries, builder->newReverseEntryCount);
 }
 
 u8 *rtaWriteRouteTableArrayBuilderPackedData(RouteTableArrayBuilder *builder, u8 *data)
@@ -404,9 +400,141 @@ u8 *rtaWriteRouteTableArrayBuilderPackedData(RouteTableArrayBuilder *builder, u8
 	return data+tableSize;
 }
 
+s32 arrayBufferPollInput(RouteTableArrayBuffer *buf)
+{
+	RouteTableEntry *oldEntryPtr=buf->oldEntryPtr;
+
+	if(oldEntryPtr<buf->oldEntryPtrEnd)
+		{
+		buf->oldPrefix=oldEntryPtr->prefix;
+		buf->oldSuffix=oldEntryPtr->suffix;
+		buf->oldWidth=oldEntryPtr->width;
+
+		buf->oldEntryPtr++;
 
 
-static RouteTableEntry *rtaMergeRoutes_ordered_forwardSingle(RouteTableArrayBuilder *builder,
+		return buf->oldWidth;
+		}
+	else
+		{
+		buf->oldPrefix=0;
+		buf->oldSuffix=0;
+		buf->oldWidth=0;
+
+		return 0;
+		}
+}
+
+
+void initArrayBuffer(RouteTableArrayBuffer *buf, RouteTableEntry *oldEntryPtr, RouteTableEntry *oldEntryPtrEnd, RouteTableEntry *newEntryPtr, s32 maxWidth)
+{
+	buf->oldEntryPtr=oldEntryPtr;
+	buf->oldEntryPtrEnd=oldEntryPtrEnd;
+	buf->newEntryPtr=newEntryPtr;
+
+	arrayBufferPollInput(buf);
+
+	buf->newPrefix=0;
+	buf->newSuffix=0;
+	buf->newWidth=0;
+
+	buf->maxWidth=maxWidth;
+}
+
+void arrayBufferFlushOutput(RouteTableArrayBuffer *buf)
+{
+	RouteTableEntry *newEntryPtr=buf->newEntryPtr;
+
+	if(buf->newWidth>0)
+		{
+		newEntryPtr->prefix=buf->newPrefix;
+		newEntryPtr->suffix=buf->newSuffix;
+		newEntryPtr->width=buf->newWidth;
+
+		buf->maxWidth=MAX(buf->maxWidth,buf->newWidth);
+
+		buf->newEntryPtr++;
+		buf->newWidth=0;
+		}
+}
+
+s32 arrayBufferTransfer(RouteTableArrayBuffer *buf)
+{
+	s32 widthToTransfer=buf->oldWidth;
+
+	if(buf->newWidth>0)
+		{
+		if(buf->newPrefix!=buf->oldPrefix || buf->newSuffix!=buf->oldSuffix)
+			arrayBufferFlushOutput(buf);
+		else
+			{
+			buf->newWidth+=widthToTransfer;
+			arrayBufferPollInput(buf);
+			return widthToTransfer;
+			}
+		}
+
+	buf->newPrefix=buf->oldPrefix;
+	buf->newSuffix=buf->oldSuffix;
+	buf->newWidth=widthToTransfer;
+
+	arrayBufferPollInput(buf);
+	return widthToTransfer;
+
+}
+
+s32 arrayBufferPartialTransfer(RouteTableArrayBuffer *buf, s32 requestedTransferWidth)
+{
+	s32 widthToTransfer=MIN(requestedTransferWidth, buf->oldWidth);
+	buf->oldWidth-=widthToTransfer;
+
+	if(buf->newWidth>0)
+		{
+		if(buf->newPrefix!=buf->oldPrefix || buf->newSuffix!=buf->oldSuffix)
+			arrayBufferFlushOutput(buf);
+		else
+			{
+			buf->newWidth+=widthToTransfer;
+			if(buf->oldWidth==0)
+				arrayBufferPollInput(buf);
+
+			return widthToTransfer;
+			}
+		}
+
+	buf->newPrefix=buf->oldPrefix;
+	buf->newSuffix=buf->oldSuffix;
+	buf->newWidth=widthToTransfer;
+
+	if(buf->oldWidth==0)
+		arrayBufferPollInput(buf);
+
+	return widthToTransfer;
+}
+
+
+void arrayBufferPushOutput(RouteTableArrayBuffer *buf, s32 prefix, s32 suffix, s32 width)
+{
+	if(buf->newWidth>0)
+		{
+		if(buf->newPrefix!=prefix || buf->newSuffix!=suffix)
+			arrayBufferFlushOutput(buf);
+		else
+			{
+			buf->newWidth+=width;
+			return;
+			}
+		}
+
+	buf->newPrefix=prefix;
+	buf->newSuffix=suffix;
+	buf->newWidth=width;
+}
+
+
+/* Original version - no buffer
+
+static RouteTableEntry *rtaMergeRoutes_ordered_forwardSingle(//RouteTableArrayBuilder *builder,
 		RouteTableEntry *oldEntryPtr, RouteTableEntry *oldEntryEnd, RouteTableEntry *newEntryPtr, RoutePatch *patch, int *maxWidth)
 {
 	int targetPrefix=patch->prefixIndex;
@@ -456,7 +584,7 @@ static RouteTableEntry *rtaMergeRoutes_ordered_forwardSingle(RouteTableArrayBuil
 
 		if(minMargin<0 || maxMargin<0)
 			{
-			rtaDumpRoutingTableArray(builder);
+//			rtaDumpRoutingTableArray(builder);
 
 			LOG(LOG_INFO,"Failed to add forward route for prefix %i suffix %i",targetPrefix,targetSuffix);
 			LOG(LOG_INFO,"Current edge offset %i minEdgePosition %i maxEdgePosition %i",upstreamEdgeOffset,minEdgePosition,maxEdgePosition);
@@ -552,6 +680,373 @@ static RouteTableEntry *rtaMergeRoutes_ordered_forwardSingle(RouteTableArrayBuil
 }
 
 
+*/
+
+
+
+
+static RouteTableEntry *rtaMergeRoutes_ordered_forwardSingle(//RouteTableArrayBuilder *builder,
+		RouteTableEntry *oldEntryPtr, RouteTableEntry *oldEntryEnd, RouteTableEntry *newEntryPtr, RoutePatch *patch, int *maxWidth)
+{
+	int targetPrefix=patch->prefixIndex;
+	int targetSuffix=patch->suffixIndex;
+	int minEdgePosition=(*(patch->rdiPtr))->minEdgePosition;
+	int maxEdgePosition=(*(patch->rdiPtr))->maxEdgePosition;
+
+	int upstreamEdgeOffset=0;
+	int downstreamEdgeOffset=0;
+
+//	LOG(LOG_INFO,"rtaMergeRoutes_ordered_forwardSingle %i %i with %i %i",targetPrefix, targetSuffix, minEdgePosition, maxEdgePosition);
+
+	RouteTableArrayBuffer buf;
+	initArrayBuffer(&buf, oldEntryPtr, oldEntryEnd, newEntryPtr, *maxWidth);
+
+//	LOG(LOG_INFO,"Ptrs %i %i", xoldEntryPtr, xoldEntryEnd);
+
+//	LOG(LOG_INFO,"Phase 0 - offsets %i %i",upstreamEdgeOffset, downstreamEdgeOffset);
+
+	while(buf.oldWidth && buf.oldPrefix<targetPrefix) // Skip lower upstream
+		{
+		if(buf.oldSuffix==targetSuffix)
+			downstreamEdgeOffset+=buf.oldWidth;
+
+		arrayBufferTransfer(&buf);
+		}
+
+//	LOG(LOG_INFO,"Phase 1 - offsets %i %i",upstreamEdgeOffset, downstreamEdgeOffset);
+
+	while(buf.oldWidth && buf.oldPrefix==targetPrefix &&
+			((upstreamEdgeOffset+buf.oldWidth)<minEdgePosition ||
+			((upstreamEdgeOffset+buf.oldWidth)==minEdgePosition && buf.oldSuffix!=targetSuffix))) // Skip earlier upstream
+		{
+		upstreamEdgeOffset+=buf.oldWidth;
+		if(buf.oldSuffix==targetSuffix)
+			downstreamEdgeOffset+=buf.oldWidth;
+
+		arrayBufferTransfer(&buf);
+		}
+
+//	LOG(LOG_INFO,"Phase 2 - offsets %i %i",upstreamEdgeOffset, downstreamEdgeOffset);
+
+	while(buf.oldWidth && buf.oldPrefix==targetPrefix &&
+			(upstreamEdgeOffset+buf.oldWidth)<=maxEdgePosition && buf.oldSuffix<targetSuffix) // Skip matching upstream with earlier downstream
+		{
+		if(buf.oldSuffix==targetSuffix)
+			downstreamEdgeOffset+=buf.oldWidth;
+
+		upstreamEdgeOffset+=buf.oldWidth;
+
+		arrayBufferTransfer(&buf);
+		}
+
+//	LOG(LOG_INFO,"Phase 3 - offsets %i %i",upstreamEdgeOffset, downstreamEdgeOffset);
+
+	if(buf.oldWidth==0 || buf.oldPrefix>targetPrefix || (buf.oldSuffix!=targetSuffix && upstreamEdgeOffset>=minEdgePosition))
+																								// No suitable existing entry, but can insert/append here
+		{
+		int minMargin=upstreamEdgeOffset-minEdgePosition; // Margin between current position and minimum position: Must be zero or positive
+		int maxMargin=maxEdgePosition-upstreamEdgeOffset; // Margin between current position and maximum position: Must be zero or positive
+
+		if(minMargin<0 || maxMargin<0)
+			{
+//			rtaDumpRoutingTableArray(builder);
+
+			LOG(LOG_INFO,"Failed to add forward route for prefix %i suffix %i",targetPrefix,targetSuffix);
+			LOG(LOG_INFO,"Current edge offset %i minEdgePosition %i maxEdgePosition %i",upstreamEdgeOffset,minEdgePosition,maxEdgePosition);
+			LOG(LOG_CRITICAL,"Negative gap detected in route insert - Min: %i Max: %i",minMargin,maxMargin);
+			}
+
+//		LOG(LOG_INFO,"Handoff %i %i",downstreamEdgeOffset,downstreamEdgeOffset);
+
+		// Map offsets to new entry
+		(*(patch->rdiPtr))->minEdgePosition=downstreamEdgeOffset;
+		(*(patch->rdiPtr))->maxEdgePosition=downstreamEdgeOffset;
+
+		arrayBufferPushOutput(&buf, targetPrefix, targetSuffix, 1);
+		}
+	else if(buf.oldPrefix==targetPrefix && buf.oldSuffix==targetSuffix) // Existing entry suitable, widen
+		{
+		int upstreamEdgeOffsetEnd=upstreamEdgeOffset+buf.oldWidth;
+
+		// Adjust offsets
+		if(minEdgePosition<upstreamEdgeOffset) // Trim upstream range to entry
+			minEdgePosition=upstreamEdgeOffset;
+
+		if(maxEdgePosition>upstreamEdgeOffsetEnd) // Trim upstream range to entry
+			maxEdgePosition=upstreamEdgeOffsetEnd;
+
+		int minOffset=minEdgePosition-upstreamEdgeOffset; // Offset of minimum position: zero or positive
+		int maxOffset=maxEdgePosition-upstreamEdgeOffset; // Offset of maximum position: zero or positive
+
+		if(minOffset<0 || maxOffset<0 || minOffset>maxOffset)
+			{
+			LOG(LOG_CRITICAL,"Invalid offsets or gap detected in route insert - Min: %i Max: %i",minOffset,maxOffset);
+			}
+
+//		LOG(LOG_INFO,"Handoff %i %i",downstreamEdgeOffset+minOffset,downstreamEdgeOffset+maxOffset);
+
+		// Map offsets to new entry
+		(*(patch->rdiPtr))->minEdgePosition=downstreamEdgeOffset+minOffset;
+		(*(patch->rdiPtr))->maxEdgePosition=downstreamEdgeOffset+maxOffset;
+
+		arrayBufferPushOutput(&buf, targetPrefix, targetSuffix, 1);
+
+		s32 trans=arrayBufferPartialTransfer(&buf, maxOffset);
+		if(trans!=maxOffset)
+			LOG(LOG_CRITICAL,"Widening transfer size mismatch %i %i",maxOffset, trans);
+
+		}
+	else // Existing entry unsuitable, split and insert
+		{
+		int targetEdgePosition=buf.oldSuffix>targetSuffix?minEdgePosition:maxEdgePosition; // Early or late split
+
+		int splitWidth1=targetEdgePosition-upstreamEdgeOffset;
+		int splitWidth2=buf.oldWidth-splitWidth1;
+
+		if(splitWidth1<=0 || splitWidth2<=0)
+			{
+			LOG(LOG_CRITICAL,"Non-positive split width detected in route insert - Width1: %i Width2: %i from %i",splitWidth1, splitWidth2);
+			}
+
+//		LOG(LOG_INFO,"Handoff %i %i",downstreamEdgeOffset,downstreamEdgeOffset);
+
+		// Map offsets
+		(*(patch->rdiPtr))->minEdgePosition=downstreamEdgeOffset;
+		(*(patch->rdiPtr))->maxEdgePosition=downstreamEdgeOffset;
+
+		s32 transWidth1=arrayBufferPartialTransfer(&buf, splitWidth1);
+
+		if(transWidth1!=splitWidth1)
+			LOG(LOG_CRITICAL,"Split transfer size mismatch %i %i",splitWidth1, transWidth1);
+
+		arrayBufferPushOutput(&buf, targetPrefix, targetSuffix, 1);
+		}
+
+	while(buf.oldWidth) // Copy remaining old entries
+		arrayBufferTransfer(&buf);
+
+	arrayBufferFlushOutput(&buf);
+
+	*maxWidth=MAX(*maxWidth,buf.maxWidth);
+
+	return buf.newEntryPtr;
+}
+
+
+
+
+RouteTableEntry *rtaMergeRoutes_ordered_forwardMulti(RouteTableArrayBuilder *builder,
+		RouteTableEntry *oldEntryPtr, RouteTableEntry *oldEntryEnd, RouteTableEntry *newEntryPtr, RoutePatch *patchPtr, RoutePatch *patchPtrEnd,
+		s32 *upstreamOffsets, s32 *downstreamOffsets, int *maxWidth)
+{
+	//LOG(LOG_INFO,"rtaMergeRoutes_ordered_forwardMulti - %i",(patchPtrEnd-patchPtr));
+
+	RouteTableArrayBuffer buf;
+	initArrayBuffer(&buf, oldEntryPtr, oldEntryEnd, newEntryPtr, *maxWidth);
+
+//	rtaDumpRoutingTableArray(builder);
+
+	while(patchPtr<patchPtrEnd)
+		{
+		int targetPrefix=patchPtr->prefixIndex;
+		int targetSuffix=patchPtr->suffixIndex;
+		int minEdgePosition=(*(patchPtr->rdiPtr))->minEdgePosition;
+		int maxEdgePosition=(*(patchPtr->rdiPtr))->maxEdgePosition;
+
+		int expectedMaxEdgePosition=maxEdgePosition+1;
+
+		RoutePatch *patchGroupPtr=patchPtr+1;  // Make groups of compatible inserts for combined processing
+		while(patchGroupPtr<patchPtrEnd && patchGroupPtr->prefixIndex==targetPrefix && patchGroupPtr->suffixIndex==targetSuffix &&
+				(*(patchGroupPtr->rdiPtr))->minEdgePosition == minEdgePosition && (*(patchGroupPtr->rdiPtr))->maxEdgePosition == expectedMaxEdgePosition)
+			patchGroupPtr++;
+
+		while(buf.oldWidth && buf.oldPrefix<targetPrefix) // Skip lower upstream
+			{
+			s32 width=buf.oldWidth;
+			upstreamOffsets[buf.oldPrefix]+=width;
+			downstreamOffsets[buf.oldSuffix]+=width;
+
+			arrayBufferTransfer(&buf);
+			}
+
+		//s32 upstreamEdgeOffset=upstreamOffsets[oldEntryPtr->prefix];
+
+		while(buf.oldWidth && buf.oldPrefix==targetPrefix &&
+				((upstreamOffsets[buf.oldPrefix]+buf.oldWidth)<minEdgePosition ||
+				((upstreamOffsets[buf.oldPrefix]+buf.oldWidth)==minEdgePosition && buf.oldSuffix!=targetSuffix))) // Skip earlier upstream
+			{
+			s32 width=buf.oldWidth;
+			upstreamOffsets[buf.oldPrefix]+=width;
+			downstreamOffsets[buf.oldSuffix]+=width;
+
+			arrayBufferTransfer(&buf);
+			}
+
+		while(buf.oldWidth && buf.oldPrefix==targetPrefix &&
+			(upstreamOffsets[buf.oldPrefix]+buf.oldWidth)<=maxEdgePosition && buf.oldSuffix<targetSuffix) // Skip matching upstream with earlier downstream
+			{
+			s32 width=buf.oldWidth;
+			upstreamOffsets[buf.oldPrefix]+=width;
+			downstreamOffsets[buf.oldSuffix]+=width;
+
+			arrayBufferTransfer(&buf);
+			}
+
+		s32 upstreamEdgeOffset=upstreamOffsets[targetPrefix];
+		s32 downstreamEdgeOffset=downstreamOffsets[targetSuffix];
+
+		if(buf.oldWidth==0 || buf.oldPrefix>targetPrefix || (buf.oldSuffix!=targetSuffix && upstreamEdgeOffset>=minEdgePosition))
+			{
+			int minMargin=upstreamEdgeOffset-minEdgePosition; // Margin between current position and minimum position: Must be zero or positive
+			int maxMargin=maxEdgePosition-upstreamEdgeOffset; // Margin between current position and maximum position: Must be zero or positive
+
+			if(minMargin<0 || maxMargin<0)
+				{
+				rtaDumpRoutingTableArray(builder);
+
+				LOG(LOG_INFO,"Failed to add forward route for prefix %i suffix %i",targetPrefix,targetSuffix);
+				LOG(LOG_INFO,"Current edge offset %i minEdgePosition %i maxEdgePosition %i",upstreamEdgeOffset,minEdgePosition,maxEdgePosition);
+				LOG(LOG_CRITICAL,"Negative gap detected in route insert - Min: %i Max: %i",minMargin,maxMargin);
+				}
+
+			// LOG(LOG_INFO,"Handoff %i %i",downstreamEdgeOffset,downstreamEdgeOffset);
+
+			// Map offsets to new entry
+			(*(patchPtr->rdiPtr))->minEdgePosition=downstreamEdgeOffset;
+			(*(patchPtr->rdiPtr))->maxEdgePosition=downstreamEdgeOffset;
+
+			patchPtr++;
+			int width=1;
+
+			while(patchPtr<patchGroupPtr) // Remaining entries in group gain width
+				{
+				(*(patchPtr->rdiPtr))->minEdgePosition=downstreamEdgeOffset;
+				(*(patchPtr->rdiPtr))->maxEdgePosition=downstreamEdgeOffset+width;
+
+				patchPtr++;
+				width++;
+				}
+
+			arrayBufferPushOutput(&buf, targetPrefix, targetSuffix, width);
+
+			upstreamOffsets[targetPrefix]+=width;
+			downstreamOffsets[targetSuffix]+=width;
+			}
+		else if(buf.oldPrefix==targetPrefix && buf.oldSuffix==targetSuffix) // Existing entry suitable, widen
+			{
+//			LOG(LOG_INFO,"Widening");
+
+			int upstreamEdgeOffsetEnd=upstreamEdgeOffset+buf.oldWidth;
+
+			// Adjust offsets
+			if(minEdgePosition<upstreamEdgeOffset) // Trim upstream range to entry
+				minEdgePosition=upstreamEdgeOffset;
+
+			if(maxEdgePosition>upstreamEdgeOffsetEnd) // Trim upstream range to entry
+				maxEdgePosition=upstreamEdgeOffsetEnd;
+
+			int minOffset=minEdgePosition-upstreamEdgeOffset; // Offset of minimum position: zero or positive
+			int maxOffset=maxEdgePosition-upstreamEdgeOffset; // Offset of maximum position: zero or positive
+
+			if(minOffset<0 || maxOffset<0 || minOffset>maxOffset)
+				{
+				LOG(LOG_INFO,"OldEntry Offset Range: %i %i", upstreamEdgeOffset, upstreamEdgeOffsetEnd);
+				LOG(LOG_INFO,"Min / Max position: %i %i", minEdgePosition, maxEdgePosition);
+
+				LOG(LOG_CRITICAL,"Invalid offsets or gap detected in route insert - Min: %i Max: %i",minOffset,maxOffset);
+				}
+
+	//		LOG(LOG_INFO,"Handoff %i %i",downstreamEdgeOffset+minOffset,downstreamEdgeOffset+maxOffset);
+
+			// Map offsets to new entry
+			(*(patchPtr->rdiPtr))->minEdgePosition=downstreamEdgeOffset+minOffset;
+			(*(patchPtr->rdiPtr))->maxEdgePosition=downstreamEdgeOffset+maxOffset;
+
+//			LOG(LOG_INFO,"Handoff %i %i to RDI: %p",downstreamEdgeOffset+minOffset,downstreamEdgeOffset+maxOffset, (*(patchPtr->rdiPtr)));
+
+			patchPtr++;
+			int width=1;
+
+			while(patchPtr<patchGroupPtr) // Remaining entries in group gain width
+				{
+				(*(patchPtr->rdiPtr))->minEdgePosition=downstreamEdgeOffset+minOffset;
+				//(*(patchPtr->rdiPtr))->maxEdgePosition=downstreamEdgeOffset+width;
+				(*(patchPtr->rdiPtr))->maxEdgePosition=downstreamEdgeOffset+maxOffset+width;
+
+//				LOG(LOG_INFO,"Handoff %i %i to RDI: %p",downstreamEdgeOffset+minOffset,downstreamEdgeOffset+maxOffset);
+
+				patchPtr++;
+				width++;
+				}
+
+			arrayBufferPushOutput(&buf, targetPrefix, targetSuffix, width);
+			s32 trans=arrayBufferPartialTransfer(&buf, maxOffset);
+			if(trans!=maxOffset)
+				LOG(LOG_CRITICAL,"Widening transfer size mismatch %i %i",maxOffset, trans);
+
+//			LOG(LOG_INFO,"Post transfer: Min %i Max %i",minOffset, maxOffset);
+
+			upstreamOffsets[targetPrefix]+=maxOffset+width;
+			downstreamOffsets[targetSuffix]+=maxOffset+width;
+			}
+		else // Existing entry unsuitable, split and insert
+			{
+			int targetEdgePosition=buf.oldSuffix>targetSuffix?minEdgePosition:maxEdgePosition; // Early or late split
+			int splitWidth1=targetEdgePosition-upstreamEdgeOffset;
+			int splitWidth2=buf.oldWidth-splitWidth1;
+
+			if(splitWidth1<=0 || splitWidth2<=0)
+				{
+				LOG(LOG_CRITICAL,"Non-positive split width detected in route insert - Width1: %i Width2: %i from %i",splitWidth1, splitWidth2);
+				}
+
+			//LOG(LOG_INFO,"Handoff %i %i",downstreamEdgeOffset,downstreamEdgeOffset);
+
+			// Map offsets
+			(*(patchPtr->rdiPtr))->minEdgePosition=downstreamEdgeOffset;
+			(*(patchPtr->rdiPtr))->maxEdgePosition=downstreamEdgeOffset;
+
+			patchPtr++;
+			int width=1;
+
+			while(patchPtr<patchGroupPtr) // Remaining entries in group gain width
+				{
+				(*(patchPtr->rdiPtr))->minEdgePosition=downstreamEdgeOffset;
+				(*(patchPtr->rdiPtr))->maxEdgePosition=downstreamEdgeOffset+width;
+
+				patchPtr++;
+				width++;
+				}
+
+			upstreamOffsets[buf.oldPrefix]+=splitWidth1;
+			downstreamOffsets[buf.oldSuffix]+=splitWidth1;
+
+			s32 transWidth1=arrayBufferPartialTransfer(&buf, splitWidth1);
+
+			if(transWidth1!=splitWidth1)
+				LOG(LOG_CRITICAL,"Split transfer size mismatch %i %i",splitWidth1, transWidth1);
+
+			arrayBufferPushOutput(&buf, targetPrefix, targetSuffix, width);
+
+			upstreamOffsets[targetPrefix]+=width;
+			downstreamOffsets[targetSuffix]+=width;
+			}
+
+		}
+
+	while(buf.oldWidth) // Copy remaining old entries
+		arrayBufferTransfer(&buf);
+
+	arrayBufferFlushOutput(&buf);
+
+	*maxWidth=MAX(*maxWidth,buf.maxWidth);
+
+	return buf.newEntryPtr;
+}
+
+
+
+/* Original version - no buffer
 
 static RouteTableEntry *rtaMergeRoutes_ordered_reverseSingle(RouteTableEntry *oldEntryPtr, RouteTableEntry *oldEntryEnd, RouteTableEntry *newEntryPtr, RoutePatch *patch, int *maxWidth)
 {
@@ -695,10 +1190,372 @@ static RouteTableEntry *rtaMergeRoutes_ordered_reverseSingle(RouteTableEntry *ol
 }
 
 
+*/
 
 
 
 
+
+static RouteTableEntry *rtaMergeRoutes_ordered_reverseSingle(//RouteTableArrayBuilder *builder,
+		RouteTableEntry *oldEntryPtr, RouteTableEntry *oldEntryEnd, RouteTableEntry *newEntryPtr, RoutePatch *patch, int *maxWidth)
+{
+	int targetPrefix=patch->prefixIndex;
+	int targetSuffix=patch->suffixIndex;
+	int minEdgePosition=(*(patch->rdiPtr))->minEdgePosition;
+	int maxEdgePosition=(*(patch->rdiPtr))->maxEdgePosition;
+
+	int upstreamEdgeOffset=0;
+	int downstreamEdgeOffset=0;
+
+//	LOG(LOG_INFO,"rtaMergeRoutes_ordered_forwardSingle %i %i with %i %i",targetPrefix, targetSuffix, minEdgePosition, maxEdgePosition);
+
+	RouteTableArrayBuffer buf;
+	initArrayBuffer(&buf, oldEntryPtr, oldEntryEnd, newEntryPtr, *maxWidth);
+
+//	LOG(LOG_INFO,"Ptrs %i %i", xoldEntryPtr, xoldEntryEnd);
+
+//	LOG(LOG_INFO,"Phase 0 - offsets %i %i",upstreamEdgeOffset, downstreamEdgeOffset);
+
+	while(buf.oldWidth && buf.oldSuffix<targetSuffix) // Skip lower upstream
+		{
+		if(buf.oldPrefix==targetPrefix)
+			downstreamEdgeOffset+=buf.oldWidth;
+
+		arrayBufferTransfer(&buf);
+		}
+
+//	LOG(LOG_INFO,"Phase 1 - offsets %i %i",upstreamEdgeOffset, downstreamEdgeOffset);
+
+	while(buf.oldWidth && buf.oldSuffix==targetSuffix &&
+			((upstreamEdgeOffset+buf.oldWidth)<minEdgePosition ||
+			((upstreamEdgeOffset+buf.oldWidth)==minEdgePosition && buf.oldPrefix!=targetPrefix))) // Skip earlier upstream
+		{
+		upstreamEdgeOffset+=buf.oldWidth;
+		if(buf.oldPrefix==targetPrefix)
+			downstreamEdgeOffset+=buf.oldWidth;
+
+		arrayBufferTransfer(&buf);
+		}
+
+//	LOG(LOG_INFO,"Phase 2 - offsets %i %i",upstreamEdgeOffset, downstreamEdgeOffset);
+
+	while(buf.oldWidth && buf.oldSuffix==targetSuffix &&
+			(upstreamEdgeOffset+buf.oldWidth)<=maxEdgePosition && buf.oldPrefix<targetPrefix) // Skip matching upstream with earlier downstream
+		{
+		if(buf.oldPrefix==targetPrefix)
+			downstreamEdgeOffset+=buf.oldWidth;
+
+		upstreamEdgeOffset+=buf.oldWidth;
+
+		arrayBufferTransfer(&buf);
+		}
+
+//	LOG(LOG_INFO,"Phase 3 - offsets %i %i",upstreamEdgeOffset, downstreamEdgeOffset);
+
+	if(buf.oldWidth==0 || buf.oldSuffix>targetSuffix || (buf.oldPrefix!=targetPrefix && upstreamEdgeOffset>=minEdgePosition))
+																								// No suitable existing entry, but can insert/append here
+		{
+		int minMargin=upstreamEdgeOffset-minEdgePosition; // Margin between current position and minimum position: Must be zero or positive
+		int maxMargin=maxEdgePosition-upstreamEdgeOffset; // Margin between current position and maximum position: Must be zero or positive
+
+		if(minMargin<0 || maxMargin<0)
+			{
+//			rtaDumpRoutingTableArray(builder);
+
+			LOG(LOG_INFO,"Failed to add forward route for prefix %i suffix %i",targetPrefix,targetSuffix);
+			LOG(LOG_INFO,"Current edge offset %i minEdgePosition %i maxEdgePosition %i",upstreamEdgeOffset,minEdgePosition,maxEdgePosition);
+			LOG(LOG_CRITICAL,"Negative gap detected in route insert - Min: %i Max: %i",minMargin,maxMargin);
+			}
+
+//		LOG(LOG_INFO,"Handoff %i %i",downstreamEdgeOffset,downstreamEdgeOffset);
+
+		// Map offsets to new entry
+		(*(patch->rdiPtr))->minEdgePosition=downstreamEdgeOffset;
+		(*(patch->rdiPtr))->maxEdgePosition=downstreamEdgeOffset;
+
+		arrayBufferPushOutput(&buf, targetPrefix, targetSuffix, 1);
+		}
+	else if(buf.oldPrefix==targetPrefix && buf.oldSuffix==targetSuffix) // Existing entry suitable, widen
+		{
+		int upstreamEdgeOffsetEnd=upstreamEdgeOffset+buf.oldWidth;
+
+		// Adjust offsets
+		if(minEdgePosition<upstreamEdgeOffset) // Trim upstream range to entry
+			minEdgePosition=upstreamEdgeOffset;
+
+		if(maxEdgePosition>upstreamEdgeOffsetEnd) // Trim upstream range to entry
+			maxEdgePosition=upstreamEdgeOffsetEnd;
+
+		int minOffset=minEdgePosition-upstreamEdgeOffset; // Offset of minimum position: zero or positive
+		int maxOffset=maxEdgePosition-upstreamEdgeOffset; // Offset of maximum position: zero or positive
+
+		if(minOffset<0 || maxOffset<0 || minOffset>maxOffset)
+			{
+			LOG(LOG_CRITICAL,"Invalid offsets or gap detected in route insert - Min: %i Max: %i",minOffset,maxOffset);
+			}
+
+//		LOG(LOG_INFO,"Handoff %i %i",downstreamEdgeOffset+minOffset,downstreamEdgeOffset+maxOffset);
+
+		// Map offsets to new entry
+		(*(patch->rdiPtr))->minEdgePosition=downstreamEdgeOffset+minOffset;
+		(*(patch->rdiPtr))->maxEdgePosition=downstreamEdgeOffset+maxOffset;
+
+		arrayBufferPushOutput(&buf, targetPrefix, targetSuffix, 1);
+
+		s32 trans=arrayBufferPartialTransfer(&buf, maxOffset);
+		if(trans!=maxOffset)
+			LOG(LOG_CRITICAL,"Widening transfer size mismatch %i %i",maxOffset, trans);
+
+		}
+	else // Existing entry unsuitable, split and insert
+		{
+		int targetEdgePosition=buf.oldPrefix>targetPrefix?minEdgePosition:maxEdgePosition; // Early or late split
+
+		int splitWidth1=targetEdgePosition-upstreamEdgeOffset;
+		int splitWidth2=buf.oldWidth-splitWidth1;
+
+		if(splitWidth1<=0 || splitWidth2<=0)
+			{
+			LOG(LOG_CRITICAL,"Non-positive split width detected in route insert - Width1: %i Width2: %i from %i",splitWidth1, splitWidth2);
+			}
+
+//		LOG(LOG_INFO,"Handoff %i %i",downstreamEdgeOffset,downstreamEdgeOffset);
+
+		// Map offsets
+		(*(patch->rdiPtr))->minEdgePosition=downstreamEdgeOffset;
+		(*(patch->rdiPtr))->maxEdgePosition=downstreamEdgeOffset;
+
+		s32 transWidth1=arrayBufferPartialTransfer(&buf, splitWidth1);
+
+		if(transWidth1!=splitWidth1)
+			LOG(LOG_CRITICAL,"Split transfer size mismatch %i %i",splitWidth1, transWidth1);
+
+		arrayBufferPushOutput(&buf, targetPrefix, targetSuffix, 1);
+		}
+
+	while(buf.oldWidth) // Copy remaining old entries
+		arrayBufferTransfer(&buf);
+
+	arrayBufferFlushOutput(&buf);
+
+	*maxWidth=MAX(*maxWidth,buf.maxWidth);
+
+	return buf.newEntryPtr;
+}
+
+
+
+
+
+
+RouteTableEntry *rtaMergeRoutes_ordered_reverseMulti(RouteTableArrayBuilder *builder,
+		RouteTableEntry *oldEntryPtr, RouteTableEntry *oldEntryEnd, RouteTableEntry *newEntryPtr, RoutePatch *patchPtr, RoutePatch *patchPtrEnd,
+		s32 *upstreamOffsets, s32 *downstreamOffsets, int *maxWidth)
+{
+	//LOG(LOG_INFO,"rtaMergeRoutes_ordered_forwardMulti - %i",(patchPtrEnd-patchPtr));
+
+	RouteTableArrayBuffer buf;
+	initArrayBuffer(&buf, oldEntryPtr, oldEntryEnd, newEntryPtr, *maxWidth);
+
+//	rtaDumpRoutingTableArray(builder);
+
+	while(patchPtr<patchPtrEnd)
+		{
+		int targetPrefix=patchPtr->prefixIndex;
+		int targetSuffix=patchPtr->suffixIndex;
+		int minEdgePosition=(*(patchPtr->rdiPtr))->minEdgePosition;
+		int maxEdgePosition=(*(patchPtr->rdiPtr))->maxEdgePosition;
+
+		int expectedMaxEdgePosition=maxEdgePosition+1;
+
+		RoutePatch *patchGroupPtr=patchPtr+1;  // Make groups of compatible inserts for combined processing
+		while(patchGroupPtr<patchPtrEnd && patchGroupPtr->prefixIndex==targetPrefix && patchGroupPtr->suffixIndex==targetSuffix &&
+				(*(patchGroupPtr->rdiPtr))->minEdgePosition == minEdgePosition && (*(patchGroupPtr->rdiPtr))->maxEdgePosition == expectedMaxEdgePosition)
+			patchGroupPtr++;
+
+		while(buf.oldWidth && buf.oldSuffix<targetSuffix) // Skip lower upstream
+			{
+			s32 width=buf.oldWidth;
+			upstreamOffsets[buf.oldSuffix]+=width;
+			downstreamOffsets[buf.oldPrefix]+=width;
+
+			arrayBufferTransfer(&buf);
+			}
+
+		//s32 upstreamEdgeOffset=upstreamOffsets[oldEntryPtr->prefix];
+
+		while(buf.oldWidth && buf.oldSuffix==targetSuffix &&
+				((upstreamOffsets[buf.oldSuffix]+buf.oldWidth)<minEdgePosition ||
+				((upstreamOffsets[buf.oldSuffix]+buf.oldWidth)==minEdgePosition && buf.oldPrefix!=targetPrefix))) // Skip earlier upstream
+			{
+			s32 width=buf.oldWidth;
+			upstreamOffsets[buf.oldSuffix]+=width;
+			downstreamOffsets[buf.oldPrefix]+=width;
+
+			arrayBufferTransfer(&buf);
+			}
+
+		while(buf.oldWidth && buf.oldSuffix==targetSuffix &&
+			(upstreamOffsets[buf.oldSuffix]+buf.oldWidth)<=maxEdgePosition && buf.oldPrefix<targetPrefix) // Skip matching upstream with earlier downstream
+			{
+			s32 width=buf.oldWidth;
+			upstreamOffsets[buf.oldSuffix]+=width;
+			downstreamOffsets[buf.oldPrefix]+=width;
+
+			arrayBufferTransfer(&buf);
+			}
+
+		s32 upstreamEdgeOffset=upstreamOffsets[targetSuffix];
+		s32 downstreamEdgeOffset=downstreamOffsets[targetPrefix];
+
+		if(buf.oldWidth==0 || buf.oldSuffix>targetSuffix || (buf.oldPrefix!=targetPrefix && upstreamEdgeOffset>=minEdgePosition))
+			{
+			int minMargin=upstreamEdgeOffset-minEdgePosition; // Margin between current position and minimum position: Must be zero or positive
+			int maxMargin=maxEdgePosition-upstreamEdgeOffset; // Margin between current position and maximum position: Must be zero or positive
+
+			if(minMargin<0 || maxMargin<0)
+				{
+				rtaDumpRoutingTableArray(builder);
+
+				LOG(LOG_INFO,"Failed to add forward route for prefix %i suffix %i",targetPrefix,targetSuffix);
+				LOG(LOG_INFO,"Current edge offset %i minEdgePosition %i maxEdgePosition %i",upstreamEdgeOffset,minEdgePosition,maxEdgePosition);
+				LOG(LOG_CRITICAL,"Negative gap detected in route insert - Min: %i Max: %i",minMargin,maxMargin);
+				}
+
+			// LOG(LOG_INFO,"Handoff %i %i",downstreamEdgeOffset,downstreamEdgeOffset);
+
+			// Map offsets to new entry
+			(*(patchPtr->rdiPtr))->minEdgePosition=downstreamEdgeOffset;
+			(*(patchPtr->rdiPtr))->maxEdgePosition=downstreamEdgeOffset;
+
+			patchPtr++;
+			int width=1;
+
+			while(patchPtr<patchGroupPtr) // Remaining entries in group gain width
+				{
+				(*(patchPtr->rdiPtr))->minEdgePosition=downstreamEdgeOffset;
+				(*(patchPtr->rdiPtr))->maxEdgePosition=downstreamEdgeOffset+width;
+
+				patchPtr++;
+				width++;
+				}
+
+			arrayBufferPushOutput(&buf, targetPrefix, targetSuffix, width);
+
+			upstreamOffsets[targetSuffix]+=width;
+			downstreamOffsets[targetPrefix]+=width;
+			}
+		else if(buf.oldPrefix==targetPrefix && buf.oldSuffix==targetSuffix) // Existing entry suitable, widen
+			{
+//			LOG(LOG_INFO,"Widening");
+
+			int upstreamEdgeOffsetEnd=upstreamEdgeOffset+buf.oldWidth;
+
+			// Adjust offsets
+			if(minEdgePosition<upstreamEdgeOffset) // Trim upstream range to entry
+				minEdgePosition=upstreamEdgeOffset;
+
+			if(maxEdgePosition>upstreamEdgeOffsetEnd) // Trim upstream range to entry
+				maxEdgePosition=upstreamEdgeOffsetEnd;
+
+			int minOffset=minEdgePosition-upstreamEdgeOffset; // Offset of minimum position: zero or positive
+			int maxOffset=maxEdgePosition-upstreamEdgeOffset; // Offset of maximum position: zero or positive
+
+			if(minOffset<0 || maxOffset<0 || minOffset>maxOffset)
+				{
+				LOG(LOG_INFO,"OldEntry Offset Range: %i %i", upstreamEdgeOffset, upstreamEdgeOffsetEnd);
+				LOG(LOG_INFO,"Min / Max position: %i %i", minEdgePosition, maxEdgePosition);
+
+				LOG(LOG_CRITICAL,"Invalid offsets or gap detected in route insert - Min: %i Max: %i",minOffset,maxOffset);
+				}
+
+	//		LOG(LOG_INFO,"Handoff %i %i",downstreamEdgeOffset+minOffset,downstreamEdgeOffset+maxOffset);
+
+			// Map offsets to new entry
+			(*(patchPtr->rdiPtr))->minEdgePosition=downstreamEdgeOffset+minOffset;
+			(*(patchPtr->rdiPtr))->maxEdgePosition=downstreamEdgeOffset+maxOffset;
+
+//			LOG(LOG_INFO,"Handoff %i %i to RDI: %p",downstreamEdgeOffset+minOffset,downstreamEdgeOffset+maxOffset, (*(patchPtr->rdiPtr)));
+
+			patchPtr++;
+			int width=1;
+
+			while(patchPtr<patchGroupPtr) // Remaining entries in group gain width
+				{
+				(*(patchPtr->rdiPtr))->minEdgePosition=downstreamEdgeOffset+minOffset;
+				//(*(patchPtr->rdiPtr))->maxEdgePosition=downstreamEdgeOffset+width;
+				(*(patchPtr->rdiPtr))->maxEdgePosition=downstreamEdgeOffset+maxOffset+width;
+
+//				LOG(LOG_INFO,"Handoff %i %i to RDI: %p",downstreamEdgeOffset+minOffset,downstreamEdgeOffset+maxOffset);
+
+				patchPtr++;
+				width++;
+				}
+
+			arrayBufferPushOutput(&buf, targetPrefix, targetSuffix, width);
+			s32 trans=arrayBufferPartialTransfer(&buf, maxOffset);
+			if(trans!=maxOffset)
+				LOG(LOG_CRITICAL,"Widening transfer size mismatch %i %i",maxOffset, trans);
+
+//			LOG(LOG_INFO,"Post transfer: Min %i Max %i",minOffset, maxOffset);
+
+			upstreamOffsets[targetSuffix]+=maxOffset+width;
+			downstreamOffsets[targetPrefix]+=maxOffset+width;
+			}
+		else // Existing entry unsuitable, split and insert
+			{
+			int targetEdgePosition=buf.oldPrefix>targetPrefix?minEdgePosition:maxEdgePosition; // Early or late split
+			int splitWidth1=targetEdgePosition-upstreamEdgeOffset;
+			int splitWidth2=buf.oldWidth-splitWidth1;
+
+			if(splitWidth1<=0 || splitWidth2<=0)
+				{
+				LOG(LOG_CRITICAL,"Non-positive split width detected in route insert - Width1: %i Width2: %i from %i",splitWidth1, splitWidth2);
+				}
+
+			//LOG(LOG_INFO,"Handoff %i %i",downstreamEdgeOffset,downstreamEdgeOffset);
+
+			// Map offsets
+			(*(patchPtr->rdiPtr))->minEdgePosition=downstreamEdgeOffset;
+			(*(patchPtr->rdiPtr))->maxEdgePosition=downstreamEdgeOffset;
+
+			patchPtr++;
+			int width=1;
+
+			while(patchPtr<patchGroupPtr) // Remaining entries in group gain width
+				{
+				(*(patchPtr->rdiPtr))->minEdgePosition=downstreamEdgeOffset;
+				(*(patchPtr->rdiPtr))->maxEdgePosition=downstreamEdgeOffset+width;
+
+				patchPtr++;
+				width++;
+				}
+
+			upstreamOffsets[buf.oldSuffix]+=splitWidth1;
+			downstreamOffsets[buf.oldPrefix]+=splitWidth1;
+
+			s32 transWidth1=arrayBufferPartialTransfer(&buf, splitWidth1);
+
+			if(transWidth1!=splitWidth1)
+				LOG(LOG_CRITICAL,"Split transfer size mismatch %i %i",splitWidth1, transWidth1);
+
+			arrayBufferPushOutput(&buf, targetPrefix, targetSuffix, width);
+
+			upstreamOffsets[targetSuffix]+=width;
+			downstreamOffsets[targetPrefix]+=width;
+			}
+
+		}
+
+	while(buf.oldWidth) // Copy remaining old entries
+		arrayBufferTransfer(&buf);
+
+	arrayBufferFlushOutput(&buf);
+
+	*maxWidth=MAX(*maxWidth,buf.maxWidth);
+
+	return buf.newEntryPtr;
+}
 
 
 
@@ -726,30 +1583,32 @@ void rtaMergeRoutes(RouteTableArrayBuilder *builder, RoutePatch *forwardRoutePat
 	builder->maxSuffix=MAX(suffixCount, builder->maxSuffix);
 
 	int maxWidth=MAX(1, builder->maxWidth);
-
 /*
-	int prefixOffsetSize=sizeof(int)*(maxPrefix+1);
-	int suffixOffsetSize=sizeof(int)*(maxSuffix+1);
+	s32 *prefixOffsets=NULL, *suffixOffsets=NULL;
 
-	s32 *prefixOffsets=alloca(prefixOffsetSize);
-	s32 *suffixOffsets=alloca(suffixOffsetSize);
-
-	memset(prefixOffsets,0,prefixOffsetSize);
-	memset(suffixOffsets,0,suffixOffsetSize);
+	if(forwardRoutePatchCount > 1 || reverseRoutePatchCount > 1)
+		{
+		prefixOffsets=dAlloc(disp, sizeof(s32)*(prefixCount));
+		suffixOffsets=dAlloc(disp, sizeof(s32)*(suffixCount));
+		}
 */
-
 	int maxForwardEntries=forwardRoutePatchCount*2+builder->oldForwardEntryCount;
 	int maxReverseEntries=reverseRoutePatchCount*2+builder->oldReverseEntryCount;
 
 	int maxEntries=MAX(maxForwardEntries,maxReverseEntries);
 
 	RouteTableEntry *buffer1=dAlloc(disp, maxEntries*sizeof(RoutePatch));
-	RouteTableEntry *buffer2=dAlloc(disp, maxEntries*sizeof(RoutePatch));
+//	RouteTableEntry *buffer2=dAlloc(disp, maxEntries*sizeof(RoutePatch));
 
 	int forwardCount=builder->oldForwardEntryCount;
 	int reverseCount=builder->oldReverseEntryCount;
 
-	// Forward Routes
+	/*
+	RouteTableEntry *multiForwardBuffer=dAlloc(disp, maxEntries*sizeof(RoutePatch));
+	RoutePatch *multiForwardRoutePatch=NULL;
+
+	if(forwardRoutePatchCount>1)
+		multiForwardRoutePatch=rtCloneRoutePatches(disp, forwardRoutePatches, forwardRoutePatchCount);
 
 	if(forwardRoutePatchCount>0)
 		{
@@ -772,12 +1631,12 @@ void rtaMergeRoutes(RouteTableArrayBuilder *builder, RoutePatch *forwardRoutePat
 
 			if(patchPeekPtr<patchEnd && patchPeekPtr->prefixIndex==targetUpstream)
 				{
-//				LOG(LOG_INFO,"MERGE: Scenario 0");
+//				LOG(LOG_INFO,"MERGE: Scenario 0 - %p",destBuffer);
 				// Evil case: Multiple patches in prefix (orderedReadset)
 
 				while(patchPtr<patchEnd && patchPtr->prefixIndex==targetUpstream)
 					{
-					destBufferEnd=rtaMergeRoutes_ordered_forwardSingle(builder, srcBuffer, srcBufferEnd, destBuffer, patchPtr, &maxWidth);
+					destBufferEnd=rtaMergeRoutes_ordered_forwardSingle(srcBuffer, srcBufferEnd, destBuffer, patchPtr, &maxWidth);
 
 					srcBuffer=destBuffer;
 					srcBufferEnd=destBufferEnd;
@@ -790,10 +1649,11 @@ void rtaMergeRoutes(RouteTableArrayBuilder *builder, RoutePatch *forwardRoutePat
 				}
 			else
 				{
-			// Medium case: Single patch in prefix (patchPtr)
-//				LOG(LOG_INFO,"MERGE: Scenario 1");
+				// Medium case: Single patch in prefix (patchPtr)
+//				LOG(LOG_INFO,"MERGE: Scenario 1 - %p",destBuffer);
 
-				destBufferEnd=rtaMergeRoutes_ordered_forwardSingle(builder, srcBuffer, srcBufferEnd, destBuffer, patchPtr, &maxWidth);
+
+				destBufferEnd=rtaMergeRoutes_ordered_forwardSingle(srcBuffer, srcBufferEnd, destBuffer, patchPtr, &maxWidth);
 
 				srcBuffer=destBuffer;
 				srcBufferEnd=destBufferEnd;
@@ -805,11 +1665,65 @@ void rtaMergeRoutes(RouteTableArrayBuilder *builder, RoutePatch *forwardRoutePat
 				}
 			}
 
-
 		forwardCount=srcBufferEnd-srcBuffer;
 		builder->newForwardEntryCount=forwardCount;
 		builder->newForwardEntries=dAlloc(disp, forwardCount*sizeof(RouteTableEntry));
+
+	//	LOG(LOG_INFO,"Transferring %p to %p",srcBuffer, builder->newForwardEntries);
+
 		memcpy(builder->newForwardEntries, srcBuffer, forwardCount*sizeof(RouteTableEntry));
+
+		//LOG(LOG_INFO,"Was %i Now %i",builder->oldForwardEntryCount,forwardCount);
+
+		//if(forwardCount>0)
+//			LOG(LOG_INFO,"FirstRev: P: %i S: %i W: %i",builder->newForwardEntries[0].prefix,builder->newForwardEntries[0].suffix,builder->newForwardEntries[0].width);
+		}
+
+*/
+	// Forward Routes: Multi
+
+	if(forwardRoutePatchCount>0)
+		{
+		RouteTableEntry *srcBuffer=builder->oldForwardEntries;
+		RouteTableEntry *srcBufferEnd=builder->oldForwardEntries+builder->oldForwardEntryCount;
+
+		RouteTableEntry *destBuffer=buffer1;
+
+		RoutePatch *patchPtr=forwardRoutePatches;
+
+		RouteTableEntry *destBufferEnd=NULL;
+
+		if(forwardRoutePatchCount>1)
+			{
+			s32 *prefixOffsets=NULL, *suffixOffsets=NULL;
+
+			prefixOffsets=dAlloc(disp, sizeof(s32)*(prefixCount));
+			suffixOffsets=dAlloc(disp, sizeof(s32)*(suffixCount));
+
+			memset(prefixOffsets, 0, sizeof(s32)*(prefixCount));
+			memset(suffixOffsets, 0, sizeof(s32)*(suffixCount));
+
+			destBufferEnd=rtaMergeRoutes_ordered_forwardMulti(builder, srcBuffer, srcBufferEnd, destBuffer,
+					patchPtr, patchPtr+forwardRoutePatchCount, prefixOffsets, suffixOffsets, &maxWidth);
+
+			}
+		else
+			destBufferEnd=rtaMergeRoutes_ordered_forwardSingle(srcBuffer, srcBufferEnd, destBuffer, patchPtr, &maxWidth);
+
+		for(int i=0;i<forwardRoutePatchCount;i++)
+			{
+			*(orderedDispatches++)=*(patchPtr->rdiPtr);
+			patchPtr++;
+			}
+
+		forwardCount=destBufferEnd-destBuffer;
+
+		//LOG(LOG_INFO,"About to copy",builder->oldForwardEntryCount,forwardCount);
+
+		builder->newForwardEntryCount=forwardCount;
+		builder->newForwardEntries=dAlloc(disp, forwardCount*sizeof(RouteTableEntry));
+
+		memcpy(builder->newForwardEntries, destBuffer, forwardCount*sizeof(RouteTableEntry));
 
 //		LOG(LOG_INFO,"Was %i Now %i",builder->oldForwardEntryCount,forwardCount);
 
@@ -817,8 +1731,11 @@ void rtaMergeRoutes(RouteTableArrayBuilder *builder, RoutePatch *forwardRoutePat
 //			LOG(LOG_INFO,"FirstRev: P: %i S: %i W: %i",builder->newForwardEntries[0].prefix,builder->newForwardEntries[0].suffix,builder->newForwardEntries[0].width);
 		}
 
-	// Reverse Routes
 
+
+
+	// Reverse Routes
+/*
 	if(reverseRoutePatchCount>0)
 		{
 		RouteTableEntry *destBuffer=buffer1;
@@ -883,6 +1800,61 @@ void rtaMergeRoutes(RouteTableArrayBuilder *builder, RoutePatch *forwardRoutePat
 		//if(reverseCount>0)
 //			LOG(LOG_INFO,"FirstRev: P: %i S: %i W: %i",builder->newReverseEntries[0].prefix,builder->newReverseEntries[0].suffix,builder->newReverseEntries[0].width);
 		}
+*/
+
+	// Reverse Routes: Multi
+
+	if(reverseRoutePatchCount>0)
+		{
+		RouteTableEntry *srcBuffer=builder->oldReverseEntries;
+		RouteTableEntry *srcBufferEnd=builder->oldReverseEntries+builder->oldReverseEntryCount;
+
+		RouteTableEntry *destBuffer=buffer1;
+
+		RoutePatch *patchPtr=reverseRoutePatches;
+
+		RouteTableEntry *destBufferEnd=NULL;
+
+		if(reverseRoutePatchCount>1)
+			{
+			s32 *prefixOffsets=NULL, *suffixOffsets=NULL;
+
+			prefixOffsets=dAlloc(disp, sizeof(s32)*(prefixCount));
+			suffixOffsets=dAlloc(disp, sizeof(s32)*(suffixCount));
+
+			memset(prefixOffsets, 0, sizeof(s32)*(prefixCount));
+			memset(suffixOffsets, 0, sizeof(s32)*(suffixCount));
+
+			destBufferEnd=rtaMergeRoutes_ordered_reverseMulti(builder, srcBuffer, srcBufferEnd, destBuffer,
+					patchPtr, patchPtr+reverseRoutePatchCount, suffixOffsets, prefixOffsets, &maxWidth);
+
+			}
+		else
+			destBufferEnd=rtaMergeRoutes_ordered_reverseSingle(srcBuffer, srcBufferEnd, destBuffer, patchPtr, &maxWidth);
+
+		for(int i=0;i<reverseRoutePatchCount;i++)
+			{
+			*(orderedDispatches++)=*(patchPtr->rdiPtr);
+			patchPtr++;
+			}
+
+		reverseCount=destBufferEnd-destBuffer;
+
+		//LOG(LOG_INFO,"About to copy",builder->oldForwardEntryCount,forwardCount);
+
+		builder->newReverseEntryCount=reverseCount;
+		builder->newReverseEntries=dAlloc(disp, reverseCount*sizeof(RouteTableEntry));
+
+		memcpy(builder->newReverseEntries, destBuffer, reverseCount*sizeof(RouteTableEntry));
+
+//		LOG(LOG_INFO,"Was %i Now %i",builder->oldForwardEntryCount,forwardCount);
+
+//		if(forwardCount>0)
+//			LOG(LOG_INFO,"FirstRev: P: %i S: %i W: %i",builder->newForwardEntries[0].prefix,builder->newForwardEntries[0].suffix,builder->newForwardEntries[0].width);
+		}
+
+
+
 
 	builder->maxWidth=maxWidth;
 
