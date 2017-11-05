@@ -8,7 +8,7 @@
 #include "common.h"
 
 // Measured in seconds - Should never be hit unless workers block
-#define MASTER_TIMEOUT (60*60*24)
+//#define MASTER_TIMEOUT (60*60*24)
 
 
 static void wakeIdleWorkers(ParallelTask *pt)
@@ -76,6 +76,12 @@ void waitForShutdown(ParallelTask *pt)
 		req.tv_nsec=DEFAULT_SLEEP_NANOS;
 
 		nanosleep(&req, NULL);
+
+		if(pt->config->doTickTock != NULL)
+			pt->config->doTickTock(pt);
+
+		//wakeIdleWorkers(pt);
+
 		state=__atomic_load_n(&(pt->state), __ATOMIC_SEQ_CST);
 		}
 
@@ -102,8 +108,16 @@ int queueIngress(ParallelTask *pt, ParallelTaskIngress *ingressData)
 
 		nanosleep(&req, NULL);
 
+		if(pt->config->doTickTock != NULL)
+			pt->config->doTickTock(pt);
+
 		wakeIdleWorkers(pt);
 		}
+
+	if(pt->config->doTickTock != NULL)
+		pt->config->doTickTock(pt);
+
+	wakeIdleWorkers(pt);
 
 	return 0;
 }
@@ -505,6 +519,7 @@ ParallelTaskConfig *allocParallelTaskConfig(
 		int (*doIngress)(ParallelTask *pt, int workerNo, void *workerState, void *ingressPtr, int ingressPosition, int ingressSize),
 		int (*doIntermediate)(ParallelTask *pt, int workerNo, void *workerState, int force),
 		int (*doTidy)(ParallelTask *pt, int workerNo, void *workerState, int tidyNo),
+		void (*doTickTock)(ParallelTask *pt),
 		int expectedThreads, int ingressBlocksize,
 		int ingressPerTidyMin, int ingressPerTidyMax, int tidysPerBackoff, int tasksPerTidy)
 {
@@ -518,6 +533,7 @@ ParallelTaskConfig *allocParallelTaskConfig(
 	ptc->doIngress=doIngress;
 	ptc->doIntermediate=doIntermediate;
 	ptc->doTidy=doTidy;
+	ptc->doTickTock=doTickTock;
 
 	ptc->expectedThreads=expectedThreads;
 	ptc->ingressBlocksize=ingressBlocksize;

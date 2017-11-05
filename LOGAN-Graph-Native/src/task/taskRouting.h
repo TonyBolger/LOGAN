@@ -139,6 +139,8 @@ typedef struct routingBuilderStr {
 	ParallelTask *pt;
 	Graph *graph;
 
+	u64 pogoDebugFlag;
+
 	RoutingReadLookupBlock readLookupBlocks[TR_READBLOCK_LOOKUPS_INFLIGHT]; // Batches of reads in lookup stage
 	u64 allocatedReadLookupBlocks;
 

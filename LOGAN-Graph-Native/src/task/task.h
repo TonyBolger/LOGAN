@@ -34,6 +34,8 @@ typedef struct parallelTaskConfigStr
 	int (*doIntermediate)(ParallelTask *pt, int workerNo, void *workerState, int force);
 	int (*doTidy)(ParallelTask *pt, int workerNo, void *workerState, int tidyNo);
 
+	void (*doTickTock)(ParallelTask *pt);
+
 	s32 expectedThreads;
 	int ingressBlocksize;
 
@@ -103,7 +105,7 @@ struct parallelTaskStr
 
 // # Ingress buffers held by submitting task
 
-#define PT_INGRESS_BUFFERS 4
+#define PT_INGRESS_BUFFERS 6
 
 
 #define PTSTATE_STARTUP 0
@@ -140,6 +142,7 @@ ParallelTaskConfig *allocParallelTaskConfig(
 		int (*doIngress)(ParallelTask *pt, int workerNo, void *workerState, void *ingressPtr, int ingressPosition, int ingressSize),
 		int (*doIntermediate)(ParallelTask *pt, int workerNo, void *workerState, int force),
 		int (*doTidy)(ParallelTask *pt, int workerNo, void *workerState, int tidyNo),
+		void (*doTickTock)(ParallelTask *pt),
 		int expectedThreads, int ingressBlocksize,
 		int ingressPerTidyMin, int ingressPerTidyMax, int tidysPerBackoff, int tasksPerTidy);
 

@@ -263,6 +263,22 @@ static RoutingReadReferenceBlockDispatch *dequeueDispatchForGroupList(RoutingBui
 }
 
 
+int countDispatchReadsRemaining(RoutingBuilder *rb)
+{
+	int readsRemaining=0;
+
+	for(int i=0;i<TR_READBLOCK_DISPATCHES_INFLIGHT;i++)
+	{
+		int status=__atomic_load_n(&(rb->readDispatchBlocks[i].status), __ATOMIC_RELAXED);
+
+		if(status==2)
+			readsRemaining+=__atomic_load_n(&(rb->readDispatchBlocks[i].completionCount), __ATOMIC_RELAXED);
+	}
+
+	return readsRemaining;
+}
+
+
 int countNonEmptyDispatchGroups(RoutingBuilder *rb)
 {
 	int count=0;
@@ -821,7 +837,15 @@ int scanForDispatches(RoutingBuilder *rb, int workerNo, RoutingWorkerState *wSta
 	int work=0;
 	int lastGroup=-1;
 
-	work=scanForDispatchesForGroups(rb,wState->dispatchGroupStart, wState->dispatchGroupEnd, force, workerNo, &lastGroup);
+//	LOG(LOG_INFO,"Dispatch %i %i",wState->dispatchGroupStart, wState->dispatchGroupEnd);
+
+	if(force)
+		{
+		work=scanForDispatchesForGroups(rb,wState->dispatchGroupStart, SMER_DISPATCH_GROUPS, force, workerNo, &lastGroup);
+		work+=scanForDispatchesForGroups(rb, 0, wState->dispatchGroupEnd, force, workerNo, &lastGroup);
+		}
+	else
+		work=scanForDispatchesForGroups(rb,wState->dispatchGroupStart, wState->dispatchGroupEnd, force, workerNo, &lastGroup);
 
 	//if(work<TR_DISPATCH_MAX_WORK)
 //		work+=scanForDispatchesForGroups(rb, 0, position, force, workerNo, &lastGroup);

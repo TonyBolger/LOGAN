@@ -398,6 +398,23 @@ static void unallocateReadLookupBlock(RoutingReadLookupBlock *readBlock)
 }
 
 
+int countLookupReadsRemaining(RoutingBuilder *rb)
+{
+	int readsRemaining=0;
+
+	for(int i=0;i<TR_READBLOCK_LOOKUPS_INFLIGHT;i++)
+	{
+		int status=__atomic_load_n(&(rb->readLookupBlocks[i].status), __ATOMIC_RELAXED);
+
+		if(status==2)
+			readsRemaining+=__atomic_load_n(&(rb->readLookupBlocks[i].completionCount), __ATOMIC_RELAXED);
+	}
+
+	return readsRemaining;
+}
+
+
+
 int reserveReadLookupBlock(RoutingBuilder *rb)
 {
 	u64 current=__atomic_load_n(&(rb->allocatedReadLookupBlocks), __ATOMIC_SEQ_CST);

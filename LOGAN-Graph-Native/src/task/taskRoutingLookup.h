@@ -1,6 +1,8 @@
 #ifndef __TASKROUTINGLOOKUP_H
 #define __TASKROUTINGLOOKUP_H
 
+int countLookupReadsRemaining(RoutingBuilder *rb);
+
 // Entry point for trAllocateIngressSlot
 int reserveReadLookupBlock(RoutingBuilder *rb);
 

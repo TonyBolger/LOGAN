@@ -148,19 +148,40 @@ static int trDoIntermediate(ParallelTask *pt, int workerNo, void *wState, int fo
 	RoutingWorkerState *workerState=wState;
 	RoutingBuilder *rb=pt->dataPtr;
 
+/*
+	if(__atomic_load_n(&rb->pogoSuppressionFlag, __ATOMIC_RELAXED))
+		{
+		__atomic_store_n(&rb->pogoSuppressionFlag, 0, __ATOMIC_RELAXED);
+
+		int lookupReads=countLookupReadsRemaining(rb);
+		int dispatchReads=countDispatchReadsRemaining(rb);
+
+		int arlb=__atomic_load_n(&rb->allocatedReadLookupBlocks, __ATOMIC_SEQ_CST);
+		int ardb=__atomic_load_n(&rb->allocatedReadDispatchBlocks, __ATOMIC_SEQ_CST);
+
+		LOG(LOG_INFO,"Lookup %i (%i) Dispatch %i (%i) - force %i",lookupReads,arlb, dispatchReads, ardb, force);
+		}
+*/
+
 	if(scanForCompleteReadDispatchBlocks(rb))
 		{
 		//LOG(LOG_INFO,"scanForCompleteReadDispatchBlocks OK");
-		return 1;
+
+		if(!force)
+			return 1;
 		}
 
 	if(scanForAndDispatchLookupCompleteReadLookupBlocks(rb))
 		{
 		//LOG(LOG_INFO,"scanForAndDispatchLookupCompleteReadLookupBlocks OK");
-		return 1;
+		if(!force)
+			return 1;
 		}
 
-	if(rb->allocatedReadDispatchBlocks==TR_READBLOCK_DISPATCHES_INFLIGHT)
+	int arlb=__atomic_load_n(&rb->allocatedReadLookupBlocks, __ATOMIC_SEQ_CST);
+	int ardb=__atomic_load_n(&rb->allocatedReadDispatchBlocks, __ATOMIC_SEQ_CST);
+
+	if(ardb==TR_READBLOCK_DISPATCHES_INFLIGHT)
 		{
 		if(scanForDispatches(rb, workerNo, workerState, force))
 			{
@@ -169,7 +190,9 @@ static int trDoIntermediate(ParallelTask *pt, int workerNo, void *wState, int fo
 			}
 		}
 
-	if((force)||(rb->allocatedReadLookupBlocks==TR_READBLOCK_LOOKUPS_INFLIGHT))
+
+	//if((force)||(rb->allocatedReadLookupBlocks==TR_READBLOCK_LOOKUPS_INFLIGHT))
+	if((force)||(arlb==TR_READBLOCK_LOOKUPS_INFLIGHT))
 		{
 		if(scanForSmerLookups(rb, workerNo, workerState))
 			{
@@ -187,6 +210,85 @@ static int trDoIntermediate(ParallelTask *pt, int workerNo, void *wState, int fo
 			}
 		}
 
+	arlb=__atomic_load_n(&rb->allocatedReadLookupBlocks, __ATOMIC_SEQ_CST);
+	ardb=__atomic_load_n(&rb->allocatedReadDispatchBlocks, __ATOMIC_SEQ_CST);
+
+//	LOG(LOG_INFO,"trDoIntermediate: %i %i %i %i",workerNo, force, arlb, ardb);
+
+	if(arlb>0 || ardb>0) // If in force mode, and not finished, rally the minions
+		return force;
+
+	return 0;
+}
+
+/*
+int trDoIntermediate_bork(ParallelTask *pt, int workerNo, void *wState, int force)
+{
+	RoutingWorkerState *workerState=wState;
+	RoutingBuilder *rb=pt->dataPtr;
+
+	if(__atomic_load_n(&rb->pogoSuppressionFlag, __ATOMIC_RELAXED))
+		{
+		int ret=scanForCompleteReadDispatchBlocks(rb);
+		while(ret)
+			ret=scanForCompleteReadDispatchBlocks(rb);
+
+		if(ret)
+			return 1;
+
+//		int lookupReads=countLookupReadsRemaining(rb);
+		int dispatchReads=countDispatchReadsRemaining(rb);
+
+//		int arlb=__atomic_load_n(&rb->allocatedReadLookupBlocks, __ATOMIC_RELAXED);
+		int ardb=__atomic_load_n(&rb->allocatedReadDispatchBlocks, __ATOMIC_RELAXED);
+
+//		LOG(LOG_INFO,"Lookup %i (%i) Dispatch %i (%i) Limit %i %i",lookupReads,arlb, dispatchReads, ardb,
+//				TR_POGOSUPRESSION_LOOKUP_TO_DISPATCH_READ_LIMIT, TR_POGOSUPRESSION_DISPATCH_PRIORITY_READ_LIMIT);
+
+		if(dispatchReads<TR_POGOSUPRESSION_LOOKUP_TO_DISPATCH_READ_LIMIT && ardb<TR_READBLOCK_DISPATCHES_INFLIGHT)
+			{
+			ret=scanForAndDispatchLookupCompleteReadLookupBlocks(rb);
+
+			while(ret)
+				ret=scanForAndDispatchLookupCompleteReadLookupBlocks(rb);
+
+			if(ret)
+				return 1;
+
+			//lookupReads=countLookupReadsRemaining(rb);
+			dispatchReads=countDispatchReadsRemaining(rb);
+			ardb=__atomic_load_n(&rb->allocatedReadDispatchBlocks, __ATOMIC_RELAXED);
+			}
+
+		if(dispatchReads>TR_POGOSUPRESSION_DISPATCH_PRIORITY_READ_LIMIT || ardb==TR_READBLOCK_DISPATCHES_INFLIGHT)
+			__atomic_store_n(&rb->pogoPriorityFlag, 1, __ATOMIC_RELAXED);
+		else
+			__atomic_store_n(&rb->pogoPriorityFlag, 0, __ATOMIC_RELAXED);
+
+		__atomic_store_n(&rb->pogoSuppressionFlag, 0, __ATOMIC_RELAXED);
+		}
+
+	int priority=__atomic_load_n(&rb->pogoPriorityFlag, __ATOMIC_RELAXED);
+
+	if((force)||(priority==0))
+		{
+		if(scanForSmerLookups(rb, workerNo, workerState))
+			{
+			//LOG(LOG_INFO,"scanForSmerLookups");
+			return 1;
+			}
+		}
+
+	if((force) || (priority == 1))
+		{
+		if(scanForDispatches(rb, workerNo, workerState, force))
+			{
+			//LOG(LOG_INFO,"scanForDispatches 2");
+			return 1;
+			}
+		}
+
+
 	int arlb=__atomic_load_n(&rb->allocatedReadLookupBlocks, __ATOMIC_RELAXED);
 	int ardb=__atomic_load_n(&rb->allocatedReadDispatchBlocks, __ATOMIC_RELAXED);
 
@@ -197,10 +299,20 @@ static int trDoIntermediate(ParallelTask *pt, int workerNo, void *wState, int fo
 
 	return 0;
 }
+*/
 
 static int trDoTidy(ParallelTask *pt, int workerNo, void *wState, int tidyNo)
 {
 	return 0;
+}
+
+static void trDoTickTock(ParallelTask *pt)
+{
+//	LOG(LOG_INFO,"Tick tock MF");
+
+	RoutingBuilder *rb=pt->dataPtr;
+
+	__atomic_store_n(&(rb->pogoDebugFlag), 1, __ATOMIC_RELAXED);
 }
 
 
@@ -208,11 +320,14 @@ RoutingBuilder *allocRoutingBuilder(Graph *graph, int threads)
 {
 	RoutingBuilder *rb=tiRoutingBuilderAlloc();
 
-	ParallelTaskConfig *ptc=allocParallelTaskConfig(trDoRegister,trDoDeregister,trAllocateIngressSlot,trDoIngress,trDoIntermediate,trDoTidy,threads,
+	ParallelTaskConfig *ptc=allocParallelTaskConfig(trDoRegister,trDoDeregister,trAllocateIngressSlot,trDoIngress,trDoIntermediate,trDoTidy,trDoTickTock,
+			threads,
 			TR_INGRESS_BLOCKSIZE, TR_INGRESS_PER_TIDY_MIN, TR_INGRESS_PER_TIDY_MAX, TR_TIDYS_PER_BACKOFF, 0);//SMER_HASH_SLICES);
 
 	rb->pt=allocParallelTask(ptc,rb);
 	rb->graph=graph;
+
+	rb->pogoDebugFlag=1;
 
 	rb->allocatedReadLookupBlocks=0;
 	for(int i=0;i<TR_READBLOCK_LOOKUPS_INFLIGHT;i++)

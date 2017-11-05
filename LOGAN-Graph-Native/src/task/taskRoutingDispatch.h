@@ -8,6 +8,7 @@ void initRoutingDispatchGroupState(RoutingDispatchGroupState *dispatchGroupState
 void freeRoutingDispatchGroupState(RoutingDispatchGroupState *dispatchGroupState);
 
 int countNonEmptyDispatchGroups(RoutingBuilder *rb);
+int countDispatchReadsRemaining(RoutingBuilder *rb);
 
 // Entry points for scanForAndDispatchLookupCompleteReadLookupBlocks
 int reserveReadDispatchBlock(RoutingBuilder *rb);
