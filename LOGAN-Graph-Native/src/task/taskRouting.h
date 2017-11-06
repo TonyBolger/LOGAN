@@ -7,6 +7,11 @@
 #define TR_TIDYS_PER_BACKOFF 1
 
 
+#define TR_INIT_MINEDGEPOSITION 0
+#define TR_INIT_MAXEDGEPOSITION (INT_MAX>>1)
+
+
+
 // Each block: 10000 reads * 150bp? * Smer: 8 * 2: Max 24MByte
 // 20 Lookups: 480MBytes (full)
 // 200 Dispatches: 2.4GBytes (50% real smers)

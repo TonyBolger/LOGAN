@@ -158,13 +158,14 @@ typedef struct routeTableUnpackedSingleBlockStr
 #define ROUTEPACKING_ENTRYARRAYS_CHUNK 4
 // Max allowed during table -> tree upgrade
 #define ROUTEPACKING_ENTRYARRAYS_UPGRADE_MAX 16
-
 // Max allowed normally
 //#define ROUTEPACKING_ENTRYARRAYS_MAX 16
 #define ROUTEPACKING_ENTRYARRAYS_MAX 64
 //#define ROUTEPACKING_ENTRYARRAYS_MAX 256
 
+
 #define ROUTEPACKING_ENTRYS_CHUNK 8
+
 // Max allowed during table -> tree upgrade
 #define ROUTEPACKING_ENTRYS_UPGRADE_MAX 16
 
@@ -173,6 +174,9 @@ typedef struct routeTableUnpackedSingleBlockStr
 #define ROUTEPACKING_ENTRYS_MAX 64
 //#define ROUTEPACKING_ENTRYS_MAX 256
 //#define ROUTEPACKING_ENTRYS_MAX 1024
+
+
+#define ROUTEPACKING_TOTALENTRYS_MAX 1024
 
 
 void rtpDumpUnpackedSingleBlock(RouteTableUnpackedSingleBlock *block);

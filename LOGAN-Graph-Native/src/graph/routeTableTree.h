@@ -1,6 +1,7 @@
 #ifndef __ROUTE_TABLE_TREE_H
 #define __ROUTE_TABLE_TREE_H
 
+
 // Route Table is loosely similar to a B-tree
 
 // Route Table Root: Contains block ptrs as follows:
@@ -62,6 +63,57 @@ typedef struct rootTableTreeTopBlockStr
 {
 	u8 *data[6]; // Tail(P,S), Branch(F,R), Leaf(F,R)
 } __attribute__((packed)) RouteTableTreeTopBlock;
+
+
+// This (monster) represents the state of RouteTableTree during patch merge
+
+typedef struct routeTableLeafEntryBufferStr
+{
+	RouteTableTreeProxy *treeProxy;
+	int upstreamOffsetCount;
+	int downstreamOffsetCount;
+
+	// Current Position within old entries (reading)
+	RouteTableTreeBranchProxy *oldBranchProxy;
+	RouteTableTreeLeafProxy *oldLeafProxy;
+	s16 oldBranchChildSibdex;
+
+	// Old EntryArrays/Entries (reading)
+	RouteTableUnpackedEntryArray **oldEntryArraysPtr;
+	RouteTableUnpackedEntryArray **oldEntryArraysPtrEnd;
+	RouteTableUnpackedEntry *oldEntryPtr;
+	RouteTableUnpackedEntry *oldEntryPtrEnd;
+	s32 oldUpstream;
+	s32 oldDownstream;
+	s32 oldWidth;
+
+	// Accumulated offsets of old entries
+	s32 *accumUpstreamOffsets;
+	s32 *accumDownstreamOffsets;
+
+	// Current Position within new entries (writing)
+	RouteTableTreeBranchProxy *newBranchProxy;
+	RouteTableTreeLeafProxy *newLeafProxy;
+	s16 newBranchChildSibdex;
+
+	// New EntryArrays/Entries (writing)
+	RouteTableUnpackedEntryArray **newEntryArraysPtr;
+	RouteTableUnpackedEntryArray **newEntryArraysPtrEnd;
+	RouteTableUnpackedEntry *newEntryPtr;
+	RouteTableUnpackedEntry *newEntryPtrEnd;
+	s32 newUpstream;
+	s32 newDownstream;
+	s32 newWidth;
+
+	// Offset of current new entry in leaf
+	s32 *newLeafUpstreamOffsets;
+	s32 *newLeafDownstreamOffsets;
+
+	s32 maxWidth;
+} RouteTableTreeEntryBuffer;
+
+
+
 
 // Negative types are pseudo-indexes
 #define ROUTE_PSEUDO_INDEX_DIRECT -2

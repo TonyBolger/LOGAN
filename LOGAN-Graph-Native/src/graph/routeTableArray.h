@@ -31,7 +31,7 @@ struct routeTableArrayBuilderStr
 
 };
 
-typedef struct routeTableArrayInputBufferStr
+typedef struct routeTableArrayBufferStr
 {
 	 RouteTableEntry *oldEntryPtr;
 	 RouteTableEntry *oldEntryPtrEnd;

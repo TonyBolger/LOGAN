@@ -229,7 +229,322 @@ RouteTableTreeArrayProxy *rttGetTopArrayByIndex(RouteTableTreeBuilder *builder, 
 }
 
 
+static void appendStarterLeaf(RouteTableTreeEntryBuffer *buf)
+{
+	if(buf->oldBranchProxy==NULL)
+		LOG(LOG_CRITICAL,"Not on a valid branch");
 
+	buf->oldLeafProxy=allocRouteTableTreeLeafProxy(buf->treeProxy, buf->upstreamOffsetCount, buf->downstreamOffsetCount, ROUTEPACKING_ENTRYARRAYS_CHUNK);
+	treeProxyAppendLeafChild(buf->treeProxy, buf->oldBranchProxy, buf->oldLeafProxy, &buf->oldBranchProxy, &buf->oldBranchChildSibdex);
+}
+
+/*
+static void initOldLeafWalker(RouteTableTreeLeafWalker *walker, RouteTableTreeProxy *treeProxy, int upstreamOffsetCount, int downstreamOffsetCount)
+{
+	walker->treeProxy=treeProxy;
+
+	walker->upstreamOffsetCount=upstreamOffsetCount;
+	walker->downstreamOffsetCount=downstreamOffsetCount;
+
+	walker->upstreamOffsets=dAlloc(walker->treeProxy->disp, sizeof(s32)*upstreamOffsetCount);
+	walker->downstreamOffsets=dAlloc(walker->treeProxy->disp, sizeof(s32)*downstreamOffsetCount);
+
+	memset(walker->upstreamOffsets,0,sizeof(s32)*upstreamOffsetCount);
+	memset(walker->downstreamOffsets,0,sizeof(s32)*downstreamOffsetCount);
+
+	treeProxySeekStart(walker->treeProxy, &walker->branchProxy, &walker->branchChildSibdex, &walker->leafProxy);
+
+	if(walker->leafProxy==NULL)
+		appendNewLeaf(walker, upstreamOffsetCount, downstreamOffsetCount);
+}
+
+static void initOldEntryBuffer(RouteTableLeafEntryBuffer *oldEntryBuf, RouteTableTreeProxy *treeProxy, int upstreamOffsetCount, int downstreamOffsetCount)
+{
+	initOldLeafWalker(&(oldEntryBuf->walker), treeProxy, upstreamOffsetCount, downstreamOffsetCount);
+
+	oldEntryBuf->entryArraysPtr=NULL;
+	oldEntryBuf->entryArraysPtrEnd=NULL;
+	oldEntryBuf->entryPtr=NULL;
+	oldEntryBuf->entryPtrEnd=NULL;
+
+	oldEntryBuf->upstream=-1;
+}
+*/
+/*
+static int snoopOldEntryBufferLastUpstream(RouteTableLeafEntryBuffer *entryBuf)
+{
+	LOG(LOG_CRITICAL,"TODO");
+	return 0;
+}
+*/
+/*
+static void initNewLeafWalker(RouteTableTreeLeafWalker *walker, RouteTableTreeLeafWalker *oldWalker)
+{
+	walker->treeProxy=oldWalker->treeProxy;
+
+	int upstreamOffsetCount=oldWalker->upstreamOffsetCount;
+	int downstreamOffsetCount=oldWalker->downstreamOffsetCount;
+
+	walker->upstreamOffsetCount=upstreamOffsetCount;
+	walker->downstreamOffsetCount=downstreamOffsetCount;
+
+	walker->upstreamOffsets=dAlloc(walker->treeProxy->disp, sizeof(s32)*upstreamOffsetCount);
+	walker->downstreamOffsets=dAlloc(walker->treeProxy->disp, sizeof(s32)*downstreamOffsetCount);
+
+	memset(walker->upstreamOffsets,0,sizeof(s32)*upstreamOffsetCount);
+	memset(walker->downstreamOffsets,0,sizeof(s32)*downstreamOffsetCount);
+
+	oldWalker->branchProxy=
+
+	treeProxySeekStart(walker->treeProxy, &walker->branchProxy, &walker->branchChildSibdex, &walker->leafProxy);
+
+	if(walker->leafProxy==NULL)
+		appendNewLeaf(walker, upstreamOffsetCount, downstreamOffsetCount);
+}
+
+
+static void initNewEntryBuffer(RouteTableLeafEntryBuffer *newEntryBuf, RouteTableLeafEntryBuffer *oldEntryBuf)
+{
+	RouteTableTreeLeafWalker *newWalker=&(newEntryBuf->walker);
+	RouteTableTreeLeafWalker *oldWalker=&(oldEntryBuf->walker);
+
+	newWalker->
+
+
+	newEntryBuf->entryArraysPtr=NULL;
+	newEntryBuf->entryArraysPtrEnd=NULL;
+	newEntryBuf->entryPtr=NULL;
+	newEntryBuf->entryPtrEnd=NULL;
+
+	newEntryBuf->upstream=-1;
+}
+*/
+
+
+static void initTreeEntryBuffer(RouteTableTreeEntryBuffer *buf, RouteTableTreeProxy *treeProxy, int upstreamOffsetCount, int downstreamOffsetCount)
+{
+	buf->treeProxy=treeProxy;
+	buf->upstreamOffsetCount=upstreamOffsetCount;
+	buf->downstreamOffsetCount=downstreamOffsetCount;
+
+	treeProxySeekStart(buf->treeProxy, &buf->oldBranchProxy, &buf->oldBranchChildSibdex, &buf->oldLeafProxy);
+
+	if(buf->oldLeafProxy==NULL)
+		appendStarterLeaf(buf);
+
+	buf->oldEntryArraysPtr=NULL;
+	buf->oldEntryArraysPtrEnd=NULL;
+	buf->oldEntryPtr=NULL;
+	buf->oldEntryPtrEnd=NULL;
+
+	buf->oldUpstream=-1;
+	buf->oldDownstream=-1;
+	buf->oldWidth=0;
+
+	buf->accumUpstreamOffsets=dAlloc(treeProxy->disp, sizeof(s32)*upstreamOffsetCount);
+	buf->accumDownstreamOffsets=dAlloc(treeProxy->disp, sizeof(s32)*downstreamOffsetCount);
+	memset(buf->accumUpstreamOffsets,0,sizeof(s32)*upstreamOffsetCount);
+	memset(buf->accumDownstreamOffsets,0,sizeof(s32)*downstreamOffsetCount);
+
+	buf->newBranchProxy=buf->oldBranchProxy;
+	buf->newLeafProxy=buf->oldLeafProxy;
+	buf->newBranchChildSibdex=buf->oldBranchChildSibdex;
+
+	buf->newEntryArraysPtr=NULL;
+	buf->newEntryArraysPtrEnd=NULL;
+	buf->newEntryPtr=NULL;
+	buf->newEntryPtrEnd=NULL;
+
+	buf->newUpstream=-1;
+	buf->newDownstream=-1;
+	buf->newWidth=0;
+
+	buf->newLeafUpstreamOffsets=dAlloc(treeProxy->disp, sizeof(s32)*upstreamOffsetCount);
+	buf->newLeafDownstreamOffsets=dAlloc(treeProxy->disp, sizeof(s32)*downstreamOffsetCount);
+	memset(buf->newLeafUpstreamOffsets,0,sizeof(s32)*upstreamOffsetCount);
+	memset(buf->newLeafDownstreamOffsets,0,sizeof(s32)*downstreamOffsetCount);
+
+	buf->maxWidth=0;
+}
+
+
+static void accumulateOldLeafOffsets(RouteTableTreeEntryBuffer *buf)
+{
+	RouteTableUnpackedSingleBlock *block=buf->oldLeafProxy->unpackedBlock;
+
+	int upstreamValidOffsets=MIN(buf->upstreamOffsetCount, block->upstreamOffsetAlloc);
+
+	for(int i=0;i<upstreamValidOffsets;i++)
+		buf->accumUpstreamOffsets[i]+=block->upstreamLeafOffsets[i];
+
+	int downstreamValidOffsets=MIN(buf->downstreamOffsetCount, block->downstreamOffsetAlloc);
+
+	for(int i=0;i<downstreamValidOffsets;i++)
+		buf->accumDownstreamOffsets[i]+=block->downstreamLeafOffsets[i];
+}
+
+
+
+static s32 advanceToNextLeaf_Old(RouteTableTreeEntryBuffer *buf)
+{
+	if(buf->oldLeafProxy==NULL)
+		return 0;
+
+	if(buf->oldEntryArraysPtr==NULL) // Not current bound
+		{
+		accumulateOldLeafOffsets(buf);
+
+		if(!getNextLeafSibling(buf->treeProxy, &(buf->oldBranchProxy), &(buf->oldBranchChildSibdex), &(buf->oldLeafProxy))) // No more leaves
+			{
+//			LOG(LOG_INFO,"No more leaves");
+			return 0;
+			}
+
+		return 1;
+		}
+
+	LOG(LOG_CRITICAL,"TODO: advance over bound leaf");
+
+	return 0;
+}
+
+
+/*
+static void bindOldEntries(RouteTableTreeEntryBuffer *buf)
+{
+	rttlEnsureFullyUnpacked(buf->treeProxy, buf->oldLeafProxy);
+
+	RouteTableUnpackedSingleBlock *block=buf->oldLeafProxy->unpackedBlock;
+
+	buf->oldEntryArraysPtr=block->entryArrays;
+	buf->oldEntryArraysPtrEnd=block->entryArrays+block->entryArrayCount;
+
+	if(block->entryArrayCount>0)
+		{
+		RouteTableUnpackedEntryArray *array=buf->oldEntryArraysPtr[0];
+
+		buf->oldEntryPtr=array->entries;
+		buf->oldEntryPtrEnd=array->entries+array->entryCount;
+		}
+	else
+		{
+		buf->oldEntryPtr=buf->oldEntryPtrEnd=NULL;
+		}
+}
+*/
+
+static s32 snoopOldLeafLastUpstream(RouteTableTreeEntryBuffer *buf)
+{
+	RouteTableUnpackedSingleBlock *block=buf->oldLeafProxy->unpackedBlock;
+
+	for(int i=block->upstreamOffsetAlloc;i>0;--i)
+		{
+		if(block->upstreamLeafOffsets[i]>0)
+			return i;
+		}
+	return -1;
+}
+
+
+static int advanceOldLeafToUpstream(RouteTableTreeEntryBuffer *buf, int upstream, int minEdgePosition)
+{
+	while(buf->oldLeafProxy!=NULL)
+		{
+		int snoopUpstream=snoopOldLeafLastUpstream(buf);
+
+		if(snoopUpstream>upstream)
+			return 1;
+
+		if(snoopUpstream==upstream)
+			{
+			RouteTableUnpackedSingleBlock *block=buf->oldLeafProxy->unpackedBlock;
+			int snoopOffset=buf->accumUpstreamOffsets[upstream]+block->upstreamLeafOffsets[upstream];
+
+			if(snoopOffset>=minEdgePosition)
+				return 1;
+			}
+
+		advanceToNextLeaf_Old(buf);
+		}
+
+	return 0;
+}
+
+
+
+
+/*
+static void bindOldEntryBufferForReading(RouteTableLeafEntryBuffer *oldEntryBuf)
+{
+	RouteTableTreeLeafProxy *leafProxy=oldEntryBuf->walker->leafProxy;
+
+	rttlEnsureFullyUnpacked(leafProxy, oldEntryBuf->walker->treeProxy);
+
+	RouteTableUnpackedSingleBlock unpackedBlock=leafProxy->unpackedBlock;
+
+	oldEntryBuf->entryArraysPtr=unpackedBlock->entryArrays;
+	oldEntryBuf->entryArraysPtrEnd=unpackedBlock->entryArrays+unpackedBlock->entryArrayCount;
+
+	if(unpackedBlock->entryArrayCount>0)
+		{
+		RouteTableUnpackedEntryArray *array=unpackedBlock->entryArrays[0];
+
+		oldEntryBuf->entryPtr=array->entries;
+		oldEntryBuf->entryPtrEnd=array->entries+array->entryCount;
+		oldEntryBuf->upstream=array->upstream;
+		}
+	else
+		{
+		oldEntryBuf->entryPtr=NULL;
+		oldEntryBuf->entryPtrEnd=NULL;
+		oldEntryBuf->upstream=-1;
+		}
+}
+*/
+
+/*
+
+static s32 treeBufferPollInput(RouteTableTreeBuffer *buf)
+{
+	RouteTableEntry *oldEntryPtr=buf->oldEntryPtr;
+
+
+
+	if(oldEntryPtr<buf->oldEntryPtrEnd)
+		{
+		buf->oldPrefix=oldEntryPtr->prefix;
+		buf->oldSuffix=oldEntryPtr->suffix;
+		buf->oldWidth=oldEntryPtr->width;
+
+		buf->oldEntryPtr++;
+
+
+		return buf->oldWidth;
+		}
+	else
+		{
+		buf->oldPrefix=0;
+		buf->oldSuffix=0;
+		buf->oldWidth=0;
+
+		return 0;
+		}
+
+}
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+/* No Buffer version
 
 static void rttMergeRoutes_ordered_forwardSingle(RouteTableTreeBuilder *builder, RouteTableTreeWalker *walker, RoutePatch *patch)
 {
@@ -243,25 +558,6 @@ static void rttMergeRoutes_ordered_forwardSingle(RouteTableTreeBuilder *builder,
 
 //	LOG(LOG_INFO,"Forward Route Patch: %i %i (%i %i)",targetPrefix, targetSuffix, minEdgePosition, maxEdgePosition);
 
-/*
-
-	while(res && upstream < targetPrefix) 												// Skip lower upstream (entry at a time)
-
-	while(res && upstream == targetPrefix &&										// Skip earlier upstream (leaf at a time)
-		((walker->upstreamOffsets[targetPrefix]+walker->leafProxy->dataBlock->upstreamOffset) < minEdgePosition))
-
-	while(res && upstream == targetPrefix &&
-			((walker->upstreamOffsets[targetPrefix]+entry->width)<minEdgePosition ||
-			((walker->upstreamOffsets[targetPrefix]+entry->width)==minEdgePosition && entry->downstream!=targetSuffix))) // Skip earlier? upstream
-
-	while(res && upstream == targetPrefix &&
-			(walker->upstreamOffsets[targetPrefix]+entry->width)<=maxEdgePosition && entry->downstream<targetSuffix) // Skip matching upstream with earlier downstream
-
-//	LOG(LOG_INFO,"FwdDone: %i %i %i %i",walker->branchProxy->brindex,walker->branchChildSibdex,walker->leafEntry, res);
-
-//	LOG(LOG_INFO,"OffsetsNow U: %i D: %i",walker->upstreamOffsets[targetPrefix], walker->downstreamOffsets[targetSuffix]);
-
-*/
 	s32 upstreamEdgeOffset=-1;
 	s32 downstreamEdgeOffset=-1;
 
@@ -339,8 +635,157 @@ static void rttMergeRoutes_ordered_forwardSingle(RouteTableTreeBuilder *builder,
 		rttwMergeRoutes_split(walker, targetSuffix, splitWidth1, splitWidth2); // splitWidth1, (targetPrefix, targetSuffix, 1), splitWidth2
 		}
 
+}
+*/
 
 
+
+
+static void rttMergeRoutes_ordered_forwardMulti(RouteTableTreeBuilder *builder, RoutePatch *patchPtr, RoutePatch *patchPtrEnd,
+		s32 prefixCount, s32 suffixCount)
+{
+	RouteTableTreeEntryBuffer buf;
+	initTreeEntryBuffer(&buf, &(builder->forwardProxy), prefixCount, suffixCount);
+
+	while(patchPtr<patchPtrEnd)
+	{
+		s32 targetPrefix=patchPtr->prefixIndex;
+		s32 targetSuffix=patchPtr->suffixIndex;
+		s32 minEdgePosition=(*(patchPtr->rdiPtr))->minEdgePosition;
+		s32 maxEdgePosition=(*(patchPtr->rdiPtr))->maxEdgePosition;
+
+		int expectedMaxEdgePosition=maxEdgePosition+1;
+		RoutePatch *patchGroupPtr=patchPtr+1;  // Make groups of compatible inserts for combined processing
+
+		if(minEdgePosition!=TR_INIT_MINEDGEPOSITION || maxEdgePosition!=TR_INIT_MAXEDGEPOSITION)
+			{
+			while(patchGroupPtr<patchPtrEnd && patchGroupPtr->prefixIndex==targetPrefix && patchGroupPtr->suffixIndex==targetSuffix &&
+					(*(patchGroupPtr->rdiPtr))->minEdgePosition == minEdgePosition && (*(patchGroupPtr->rdiPtr))->maxEdgePosition == expectedMaxEdgePosition)
+				{
+				patchGroupPtr++;
+				expectedMaxEdgePosition++;
+				}
+			}
+		else
+			{
+			while(patchGroupPtr<patchPtrEnd && patchGroupPtr->prefixIndex==targetPrefix && patchGroupPtr->suffixIndex==targetSuffix &&
+					(*(patchGroupPtr->rdiPtr))->minEdgePosition == TR_INIT_MINEDGEPOSITION && (*(patchGroupPtr->rdiPtr))->maxEdgePosition == TR_INIT_MAXEDGEPOSITION)
+				patchGroupPtr++;
+			}
+
+		advanceOldLeafToUpstream(&buf, targetPrefix, minEdgePosition);
+
+
+
+
+
+		LOG(LOG_CRITICAL,"TODO");
+
+
+
+	}
+
+
+//	LOG(LOG_INFO,"Forward Route Patch: %i %i (%i %i)",targetPrefix, targetSuffix, minEdgePosition, maxEdgePosition);
+
+/*
+
+	while(res && upstream < targetPrefix) 												// Skip lower upstream (entry at a time)
+
+	while(res && upstream == targetPrefix &&										// Skip earlier upstream (leaf at a time)
+		((walker->upstreamOffsets[targetPrefix]+walker->leafProxy->dataBlock->upstreamOffset) < minEdgePosition))
+
+	while(res && upstream == targetPrefix &&
+			((walker->upstreamOffsets[targetPrefix]+entry->width)<minEdgePosition ||
+			((walker->upstreamOffsets[targetPrefix]+entry->width)==minEdgePosition && entry->downstream!=targetSuffix))) // Skip earlier? upstream
+
+	while(res && upstream == targetPrefix &&
+			(walker->upstreamOffsets[targetPrefix]+entry->width)<=maxEdgePosition && entry->downstream<targetSuffix) // Skip matching upstream with earlier downstream
+
+//	LOG(LOG_INFO,"FwdDone: %i %i %i %i",walker->branchProxy->brindex,walker->branchChildSibdex,walker->leafEntry, res);
+
+//	LOG(LOG_INFO,"OffsetsNow U: %i D: %i",walker->upstreamOffsets[targetPrefix], walker->downstreamOffsets[targetSuffix]);
+
+*/
+
+	/*
+	s32 upstreamEdgeOffset=-1;
+	s32 downstreamEdgeOffset=-1;
+
+	int res=rttwAdvanceToUpstreamThenOffsetThenDownstream(walker, targetPrefix, targetSuffix, minEdgePosition, maxEdgePosition,
+			&upstream, &entry, &upstreamEdgeOffset, &downstreamEdgeOffset);
+
+
+	//LOG(LOG_CRITICAL,"PackLeaf: rttMergeRoutes_ordered_forwardSingle (leaf skip) TODO: Res %i Upstream %i Entry %p",res,upstream,entry);
+
+	if(!res || upstream > targetPrefix || entry == NULL || (entry->downstream!=targetSuffix && upstreamEdgeOffset>=minEdgePosition))
+		{
+		int minMargin=upstreamEdgeOffset-minEdgePosition; // Margin between current position and minimum position: Must be zero or positive
+		int maxMargin=maxEdgePosition-upstreamEdgeOffset; // Margin between current position and maximum position: Must be zero or positive
+
+		if(minMargin<0 || maxMargin<0)
+			{
+			LOG(LOG_INFO,"Failed to add forward route for prefix %i suffix %i",targetPrefix,targetSuffix);
+			LOG(LOG_INFO,"Current edge offset %i minEdgePosition %i maxEdgePosition %i",upstreamEdgeOffset,minEdgePosition,maxEdgePosition);
+			LOG(LOG_CRITICAL,"Negative gap detected in route insert - Min: %i Max: %i",minMargin,maxMargin);
+			}
+
+//		LOG(LOG_INFO,"Handoff %i %i",downstreamEdgeOffset,downstreamEdgeOffset);
+
+		// Map offsets to new entry
+		(*(patch->rdiPtr))->minEdgePosition=downstreamEdgeOffset;
+		(*(patch->rdiPtr))->maxEdgePosition=downstreamEdgeOffset;
+
+		rttwMergeRoutes_insertEntry(walker, targetPrefix, targetSuffix); // targetPrefix,targetSuffix,1
+		}
+	else if(upstream==targetPrefix && entry->downstream==targetSuffix)
+		{
+		int upstreamEdgeOffsetEnd=upstreamEdgeOffset+entry->width;
+
+		// Adjust offsets
+		if(minEdgePosition<upstreamEdgeOffset) // Trim upstream range to entry
+			minEdgePosition=upstreamEdgeOffset;
+
+		if(maxEdgePosition>upstreamEdgeOffsetEnd) // Trim upstream range to entry
+			maxEdgePosition=upstreamEdgeOffsetEnd;
+
+		int minOffset=minEdgePosition-upstreamEdgeOffset; // Offset of minimum position: zero or positive
+		int maxOffset=maxEdgePosition-upstreamEdgeOffset; // Offset of maximum position: zero or positive
+
+		if(minOffset<0 || maxOffset<0 || minOffset>maxOffset)
+			{
+			LOG(LOG_CRITICAL,"Invalid offsets or gap detected in route insert - Min: %i Max: %i",minOffset,maxOffset);
+			}
+
+//		LOG(LOG_INFO,"Handoff %i %i",downstreamEdgeOffset+minOffset,downstreamEdgeOffset+maxOffset);
+
+		// Map offsets to new entry
+		(*(patch->rdiPtr))->minEdgePosition=downstreamEdgeOffset+minOffset;
+		(*(patch->rdiPtr))->maxEdgePosition=downstreamEdgeOffset+maxOffset;
+
+		rttwMergeRoutes_widen(walker); // width ++
+		}
+	else
+		{
+		int targetEdgePosition=entry->downstream>targetSuffix?minEdgePosition:maxEdgePosition; // Early or late split
+
+		int splitWidth1=targetEdgePosition-upstreamEdgeOffset;
+		int splitWidth2=entry->width-splitWidth1;
+
+		if(splitWidth1<=0 || splitWidth2<=0)
+			{
+			LOG(LOG_CRITICAL,"Non-positive split width detected in route insert - Width1: %i Width2: %i from %i",splitWidth1, splitWidth2, entry->width);
+			}
+
+//		LOG(LOG_INFO,"Handoff %i %i",downstreamEdgeOffset,downstreamEdgeOffset);
+
+		// Map offsets
+		(*(patch->rdiPtr))->minEdgePosition=downstreamEdgeOffset;
+		(*(patch->rdiPtr))->maxEdgePosition=downstreamEdgeOffset;
+
+		rttwMergeRoutes_split(walker, targetSuffix, splitWidth1, splitWidth2); // splitWidth1, (targetPrefix, targetSuffix, 1), splitWidth2
+		}
+*/
 }
 
 
@@ -451,42 +896,13 @@ void rttMergeRoutes(RouteTableTreeBuilder *builder,
 
 	if(forwardRoutePatchCount>0)
 		{
+/*
 		RouteTableTreeWalker *walker=&(builder->forwardWalker);
 
 		rttwInitOffsetArrays(walker, prefixCount, suffixCount);
 
 		RoutePatch *patchPtr=forwardRoutePatches;
 		RoutePatch *patchEnd=patchPtr+forwardRoutePatchCount;
-/*		RoutePatch *patchPeekPtr=NULL;
-
-		while(patchPtr<patchEnd)
-			{
-			int targetUpstream=patchPtr->prefixIndex;
-			patchPeekPtr=patchPtr+1;
-
-			if(patchPeekPtr<patchEnd && patchPeekPtr->prefixIndex==targetUpstream)
-				{
-				while(patchPtr<patchEnd && patchPtr->prefixIndex==targetUpstream)
-					{
-					walkerSeekStart(walker);
-					rttMergeRoutes_ordered_forwardSingle(builder, walker, patchPtr);
-					walkerResetOffsetArrays(walker);
-
-					*(orderedDispatches++)=*(patchPtr->rdiPtr);
-					patchPtr++;
-					}
-				}
-			else
-				{
-				walkerSeekStart(walker);
-				rttMergeRoutes_ordered_forwardSingle(builder, walker, patchPtr);
-				walkerResetOffsetArrays(walker);
-
-				*(orderedDispatches++)=*(patchPtr->rdiPtr);
-				patchPtr++;
-				}
-			}
-			*/
 
 		while(patchPtr<patchEnd)
 			{
@@ -494,6 +910,17 @@ void rttMergeRoutes(RouteTableTreeBuilder *builder,
 			rttMergeRoutes_ordered_forwardSingle(builder, walker, patchPtr);
 			rttwResetOffsetArrays(walker);
 
+			*(orderedDispatches++)=*(patchPtr->rdiPtr);
+			patchPtr++;
+			}
+			*/
+
+		RoutePatch *patchPtr=forwardRoutePatches;
+
+		rttMergeRoutes_ordered_forwardMulti(builder, patchPtr, patchPtr+forwardRoutePatchCount, prefixCount, suffixCount);
+
+		for(int i=0;i<forwardRoutePatchCount;i++)
+			{
 			*(orderedDispatches++)=*(patchPtr->rdiPtr);
 			patchPtr++;
 			}

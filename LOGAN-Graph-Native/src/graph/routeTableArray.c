@@ -400,7 +400,7 @@ u8 *rtaWriteRouteTableArrayBuilderPackedData(RouteTableArrayBuilder *builder, u8
 	return data+tableSize;
 }
 
-s32 arrayBufferPollInput(RouteTableArrayBuffer *buf)
+static s32 arrayBufferPollInput(RouteTableArrayBuffer *buf)
 {
 	RouteTableEntry *oldEntryPtr=buf->oldEntryPtr;
 
@@ -426,7 +426,7 @@ s32 arrayBufferPollInput(RouteTableArrayBuffer *buf)
 }
 
 
-void initArrayBuffer(RouteTableArrayBuffer *buf, RouteTableEntry *oldEntryPtr, RouteTableEntry *oldEntryPtrEnd, RouteTableEntry *newEntryPtr, s32 maxWidth)
+static void initArrayBuffer(RouteTableArrayBuffer *buf, RouteTableEntry *oldEntryPtr, RouteTableEntry *oldEntryPtrEnd, RouteTableEntry *newEntryPtr, s32 maxWidth)
 {
 	buf->oldEntryPtr=oldEntryPtr;
 	buf->oldEntryPtrEnd=oldEntryPtrEnd;
@@ -441,7 +441,7 @@ void initArrayBuffer(RouteTableArrayBuffer *buf, RouteTableEntry *oldEntryPtr, R
 	buf->maxWidth=maxWidth;
 }
 
-void arrayBufferFlushOutput(RouteTableArrayBuffer *buf)
+static void arrayBufferFlushOutput(RouteTableArrayBuffer *buf)
 {
 	RouteTableEntry *newEntryPtr=buf->newEntryPtr;
 
@@ -458,7 +458,7 @@ void arrayBufferFlushOutput(RouteTableArrayBuffer *buf)
 		}
 }
 
-s32 arrayBufferTransfer(RouteTableArrayBuffer *buf)
+static s32 arrayBufferTransfer(RouteTableArrayBuffer *buf)
 {
 	s32 widthToTransfer=buf->oldWidth;
 
@@ -483,7 +483,7 @@ s32 arrayBufferTransfer(RouteTableArrayBuffer *buf)
 
 }
 
-s32 arrayBufferPartialTransfer(RouteTableArrayBuffer *buf, s32 requestedTransferWidth)
+static s32 arrayBufferPartialTransfer(RouteTableArrayBuffer *buf, s32 requestedTransferWidth)
 {
 	s32 widthToTransfer=MIN(requestedTransferWidth, buf->oldWidth);
 	buf->oldWidth-=widthToTransfer;
@@ -513,7 +513,7 @@ s32 arrayBufferPartialTransfer(RouteTableArrayBuffer *buf, s32 requestedTransfer
 }
 
 
-void arrayBufferPushOutput(RouteTableArrayBuffer *buf, s32 prefix, s32 suffix, s32 width)
+static void arrayBufferPushOutput(RouteTableArrayBuffer *buf, s32 prefix, s32 suffix, s32 width)
 {
 	if(buf->newWidth>0)
 		{
@@ -854,11 +854,23 @@ RouteTableEntry *rtaMergeRoutes_ordered_forwardMulti(RouteTableArrayBuilder *bui
 		int maxEdgePosition=(*(patchPtr->rdiPtr))->maxEdgePosition;
 
 		int expectedMaxEdgePosition=maxEdgePosition+1;
-
 		RoutePatch *patchGroupPtr=patchPtr+1;  // Make groups of compatible inserts for combined processing
-		while(patchGroupPtr<patchPtrEnd && patchGroupPtr->prefixIndex==targetPrefix && patchGroupPtr->suffixIndex==targetSuffix &&
-				(*(patchGroupPtr->rdiPtr))->minEdgePosition == minEdgePosition && (*(patchGroupPtr->rdiPtr))->maxEdgePosition == expectedMaxEdgePosition)
-			patchGroupPtr++;
+
+		if(minEdgePosition!=TR_INIT_MINEDGEPOSITION || maxEdgePosition!=TR_INIT_MAXEDGEPOSITION)
+			{
+			while(patchGroupPtr<patchPtrEnd && patchGroupPtr->prefixIndex==targetPrefix && patchGroupPtr->suffixIndex==targetSuffix &&
+					(*(patchGroupPtr->rdiPtr))->minEdgePosition == minEdgePosition && (*(patchGroupPtr->rdiPtr))->maxEdgePosition == expectedMaxEdgePosition)
+				{
+				patchGroupPtr++;
+				expectedMaxEdgePosition++;
+				}
+			}
+		else
+			{
+			while(patchGroupPtr<patchPtrEnd && patchGroupPtr->prefixIndex==targetPrefix && patchGroupPtr->suffixIndex==targetSuffix &&
+					(*(patchGroupPtr->rdiPtr))->minEdgePosition == TR_INIT_MINEDGEPOSITION && (*(patchGroupPtr->rdiPtr))->maxEdgePosition == TR_INIT_MAXEDGEPOSITION)
+				patchGroupPtr++;
+			}
 
 		while(buf.oldWidth && buf.oldPrefix<targetPrefix) // Skip lower upstream
 			{
@@ -1369,9 +1381,23 @@ RouteTableEntry *rtaMergeRoutes_ordered_reverseMulti(RouteTableArrayBuilder *bui
 		int expectedMaxEdgePosition=maxEdgePosition+1;
 
 		RoutePatch *patchGroupPtr=patchPtr+1;  // Make groups of compatible inserts for combined processing
-		while(patchGroupPtr<patchPtrEnd && patchGroupPtr->prefixIndex==targetPrefix && patchGroupPtr->suffixIndex==targetSuffix &&
-				(*(patchGroupPtr->rdiPtr))->minEdgePosition == minEdgePosition && (*(patchGroupPtr->rdiPtr))->maxEdgePosition == expectedMaxEdgePosition)
-			patchGroupPtr++;
+
+		if(minEdgePosition!=TR_INIT_MINEDGEPOSITION || maxEdgePosition!=TR_INIT_MAXEDGEPOSITION)
+			{
+			while(patchGroupPtr<patchPtrEnd && patchGroupPtr->prefixIndex==targetPrefix && patchGroupPtr->suffixIndex==targetSuffix &&
+					(*(patchGroupPtr->rdiPtr))->minEdgePosition == minEdgePosition && (*(patchGroupPtr->rdiPtr))->maxEdgePosition == expectedMaxEdgePosition)
+				{
+				patchGroupPtr++;
+				expectedMaxEdgePosition++;
+				}
+			}
+		else
+			{
+			while(patchGroupPtr<patchPtrEnd && patchGroupPtr->prefixIndex==targetPrefix && patchGroupPtr->suffixIndex==targetSuffix &&
+					(*(patchGroupPtr->rdiPtr))->minEdgePosition == TR_INIT_MINEDGEPOSITION && (*(patchGroupPtr->rdiPtr))->maxEdgePosition == TR_INIT_MAXEDGEPOSITION)
+				patchGroupPtr++;
+			}
+
 
 		while(buf.oldWidth && buf.oldSuffix<targetSuffix) // Skip lower upstream
 			{

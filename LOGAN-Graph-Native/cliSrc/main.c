@@ -122,7 +122,7 @@ void runIptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 	for(i=0;i<PT_INGRESS_BUFFERS;i++)
 		{
 		freeSequenceBuffer(swqBuffers+i);
-		if(*(ingressBuffers[i].ingressUsageCount)>0)
+		if(ingressBuffers[i].ingressUsageCount!=NULL && *(ingressBuffers[i].ingressUsageCount)>0)
 			LOG(LOG_INFO,"Buffer still in use");
 		}
 
@@ -234,7 +234,7 @@ void runRptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 		{
 		freeSequenceBuffer(swqBuffers+i);
 
-		if(*(ingressBuffers[i].ingressUsageCount)>0)
+		if(ingressBuffers[i].ingressUsageCount!=NULL && *(ingressBuffers[i].ingressUsageCount)>0)
 			LOG(LOG_INFO,"Buffer still in use");
 		}
 
