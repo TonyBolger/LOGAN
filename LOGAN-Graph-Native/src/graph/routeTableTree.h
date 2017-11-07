@@ -97,6 +97,8 @@ typedef struct routeTableLeafEntryBufferStr
 	s16 newBranchChildSibdex;
 
 	// New EntryArrays/Entries (writing)
+	RouteTableUnpackedEntryArray **newEntryArraysBlockPtr;
+
 	RouteTableUnpackedEntryArray **newEntryArraysPtr;
 	RouteTableUnpackedEntryArray **newEntryArraysPtrEnd;
 	RouteTableUnpackedEntry *newEntryPtr;
