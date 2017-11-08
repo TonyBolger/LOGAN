@@ -85,7 +85,10 @@ RouteTableTreeLeafBlock *getRouteTableTreeLeafBlock(RouteTableTreeProxy *treePro
 	RouteTableTreeLeafProxy *leafProxy=getBlockArrayNewEntryProxy(&(treeProxy->leafArrayProxy), lindex);
 
 	if(leafProxy!=NULL)
+		{
+		LOG(LOG_INFO,"Leaf Proxy Block is %p",leafProxy->leafBlock);
 		return leafProxy->leafBlock;
+		}
 
 	u8 *data=getBlockArrayExistingEntryData(&(treeProxy->leafArrayProxy), lindex);
 

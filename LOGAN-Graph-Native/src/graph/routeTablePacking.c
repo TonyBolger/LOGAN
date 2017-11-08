@@ -61,6 +61,22 @@ void rtpRecalculateUnpackedBlockOffsets(RouteTableUnpackedSingleBlock *unpackedB
 }
 
 
+void rtpSetUnpackedData(RouteTableUnpackedSingleBlock *unpackedBlock,
+		s32 *upstreamLeafOffsets, s32 upstreamLeafOffsetCount, s32 *downstreamLeafOffsets, s32 downstreamLeafOffsetCount,
+		RouteTableUnpackedEntryArray **entryArrays, s32 entryArrayCount)
+{
+	unpackedBlock->upstreamLeafOffsets=upstreamLeafOffsets;
+	unpackedBlock->upstreamOffsetAlloc=upstreamLeafOffsetCount;
+
+	unpackedBlock->downstreamLeafOffsets=downstreamLeafOffsets;
+	unpackedBlock->downstreamOffsetAlloc=downstreamLeafOffsetCount;
+
+	unpackedBlock->entryArrays=entryArrays;
+	unpackedBlock->entryArrayAlloc=unpackedBlock->entryArrayCount=entryArrayCount;
+
+}
+
+
 
 
 RouteTableUnpackedEntryArray *rtpInsertNewEntry(RouteTableUnpackedSingleBlock *unpackedBlock, s32 arrayIndex, s32 entryIndex, s32 downstream, s32 width)

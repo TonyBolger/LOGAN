@@ -208,6 +208,13 @@ void expandRouteTableTreeLeafProxy(RouteTableTreeProxy *treeProxy, RouteTableTre
 
 void dumpLeafBlock(RouteTableTreeLeafBlock *leafBlock)
 {
+	if(leafBlock==NULL)
+		{
+		LOG(LOG_INFO,"LeafBlock is NULL");
+		return;
+		}
+
+
 	LOG(LOG_INFO,"LeafBlock: Parent Brindex is %i",leafBlock->parentBrindex);
 
 }

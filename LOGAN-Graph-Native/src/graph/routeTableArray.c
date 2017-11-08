@@ -441,7 +441,7 @@ static void initArrayBuffer(RouteTableArrayBuffer *buf, RouteTableEntry *oldEntr
 	buf->maxWidth=maxWidth;
 }
 
-static void arrayBufferFlushOutput(RouteTableArrayBuffer *buf)
+static void arrayBufferFlushOutputEntry(RouteTableArrayBuffer *buf)
 {
 	RouteTableEntry *newEntryPtr=buf->newEntryPtr;
 
@@ -465,7 +465,7 @@ static s32 arrayBufferTransfer(RouteTableArrayBuffer *buf)
 	if(buf->newWidth>0)
 		{
 		if(buf->newPrefix!=buf->oldPrefix || buf->newSuffix!=buf->oldSuffix)
-			arrayBufferFlushOutput(buf);
+			arrayBufferFlushOutputEntry(buf);
 		else
 			{
 			buf->newWidth+=widthToTransfer;
@@ -491,7 +491,7 @@ static s32 arrayBufferPartialTransfer(RouteTableArrayBuffer *buf, s32 requestedT
 	if(buf->newWidth>0)
 		{
 		if(buf->newPrefix!=buf->oldPrefix || buf->newSuffix!=buf->oldSuffix)
-			arrayBufferFlushOutput(buf);
+			arrayBufferFlushOutputEntry(buf);
 		else
 			{
 			buf->newWidth+=widthToTransfer;
@@ -518,7 +518,7 @@ static void arrayBufferPushOutput(RouteTableArrayBuffer *buf, s32 prefix, s32 su
 	if(buf->newWidth>0)
 		{
 		if(buf->newPrefix!=prefix || buf->newSuffix!=suffix)
-			arrayBufferFlushOutput(buf);
+			arrayBufferFlushOutputEntry(buf);
 		else
 			{
 			buf->newWidth+=width;
@@ -825,7 +825,7 @@ static RouteTableEntry *rtaMergeRoutes_ordered_forwardSingle(//RouteTableArrayBu
 	while(buf.oldWidth) // Copy remaining old entries
 		arrayBufferTransfer(&buf);
 
-	arrayBufferFlushOutput(&buf);
+	arrayBufferFlushOutputEntry(&buf);
 
 	*maxWidth=MAX(*maxWidth,buf.maxWidth);
 
@@ -1049,7 +1049,7 @@ RouteTableEntry *rtaMergeRoutes_ordered_forwardMulti(RouteTableArrayBuilder *bui
 	while(buf.oldWidth) // Copy remaining old entries
 		arrayBufferTransfer(&buf);
 
-	arrayBufferFlushOutput(&buf);
+	arrayBufferFlushOutputEntry(&buf);
 
 	*maxWidth=MAX(*maxWidth,buf.maxWidth);
 
@@ -1348,7 +1348,7 @@ static RouteTableEntry *rtaMergeRoutes_ordered_reverseSingle(//RouteTableArrayBu
 	while(buf.oldWidth) // Copy remaining old entries
 		arrayBufferTransfer(&buf);
 
-	arrayBufferFlushOutput(&buf);
+	arrayBufferFlushOutputEntry(&buf);
 
 	*maxWidth=MAX(*maxWidth,buf.maxWidth);
 
@@ -1576,7 +1576,7 @@ RouteTableEntry *rtaMergeRoutes_ordered_reverseMulti(RouteTableArrayBuilder *bui
 	while(buf.oldWidth) // Copy remaining old entries
 		arrayBufferTransfer(&buf);
 
-	arrayBufferFlushOutput(&buf);
+	arrayBufferFlushOutputEntry(&buf);
 
 	*maxWidth=MAX(*maxWidth,buf.maxWidth);
 

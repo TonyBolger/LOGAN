@@ -98,11 +98,13 @@ typedef struct routeTableLeafEntryBufferStr
 
 	// New EntryArrays/Entries (writing)
 	RouteTableUnpackedEntryArray **newEntryArraysBlockPtr;
-
 	RouteTableUnpackedEntryArray **newEntryArraysPtr;
 	RouteTableUnpackedEntryArray **newEntryArraysPtrEnd;
+
+	RouteTableUnpackedEntryArray *newEntryCurrentArrayPtr;
 	RouteTableUnpackedEntry *newEntryPtr;
 	RouteTableUnpackedEntry *newEntryPtrEnd;
+
 	s32 newUpstream;
 	s32 newDownstream;
 	s32 newWidth;

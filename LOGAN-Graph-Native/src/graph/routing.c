@@ -1571,7 +1571,7 @@ int rtRouteReadsForSmer(RoutingIndexedReadReferenceBlock *rdi, SmerArraySlice *s
 
 	if(routingBuilder.treeBuilder!=NULL)
 		{
-/*
+
 		if(rdi->entryCount>0)
 			{
 			RoutingReadData *rdd=rdi->entries[0];
@@ -1586,9 +1586,14 @@ int rtRouteReadsForSmer(RoutingIndexedReadReferenceBlock *rdi, SmerArraySlice *s
 			LOG(LOG_INFO,"ROUTEMERGE\t%s\tTREE\tFORWARD\t%i",buffer,forwardCount);
 			LOG(LOG_INFO,"ROUTEMERGE\t%s\tTREE\tREVERSE\t%i",buffer,reverseCount);
 			}
-*/
+
 		rttMergeRoutes(routingBuilder.treeBuilder, forwardPatches, reversePatches, forwardCount, reverseCount, prefixCount, suffixCount, orderedDispatches, disp);
+
+		LOG(LOG_INFO,"writeBuildersIndirect");
+
 		writeBuildersAsIndirectData(&routingBuilder, sliceTag, sliceIndex,circHeap);
+
+		LOG(LOG_INFO,"writeBuildersIndirect Done");
 		}
 	else
 		{

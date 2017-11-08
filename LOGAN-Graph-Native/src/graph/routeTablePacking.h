@@ -183,6 +183,9 @@ void rtpDumpUnpackedSingleBlock(RouteTableUnpackedSingleBlock *block);
 
 void rtpRecalculateUnpackedBlockOffsets(RouteTableUnpackedSingleBlock *unpackedBlock);
 
+void rtpSetUnpackedData(RouteTableUnpackedSingleBlock *unpackedBlock, s32 *upstreamLeafOffsets, s32 upstreamLeafOffsetCount, s32 *downstreamLeafOffsets, s32 downstreamLeafOffsetCount,
+		RouteTableUnpackedEntryArray **entryArrays, s32 entryArrayCount);
+
 // Insert new entry (downstream,width) into specified position in specified entryArray
 RouteTableUnpackedEntryArray *rtpInsertNewEntry(RouteTableUnpackedSingleBlock *unpackedBlock, s32 arrayIndex, s32 entryIndex, s32 downstream, s32 width);
 
