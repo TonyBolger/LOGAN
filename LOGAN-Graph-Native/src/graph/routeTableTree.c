@@ -298,7 +298,7 @@ static RouteTableUnpackedEntryArray *treeEntryBufferNewOutputEntryArray(RouteTab
 {
 	if(buf->newEntryArraysPtr==buf->newEntryArraysPtrEnd)
 		{
-		LOG(LOG_INFO,"SPLIT NEEDED");
+		//LOG(LOG_INFO,"SPLIT NEEDED");
 
 		//void treeProxyInsertLeafChild(RouteTableTreeProxy *treeProxy, RouteTableTreeBranchProxy *parentBranchProxy, RouteTableTreeLeafProxy *childLeafProxy, s16 childPosition,
 				//RouteTableTreeBranchProxy **updatedParentBranchProxyPtr, s16 *updatedChildPositionPtr);
@@ -314,7 +314,7 @@ static RouteTableUnpackedEntryArray *treeEntryBufferNewOutputEntryArray(RouteTab
 		if(updatedParentBranchProxy != buf->newBranchProxy)
 			LOG(LOG_CRITICAL,"SPLIT PARENT: FIXME");
 
-		LOG(LOG_INFO,"Requested %i Got %i", buf->newBranchChildSibdex, updatedChildPosition);
+		//LOG(LOG_INFO,"Requested %i Got %i", buf->newBranchChildSibdex, updatedChildPosition);
 
 		buf->oldBranchChildSibdex++;
 		buf->newBranchChildSibdex++;
@@ -336,7 +336,7 @@ static RouteTableUnpackedEntryArray *treeEntryBufferNewOutputEntryArray(RouteTab
 		buf->newEntryArraysPtr=buf->newEntryArraysBlockPtr;
 		buf->newEntryArraysPtrEnd=buf->newEntryArraysBlockPtr+ROUTEPACKING_ENTRYARRAYS_MAX;
 
-		LOG(LOG_INFO,"SPLIT OUTPUT LEAF");
+		//LOG(LOG_INFO,"SPLIT OUTPUT LEAF");
 
 		}
 
@@ -449,6 +449,10 @@ static s32 treeEntryBufferPollInput(RouteTableTreeEntryBuffer *buf)
 
 		if(oldArrayPtr==buf->oldEntryArraysPtrEnd)
 			{
+			// First flush the output buffers (sub-optimal)
+			treeEntryBufferFlushOutputEntry(buf);
+			treeEntryBufferFlushOutputArrays(buf);
+
 			RouteTableTreeBranchProxy *branchProxy=buf->oldBranchProxy;
 			RouteTableTreeLeafProxy *leafProxy=buf->oldLeafProxy;
 			s16 branchChildSibdex=buf->oldBranchChildSibdex;
@@ -465,11 +469,7 @@ static s32 treeEntryBufferPollInput(RouteTableTreeEntryBuffer *buf)
 				}
 
 			// More leaves
-			//LOG(LOG_CRITICAL,"treeEntryBufferPollInput: Moved leaf");
-
-			// First flush the output buffers
-			treeEntryBufferFlushOutputEntry(buf);
-			treeEntryBufferFlushOutputArrays(buf);
+			//LOG(LOG_INFO,"treeEntryBufferPollInput: Moved leaf - now %i",branchChildSibdex);
 
 			// Move input side then bind
 
@@ -500,6 +500,9 @@ static s32 treeEntryBufferPollInput(RouteTableTreeEntryBuffer *buf)
 			buf->newEntryPtr=NULL;
 			buf->newEntryPtrEnd=NULL;
 
+
+			buf->newLeafUpstreamOffsets=dAlloc(buf->treeProxy->disp, sizeof(s32)*buf->upstreamOffsetCount);
+			buf->newLeafDownstreamOffsets=dAlloc(buf->treeProxy->disp, sizeof(s32)*buf->downstreamOffsetCount);
 			memset(buf->newLeafUpstreamOffsets,0,sizeof(s32)*buf->upstreamOffsetCount);
 			memset(buf->newLeafDownstreamOffsets,0,sizeof(s32)*buf->downstreamOffsetCount);
 
