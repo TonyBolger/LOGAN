@@ -1175,7 +1175,7 @@ static void rttMergeRoutes_ordered_forwardMulti(RouteTableTreeBuilder *builder, 
 
 
 
-	}
+}
 
 
 //	LOG(LOG_INFO,"Forward Route Patch: %i %i (%i %i)",targetPrefix, targetSuffix, minEdgePosition, maxEdgePosition);
@@ -1281,7 +1281,7 @@ static void rttMergeRoutes_ordered_forwardMulti(RouteTableTreeBuilder *builder, 
 */
 
 
-
+/* No buffer version
 
 static void rttMergeRoutes_ordered_reverseSingle(RouteTableTreeWalker *walker, RoutePatch *patch)
 {
@@ -1378,6 +1378,292 @@ static void rttMergeRoutes_ordered_reverseSingle(RouteTableTreeWalker *walker, R
 
 }
 
+*/
+
+
+static void rttMergeRoutes_ordered_reverseMulti(RouteTableTreeBuilder *builder, RoutePatch *patchPtr, RoutePatch *patchPtrEnd,
+		s32 prefixCount, s32 suffixCount)// int *maxWidth)
+{
+	RouteTableTreeEntryBuffer buf;
+	treeEntryBufferInit(&buf, &(builder->reverseProxy), suffixCount, prefixCount);
+
+//	LOG(LOG_INFO,"rttMergeRoutes_ordered_forwardMulti: Patch count %i",(patchPtrEnd-patchPtr));
+
+	while(patchPtr<patchPtrEnd)
+	{
+		s32 targetUpstream=patchPtr->suffixIndex;
+		s32 targetDownstream=patchPtr->prefixIndex;
+		s32 minEdgePosition=(*(patchPtr->rdiPtr))->minEdgePosition;
+		s32 maxEdgePosition=(*(patchPtr->rdiPtr))->maxEdgePosition;
+
+//		LOG(LOG_INFO,"Patch: P: %i S: %i [%i %i]",targetUpstream, targetDownstream, minEdgePosition, maxEdgePosition);
+
+		int expectedMaxEdgePosition=maxEdgePosition+1;
+		RoutePatch *patchGroupPtr=patchPtr+1;  // Make groups of compatible inserts for combined processing
+
+		if(minEdgePosition!=TR_INIT_MINEDGEPOSITION || maxEdgePosition!=TR_INIT_MAXEDGEPOSITION)
+			{
+			while(patchGroupPtr<patchPtrEnd && patchGroupPtr->suffixIndex==targetUpstream && patchGroupPtr->prefixIndex==targetDownstream &&
+					(*(patchGroupPtr->rdiPtr))->minEdgePosition == minEdgePosition && (*(patchGroupPtr->rdiPtr))->maxEdgePosition == expectedMaxEdgePosition)
+				{
+				patchGroupPtr++;
+				expectedMaxEdgePosition++;
+				}
+			}
+		else
+			{
+			while(patchGroupPtr<patchPtrEnd && patchGroupPtr->suffixIndex==targetUpstream && patchGroupPtr->prefixIndex==targetDownstream &&
+					(*(patchGroupPtr->rdiPtr))->minEdgePosition == TR_INIT_MINEDGEPOSITION && (*(patchGroupPtr->rdiPtr))->maxEdgePosition == TR_INIT_MAXEDGEPOSITION)
+				patchGroupPtr++;
+			}
+/*
+		int groupLen=patchGroupPtr-patchPtr;
+		if(groupLen>1)
+			LOG(LOG_INFO,"GROUPED %i",groupLen);
+*/
+
+		/*
+		// Handle already bound case here
+		if(buf.oldEntryArraysPtr!=NULL)
+			{
+			LOG(LOG_CRITICAL,"Leaf already bound before seek");
+			}
+
+		treeEntryBufferAdvanceOldLeafToUpstream(&buf, targetUpstream, minEdgePosition); // Skip leaves if possible (which may be still partly packed)
+
+		treeEntryBufferBindEntries(&buf);
+		treeEntryBufferPollInput(&buf);
+*/
+
+		if(buf.oldEntryArraysPtr==NULL)
+			{
+// disable offset until the rest works
+//			treeEntryBufferAdvanceOldLeaf_targetUpstreamAndOffset(&buf, targetUpstream, minEdgePosition); // Skip leaves if possible (which may be still partly packed)
+
+			treeEntryBufferBindEntries(&buf);
+			treeEntryBufferPollInput(&buf);
+			}
+
+
+//		LOG(LOG_INFO,"PostSeek Entry: %i %i %i",buf.oldUpstream, buf.oldDownstream, buf.oldWidth);
+
+		//int upstreamEdgeOffset=buf.accumUpstreamOffsets[targetUpstream];
+
+		while(buf.oldWidth && buf.oldUpstream<targetUpstream) // Skip lower upstream
+			{
+//			LOG(LOG_INFO,"Loop 1");
+
+			s32 width=buf.oldWidth;
+			buf.accumUpstreamOffsets[buf.oldUpstream]+=width;
+			buf.accumDownstreamOffsets[buf.oldDownstream]+=width;
+
+			treeEntryBufferTransfer(&buf);
+
+//			LOG(LOG_INFO,"Entry: %i %i %i",buf.oldUpstream, buf.oldDownstream, buf.oldWidth);
+			}
+
+//		LOG(LOG_INFO,"Entry: %i %i %i",buf.oldUpstream, buf.oldDownstream, buf.oldWidth);
+
+		while(buf.oldWidth && buf.oldUpstream==targetUpstream &&
+			((buf.accumUpstreamOffsets[targetUpstream]+buf.oldWidth)<minEdgePosition ||
+			((buf.accumUpstreamOffsets[targetUpstream]+buf.oldWidth)==minEdgePosition && buf.oldDownstream!=targetDownstream))) // Skip earlier upstream
+			{
+//			LOG(LOG_INFO,"Loop 2");
+
+			s32 width=buf.oldWidth;
+			buf.accumUpstreamOffsets[buf.oldUpstream]+=width;
+			buf.accumDownstreamOffsets[buf.oldDownstream]+=width;
+
+			treeEntryBufferTransfer(&buf);
+
+//			LOG(LOG_INFO,"Entry: %i %i %i",buf.oldUpstream, buf.oldDownstream, buf.oldWidth);
+			}
+
+//      LOG(LOG_INFO,"Entry: %i %i %i",buf.oldUpstream, buf.oldDownstream, buf.oldWidth);
+
+		while(buf.oldWidth && buf.oldUpstream==targetUpstream &&
+			(buf.accumUpstreamOffsets[buf.oldUpstream]+buf.oldWidth)<=maxEdgePosition && buf.oldDownstream<targetDownstream) // Skip matching upstream with earlier downstream
+			{
+//			LOG(LOG_INFO,"Loop 3");
+
+			s32 width=buf.oldWidth;
+			buf.accumUpstreamOffsets[buf.oldUpstream]+=width;
+			buf.accumDownstreamOffsets[buf.oldDownstream]+=width;
+
+			treeEntryBufferTransfer(&buf);
+
+//			LOG(LOG_INFO,"Entry: %i %i %i",buf.oldUpstream, buf.oldDownstream, buf.oldWidth);
+			}
+
+//		LOG(LOG_INFO,"Entry: %i %i %i",buf.oldUpstream, buf.oldDownstream, buf.oldWidth);
+
+		s32 upstreamEdgeOffset=buf.accumUpstreamOffsets[targetUpstream];
+		s32 downstreamEdgeOffset=buf.accumDownstreamOffsets[targetDownstream];
+
+//		LOG(LOG_INFO,"Patch: P: %i S: %i [%i %i]",targetUpstream, targetDownstream, minEdgePosition, maxEdgePosition);
+
+//		LOG(LOG_INFO,"PreMod Entry: %i %i %i [%i] [%i]",buf.oldUpstream, buf.oldDownstream, buf.oldWidth, upstreamEdgeOffset, downstreamEdgeOffset);
+
+
+		if(buf.oldWidth==0 || buf.oldUpstream>targetUpstream || (buf.oldDownstream!=targetDownstream && upstreamEdgeOffset>=minEdgePosition))
+			{
+			int minMargin=upstreamEdgeOffset-minEdgePosition; // Margin between current position and minimum position: Must be zero or positive
+			int maxMargin=maxEdgePosition-upstreamEdgeOffset; // Margin between current position and maximum position: Must be zero or positive
+
+			if(minMargin<0 || maxMargin<0)
+				{
+				LOG(LOG_INFO,"Invalid margins for insert");
+
+				rttDumpRoutingTable(builder);
+
+				LOG(LOG_INFO,"Failed to add forward route for prefix %i suffix %i",targetUpstream,targetDownstream);
+				LOG(LOG_INFO,"Current edge offset %i minEdgePosition %i maxEdgePosition %i",upstreamEdgeOffset,minEdgePosition,maxEdgePosition);
+				LOG(LOG_CRITICAL,"Negative gap detected in route insert - Min: %i Max: %i",minMargin,maxMargin);
+				}
+
+			// LOG(LOG_INFO,"Handoff %i %i",downstreamEdgeOffset,downstreamEdgeOffset);
+
+			// Map offsets to new entry
+			(*(patchPtr->rdiPtr))->minEdgePosition=downstreamEdgeOffset;
+			(*(patchPtr->rdiPtr))->maxEdgePosition=downstreamEdgeOffset;
+
+			patchPtr++;
+			int width=1;
+
+			while(patchPtr<patchGroupPtr) // Remaining entries in group gain width
+				{
+				(*(patchPtr->rdiPtr))->minEdgePosition=downstreamEdgeOffset;
+				(*(patchPtr->rdiPtr))->maxEdgePosition=downstreamEdgeOffset+width;
+
+				patchPtr++;
+				width++;
+				}
+
+			treeEntryBufferPushOutput(&buf, targetUpstream, targetDownstream, width);
+
+			buf.accumUpstreamOffsets[targetUpstream]+=width;
+			buf.accumDownstreamOffsets[targetDownstream]+=width;
+			}
+		else if(buf.oldUpstream==targetUpstream && buf.oldDownstream==targetDownstream) // Existing entry suitable, widen
+			{
+//			LOG(LOG_INFO,"Widening");
+
+			int upstreamEdgeOffsetEnd=upstreamEdgeOffset+buf.oldWidth;
+
+			// Adjust offsets
+			if(minEdgePosition<upstreamEdgeOffset) // Trim upstream range to entry
+				minEdgePosition=upstreamEdgeOffset;
+
+			if(maxEdgePosition>upstreamEdgeOffsetEnd) // Trim upstream range to entry
+				maxEdgePosition=upstreamEdgeOffsetEnd;
+
+			int minOffset=minEdgePosition-upstreamEdgeOffset; // Offset of minimum position: zero or positive
+			int maxOffset=maxEdgePosition-upstreamEdgeOffset; // Offset of maximum position: zero or positive
+
+			if(minOffset<0 || maxOffset<0 || minOffset>maxOffset)
+				{
+				LOG(LOG_INFO,"Invalid margins for widen");
+
+				LOG(LOG_INFO,"OldEntry Offset Range: %i %i", upstreamEdgeOffset, upstreamEdgeOffsetEnd);
+				LOG(LOG_INFO,"Min / Max position: %i %i", minEdgePosition, maxEdgePosition);
+
+				LOG(LOG_CRITICAL,"Invalid offsets or gap detected in route insert - Min: %i Max: %i",minOffset,maxOffset);
+				}
+
+	//		LOG(LOG_INFO,"Handoff %i %i",downstreamEdgeOffset+minOffset,downstreamEdgeOffset+maxOffset);
+
+			// Map offsets to new entry
+			(*(patchPtr->rdiPtr))->minEdgePosition=downstreamEdgeOffset+minOffset;
+			(*(patchPtr->rdiPtr))->maxEdgePosition=downstreamEdgeOffset+maxOffset;
+
+//			LOG(LOG_INFO,"Handoff %i %i to RDI: %p",downstreamEdgeOffset+minOffset,downstreamEdgeOffset+maxOffset, (*(patchPtr->rdiPtr)));
+
+			patchPtr++;
+			int width=1;
+
+			while(patchPtr<patchGroupPtr) // Remaining entries in group gain width
+				{
+				(*(patchPtr->rdiPtr))->minEdgePosition=downstreamEdgeOffset+minOffset;
+				//(*(patchPtr->rdiPtr))->maxEdgePosition=downstreamEdgeOffset+width;
+				(*(patchPtr->rdiPtr))->maxEdgePosition=downstreamEdgeOffset+maxOffset+width;
+
+//				LOG(LOG_INFO,"Handoff %i %i to RDI: %p",downstreamEdgeOffset+minOffset,downstreamEdgeOffset+maxOffset);
+
+				patchPtr++;
+				width++;
+				}
+
+			treeEntryBufferPushOutput(&buf,  targetUpstream, targetDownstream, width);
+			s32 trans=treeEntryBufferPartialTransfer(&buf, maxOffset);
+			if(trans!=maxOffset)
+				LOG(LOG_CRITICAL,"Widening transfer size mismatch %i %i",maxOffset, trans);
+
+//			LOG(LOG_INFO,"Post transfer: Min %i Max %i",minOffset, maxOffset);
+
+			buf.accumUpstreamOffsets[targetUpstream]+=maxOffset+width;
+			buf.accumDownstreamOffsets[targetDownstream]+=maxOffset+width;
+			}
+		else // Existing entry unsuitable, split and insert
+			{
+			int targetEdgePosition=buf.oldDownstream>targetDownstream?minEdgePosition:maxEdgePosition; // Early or late split
+			int splitWidth1=targetEdgePosition-upstreamEdgeOffset;
+			int splitWidth2=buf.oldWidth-splitWidth1;
+
+			if(splitWidth1<=0 || splitWidth2<=0)
+				{
+				LOG(LOG_CRITICAL,"Non-positive split width detected in route insert - Width1: %i Width2: %i from %i",splitWidth1, splitWidth2);
+				}
+
+			//LOG(LOG_INFO,"Handoff %i %i",downstreamEdgeOffset,downstreamEdgeOffset);
+
+			// Map offsets
+			(*(patchPtr->rdiPtr))->minEdgePosition=downstreamEdgeOffset;
+			(*(patchPtr->rdiPtr))->maxEdgePosition=downstreamEdgeOffset;
+
+			patchPtr++;
+			int width=1;
+
+			while(patchPtr<patchGroupPtr) // Remaining entries in group gain width
+				{
+				(*(patchPtr->rdiPtr))->minEdgePosition=downstreamEdgeOffset;
+				(*(patchPtr->rdiPtr))->maxEdgePosition=downstreamEdgeOffset+width;
+
+				patchPtr++;
+				width++;
+				}
+
+			buf.accumUpstreamOffsets[buf.oldUpstream]+=splitWidth1;
+			buf.accumDownstreamOffsets[buf.oldDownstream]+=splitWidth1;
+
+			s32 transWidth1=treeEntryBufferPartialTransfer(&buf, splitWidth1);
+
+			if(transWidth1!=splitWidth1)
+				LOG(LOG_CRITICAL,"Split transfer size mismatch %i %i",splitWidth1, transWidth1);
+
+			treeEntryBufferPushOutput(&buf, targetUpstream, targetDownstream, width);
+
+			buf.accumUpstreamOffsets[targetUpstream]+=width;
+			buf.accumDownstreamOffsets[targetDownstream]+=width;
+			}
+
+		}
+
+
+//	LOG(LOG_INFO,"Transfer remainder");
+
+	while(buf.oldWidth) // Copy remaining old entries
+		treeEntryBufferTransfer(&buf);
+
+	treeEntryBufferFlushOutputEntry(&buf);
+
+	treeEntryBufferFlushOutputArrays(&buf);
+
+//	*maxWidth=MAX(*maxWidth,buf.maxWidth);
+
+
+
+}
+
 
 
 
@@ -1427,6 +1713,17 @@ void rttMergeRoutes(RouteTableTreeBuilder *builder,
 
 	if(reverseRoutePatchCount>0)
 		{
+		RoutePatch *patchPtr=reverseRoutePatches;
+
+		rttMergeRoutes_ordered_reverseMulti(builder, patchPtr, patchPtr+reverseRoutePatchCount, prefixCount, suffixCount);
+
+		for(int i=0;i<reverseRoutePatchCount;i++)
+			{
+			*(orderedDispatches++)=*(patchPtr->rdiPtr);
+			patchPtr++;
+			}
+
+		/*
 		RouteTableTreeWalker *walker=&(builder->reverseWalker);
 
 		rttwInitOffsetArrays(walker, suffixCount, prefixCount);
@@ -1443,6 +1740,7 @@ void rttMergeRoutes(RouteTableTreeBuilder *builder,
 			*(orderedDispatches++)=*(patchPtr->rdiPtr);
 			patchPtr++;
 			}
+			*/
 
 /*		RoutePatch *patchPeekPtr=NULL;
 
