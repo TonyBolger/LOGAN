@@ -161,8 +161,8 @@ typedef struct routeTableUnpackedSingleBlockStr
 // Max allowed normally
 //#define ROUTEPACKING_ENTRYARRAYS_MAX 16
 
-#define ROUTEPACKING_ENTRYARRAYS_MAX 64
-//#define ROUTEPACKING_ENTRYARRAYS_MAX 256
+//#define ROUTEPACKING_ENTRYARRAYS_MAX 64
+#define ROUTEPACKING_ENTRYARRAYS_MAX 128
 //#define ROUTEPACKING_ENTRYARRAYS_MAX 1024
 
 #define ROUTEPACKING_ENTRYS_CHUNK 8
@@ -172,13 +172,13 @@ typedef struct routeTableUnpackedSingleBlockStr
 
 // Max allowed normally
 //#define ROUTEPACKING_ENTRYS_MAX 16
-#define ROUTEPACKING_ENTRYS_MAX 64
-//#define ROUTEPACKING_ENTRYS_MAX 256
+//#define ROUTEPACKING_ENTRYS_MAX 64
+#define ROUTEPACKING_ENTRYS_MAX 128
 
 //#define ROUTEPACKING_ENTRYS_MAX 1024
 
 
-#define ROUTEPACKING_TOTALENTRYS_MAX 1024
+//#define ROUTEPACKING_TOTALENTRYS_MAX 1024
 
 
 void rtpDumpUnpackedSingleBlock(RouteTableUnpackedSingleBlock *block);
