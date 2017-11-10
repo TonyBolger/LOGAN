@@ -1471,7 +1471,7 @@ static void createRoutePatches(RoutingIndexedReadReferenceBlock *rdi, int entryC
 					unpackSmer(suffixSmer, bufferS);
 
 					LOG(LOG_INFO,"Node Orientation: %s (%i) @ %i %s %s (%i) @ %i",
-							bufferP, prefixLength, reversePatches[forwardCount].prefixIndex,  bufferN, bufferS, suffixLength, reversePatches[forwardCount].suffixIndex);
+							bufferP, prefixLength, reversePatches[reverseCount].prefixIndex,  bufferN, bufferS, suffixLength, reversePatches[reverseCount].suffixIndex);
 					}
 
 				reverseCount++;
@@ -1583,17 +1583,17 @@ int rtRouteReadsForSmer(RoutingIndexedReadReferenceBlock *rdi, SmerArraySlice *s
 			char buffer[SMER_BASES+1]={0};
 			unpackSmer(currSmer, buffer);
 
-			LOG(LOG_INFO,"ROUTEMERGE\t%s\tTREE\tFORWARD\t%i",buffer,forwardCount);
-			LOG(LOG_INFO,"ROUTEMERGE\t%s\tTREE\tREVERSE\t%i",buffer,reverseCount);
+			//LOG(LOG_INFO,"ROUTEMERGE\t%s\tTREE\tFORWARD\t%i",buffer,forwardCount);
+			//LOG(LOG_INFO,"ROUTEMERGE\t%s\tTREE\tREVERSE\t%i",buffer,reverseCount);
 			}
 
 		rttMergeRoutes(routingBuilder.treeBuilder, forwardPatches, reversePatches, forwardCount, reverseCount, prefixCount, suffixCount, orderedDispatches, disp);
 
-		LOG(LOG_INFO,"writeBuildersIndirect");
+		//LOG(LOG_INFO,"writeBuildersIndirect");
 
 		writeBuildersAsIndirectData(&routingBuilder, sliceTag, sliceIndex,circHeap);
 
-		LOG(LOG_INFO,"writeBuildersIndirect Done");
+		//LOG(LOG_INFO,"writeBuildersIndirect Done");
 		}
 	else
 		{

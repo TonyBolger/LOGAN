@@ -525,6 +525,8 @@ void treeProxyInsertLeafChild(RouteTableTreeProxy *treeProxy, RouteTableTreeBran
 			}
 		else if(parentBranchProxy->brindex!=BRANCH_NINDEX_ROOT)
 			{
+			LOG(LOG_INFO,"BRANCH SPLIT");
+
 			RouteTableTreeBranchProxy *grandParentBranchProxy;
 			s32 grandParentBrindex=parentBranchProxy->dataBlock->parentBrindex;
 
@@ -544,6 +546,8 @@ void treeProxyInsertLeafChild(RouteTableTreeProxy *treeProxy, RouteTableTreeBran
 			}
 		else
 			{
+			LOG(LOG_INFO,"ROOT SPLIT");
+
 			treeProxySplitRoot(treeProxy, childPosition, &parentBranchProxy, &childPosition);
 			}
 		}

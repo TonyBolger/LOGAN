@@ -44,13 +44,16 @@ typedef struct smerRoutingStatsStr
 
 //#define ROUTING_TREE_THRESHOLD 4
 //#define ROUTING_TREE_THRESHOLD 10
-#define ROUTING_TREE_THRESHOLD 40
+
+//#define ROUTING_TREE_THRESHOLD 40
+
 //#define ROUTING_TREE_THRESHOLD 100
-//#define ROUTING_TREE_THRESHOLD 400
+#define ROUTING_TREE_THRESHOLD 400
 //#define ROUTING_TREE_THRESHOLD 1000
 //#define ROUTING_TREE_THRESHOLD 4000
 //#define ROUTING_TREE_THRESHOLD 10000
 //#define ROUTING_TREE_THRESHOLD 100000
+
 //#define ROUTING_TREE_THRESHOLD 1000000000
 
 int rtRouteReadsForSmer(RoutingIndexedReadReferenceBlock *rdi, SmerArraySlice *slice, RoutingReadData **orderedDispatches, MemDispenser *disp, MemCircHeap *circHeap, u8 sliceTag);

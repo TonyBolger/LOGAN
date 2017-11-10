@@ -215,7 +215,7 @@ static s32 walkerAdvanceGetLastUpstream(RouteTableTreeWalker *walker)
 	return (arrayIndex>=0)?block->entryArrays[arrayIndex]->upstream:-1;
 */
 
-	for(int i=block->upstreamOffsetAlloc;i>0;--i)
+	for(int i=block->upstreamOffsetAlloc;i>=0;--i)
 		{
 		if(block->upstreamLeafOffsets[i]>0)
 			return i;
@@ -567,6 +567,8 @@ s32 rttwAdvanceToUpstreamThenOffsetThenDownstream(RouteTableTreeWalker *walker, 
 		*upstreamOffsetPtr=0;
 		*downstreamOffsetPtr=0;
 
+		//LOG(LOG_INFO,"Scenario 1");
+
 		return 0;
 		}
 
@@ -586,6 +588,8 @@ s32 rttwAdvanceToUpstreamThenOffsetThenDownstream(RouteTableTreeWalker *walker, 
 			*upstreamPtr=upstream;
 			*upstreamOffsetPtr=walker->upstreamLeafOffsets[targetUpstream];
 			*downstreamOffsetPtr=walker->downstreamLeafOffsets[targetDownstream];
+
+			//LOG(LOG_INFO,"Scenario 2");
 
 			return 0;
 			}
@@ -612,6 +616,8 @@ s32 rttwAdvanceToUpstreamThenOffsetThenDownstream(RouteTableTreeWalker *walker, 
 			*upstreamPtr=upstream;
 			*upstreamOffsetPtr=walker->upstreamEntryOffsets[targetUpstream];
 			*downstreamOffsetPtr=walker->downstreamEntryOffsets[targetDownstream];
+
+			//LOG(LOG_INFO,"Scenario 3");
 
 			return 0;
 			}
@@ -646,6 +652,8 @@ s32 rttwAdvanceToUpstreamThenOffsetThenDownstream(RouteTableTreeWalker *walker, 
 				*upstreamPtr=targetUpstream;
 				*upstreamOffsetPtr=currentUpstreamOffset;
 				*downstreamOffsetPtr=walker->downstreamEntryOffsets[targetDownstream];
+
+				//LOG(LOG_INFO,"Scenario 4");
 
 				return 0;
 				}
@@ -689,6 +697,8 @@ s32 rttwAdvanceToUpstreamThenOffsetThenDownstream(RouteTableTreeWalker *walker, 
 				*upstreamOffsetPtr=currentUpstreamOffset;
 				*downstreamOffsetPtr=walker->downstreamEntryOffsets[targetDownstream];
 
+				//LOG(LOG_INFO,"Scenario 5");
+
 				return 0;
 				}
 
@@ -707,6 +717,8 @@ s32 rttwAdvanceToUpstreamThenOffsetThenDownstream(RouteTableTreeWalker *walker, 
 	*upstreamPtr=upstream;
 	*upstreamOffsetPtr=currentUpstreamOffset;
 	*downstreamOffsetPtr=walker->downstreamEntryOffsets[targetDownstream];
+
+	//LOG(LOG_INFO,"Scenario 6");
 
 	return 1;
 
@@ -812,7 +824,7 @@ void rttwMergeRoutes_insertEntry(RouteTableTreeWalker *walker, s32 upstream, s32
 				}
 			else if(upstream>arrayUpstream) // Insert new array after specified (problem)
 				{
-				LOG(LOG_CRITICAL,"ArrayInsertAfter: How???");
+				LOG(LOG_CRITICAL,"ArrayInsertAfter: NewUp %i ExistingUp %i How???",upstream,arrayUpstream);
 				}
 			else // Otherwise upstream matching, check for space
 				{
