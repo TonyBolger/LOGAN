@@ -33,10 +33,10 @@ typedef struct graphStr
 } Graph;
 
 
-void switchMode(Graph *graph);
+void grSwitchMode(Graph *graph);
 
-Graph *allocGraph(s32 nodeSize, s32 sparseness, void *userPtr);
-void freeGraph(Graph *graph);
+Graph *grAllocGraph(s32 nodeSize, s32 sparseness, void *userPtr);
+void grFreeGraph(Graph *graph);
 
 
 #endif

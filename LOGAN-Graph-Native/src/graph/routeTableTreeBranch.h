@@ -25,34 +25,34 @@ struct routeTableTreeBranchProxyStr
 
 };
 
-s32 getRouteTableTreeBranchSize_Expected(s16 childAlloc);
-s32 getRouteTableTreeBranchSize_Existing(RouteTableTreeBranchBlock *branchBlock);
+s32 rttbGetRouteTableTreeBranchSize_Expected(s16 childAlloc);
+s32 rttbGetRouteTableTreeBranchSize_Existing(RouteTableTreeBranchBlock *branchBlock);
 
-RouteTableTreeBranchBlock *reallocRouteTableTreeBranchBlockEntries(RouteTableTreeBranchBlock *oldBlock, MemDispenser *disp, s32 childAlloc);
+RouteTableTreeBranchBlock *rttbReallocRouteTableTreeBranchBlockEntries(RouteTableTreeBranchBlock *oldBlock, MemDispenser *disp, s32 childAlloc);
 
-void getRouteTableTreeBranchProxy_scan(RouteTableTreeBranchBlock *branchBlock, u16 *allocPtr, u16 *countPtr);
+void rttbGetRouteTableTreeBranchProxy_scan(RouteTableTreeBranchBlock *branchBlock, u16 *allocPtr, u16 *countPtr);
 
-void flushRouteTableTreeBranchProxy(RouteTableTreeProxy *treeProxy, RouteTableTreeBranchProxy *branchProxy);
+void rttbFlushRouteTableTreeBranchProxy(RouteTableTreeProxy *treeProxy, RouteTableTreeBranchProxy *branchProxy);
 
-RouteTableTreeBranchProxy *allocRouteTableTreeBranchProxy(RouteTableTreeProxy *treeProxy, s32 childAlloc);
+RouteTableTreeBranchProxy *rttbAllocRouteTableTreeBranchProxy(RouteTableTreeProxy *treeProxy, s32 childAlloc);
 
-void expandRouteTableTreeBranchProxy(RouteTableTreeProxy *treeProxy, RouteTableTreeBranchProxy *branchProxy);
+void rttbExpandRouteTableTreeBranchProxy(RouteTableTreeProxy *treeProxy, RouteTableTreeBranchProxy *branchProxy);
 
-void dumpBranchBlock(RouteTableTreeBranchBlock *branchBlock);
+void rttbDumpBranchBlock(RouteTableTreeBranchBlock *branchBlock);
 
-void branchMakeChildInsertSpace(RouteTableTreeBranchProxy *branchProxy, s16 childPosition, s16 childCount);
+void rttbBranchMakeChildInsertSpace(RouteTableTreeBranchProxy *branchProxy, s16 childPosition, s16 childCount);
 
-s16 getBranchChildSibdex_Branch_withEstimate(RouteTableTreeBranchProxy *parentBranchProxy, RouteTableTreeBranchProxy *childBranchProxy, s16 sibdexEstimate);
-s16 getBranchChildSibdex_Branch(RouteTableTreeBranchProxy *parentBranchProxy, RouteTableTreeBranchProxy *childBranchProxy);
+s16 rttbGetBranchChildSibdex_Branch_withEstimate(RouteTableTreeBranchProxy *parentBranchProxy, RouteTableTreeBranchProxy *childBranchProxy, s16 sibdexEstimate);
+s16 rttbGetBranchChildSibdex_Branch(RouteTableTreeBranchProxy *parentBranchProxy, RouteTableTreeBranchProxy *childBranchProxy);
 
-s16 getBranchChildSibdex_Leaf_withEstimate(RouteTableTreeBranchProxy *parentBranchProxy, RouteTableTreeLeafProxy *childLeafProxy, s16 sibdexEstimate);
-s16 getBranchChildSibdex_Leaf(RouteTableTreeBranchProxy *parentBranchProxy, RouteTableTreeLeafProxy *childLeafProxy);
+s16 rttbGetBranchChildSibdex_Leaf_withEstimate(RouteTableTreeBranchProxy *parentBranchProxy, RouteTableTreeLeafProxy *childLeafProxy, s16 sibdexEstimate);
+s16 rttbGetBranchChildSibdex_Leaf(RouteTableTreeBranchProxy *parentBranchProxy, RouteTableTreeLeafProxy *childLeafProxy);
 
-s32 getBranchChild(RouteTableTreeProxy *treeProxy, RouteTableTreeBranchProxy *parentBranchProxy, s16 sibdex,
+s32 rttbGetBranchChild(RouteTableTreeProxy *treeProxy, RouteTableTreeBranchProxy *parentBranchProxy, s16 sibdex,
 		RouteTableTreeBranchProxy **childBranchProxyPtr, RouteTableTreeLeafProxy **childLeafProxyPtr);
 
-RouteTableTreeBranchProxy *getBranchParent(RouteTableTreeProxy *treeProxy, RouteTableTreeBranchProxy *childBranchProxy);
-RouteTableTreeBranchProxy *getLeafParent(RouteTableTreeProxy *treeProxy, RouteTableTreeLeafProxy *childLeafProxy);
+RouteTableTreeBranchProxy *rttbGetBranchParent(RouteTableTreeProxy *treeProxy, RouteTableTreeBranchProxy *childBranchProxy);
+RouteTableTreeBranchProxy *rttbGetLeafParent(RouteTableTreeProxy *treeProxy, RouteTableTreeLeafProxy *childLeafProxy);
 
 
 

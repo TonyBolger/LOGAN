@@ -610,7 +610,7 @@ JNIEXPORT void JNICALL Java_logan_graph_Graph_switchMode_1Native
 {
 	Graph *graph = (Graph *) handle;
 
-	switchMode(graph);
+	grSwitchMode(graph);
 }
 
 
@@ -627,7 +627,7 @@ JNIEXPORT jlong JNICALL Java_logan_graph_Graph_alloc_1Native(
 	if (prepareJniRefs(env, jni) != 0)
 		return 0;
 
-	Graph *graph = allocGraph(nodeSize, sparseness, jni);
+	Graph *graph = grAllocGraph(nodeSize, sparseness, jni);
 
 	return (long) (graph);
 }
@@ -644,7 +644,7 @@ JNIEXPORT void JNICALL Java_logan_graph_Graph_free_1Native(
 	G_FREE(graph->userPtr, sizeof(GraphJni), MEMTRACKID_GRAPH);
 	graph->userPtr=NULL;
 
-	freeGraph(graph);
+	grFreeGraph(graph);
 }
 
 /* logan.graph.Graph: dump: Shows informatino about a Graph instance */

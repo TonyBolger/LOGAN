@@ -144,7 +144,7 @@ void dumpRoutingTableTree(RouteTableTreeProxy *treeProxy)
 		{
 		RouteTableTreeBranchBlock *branchBlock=getRouteTableTreeBranchBlock(treeProxy, i);
 
-		dumpBranchBlock(branchBlock);
+		rttbDumpBranchBlock(branchBlock);
 		}
 
 
@@ -152,7 +152,7 @@ void dumpRoutingTableTree(RouteTableTreeProxy *treeProxy)
 		{
 		RouteTableTreeLeafBlock *leafBlock=getRouteTableTreeLeafBlock(treeProxy, i);
 
-		dumpLeafBlock(leafBlock);
+		rttlDumpLeafBlock(leafBlock);
 		}
 
 }
@@ -186,14 +186,14 @@ void rttDumpRoutingTable(RouteTableTreeBuilder *builder)
 
 s32 rttGetTopArraySize(RouteTableTreeArrayProxy *arrayProxy)
 {
-	int entryCount=rttGetArrayEntries(arrayProxy);
+	int entryCount=rttaGetArrayEntries(arrayProxy);
 
 	if(entryCount>ROUTE_TABLE_TREE_SHALLOW_DATA_ARRAY_ENTRIES)
 		{
-		entryCount=rttCalcFirstLevelArrayEntries(entryCount);
+		entryCount=rttaCalcFirstLevelArrayEntries(entryCount);
 		}
 
-	return rttCalcArraySize(entryCount);
+	return rttaCalcArraySize(entryCount);
 }
 
 
@@ -234,7 +234,7 @@ static void appendStarterLeaf(RouteTableTreeEntryBuffer *buf)
 	if(buf->oldBranchProxy==NULL)
 		LOG(LOG_CRITICAL,"Not on a valid branch");
 
-	buf->oldLeafProxy=allocRouteTableTreeLeafProxy(buf->treeProxy, buf->upstreamOffsetCount, buf->downstreamOffsetCount, ROUTEPACKING_ENTRYARRAYS_CHUNK);
+	buf->oldLeafProxy=rttlAllocRouteTableTreeLeafProxy(buf->treeProxy, buf->upstreamOffsetCount, buf->downstreamOffsetCount, ROUTEPACKING_ENTRYARRAYS_CHUNK);
 	treeProxyAppendLeafChild(buf->treeProxy, buf->oldBranchProxy, buf->oldLeafProxy, &buf->oldBranchProxy, &buf->oldBranchChildSibdex);
 }
 
@@ -296,6 +296,9 @@ static void treeEntryBufferInit(RouteTableTreeEntryBuffer *buf, RouteTableTreePr
 
 static RouteTableUnpackedEntryArray *treeEntryBufferNewOutputEntryArray(RouteTableTreeEntryBuffer *buf, s32 upstream)
 {
+	if(buf->newLeafProxy!=buf->oldLeafProxy)
+		LOG(LOG_CRITICAL,"Proxy mismatch");
+
 	if(buf->newEntryArraysPtr==buf->newEntryArraysPtrEnd)
 		{
 		//LOG(LOG_INFO,"SPLIT NEEDED");
@@ -303,23 +306,27 @@ static RouteTableUnpackedEntryArray *treeEntryBufferNewOutputEntryArray(RouteTab
 		//void treeProxyInsertLeafChild(RouteTableTreeProxy *treeProxy, RouteTableTreeBranchProxy *parentBranchProxy, RouteTableTreeLeafProxy *childLeafProxy, s16 childPosition,
 				//RouteTableTreeBranchProxy **updatedParentBranchProxyPtr, s16 *updatedChildPositionPtr);
 
-		RouteTableTreeLeafProxy *newLeafProxy=allocRouteTableTreeLeafProxy(buf->treeProxy, buf->upstreamOffsetCount, buf->downstreamOffsetCount, ROUTEPACKING_ENTRYARRAYS_MAX);
-		rttlMarkDirty(buf->treeProxy, newLeafProxy);
+		RouteTableTreeLeafProxy *freshLeafProxy=rttlAllocRouteTableTreeLeafProxy(buf->treeProxy, buf->upstreamOffsetCount, buf->downstreamOffsetCount, ROUTEPACKING_ENTRYARRAYS_MAX);
+		rttlMarkDirty(buf->treeProxy, freshLeafProxy);
 
-		RouteTableTreeBranchProxy *updatedParentBranchProxy;
-		s16 updatedChildPosition;
+		RouteTableTreeBranchProxy *updatedBranchProxy;
+		s16 updatedExistingLeafPosition;
+		s16 updatedFreshLeafPosition;
 
-		treeProxyInsertLeafChild(buf->treeProxy, buf->newBranchProxy, newLeafProxy, buf->newBranchChildSibdex, &updatedParentBranchProxy, &updatedChildPosition);
+//		treeProxyInsertLeafChild(buf->treeProxy, buf->newBranchProxy, newLeafProxy, buf->newBranchChildSibdex, &updatedParentBranchProxy, &updatedChildPosition);
 
-		if(updatedParentBranchProxy != buf->newBranchProxy)
-			LOG(LOG_CRITICAL,"SPLIT PARENT: FIXME");
+		treeProxyInsertLeafChildBefore(buf->treeProxy, buf->newBranchProxy, buf->newLeafProxy, buf->newBranchChildSibdex, freshLeafProxy,
+				&updatedBranchProxy, &updatedExistingLeafPosition, &updatedFreshLeafPosition);
+
+		if(updatedBranchProxy != buf->newBranchProxy)
+			buf->newBranchProxy=buf->oldBranchProxy=updatedBranchProxy;
 
 		//LOG(LOG_INFO,"Requested %i Got %i", buf->newBranchChildSibdex, updatedChildPosition);
 
-		buf->oldBranchChildSibdex++;
-		buf->newBranchChildSibdex++;
+		buf->oldBranchChildSibdex=updatedExistingLeafPosition;
+		buf->newBranchChildSibdex=updatedExistingLeafPosition;
 
-		RouteTableUnpackedSingleBlock *newBlock=newLeafProxy->unpackedBlock;
+		RouteTableUnpackedSingleBlock *newBlock=freshLeafProxy->unpackedBlock;
 
 		memcpy(newBlock->upstreamLeafOffsets, buf->newLeafUpstreamOffsets, sizeof(s32)*buf->upstreamOffsetCount);
 		memcpy(newBlock->downstreamLeafOffsets, buf->newLeafDownstreamOffsets, sizeof(s32)*buf->downstreamOffsetCount);
@@ -449,7 +456,16 @@ static s32 treeEntryBufferPollInput(RouteTableTreeEntryBuffer *buf)
 
 		if(oldArrayPtr==buf->oldEntryArraysPtrEnd)
 			{
-			// First flush the output buffers (sub-optimal)
+			if(!hasMoreSiblings(buf->treeProxy, buf->oldBranchProxy, buf->oldBranchChildSibdex, buf->oldLeafProxy))
+			{
+				buf->oldUpstream=0;
+				buf->oldDownstream=0;
+				buf->oldWidth=0;
+
+				return 0;
+				}
+
+			// First flush the output buffers - may restructure tree
 			treeEntryBufferFlushOutputEntry(buf);
 			treeEntryBufferFlushOutputArrays(buf);
 
@@ -458,15 +474,7 @@ static s32 treeEntryBufferPollInput(RouteTableTreeEntryBuffer *buf)
 			s16 branchChildSibdex=buf->oldBranchChildSibdex;
 
 			if(!getNextLeafSibling(buf->treeProxy, &branchProxy, &branchChildSibdex, &leafProxy)) // No more leaves
-				{
-//				LOG(LOG_INFO,"treeEntryBufferPollInput: No more leaves");
-
-				buf->oldUpstream=0;
-				buf->oldDownstream=0;
-				buf->oldWidth=0;
-
-				return 0;
-				}
+				LOG(LOG_CRITICAL,"treeEntryBufferPollInput: No more leaves");
 
 			// More leaves
 			//LOG(LOG_INFO,"treeEntryBufferPollInput: Moved leaf - now %i",branchChildSibdex);
@@ -1883,7 +1891,7 @@ void rttGetStats(RouteTableTreeBuilder *builder,
 			{
 			RouteTableTreeBranchProxy *branchProxy=getRouteTableTreeBranchProxy(treeProxies[p], i);
 
-			branchBytes+=getRouteTableTreeBranchSize_Existing(branchProxy->dataBlock);
+			branchBytes+=rttbGetRouteTableTreeBranchSize_Existing(branchProxy->dataBlock);
 			//branchOffsetBytes+=;
 			branchChildBytes+=((s32)branchProxy->dataBlock->childAlloc)*sizeof(RouteTableTreeBranchChild);
 			}

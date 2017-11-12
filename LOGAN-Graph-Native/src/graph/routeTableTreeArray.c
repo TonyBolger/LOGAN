@@ -3,7 +3,7 @@
 
 
 
-s32 getRouteTableTreeArraySize_Existing(RouteTableTreeArrayBlock *arrayBlock)
+s32 rttaGetRouteTableTreeArraySize_Existing(RouteTableTreeArrayBlock *arrayBlock)
 {
 	return sizeof(RouteTableTreeArrayBlock)+sizeof(u8 *)*arrayBlock->dataAlloc;
 }
@@ -85,7 +85,7 @@ static void initBlockArrayProxy_scanIndirect(RouteTableTreeArrayBlock *arrayBloc
 }
 
 
-void rttBindBlockArrayProxy(RouteTableTreeArrayProxy *arrayProxy, u8 *heapDataPtr, u32 headerSize, u32 isIndirect)
+void rttaBindBlockArrayProxy(RouteTableTreeArrayProxy *arrayProxy, u8 *heapDataPtr, u32 headerSize, u32 isIndirect)
 {
 	RouteTableTreeArrayBlock *dataBlock=NULL;
 
@@ -140,11 +140,11 @@ void rttBindBlockArrayProxy(RouteTableTreeArrayProxy *arrayProxy, u8 *heapDataPt
 		*/
 }
 
-void initBlockArrayProxy(RouteTableTreeProxy *treeProxy, RouteTableTreeArrayProxy *arrayProxy, HeapDataBlock *heapDataBlock, u8 *heapDataPtr, u32 isIndirect)
+void rttaInitBlockArrayProxy(RouteTableTreeProxy *treeProxy, RouteTableTreeArrayProxy *arrayProxy, HeapDataBlock *heapDataBlock, u8 *heapDataPtr, u32 isIndirect)
 {
 	arrayProxy->heapDataBlock=heapDataBlock;
 
-	rttBindBlockArrayProxy(arrayProxy, heapDataPtr, arrayProxy->heapDataBlock->headerSize, isIndirect);
+	rttaBindBlockArrayProxy(arrayProxy, heapDataPtr, arrayProxy->heapDataBlock->headerSize, isIndirect);
 
 	if(arrayProxy->ptrBlock!=NULL) // Indirect mode
 		{
@@ -188,7 +188,7 @@ void initBlockArrayProxy(RouteTableTreeProxy *treeProxy, RouteTableTreeArrayProx
 }
 
 
-void dumpBlockArrayEntry(u8 *rawPtr)
+static void dumpBlockArrayEntry(u8 *rawPtr)
 {
 	s32 topIndex=0, indexSize=0, index=0, subindexSize=0, subindex=0;
 
@@ -217,14 +217,14 @@ void dumpBlockArrayEntry(u8 *rawPtr)
 
 		case ROUTE_PSEUDO_INDEX_FORWARD_BRANCH_1:
 		case ROUTE_PSEUDO_INDEX_REVERSE_BRANCH_1:
-			dumpBranchBlock((RouteTableTreeBranchBlock *) block);
+			rttbDumpBranchBlock((RouteTableTreeBranchBlock *) block);
 			break;
 
 		case ROUTE_PSEUDO_INDEX_FORWARD_LEAF_1:
 		case ROUTE_PSEUDO_INDEX_REVERSE_LEAF_1:
 		case ROUTE_PSEUDO_INDEX_FORWARD_LEAF_2:
 		case ROUTE_PSEUDO_INDEX_REVERSE_LEAF_2:
-			dumpLeafBlock((RouteTableTreeLeafBlock *) block);
+			rttlDumpLeafBlock((RouteTableTreeLeafBlock *) block);
 			break;
 
 		default:
@@ -235,7 +235,7 @@ void dumpBlockArrayEntry(u8 *rawPtr)
 
 }
 
-void dumpBlockArrayProxy(RouteTableTreeArrayProxy *arrayProxy)
+void rttaDumpBlockArrayProxy(RouteTableTreeArrayProxy *arrayProxy)
 {
 	if(arrayProxy==NULL)
 		{
@@ -320,7 +320,7 @@ s32 getBlockArraySize(RouteTableTreeArrayProxy *arrayProxy)
 }
 */
 
-u8 *getBlockArrayDataEntryRaw(RouteTableTreeArrayProxy *arrayProxy, s32 subindex)
+u8 *rttaGetBlockArrayDataEntryRaw(RouteTableTreeArrayProxy *arrayProxy, s32 subindex)
 {
 	// Indirect Mode
 	if(arrayProxy->ptrBlock!=NULL)
@@ -367,7 +367,7 @@ u8 *getBlockArrayDataEntryRaw(RouteTableTreeArrayProxy *arrayProxy, s32 subindex
 	return NULL;
 }
 
-void setBlockArrayDataEntryRaw(RouteTableTreeArrayProxy *arrayProxy, s32 subindex, u8 *data)
+void rttaSetBlockArrayDataEntryRaw(RouteTableTreeArrayProxy *arrayProxy, s32 subindex, u8 *data)
 {
 //	LOG(LOG_INFO,"Setting array entry %i to %p",subindex, data);
 
@@ -460,7 +460,7 @@ static s32 findBlockArrayEntryIndex(s32 key, RouteTableTreeArrayEntry *base, siz
 }
 
 
-void *getBlockArrayNewEntryProxy(RouteTableTreeArrayProxy *arrayProxy, s32 index)
+void *rttaGetBlockArrayNewEntryProxy(RouteTableTreeArrayProxy *arrayProxy, s32 index)
 {
 	if(arrayProxy->newEntries!=NULL)
 		{
@@ -476,15 +476,14 @@ void *getBlockArrayNewEntryProxy(RouteTableTreeArrayProxy *arrayProxy, s32 index
 }
 
 
-//static
-u8 *getBlockArrayExistingEntryData(RouteTableTreeArrayProxy *arrayProxy, s32 subindex)
+u8 *rttaGetBlockArrayExistingEntryData(RouteTableTreeArrayProxy *arrayProxy, s32 subindex)
 {
 	if(subindex<0 || subindex>arrayProxy->oldDataCount)
 		{
 		return NULL;
 		}
 
-	u8 *data=getBlockArrayDataEntryRaw(arrayProxy, subindex);
+	u8 *data=rttaGetBlockArrayDataEntryRaw(arrayProxy, subindex);
 
 	if(data==NULL)
 		{
@@ -513,7 +512,7 @@ u8 *getBlockArrayExistingEntryData(RouteTableTreeArrayProxy *arrayProxy, s32 ind
 
 }
 */
-void ensureBlockArrayWritable(RouteTableTreeArrayProxy *arrayProxy, MemDispenser *disp)
+void rttaEnsureBlockArrayWritable(RouteTableTreeArrayProxy *arrayProxy, MemDispenser *disp)
 {
 	if(arrayProxy->newEntries==NULL) // Haven't yet written anything - make writable
 		{
@@ -574,7 +573,7 @@ static void insertBlockArrayEntryProxy(RouteTableTreeArrayProxy *arrayProxy, s32
 }
 
 
-s32 appendBlockArrayEntryProxy(RouteTableTreeArrayProxy *arrayProxy, void *proxy, MemDispenser *disp)
+s32 rttaAppendBlockArrayEntryProxy(RouteTableTreeArrayProxy *arrayProxy, void *proxy, MemDispenser *disp)
 {
 	// Need to optionally expand, then append
 
@@ -610,9 +609,9 @@ s32 appendBlockArrayEntryProxy(RouteTableTreeArrayProxy *arrayProxy, void *proxy
 
 
 //static
-void setBlockArrayEntryProxy(RouteTableTreeArrayProxy *arrayProxy, s32 index, void *proxy, MemDispenser *disp)
+void rttaSetBlockArrayEntryProxy(RouteTableTreeArrayProxy *arrayProxy, s32 index, void *proxy, MemDispenser *disp)
 {
-	ensureBlockArrayWritable(arrayProxy, disp);
+	rttaEnsureBlockArrayWritable(arrayProxy, disp);
 
 	if(index>=0 && index<arrayProxy->newDataCount)
 		{
@@ -632,13 +631,13 @@ void setBlockArrayEntryProxy(RouteTableTreeArrayProxy *arrayProxy, s32 index, vo
 
 
 
-s32 rttGetArrayDirty(RouteTableTreeArrayProxy *arrayProxy)
+s32 rttaGetArrayDirty(RouteTableTreeArrayProxy *arrayProxy)
 {
 	return arrayProxy->newEntries!=NULL;
 }
 
 
-s32 rttCalcFirstLevelArrayEntries(s32 entries)
+s32 rttaCalcFirstLevelArrayEntries(s32 entries)
 {
 	if(entries<ROUTE_TABLE_TREE_SHALLOW_DATA_ARRAY_ENTRIES)
 		LOG(LOG_CRITICAL,"Unnecessary use of indirect arrays for %i entries",entries);
@@ -646,7 +645,7 @@ s32 rttCalcFirstLevelArrayEntries(s32 entries)
 	return ((entries+ROUTE_TABLE_TREE_DEEP_DATA_ARRAY_ENTRIES-1) >> ROUTE_TABLE_TREE_DEEP_DATA_ARRAY_ENTRIES_SHIFT); // Round up
 }
 
-s32 rttCalcFirstLevelArrayCompleteEntries(s32 entries)
+s32 rttaCalcFirstLevelArrayCompleteEntries(s32 entries)
 {
 	if(entries<ROUTE_TABLE_TREE_SHALLOW_DATA_ARRAY_ENTRIES)
 		LOG(LOG_CRITICAL,"Unnecessary use of indirect arrays for %i entries",entries);
@@ -654,7 +653,7 @@ s32 rttCalcFirstLevelArrayCompleteEntries(s32 entries)
 	return (entries >> ROUTE_TABLE_TREE_DEEP_DATA_ARRAY_ENTRIES_SHIFT); // No round up
 }
 
-s32 rttCalcFirstLevelArrayAdditionalEntries(s32 entries)
+s32 rttaCalcFirstLevelArrayAdditionalEntries(s32 entries)
 {
 	if(entries<ROUTE_TABLE_TREE_SHALLOW_DATA_ARRAY_ENTRIES)
 		LOG(LOG_CRITICAL,"Unnecessary use of indirect arrays for %i entries",entries);
@@ -665,13 +664,13 @@ s32 rttCalcFirstLevelArrayAdditionalEntries(s32 entries)
 
 
 
-s32 rttCalcArraySize(s32 entries)
+s32 rttaCalcArraySize(s32 entries)
 {
 	return sizeof(RouteTableTreeArrayBlock)+sizeof(u8 *)*entries;
 }
 
 
-s32 rttGetArrayEntries(RouteTableTreeArrayProxy *arrayProxy)
+s32 rttaGetArrayEntries(RouteTableTreeArrayProxy *arrayProxy)
 {
 	if(arrayProxy->newEntries!=NULL)
 		return arrayProxy->newDataAlloc;

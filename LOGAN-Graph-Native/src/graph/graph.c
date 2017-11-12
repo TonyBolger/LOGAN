@@ -11,7 +11,7 @@
 
 
 
-void switchMode(Graph *graph)
+void grSwitchMode(Graph *graph)
 {
 	if(graph->mode!=GRAPH_MODE_INDEX)
 		{
@@ -30,7 +30,7 @@ void switchMode(Graph *graph)
 }
 
 
-Graph *allocGraph(s32 nodeSize, s32 sparseness, void *userPtr)
+Graph *grAllocGraph(s32 nodeSize, s32 sparseness, void *userPtr)
 {
 	LOG(LOG_INFO,"Allocating Graph with NodeSize %i and Sparseness %i",nodeSize,sparseness);
 
@@ -49,7 +49,7 @@ Graph *allocGraph(s32 nodeSize, s32 sparseness, void *userPtr)
 	return graph;
 }
 
-void freeGraph(Graph *graph)
+void grFreeGraph(Graph *graph)
 {
 	LOG(LOG_INFO,"Freeing Graph");
 

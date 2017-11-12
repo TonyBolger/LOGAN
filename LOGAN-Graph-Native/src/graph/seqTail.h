@@ -24,21 +24,21 @@ typedef struct seqTailBuilderStr
 } SeqTailBuilder;
 
 
-u8 *scanTails(u8 *data);
-u8 *initSeqTailBuilder(SeqTailBuilder *builder, u8 *data, MemDispenser *disp);
+u8 *stScanTails(u8 *data);
+u8 *stInitSeqTailBuilder(SeqTailBuilder *builder, u8 *data, MemDispenser *disp);
 
-void dumpSeqTailBuilder(SeqTailBuilder *builder);
+void stDumpSeqTailBuilder(SeqTailBuilder *builder);
 
-s32 getSeqTailBuilderDirty(SeqTailBuilder *seqTailBuilder);
-s32 getSeqTailBuilderPackedSize(SeqTailBuilder *seqTailBuilder);
-s32 getSeqTailTotalTailCount(SeqTailBuilder *builder);
+s32 stGetSeqTailBuilderDirty(SeqTailBuilder *seqTailBuilder);
+s32 stGetSeqTailBuilderPackedSize(SeqTailBuilder *seqTailBuilder);
+s32 stGetSeqTailTotalTailCount(SeqTailBuilder *builder);
 
-u8 *writeSeqTailBuilderPackedData(SeqTailBuilder *seqTailBuilder, u8 *data);
+u8 *stWriteSeqTailBuilderPackedData(SeqTailBuilder *seqTailBuilder, u8 *data);
 
-s32 findSeqTail(SeqTailBuilder *seqTailBuilder, SmerId smer, s32 tailLength);
-s32 findOrCreateSeqTail(SeqTailBuilder *seqTailBuilder, SmerId smer, s32 tailLength);
+s32 stFindSeqTail(SeqTailBuilder *seqTailBuilder, SmerId smer, s32 tailLength);
+s32 stFindOrCreateSeqTail(SeqTailBuilder *seqTailBuilder, SmerId smer, s32 tailLength);
 
-void *unpackPrefixesForSmerLinked(SmerLinked *smerLinked, u8 *data, MemDispenser *disp);
-void *unpackSuffixesForSmerLinked(SmerLinked *smerLinked, u8 *data, MemDispenser *disp);
+void *stUnpackPrefixesForSmerLinked(SmerLinked *smerLinked, u8 *data, MemDispenser *disp);
+void *stUnpackSuffixesForSmerLinked(SmerLinked *smerLinked, u8 *data, MemDispenser *disp);
 
 #endif

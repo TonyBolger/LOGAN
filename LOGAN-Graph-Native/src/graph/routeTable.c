@@ -1228,8 +1228,8 @@ MemCircHeapChunkIndex *rtReclaimIndexer(u8 *heapDataPtr, s64 targetAmount, u8 ta
 				currentIndex+=chunkTagOffsetDiff;
 				u8 *scanPtr=heapDataPtr+rtGetGapBlockHeaderSize();
 
-				scanPtr=scanTails(scanPtr);
-				scanPtr=scanTails(scanPtr);
+				scanPtr=stScanTails(scanPtr);
+				scanPtr=stScanTails(scanPtr);
 				scanPtr=rtaScanRouteTableArray(scanPtr);
 
 				s32 size=scanPtr-heapDataPtr;
@@ -1337,7 +1337,7 @@ MemCircHeapChunkIndex *rtReclaimIndexer(u8 *heapDataPtr, s64 targetAmount, u8 ta
 				s32 headerSize=rtDecodeTailBlockHeader(heapDataPtr, &prefixSuffix, NULL, &smerIndex);
 				u8 *scanPtr=heapDataPtr+headerSize;
 
-				scanPtr=scanTails(scanPtr);
+				scanPtr=stScanTails(scanPtr);
 				u32 size=scanPtr-heapDataPtr;
 
 				if(header & ALLOC_HEADER_LIVE_MASK)
@@ -1382,15 +1382,15 @@ MemCircHeapChunkIndex *rtReclaimIndexer(u8 *heapDataPtr, s64 targetAmount, u8 ta
 
 				if(topindex<=ROUTE_TOPINDEX_REVERSE_LEAF_ARRAY_0) // Level 0 leaf/branch array
 					{
-					dataSize=getRouteTableTreeArraySize_Existing((RouteTableTreeArrayBlock *)scanPtr);
+					dataSize=rttaGetRouteTableTreeArraySize_Existing((RouteTableTreeArrayBlock *)scanPtr);
 					}
 				else if(topindex<=ROUTE_PSEUDO_INDEX_REVERSE_LEAF_ARRAY_1)
 					{
-					dataSize=getRouteTableTreeArraySize_Existing((RouteTableTreeArrayBlock *)scanPtr);
+					dataSize=rttaGetRouteTableTreeArraySize_Existing((RouteTableTreeArrayBlock *)scanPtr);
 					}
 				else if(topindex<=ROUTE_PSEUDO_INDEX_REVERSE_BRANCH_1)
 					{
-					dataSize=getRouteTableTreeBranchSize_Existing((RouteTableTreeBranchBlock *)scanPtr);
+					dataSize=rttbGetRouteTableTreeBranchSize_Existing((RouteTableTreeBranchBlock *)scanPtr);
 
 					if(header & ALLOC_HEADER_LIVE_MASK)
 						subindex=scanTagDataIndexed_1(tagData,smerIndex,topindex-ROUTE_PSEUDO_INDEX_ENTITY_1_ADJUST,subindex,heapDataPtr);

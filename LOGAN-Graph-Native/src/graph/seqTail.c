@@ -70,7 +70,7 @@ static u8 *readSeqTailBuilderPackedData(SeqTailBuilder *builder, u8 *data)
 
 }
 
-u8 *scanTails(u8 *data)
+u8 *stScanTails(u8 *data)
 {
 	if(data!=NULL)
 		{
@@ -85,7 +85,7 @@ u8 *scanTails(u8 *data)
 	return NULL;
 }
 
-u8 *initSeqTailBuilder(SeqTailBuilder *builder, u8 *data, MemDispenser *disp)
+u8 *stInitSeqTailBuilder(SeqTailBuilder *builder, u8 *data, MemDispenser *disp)
 {
 	builder->disp=disp;
 
@@ -99,22 +99,22 @@ u8 *initSeqTailBuilder(SeqTailBuilder *builder, u8 *data, MemDispenser *disp)
 }
 
 
-s32 getSeqTailBuilderDirty(SeqTailBuilder *seqTailBuilder)
+s32 stGetSeqTailBuilderDirty(SeqTailBuilder *seqTailBuilder)
 {
 	return seqTailBuilder->newTailCount!=0;
 }
 
-s32 getSeqTailBuilderPackedSize(SeqTailBuilder *seqTailBuilder)
+s32 stGetSeqTailBuilderPackedSize(SeqTailBuilder *seqTailBuilder)
 {
 	return seqTailBuilder->totalPackedSize;
 }
 
-s32 getSeqTailTotalTailCount(SeqTailBuilder *builder)
+s32 stGetSeqTailTotalTailCount(SeqTailBuilder *builder)
 {
 	return builder->oldTailCount+builder->newTailCount;
 }
 
-void dumpSeqTailBuilder(SeqTailBuilder *builder)
+void stDumpSeqTailBuilder(SeqTailBuilder *builder)
 {
 	LOG(LOG_INFO,"Tail Count: %i %i", builder->oldTailCount,builder->newTailCount);
 
@@ -152,7 +152,7 @@ static s32 writeSeqTailBuilderPackedDataSingle(u8 *data, SmerId smer, s32 smerLe
 }
 
 
-u8 *writeSeqTailBuilderPackedData(SeqTailBuilder *builder, u8 *data)
+u8 *stWriteSeqTailBuilderPackedData(SeqTailBuilder *builder, u8 *data)
 {
 	u8 *initData=data;
 
@@ -189,7 +189,7 @@ u8 *writeSeqTailBuilderPackedData(SeqTailBuilder *builder, u8 *data)
 	if(size!=builder->totalPackedSize)
 	{
 		LOG(LOG_INFO,"Problem writing seqTails");
-		dumpSeqTailBuilder(builder);
+		stDumpSeqTailBuilder(builder);
 		LOG(LOG_CRITICAL,"Size %i did not match expected size %i",size,builder->totalPackedSize);
 	}
 
@@ -222,7 +222,7 @@ static s32 findSeqTailIndex(SeqTailBuilder *builder, s64 tail)
 	return -1;
 }
 
-s32 findSeqTail(SeqTailBuilder *builder, SmerId smer, s32 tailLength)
+s32 stFindSeqTail(SeqTailBuilder *builder, SmerId smer, s32 tailLength)
 {
 	if(tailLength==0)
 		return 0;
@@ -234,7 +234,7 @@ s32 findSeqTail(SeqTailBuilder *builder, SmerId smer, s32 tailLength)
 
 #define NEWTAIL_MINCOUNT 1
 
-s32 findOrCreateSeqTail(SeqTailBuilder *builder, SmerId smer, s32 tailLength)
+s32 stFindOrCreateSeqTail(SeqTailBuilder *builder, SmerId smer, s32 tailLength)
 {
 	if(tailLength==0)
 		return 0;
@@ -275,7 +275,7 @@ s32 findOrCreateSeqTail(SeqTailBuilder *builder, SmerId smer, s32 tailLength)
 }
 
 
-void *unpackPrefixesForSmerLinked(SmerLinked *smerLinked, u8 *data, MemDispenser *disp)
+void *stUnpackPrefixesForSmerLinked(SmerLinked *smerLinked, u8 *data, MemDispenser *disp)
 {
 	if(data!=NULL)
 		{
@@ -329,7 +329,7 @@ void *unpackPrefixesForSmerLinked(SmerLinked *smerLinked, u8 *data, MemDispenser
 }
 
 
-void *unpackSuffixesForSmerLinked(SmerLinked *smerLinked, u8 *data, MemDispenser *disp)
+void *stUnpackSuffixesForSmerLinked(SmerLinked *smerLinked, u8 *data, MemDispenser *disp)
 {
 	if(data!=NULL)
 		{

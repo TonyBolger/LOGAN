@@ -2,13 +2,13 @@
 #include "common.h"
 
 
-s32 getRouteTableTreeBranchSize_Expected(s16 childAlloc)
+s32 rttbGetRouteTableTreeBranchSize_Expected(s16 childAlloc)
 {
 	return sizeof(RouteTableTreeBranchBlock)+((s32)childAlloc)*sizeof(RouteTableTreeBranchChild);
 }
 
 
-s32 getRouteTableTreeBranchSize_Existing(RouteTableTreeBranchBlock *branchBlock)
+s32 rttbGetRouteTableTreeBranchSize_Existing(RouteTableTreeBranchBlock *branchBlock)
 {
 	return sizeof(RouteTableTreeBranchBlock)+((s32)branchBlock->childAlloc)*sizeof(RouteTableTreeBranchChild);
 }
@@ -17,14 +17,14 @@ s32 getRouteTableTreeBranchSize_Existing(RouteTableTreeBranchBlock *branchBlock)
 
 
 
-RouteTableTreeBranchBlock *reallocRouteTableTreeBranchBlockEntries(RouteTableTreeBranchBlock *oldBlock, MemDispenser *disp, s32 childAlloc)
+RouteTableTreeBranchBlock *rttbReallocRouteTableTreeBranchBlockEntries(RouteTableTreeBranchBlock *oldBlock, MemDispenser *disp, s32 childAlloc)
 {
 	if(childAlloc>ROUTE_TABLE_TREE_BRANCH_CHILDREN)
 		{
 		LOG(LOG_CRITICAL,"Cannot allocate oversize branch with %i children",childAlloc);
 		}
 
-	RouteTableTreeBranchBlock *block=dAlloc(disp, getRouteTableTreeBranchSize_Expected(childAlloc));
+	RouteTableTreeBranchBlock *block=dAlloc(disp, rttbGetRouteTableTreeBranchSize_Expected(childAlloc));
 	block->parentBrindex=BRANCH_NINDEX_INVALID;
 //	block->upstreamMin=-1;
 //	block->upstreamMax=-1;
@@ -35,7 +35,7 @@ RouteTableTreeBranchBlock *reallocRouteTableTreeBranchBlockEntries(RouteTableTre
 		oldBlockChildAlloc=oldBlock->childAlloc;
 		s32 toKeepChildAlloc=MIN(oldBlockChildAlloc, childAlloc);
 
-		memcpy(block,oldBlock, getRouteTableTreeBranchSize_Expected(toKeepChildAlloc));
+		memcpy(block,oldBlock, rttbGetRouteTableTreeBranchSize_Expected(toKeepChildAlloc));
 		}
 
 	for(int i=oldBlockChildAlloc;i<childAlloc;i++)
@@ -53,7 +53,7 @@ static RouteTableTreeBranchBlock *allocRouteTableTreeBranchBlock(MemDispenser *d
 		LOG(LOG_CRITICAL,"Cannot allocate oversize branch with %i children",childAlloc);
 		}
 
-	RouteTableTreeBranchBlock *block=dAlloc(disp, getRouteTableTreeBranchSize_Expected(childAlloc));
+	RouteTableTreeBranchBlock *block=dAlloc(disp, rttbGetRouteTableTreeBranchSize_Expected(childAlloc));
 	block->childAlloc=childAlloc;
 	block->parentBrindex=BRANCH_NINDEX_INVALID;
 //	block->upstreamMin=-1;
@@ -66,7 +66,7 @@ static RouteTableTreeBranchBlock *allocRouteTableTreeBranchBlock(MemDispenser *d
 }
 
 
-void getRouteTableTreeBranchProxy_scan(RouteTableTreeBranchBlock *branchBlock, u16 *allocPtr, u16 *countPtr)
+void rttbGetRouteTableTreeBranchProxy_scan(RouteTableTreeBranchBlock *branchBlock, u16 *allocPtr, u16 *countPtr)
 {
 	if(branchBlock==NULL)
 		{
@@ -95,13 +95,13 @@ void getRouteTableTreeBranchProxy_scan(RouteTableTreeBranchBlock *branchBlock, u
 
 
 
-void flushRouteTableTreeBranchProxy(RouteTableTreeProxy *treeProxy, RouteTableTreeBranchProxy *branchProxy)
+void rttbFlushRouteTableTreeBranchProxy(RouteTableTreeProxy *treeProxy, RouteTableTreeBranchProxy *branchProxy)
 {
-	setBlockArrayEntryProxy(&(treeProxy->branchArrayProxy), branchProxy->brindex, branchProxy, treeProxy->disp);
+	rttaSetBlockArrayEntryProxy(&(treeProxy->branchArrayProxy), branchProxy->brindex, branchProxy, treeProxy->disp);
 }
 
 
-RouteTableTreeBranchProxy *allocRouteTableTreeBranchProxy(RouteTableTreeProxy *treeProxy, s32 childAlloc)
+RouteTableTreeBranchProxy *rttbAllocRouteTableTreeBranchProxy(RouteTableTreeProxy *treeProxy, s32 childAlloc)
 {
 	if(childAlloc<ROUTE_TABLE_TREE_BRANCH_CHILDREN_CHUNK)
 		childAlloc=ROUTE_TABLE_TREE_BRANCH_CHILDREN_CHUNK;
@@ -109,7 +109,7 @@ RouteTableTreeBranchProxy *allocRouteTableTreeBranchProxy(RouteTableTreeProxy *t
 	RouteTableTreeBranchBlock *dataBlock=allocRouteTableTreeBranchBlock(treeProxy->disp, childAlloc);
 
 	RouteTableTreeBranchProxy *branchProxy=dAlloc(treeProxy->disp, sizeof(RouteTableTreeBranchProxy));
-	s32 brindex=appendBlockArrayEntryProxy(&(treeProxy->branchArrayProxy), branchProxy, treeProxy->disp);
+	s32 brindex=rttaAppendBlockArrayEntryProxy(&(treeProxy->branchArrayProxy), branchProxy, treeProxy->disp);
 
 	branchProxy->dataBlock=dataBlock;
 	branchProxy->brindex=brindex;
@@ -122,16 +122,16 @@ RouteTableTreeBranchProxy *allocRouteTableTreeBranchProxy(RouteTableTreeProxy *t
 
 
 
-void expandRouteTableTreeBranchProxy(RouteTableTreeProxy *treeProxy, RouteTableTreeBranchProxy *branchProxy)
+void rttbExpandRouteTableTreeBranchProxy(RouteTableTreeProxy *treeProxy, RouteTableTreeBranchProxy *branchProxy)
 {
 	s32 newAlloc=MIN(branchProxy->childAlloc+ROUTE_TABLE_TREE_BRANCH_CHILDREN_CHUNK, ROUTE_TABLE_TREE_BRANCH_CHILDREN);
 
-	RouteTableTreeBranchBlock *parentBlock=reallocRouteTableTreeBranchBlockEntries(branchProxy->dataBlock, treeProxy->disp, newAlloc);
+	RouteTableTreeBranchBlock *parentBlock=rttbReallocRouteTableTreeBranchBlockEntries(branchProxy->dataBlock, treeProxy->disp, newAlloc);
 
 	branchProxy->dataBlock=parentBlock;
 	branchProxy->childAlloc=newAlloc;
 
-	flushRouteTableTreeBranchProxy(treeProxy, branchProxy);
+	rttbFlushRouteTableTreeBranchProxy(treeProxy, branchProxy);
 }
 
 
@@ -147,7 +147,7 @@ void dumpBranchProxy(RouteTableTreeBranchProxy *branchProxy)
 */
 
 
-void dumpBranchBlock(RouteTableTreeBranchBlock *branchBlock)
+void rttbDumpBranchBlock(RouteTableTreeBranchBlock *branchBlock)
 {
 	if(branchBlock!=NULL)
 		{
@@ -173,7 +173,7 @@ void dumpBranchBlock(RouteTableTreeBranchBlock *branchBlock)
 
 
 
-void branchMakeChildInsertSpace(RouteTableTreeBranchProxy *branchProxy, s16 childPosition, s16 childCount)
+void rttbBranchMakeChildInsertSpace(RouteTableTreeBranchProxy *branchProxy, s16 childPosition, s16 childCount)
 {
 	if((branchProxy->childCount+childCount)>branchProxy->childAlloc)
 		{
@@ -195,7 +195,7 @@ void branchMakeChildInsertSpace(RouteTableTreeBranchProxy *branchProxy, s16 chil
 
 
 
-s16 getBranchChildSibdex_Branch_withEstimate(RouteTableTreeBranchProxy *parentBranchProxy, RouteTableTreeBranchProxy *childBranchProxy, s16 sibdexEstimate)
+s16 rttbGetBranchChildSibdex_Branch_withEstimate(RouteTableTreeBranchProxy *parentBranchProxy, RouteTableTreeBranchProxy *childBranchProxy, s16 sibdexEstimate)
 {
 	s16 childNindex=childBranchProxy->brindex;
 	u16 childCount=parentBranchProxy->childCount;
@@ -210,8 +210,8 @@ s16 getBranchChildSibdex_Branch_withEstimate(RouteTableTreeBranchProxy *parentBr
 	return -1;
 }
 
-//static
-s16 getBranchChildSibdex_Branch(RouteTableTreeBranchProxy *parentBranchProxy, RouteTableTreeBranchProxy *childBranchProxy)
+
+s16 rttbGetBranchChildSibdex_Branch(RouteTableTreeBranchProxy *parentBranchProxy, RouteTableTreeBranchProxy *childBranchProxy)
 {
 	s16 childNindex=childBranchProxy->brindex;
 	u16 childCount=parentBranchProxy->childCount;
@@ -224,8 +224,8 @@ s16 getBranchChildSibdex_Branch(RouteTableTreeBranchProxy *parentBranchProxy, Ro
 }
 
 
-//static
-s16 getBranchChildSibdex_Leaf_withEstimate(RouteTableTreeBranchProxy *parentBranchProxy, RouteTableTreeLeafProxy *childLeafProxy, s16 sibdexEstimate)
+
+s16 rttbGetBranchChildSibdex_Leaf_withEstimate(RouteTableTreeBranchProxy *parentBranchProxy, RouteTableTreeLeafProxy *childLeafProxy, s16 sibdexEstimate)
 {
 	s16 childNindex=LINDEX_TO_NINDEX(childLeafProxy->lindex);
 	u16 childCount=parentBranchProxy->childCount;
@@ -250,7 +250,7 @@ s16 getBranchChildSibdex_Leaf_withEstimate(RouteTableTreeBranchProxy *parentBran
 }
 
 
-s16 getBranchChildSibdex_Leaf(RouteTableTreeBranchProxy *parentBranchProxy, RouteTableTreeLeafProxy *childLeafProxy)
+s16 rttbGetBranchChildSibdex_Leaf(RouteTableTreeBranchProxy *parentBranchProxy, RouteTableTreeLeafProxy *childLeafProxy)
 {
 	s16 childNindex=LINDEX_TO_NINDEX(childLeafProxy->lindex);
 	u16 childCount=parentBranchProxy->childCount;
@@ -264,7 +264,7 @@ s16 getBranchChildSibdex_Leaf(RouteTableTreeBranchProxy *parentBranchProxy, Rout
 
 
 
-s32 getBranchChild(RouteTableTreeProxy *treeProxy, RouteTableTreeBranchProxy *parentBranchProxy, s16 sibdex,
+s32 rttbGetBranchChild(RouteTableTreeProxy *treeProxy, RouteTableTreeBranchProxy *parentBranchProxy, s16 sibdex,
 		RouteTableTreeBranchProxy **childBranchProxyPtr, RouteTableTreeLeafProxy **childLeafProxyPtr)
 {
 	u16 childCount=parentBranchProxy->childCount;
@@ -294,13 +294,13 @@ s32 getBranchChild(RouteTableTreeProxy *treeProxy, RouteTableTreeBranchProxy *pa
 }
 
 
-RouteTableTreeBranchProxy *getBranchParent(RouteTableTreeProxy *treeProxy, RouteTableTreeBranchProxy *childBranchProxy)
+RouteTableTreeBranchProxy *rttbGetBranchParent(RouteTableTreeProxy *treeProxy, RouteTableTreeBranchProxy *childBranchProxy)
 {
 	return getRouteTableTreeBranchProxy(treeProxy, childBranchProxy->dataBlock->parentBrindex);
 }
 
 
-RouteTableTreeBranchProxy *getLeafParent(RouteTableTreeProxy *treeProxy, RouteTableTreeLeafProxy *childLeafProxy)
+RouteTableTreeBranchProxy *rttbGetLeafParent(RouteTableTreeProxy *treeProxy, RouteTableTreeLeafProxy *childLeafProxy)
 {
 	return getRouteTableTreeBranchProxy(treeProxy, childLeafProxy->parentBrindex);
 }

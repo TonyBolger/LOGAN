@@ -291,7 +291,7 @@ int main(int argc, char **argv)
 	mtDump();
 #endif
 
-	Graph *graph=allocGraph(23,23,NULL);
+	Graph *graph=grAllocGraph(23,23,NULL);
 
 	//runTpfMaster(fileTemplate, fileCount, graph);
 
@@ -309,7 +309,7 @@ int main(int argc, char **argv)
 
 	//smDumpSmerMap(&(graph->smerMap));
 
-	switchMode(graph);
+	grSwitchMode(graph);
 
 #ifdef FEATURE_ENABLE_MEMTRACK
 	mtDump();
@@ -324,7 +324,7 @@ int main(int argc, char **argv)
 
 #endif
 
-	freeGraph(graph);
+	grFreeGraph(graph);
 
 #ifdef FEATURE_ENABLE_MEMTRACK
 	mtDump();

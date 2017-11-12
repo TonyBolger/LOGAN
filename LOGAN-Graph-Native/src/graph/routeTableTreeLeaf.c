@@ -152,17 +152,17 @@ void rttlMarkDirty(RouteTableTreeProxy *treeProxy, RouteTableTreeLeafProxy *leaf
 	rttlEnsureFullyUnpacked(treeProxy,leafProxy);
 
 	leafProxy->status=LEAFPROXY_STATUS_DIRTY;
-	setBlockArrayEntryProxy(&(treeProxy->leafArrayProxy), leafProxy->lindex, leafProxy, treeProxy->disp);
+	rttaSetBlockArrayEntryProxy(&(treeProxy->leafArrayProxy), leafProxy->lindex, leafProxy, treeProxy->disp);
 }
 
 
-RouteTableTreeLeafProxy *allocRouteTableTreeLeafProxy(RouteTableTreeProxy *treeProxy, s32 upstreamOffsetAlloc, s32 downstreamOffsetAlloc, s32 entryArrayAlloc)
+RouteTableTreeLeafProxy *rttlAllocRouteTableTreeLeafProxy(RouteTableTreeProxy *treeProxy, s32 upstreamOffsetAlloc, s32 downstreamOffsetAlloc, s32 entryArrayAlloc)
 {
 	RouteTableUnpackedSingleBlock *unpackedBlock=rtpAllocUnpackedSingleBlock(treeProxy->disp, upstreamOffsetAlloc, downstreamOffsetAlloc);
 	rtpAllocUnpackedSingleBlockEntryArray(unpackedBlock, entryArrayAlloc);
 
 	RouteTableTreeLeafProxy *proxy=dAlloc(treeProxy->disp, sizeof(RouteTableTreeLeafProxy));
-	s32 lindex=appendBlockArrayEntryProxy(&(treeProxy->leafArrayProxy), proxy, treeProxy->disp);
+	s32 lindex=rttaAppendBlockArrayEntryProxy(&(treeProxy->leafArrayProxy), proxy, treeProxy->disp);
 
 	proxy->leafBlock=NULL;
 	proxy->lindex=lindex;
@@ -206,7 +206,7 @@ void expandRouteTableTreeLeafProxy(RouteTableTreeProxy *treeProxy, RouteTableTre
 */
 
 
-void dumpLeafBlock(RouteTableTreeLeafBlock *leafBlock)
+void rttlDumpLeafBlock(RouteTableTreeLeafBlock *leafBlock)
 {
 	if(leafBlock==NULL)
 		{
@@ -219,7 +219,7 @@ void dumpLeafBlock(RouteTableTreeLeafBlock *leafBlock)
 
 }
 
-void dumpLeafProxy(RouteTableTreeLeafProxy *leafProxy)
+void rttlDumpLeafProxy(RouteTableTreeLeafProxy *leafProxy)
 {
 	LOG(LOG_INFO,"Dump LeafProxy");
 
@@ -233,7 +233,7 @@ void dumpLeafProxy(RouteTableTreeLeafProxy *leafProxy)
 	else
 		{
 		LOG(LOG_INFO,"LeafBlock is not NULL"); // Could dump
-		dumpLeafBlock(leafProxy->leafBlock);
+		rttlDumpLeafBlock(leafProxy->leafBlock);
 		}
 
 	rtpDumpUnpackedSingleBlock(leafProxy->unpackedBlock);

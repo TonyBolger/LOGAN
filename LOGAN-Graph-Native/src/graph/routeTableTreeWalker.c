@@ -34,7 +34,7 @@ void rttwAppendNewLeaf(RouteTableTreeWalker *walker)
 	if(walker->branchProxy==NULL)
 		LOG(LOG_CRITICAL,"Not on a valid branch");
 
-	walker->leafProxy=allocRouteTableTreeLeafProxy(walker->treeProxy, walker->treeProxy->upstreamCount, walker->treeProxy->downstreamCount, ROUTEPACKING_ENTRYARRAYS_CHUNK);
+	walker->leafProxy=rttlAllocRouteTableTreeLeafProxy(walker->treeProxy, walker->treeProxy->upstreamCount, walker->treeProxy->downstreamCount, ROUTEPACKING_ENTRYARRAYS_CHUNK);
 	treeProxyAppendLeafChild(walker->treeProxy, walker->branchProxy, walker->leafProxy, &walker->branchProxy, &walker->branchChildSibdex);
 
 	walker->leafArrayIndex=-1;
@@ -778,7 +778,7 @@ void rttwMergeRoutes_insertEntry(RouteTableTreeWalker *walker, s32 upstream, s32
 		{
 //		LOG(LOG_INFO,"Entry Insert: No current leaf - need new leaf append");
 
-		leafProxy=allocRouteTableTreeLeafProxy(walker->treeProxy, walker->upstreamOffsetCount, walker->downstreamOffsetCount, ROUTEPACKING_ENTRYARRAYS_CHUNK);
+		leafProxy=rttlAllocRouteTableTreeLeafProxy(walker->treeProxy, walker->upstreamOffsetCount, walker->downstreamOffsetCount, ROUTEPACKING_ENTRYARRAYS_CHUNK);
 		treeProxyAppendLeafChild(walker->treeProxy, walker->branchProxy, leafProxy, &walker->branchProxy, &walker->branchChildSibdex);
 
 		walker->leafProxy=leafProxy;

@@ -43,34 +43,34 @@ struct routeTableTreeArrayProxyStr
 
 
 
-s32 getRouteTableTreeArraySize_Existing(RouteTableTreeArrayBlock *arrayBlock);
+s32 rttaGetRouteTableTreeArraySize_Existing(RouteTableTreeArrayBlock *arrayBlock);
 
-void rttBindBlockArrayProxy(RouteTableTreeArrayProxy *arrayProxy, u8 *heapDataPtr, u32 headerSize, u32 isIndirect);
-void initBlockArrayProxy(RouteTableTreeProxy *treeProxy, RouteTableTreeArrayProxy *arrayProxy, HeapDataBlock *heapDataBlock, u8 *heapDataPtr, u32 isIndirect);
+void rttaBindBlockArrayProxy(RouteTableTreeArrayProxy *arrayProxy, u8 *heapDataPtr, u32 headerSize, u32 isIndirect);
+void rttaInitBlockArrayProxy(RouteTableTreeProxy *treeProxy, RouteTableTreeArrayProxy *arrayProxy, HeapDataBlock *heapDataBlock, u8 *heapDataPtr, u32 isIndirect);
 
-void dumpBlockArrayProxy(RouteTableTreeArrayProxy *arrayProxy);
+void rttaDumpBlockArrayProxy(RouteTableTreeArrayProxy *arrayProxy);
 
 //s32 getBlockArraySize(RouteTableTreeArrayProxy *arrayProxy);
-u8 *getBlockArrayDataEntryRaw(RouteTableTreeArrayProxy *arrayProxy, s32 index);
-void setBlockArrayDataEntryRaw(RouteTableTreeArrayProxy *arrayProxy, s32 index, u8 *data);
+u8 *rttaGetBlockArrayDataEntryRaw(RouteTableTreeArrayProxy *arrayProxy, s32 index);
+void rttaSetBlockArrayDataEntryRaw(RouteTableTreeArrayProxy *arrayProxy, s32 index, u8 *data);
 
-void *getBlockArrayNewEntryProxy(RouteTableTreeArrayProxy *arrayProxy, s32 index);
-u8 *getBlockArrayExistingEntryData(RouteTableTreeArrayProxy *arrayProxy, s32 index);
+void *rttaGetBlockArrayNewEntryProxy(RouteTableTreeArrayProxy *arrayProxy, s32 index);
+u8 *rttaGetBlockArrayExistingEntryData(RouteTableTreeArrayProxy *arrayProxy, s32 index);
 
-void ensureBlockArrayWritable(RouteTableTreeArrayProxy *arrayProxy, MemDispenser *disp);
+void rttaEnsureBlockArrayWritable(RouteTableTreeArrayProxy *arrayProxy, MemDispenser *disp);
 
-s32 appendBlockArrayEntryProxy(RouteTableTreeArrayProxy *arrayProxy, void *proxy, MemDispenser *disp);
-void setBlockArrayEntryProxy(RouteTableTreeArrayProxy *arrayProxy, s32 index, void *proxy, MemDispenser *disp);
+s32 rttaAppendBlockArrayEntryProxy(RouteTableTreeArrayProxy *arrayProxy, void *proxy, MemDispenser *disp);
+void rttaSetBlockArrayEntryProxy(RouteTableTreeArrayProxy *arrayProxy, s32 index, void *proxy, MemDispenser *disp);
 
 
 
-s32 rttGetArrayDirty(RouteTableTreeArrayProxy *arrayProxy);
+s32 rttaGetArrayDirty(RouteTableTreeArrayProxy *arrayProxy);
 
-s32 rttCalcFirstLevelArrayEntries(s32 entries);
-s32 rttCalcFirstLevelArrayCompleteEntries(s32 entries);
-s32 rttCalcFirstLevelArrayAdditionalEntries(s32 entries);
+s32 rttaCalcFirstLevelArrayEntries(s32 entries);
+s32 rttaCalcFirstLevelArrayCompleteEntries(s32 entries);
+s32 rttaCalcFirstLevelArrayAdditionalEntries(s32 entries);
 
-s32 rttCalcArraySize(s32 entries);
-s32 rttGetArrayEntries(RouteTableTreeArrayProxy *arrayProxy);
+s32 rttaCalcArraySize(s32 entries);
+s32 rttaGetArrayEntries(RouteTableTreeArrayProxy *arrayProxy);
 
 #endif
