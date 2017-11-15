@@ -112,6 +112,8 @@ typedef struct routeTableLeafEntryBufferStr
 	s32 newDownstream;
 	s32 newWidth;
 
+	s32 newEntriesTotal;
+
 	// Offset of current new entry in leaf
 	s32 *newLeafUpstreamOffsets;
 	s32 *newLeafDownstreamOffsets;

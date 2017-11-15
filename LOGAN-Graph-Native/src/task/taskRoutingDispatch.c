@@ -38,7 +38,7 @@ RoutingIndexedReadReferenceBlock *allocDispatchIndexedIntermediateBlock(MemDispe
 
 RoutingReadReferenceBlockDispatchArray *allocDispatchArray(RoutingReadReferenceBlockDispatchArray *nextPtr)
 {
-	MemDispenser *disp=dispenserAlloc(MEMTRACKID_DISPENSER_ROUTING_DISPATCH_ARRAY, DISPENSER_BLOCKSIZE_SMALL, DISPENSER_BLOCKSIZE_LARGE);
+	MemDispenser *disp=dispenserAlloc(MEMTRACKID_DISPENSER_ROUTING_DISPATCH_ARRAY, DISPENSER_BLOCKSIZE_MEDIUM, DISPENSER_BLOCKSIZE_LARGE); // SMALL or MEDIUM
 
 	RoutingReadReferenceBlockDispatchArray *array=dAlloc(disp, sizeof(RoutingReadReferenceBlockDispatchArray));
 
@@ -774,7 +774,7 @@ static int scanForDispatchesForGroups(RoutingBuilder *rb, int startGroup, int en
 				if(dispatchEntry!=NULL)
 					{
 					if(routingDisp==NULL)
-						routingDisp=dispenserAlloc(MEMTRACKID_DISPENSER_ROUTING, DISPENSER_BLOCKSIZE_MEDIUM, DISPENSER_BLOCKSIZE_HUGE);
+						routingDisp=dispenserAlloc(MEMTRACKID_DISPENSER_ROUTING, DISPENSER_BLOCKSIZE_LARGE, DISPENSER_BLOCKSIZE_HUGE); // MEDIUM or LARGE
 
 					work++;
 

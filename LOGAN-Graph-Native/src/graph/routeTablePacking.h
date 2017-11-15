@@ -157,32 +157,35 @@ typedef struct routeTableUnpackedSingleBlockStr
 
 #define ROUTEPACKING_ENTRYARRAYS_CHUNK 4
 // Max allowed during table -> tree upgrade
-#define ROUTEPACKING_ENTRYARRAYS_UPGRADE_MAX 48
-// Max allowed normally
-//#define ROUTEPACKING_ENTRYARRAYS_MAX 16
 
-#define ROUTEPACKING_ENTRYARRAYS_MAX 64
-//#define ROUTEPACKING_ENTRYARRAYS_MAX 128
+//#define ROUTEPACKING_ENTRYARRAYS_MAX 16
+//#define ROUTEPACKING_ENTRYARRAYS_MAX 64
+#define ROUTEPACKING_ENTRYARRAYS_MAX 128
 //#define ROUTEPACKING_ENTRYARRAYS_MAX 1024
+
+// Max allowed during table -> tree upgrade (40% of max)
+#define ROUTEPACKING_ENTRYARRAYS_UPGRADE_MAX ((int)(ROUTEPACKING_ENTRYARRAYS_MAX*0.4))
 
 #define ROUTEPACKING_ENTRYS_CHUNK 8
 
-// Max allowed during table -> tree upgrade
-#define ROUTEPACKING_ENTRYS_UPGRADE_MAX 192
-
 // Max allowed normally
 //#define ROUTEPACKING_ENTRYS_MAX 16
-#define ROUTEPACKING_ENTRYS_MAX 256
 //#define ROUTEPACKING_ENTRYS_MAX 128
+#define ROUTEPACKING_ENTRYS_MAX 512
 
 //#define ROUTEPACKING_ENTRYS_MAX 1024
 
+// Max allowed during table -> tree upgrade (40% of max)
+#define ROUTEPACKING_ENTRYS_UPGRADE_MAX ((int)(ROUTEPACKING_ENTRYS_MAX*0.4))
 
-//#define ROUTEPACKING_TOTALENTRYS_MAX 1024
+// Limit the total entries below ROUTEPACKING_ENTRYARRAYS_MAX * ROUTEPACKING_ENTRYS_MAX
+// This prevents 'optimally' filled leaves growing to big
+#define ROUTEPACKING_TOTALENTRYS_SPLIT_THRESHOLD 16384
 
 
 void rtpDumpUnpackedSingleBlock(RouteTableUnpackedSingleBlock *block);
 
+int rtpRecalculateEntryArrayOffsets(RouteTableUnpackedEntryArray **entryArrays, int arrayCount, s32 *upstreamLeafOffsets, s32 *downstreamLeafOffsets);
 void rtpRecalculateUnpackedBlockOffsets(RouteTableUnpackedSingleBlock *unpackedBlock);
 
 void rtpSetUnpackedData(RouteTableUnpackedSingleBlock *unpackedBlock, s32 *upstreamLeafOffsets, s32 upstreamLeafOffsetCount, s32 *downstreamLeafOffsets, s32 downstreamLeafOffsetCount,

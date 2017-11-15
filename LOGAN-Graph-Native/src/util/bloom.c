@@ -34,7 +34,7 @@ void initBloom(Bloom *bloom, u32 size, u32 hashes, u32 bitsPerEntry)
 
 	u32 pSize=nextPowerOf2_32(size*bitsPerEntry);
 
-	bloom->data=calloc(1,pSize>>3);
+	bloom->data=gAllocC(pSize>>3, MEMTRACKID_BLOOM);
 	bloom->mask=pSize-1;
 	bloom->hashes=hashes;
 
@@ -44,7 +44,7 @@ void initBloom(Bloom *bloom, u32 size, u32 hashes, u32 bitsPerEntry)
 
 void freeBloom(Bloom *bloom)
 {
-	free(bloom->data);
+	G_FREE(bloom->data, (bloom->mask+1)>>3, MEMTRACKID_BLOOM);
 	bloom->data=NULL;
 }
 

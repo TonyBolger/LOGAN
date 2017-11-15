@@ -137,7 +137,10 @@ void getRouteTableTreeLeafProxy_scan(RouteTableTreeLeafBlock *leafBlock, u16 *en
 
 void rttlEnsureFullyUnpacked(RouteTableTreeProxy *treeProxy, RouteTableTreeLeafProxy *leafProxy)
 {
-	if(leafProxy->status==LEAFPROXY_STATUS_OFFSETS)
+//	if(leafProxy->status==LEAFPROXY_STATUS_FULLYPACKED)
+//		LOG(LOG_CRITICAL,"Leaf fully packed");
+
+	if(leafProxy->status==LEAFPROXY_STATUS_SEMIUNPACKED)
 		{
 		rtpUnpackSingleBlockEntryArrays((RouteTablePackedSingleBlock *)(leafProxy->leafBlock->packedBlockData), leafProxy->unpackedBlock);
 		leafProxy->status=LEAFPROXY_STATUS_FULLYUNPACKED;

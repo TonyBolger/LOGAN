@@ -30,12 +30,14 @@
 //#define TR_DISPATCH_READS_PER_BLOCK 64
 #define TR_DISPATCH_READS_PER_INTERMEDIATE_BLOCK 256
 
+//__attribute__((aligned (32)))
+
 typedef struct routingReadLookupDataStr {
 	u8 *packedSeq; // 8
-	u8 *quality; // 8
+	//u8 *quality; // 8
 	u32 seqLength; // 4 (+4)
 	SmerId *smers; // 8 pairs of (fsmer, rsmer)
-} __attribute__((aligned (32))) RoutingReadLookupData;
+} RoutingReadLookupData;
 
 
 // RoutingSmerEntryLookup has 24 bytes core
@@ -156,7 +158,7 @@ typedef struct routingBuilderStr {
 
 	RoutingReadReferenceBlockDispatch *dispatchPtr[SMER_DISPATCH_GROUPS]; // Queued list of dispatches for each target SMER_DISPATCH_GROUP
 
-	RoutingDispatchGroupState dispatchGroupState[SMER_DISPATCH_GROUPS];
+	RoutingDispatchGroupState dispatchGroupState[SMER_DISPATCH_GROUPS];		// Intermediate representation of a dispatch group during routing
 
 } RoutingBuilder;
 

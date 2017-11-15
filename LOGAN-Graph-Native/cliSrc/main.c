@@ -156,6 +156,8 @@ void runRptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 {
 	RoutingBuilder *rb=allocRoutingBuilder(graph, threadCount);
 
+	LOG(LOG_INFO,"Configuration: Blocksize: %i LookupBlocks: %i DispatchBlocks: %i",TR_INGRESS_BLOCKSIZE, TR_READBLOCK_LOOKUPS_INFLIGHT, TR_READBLOCK_DISPATCHES_INFLIGHT);
+
 	pthread_t *threads=G_ALLOC(sizeof(pthread_t)*threadCount, MEMTRACKID_THREADS);
 	RptThreadData *data=G_ALLOC(sizeof(RptThreadData)*threadCount, MEMTRACKID_THREADS);
 

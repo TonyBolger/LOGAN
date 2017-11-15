@@ -82,8 +82,9 @@ static MemPackStack *packStackAllocWithSize(int suggestedSizeIndex, int minSize)
 
 	MemPackStack *packStack=NULL;
 
-	if((posix_memalign((void **)&packStack,CACHE_ALIGNMENT_SIZE, totalSize)!=0))
-		LOG(LOG_CRITICAL,"Failed to alloc MemPackStack");
+//	if((posix_memalign((void **)&packStack,CACHE_ALIGNMENT_SIZE, totalSize)!=0))
+
+	LOG(LOG_CRITICAL,"Failed to alloc MemPackStack");
 
 	//packStack=memalign(CACHE_ALIGNMENT_SIZE, totalSize);
 

@@ -125,11 +125,11 @@ RouteTableTreeLeafProxy *getRouteTableTreeLeafProxy(RouteTableTreeProxy *treePro
 	leafProxy->unpackedBlock=rtpUnpackSingleBlockHeaderAndOffsets((RouteTablePackedSingleBlock *)(leafProxy->leafBlock->packedBlockData),
 			treeProxy->disp, treeProxy->upstreamCount, treeProxy->downstreamCount);
 
-	//leafProxy->status=LEAFPROXY_STATUS_OFFSETS;
+	leafProxy->status=LEAFPROXY_STATUS_SEMIUNPACKED;
 	//rttlEnsureFullyUnpacked(treeProxy, leafProxy);
 
-	rtpUnpackSingleBlockEntryArrays((RouteTablePackedSingleBlock *)(leafProxy->leafBlock->packedBlockData), leafProxy->unpackedBlock);
-	leafProxy->status=LEAFPROXY_STATUS_FULLYUNPACKED;
+	//rtpUnpackSingleBlockEntryArrays((RouteTablePackedSingleBlock *)(leafProxy->leafBlock->packedBlockData), leafProxy->unpackedBlock);
+	//leafProxy->status=LEAFPROXY_STATUS_FULLYUNPACKED;
 
 //	dumpLeafProxy(leafProxy);
 

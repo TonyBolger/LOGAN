@@ -1247,7 +1247,7 @@ static void reorderForwardPatchRange(RoutePatch *forwardPatches, int firstPositi
 				forwardPatches[k]=forwardPatches[k+1];
 				forwardPatches[k+1]=tmpPatch;
 				}
-			else if(minLater==minEarlier && maxLater == maxEarlier+1 && dsLater<dsEarlier) // Swap compatible groups based on downstream
+			else if(minLater==minEarlier && maxLater == maxEarlier+1 && dsLater<dsEarlier) // Swap routed compatible groups based on downstream
 				{
 				swap=1;
 				(*(forwardPatches[k].rdiPtr))->maxEdgePosition++;
@@ -1257,6 +1257,17 @@ static void reorderForwardPatchRange(RoutePatch *forwardPatches, int firstPositi
 				forwardPatches[k]=forwardPatches[k+1];
 				forwardPatches[k+1]=tmpPatch;
 				}
+			else if(minEarlier==TR_INIT_MINEDGEPOSITION && minLater==TR_INIT_MINEDGEPOSITION &&
+					maxEarlier==TR_INIT_MAXEDGEPOSITION && maxLater==TR_INIT_MAXEDGEPOSITION && dsLater<dsEarlier) // Swap unrouted compatible groups based on downstream
+				{
+				swap=1;
+
+				RoutePatch tmpPatch=forwardPatches[k];
+				forwardPatches[k]=forwardPatches[k+1];
+				forwardPatches[k+1]=tmpPatch;
+				}
+
+
 			}
 		if(!swap)
 			break;
@@ -1324,7 +1335,7 @@ static void reorderReversePatchRange(RoutePatch *reversePatches, int firstPositi
 				reversePatches[k]=reversePatches[k+1];
 				reversePatches[k+1]=tmpPatch;
 				}
-			else if(minLater==minEarlier && maxLater == maxEarlier+1 && dsLater<dsEarlier) // Swap compatible groups based on downstream
+			else if(minLater==minEarlier && maxLater == maxEarlier+1 && dsLater<dsEarlier) // Swap routed compatible groups based on downstream
 				{
 				swap=1;
 				(*(reversePatches[k].rdiPtr))->maxEdgePosition++;
@@ -1334,7 +1345,15 @@ static void reorderReversePatchRange(RoutePatch *reversePatches, int firstPositi
 				reversePatches[k]=reversePatches[k+1];
 				reversePatches[k+1]=tmpPatch;
 				}
+			else if(minEarlier==TR_INIT_MINEDGEPOSITION && minLater==TR_INIT_MINEDGEPOSITION &&
+					maxEarlier==TR_INIT_MAXEDGEPOSITION && maxLater==TR_INIT_MAXEDGEPOSITION && dsLater<dsEarlier) // Swap unrouted compatible groups based on downstream
+				{
+				swap=1;
 
+				RoutePatch tmpPatch=reversePatches[k];
+				reversePatches[k]=reversePatches[k+1];
+				reversePatches[k+1]=tmpPatch;
+				}
 			}
 		if(!swap)
 			break;

@@ -29,6 +29,30 @@ void rtpDumpUnpackedSingleBlock(RouteTableUnpackedSingleBlock *block)
 }
 
 
+int rtpRecalculateEntryArrayOffsets(RouteTableUnpackedEntryArray **entryArrays, int arrayCount, s32 *upstreamLeafOffsets, s32 *downstreamLeafOffsets)
+{
+	int totalEntries=0;
+
+	for(int i=0;i<arrayCount;i++)
+		{
+		RouteTableUnpackedEntryArray *array=entryArrays[i];
+
+		s32 upstreamTotal=0;
+		for(int j=0;j<array->entryCount;j++)
+			{
+			s32 width=array->entries[j].width;
+
+			downstreamLeafOffsets[array->entries[j].downstream]+=width;
+			upstreamTotal+=width;
+			}
+
+		upstreamLeafOffsets[array->upstream]+=upstreamTotal;
+		totalEntries+=array->entryCount;
+		}
+
+	return totalEntries;
+}
+
 
 void rtpRecalculateUnpackedBlockOffsets(RouteTableUnpackedSingleBlock *unpackedBlock)
 {
@@ -55,10 +79,57 @@ void rtpRecalculateUnpackedBlockOffsets(RouteTableUnpackedSingleBlock *unpackedB
 
 		unpackedBlock->upstreamLeafOffsets[array->upstream]+=upstreamTotal;
 		}
-
-
-
 }
+
+/*
+static void verifyUnpackedBlockOffsets(RouteTableUnpackedSingleBlock *unpackedBlock)
+{
+//	LOG(LOG_INFO,"rtpRecalculateUnpackedBlockOffsets");
+
+	s32 *upstreamLeafOffsets=alloca(sizeof(s32)*unpackedBlock->upstreamOffsetAlloc);
+	s32 *downstreamLeafOffsets=alloca(sizeof(s32)*unpackedBlock->downstreamOffsetAlloc);
+
+	memset(upstreamLeafOffsets, 0, sizeof(s32)*unpackedBlock->upstreamOffsetAlloc);
+	memset(downstreamLeafOffsets, 0, sizeof(s32)*unpackedBlock->downstreamOffsetAlloc);
+
+	for(int i=0;i<unpackedBlock->entryArrayCount;i++)
+		{
+		RouteTableUnpackedEntryArray *array=unpackedBlock->entryArrays[i];
+
+		s32 upstreamTotal=0;
+		for(int j=0;j<array->entryCount;j++)
+			{
+			s32 width=array->entries[j].width;
+
+			downstreamLeafOffsets[array->entries[j].downstream]+=width;
+			upstreamTotal+=width;
+			}
+
+		upstreamLeafOffsets[array->upstream]+=upstreamTotal;
+		}
+
+	int mismatch=0;
+
+	for(int i=0;i<unpackedBlock->upstreamOffsetAlloc;i++)
+		if(unpackedBlock->upstreamLeafOffsets[i]!=upstreamLeafOffsets[i])
+			{
+			LOG(LOG_INFO,"Offset mismatch U [%i] Calc %i vs Had %i",i, unpackedBlock->upstreamLeafOffsets[i], upstreamLeafOffsets[i]);
+			mismatch++;
+			}
+
+	for(int i=0;i<unpackedBlock->downstreamOffsetAlloc;i++)
+		if(unpackedBlock->downstreamLeafOffsets[i]!=downstreamLeafOffsets[i])
+			{
+			LOG(LOG_INFO,"Offset mismatch D [%i] Calc %i vs Had %i",i, unpackedBlock->downstreamLeafOffsets[i], downstreamLeafOffsets[i]);
+			mismatch++;
+			}
+
+	if(mismatch)
+		LOG(LOG_CRITICAL,"Offsets do not match");
+
+	//LOG(LOG_INFO,"Offset match");
+}
+*/
 
 
 void rtpSetUnpackedData(RouteTableUnpackedSingleBlock *unpackedBlock,
@@ -74,6 +145,7 @@ void rtpSetUnpackedData(RouteTableUnpackedSingleBlock *unpackedBlock,
 	unpackedBlock->entryArrays=entryArrays;
 	unpackedBlock->entryArrayAlloc=unpackedBlock->entryArrayCount=entryArrayCount;
 
+	//verifyUnpackedBlockOffsets(unpackedBlock);
 }
 
 

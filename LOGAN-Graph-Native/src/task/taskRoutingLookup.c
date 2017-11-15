@@ -472,7 +472,7 @@ void queueReadsForSmerLookup(SwqBuffer *rec, int ingressPosition, int ingressSiz
 			maxReadLength=length;
 
 		readData->packedSeq=dAllocQuadAligned(disp,PAD_2BITLENGTH_BYTE(length)); // Consider extra padding on these allocs
-		readData->quality=dAlloc(disp,length+1);
+		//readData->quality=dAlloc(disp,length+1);
 		readData->smers=dAllocQuadAligned(disp,length*sizeof(SmerId)*2);
 
 		//LOG(LOG_INFO,"Packing %p into %p with length %i",currentRec->seq, readData->packedSeq, length);
