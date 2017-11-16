@@ -102,6 +102,7 @@ JNI_OBJS += \
 ./bin/jni/common/util/bitMap.o \
 ./bin/jni/common/util/bitPacking.o \
 ./bin/jni/common/util/bloom.o \
+./bin/jni/common/util/intObjectHash.o \
 ./bin/jni/common/util/log.o \
 ./bin/jni/common/util/misc.o \
 ./bin/jni/common/util/pack.o \

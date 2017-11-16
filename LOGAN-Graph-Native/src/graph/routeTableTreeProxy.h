@@ -12,7 +12,6 @@ struct routeTableTreeProxyStr
 
 	RouteTableTreeArrayProxy leafArrayProxy;
 	RouteTableTreeArrayProxy branchArrayProxy;
-//	RouteTableTreeArrayProxy offsetArrayProxy;
 
 	RouteTableTreeBranchProxy *rootProxy;
 };

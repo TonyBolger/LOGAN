@@ -88,14 +88,11 @@ void createBuildersFromIndirectData(RoutingComboBuilder *builder)
 	builder->topDataPtr=data;
 
 	builder->upgradedToTree=0;
-	//HeapDataBlock dataBlocks[8];
 
 	RouteTableTreeBuilder *treeBuilder=builder->treeBuilder;
 
 	treeBuilder->disp=builder->disp;
 	treeBuilder->newEntryCount=0;
-
-	//treeBuilder->topDataBlock->dataSize=data;
 
 	RouteTableTreeTopBlock *top=(RouteTableTreeTopBlock *)(data+topHeaderSize);
 
@@ -1708,18 +1705,78 @@ SmerLinked *rtGetLinkedSmer(SmerArray *smerArray, SmerId rootSmerId, MemDispense
 		{
 		//LOG(LOG_INFO,"Linked Smer: Got data 1");
 
-		data=stUnpackPrefixesForSmerLinked(smerLinked, data, disp);
-		data=stUnpackSuffixesForSmerLinked(smerLinked, data, disp);
+		if(rtHeaderIsLiveDirect(*data))
+			{
+			data+=rtGetGapBlockHeaderSize();
 
-		rtaUnpackRouteTableArrayForSmerLinked(smerLinked, data, disp);
+			data=stUnpackPrefixesForSmerLinked(smerLinked, data, disp);
+			data=stUnpackSuffixesForSmerLinked(smerLinked, data, disp);
 
-		for(int i=0;i<smerLinked->prefixCount;i++)
-			if(saFindSmer(smerArray, smerLinked->prefixSmers[i])<0)
-				smerLinked->prefixSmerExists[i]=0;
+			rtaUnpackRouteTableArrayForSmerLinked(smerLinked, data, disp);
 
-		for(int i=0;i<smerLinked->suffixCount;i++)
-			if(saFindSmer(smerArray, smerLinked->suffixSmers[i])<0)
-				smerLinked->suffixSmerExists[i]=0;
+			for(int i=0;i<smerLinked->prefixCount;i++)
+				if(saFindSmer(smerArray, smerLinked->prefixSmers[i])<0)
+					smerLinked->prefixSmerExists[i]=0;
+
+			for(int i=0;i<smerLinked->suffixCount;i++)
+				if(saFindSmer(smerArray, smerLinked->suffixSmers[i])<0)
+					smerLinked->suffixSmerExists[i]=0;
+
+			}
+		else if(rtHeaderIsLiveTop(*data))
+			{
+			RoutingComboBuilder routingBuilder;
+
+			routingBuilder.disp=disp;
+			routingBuilder.rootPtr=&data;
+			routingBuilder.sliceIndex=index;
+			routingBuilder.sliceTag=sliceNum & SMER_DISPATCH_GROUP_SLICEMASK;
+
+			createBuildersFromIndirectData(&routingBuilder);
+			RouteTableTreeBuilder *treeBuilder=routingBuilder.treeBuilder;
+
+			RouteTableTreeTopBlock *top=(RouteTableTreeTopBlock *)(routingBuilder.topDataPtr+routingBuilder.topDataBlock.headerSize);
+
+			u8 *prefixBlockData=top->data[ROUTE_TOPINDEX_PREFIX];
+			if(prefixBlockData!=NULL)
+				{
+				u8 *prefixData=prefixBlockData+treeBuilder->dataBlocks[ROUTE_TOPINDEX_PREFIX].headerSize;
+				stUnpackPrefixesForSmerLinked(smerLinked, prefixData, disp);
+				}
+			else
+				{
+				smerLinked->prefixCount=0;
+				smerLinked->prefixSmerExists=NULL;
+				smerLinked->prefixSmers=NULL;
+				smerLinked->prefixes=NULL;
+				}
+
+			u8 *suffixBlockData=top->data[ROUTE_TOPINDEX_SUFFIX];
+			if(suffixBlockData!=NULL)
+				{
+				u8 *suffixData=suffixBlockData+treeBuilder->dataBlocks[ROUTE_TOPINDEX_SUFFIX].headerSize;
+				stUnpackSuffixesForSmerLinked(smerLinked, suffixData, disp);
+				}
+			else
+				{
+				smerLinked->suffixCount=0;
+				smerLinked->suffixSmerExists=NULL;
+				smerLinked->suffixSmers=NULL;
+				smerLinked->suffixes=NULL;
+				}
+
+			rttUnpackRouteTableForSmerLinked(smerLinked, &(treeBuilder->forwardWalker), &(treeBuilder->reverseWalker), disp);
+
+
+			for(int i=0;i<smerLinked->prefixCount;i++)
+				if(saFindSmer(smerArray, smerLinked->prefixSmers[i])<0)
+					smerLinked->prefixSmerExists[i]=0;
+
+			for(int i=0;i<smerLinked->suffixCount;i++)
+				if(saFindSmer(smerArray, smerLinked->suffixSmers[i])<0)
+					smerLinked->suffixSmerExists[i]=0;
+
+			}
 
 		//LOG(LOG_INFO,"Linked Smer: Got data 4 - %i %i",smerLinked->forwardRouteCount, smerLinked->reverseRouteCount);
 		}

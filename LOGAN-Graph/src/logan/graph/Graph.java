@@ -14,7 +14,7 @@ public class Graph {
 	System.loadLibrary("LOGAN");
 	}
 
-	private DeBruijnGraphConfig config;
+	private GraphConfig config;
     private long graphHandle;
     
     private Mode currentMode;
@@ -23,14 +23,14 @@ public class Graph {
  * Public API Begins
  */
 
-	public Graph(DeBruijnGraphConfig config)
+	public Graph(GraphConfig config)
 	{
 		this.config=config;
 		currentMode=Mode.INDEX;
 		graphHandle = alloc_Native(config.getNodeSize(),config.getSparseness());
 	}
 
-	public DeBruijnGraphConfig getConfig()
+	public GraphConfig getConfig()
 	{
 		return config;
 	}

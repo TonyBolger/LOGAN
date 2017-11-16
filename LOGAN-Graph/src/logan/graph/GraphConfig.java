@@ -1,11 +1,11 @@
 package logan.graph;
 
-public class DeBruijnGraphConfig {
+public class GraphConfig {
 	
 	private int nodeSize;
 	private int sparseness;
 	
-	public DeBruijnGraphConfig(int nodeSize, int sparseness)
+	public GraphConfig(int nodeSize, int sparseness)
 	{
 		this.nodeSize=nodeSize;
 		this.sparseness=sparseness;

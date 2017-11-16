@@ -15,11 +15,11 @@ public class GraphTest extends TestCase {
 	protected void setUp() throws Exception {
 		super.setUp();
 
-		DeBruijnGraphConfig config=new DeBruijnGraphConfig(23, 23);
+		GraphConfig config=new GraphConfig(23, 23);
 		graph=new Graph(config);
-		
+
 		helper=new TestHelper(graph);
-		
+
 	}
 
 	protected void tearDown() throws Exception {
@@ -46,9 +46,9 @@ public class GraphTest extends TestCase {
 
 //		File files1[]={new File("../data/Single.fq")};
 //		File files2[]={new File("../data/Single.fq")};
-			
-		File files1[]={new File("../data/Ecoli-1_Q20_10.fq")};
-		File files2[]={new File("../data/Ecoli-1_Q20_10.fq")};
+
+		File files1[]={new File("../../LOGAN-scratch/data/Ecoli-1_Q20.fq")};
+		File files2[]={new File("../../LOGAN-scratch/data/Ecoli-1_Q20.fq")};
 
 //		File files1[]={new File("../data/Arabi-1_Q20.fq")};
 //		File files2[]={new File("../data/Arabi-1_Q20_10m.fq")};
@@ -100,7 +100,7 @@ public class GraphTest extends TestCase {
 
 			}
 			*/
-		
+
 			}
 		catch(Exception e)
 			{

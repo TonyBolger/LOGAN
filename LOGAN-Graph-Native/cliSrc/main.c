@@ -288,6 +288,9 @@ int main(int argc, char **argv)
 		return 1;
 		}
 
+	LOG(LOG_INFO,"RoutingReadLookupData: %i (20) RoutingReadData: %i (20) RoutingReadIndexedDataEntry: %i (28)",
+			sizeof(RoutingReadLookupData), sizeof(RoutingReadData), sizeof(RoutingReadIndexedDataEntry));
+
 #ifdef FEATURE_ENABLE_MEMTRACK
 	mtInit();
 	mtDump();

@@ -2052,37 +2052,90 @@ void rttMergeRoutes(RouteTableTreeBuilder *builder,
 }
 
 
-void rttUnpackRouteTableForSmerLinked(SmerLinked *smerLinked, u8 *data, MemDispenser *disp)
+void rttUnpackRouteTableForSmerLinked(SmerLinked *smerLinked, RouteTableTreeWalker *forwardWalker, RouteTableTreeWalker *reverseWalker, MemDispenser *disp)
 {
-	//u32 prefixBits=0, suffixBits=0, widthBits=0, forwardEntryCount=0, reverseEntryCount=0;
+	RouteTableUnpackedEntry *unpackedEntry;
+	s16 upstream;
+	int totalEntryCount;
+	RouteTableEntry *routeEntries;
 
-	if(data!=NULL)
+	rttwSeekStart(forwardWalker);
+
+	if(forwardWalker->leafEntryArray!=NULL)
 		{
-		LOG(LOG_CRITICAL,"Not implemented: rttUnpackRouteTableForSmerLinked");
-		/*
-		data+=decodeHeader(data, &prefixBits, &suffixBits, &widthBits, &forwardEntryCount, &reverseEntryCount);
+		totalEntryCount=forwardWalker->leafEntryArray->entryCount;
 
-		smerLinked->forwardRouteEntries=dAlloc(disp, sizeof(RouteTableEntry)*forwardEntryCount);
-		smerLinked->reverseRouteEntries=dAlloc(disp, sizeof(RouteTableEntry)*reverseEntryCount);
+		while(rttwAdvanceToNextArray(forwardWalker))
+			totalEntryCount+=forwardWalker->leafEntryArray->entryCount;
 
-		smerLinked->forwardRouteCount=forwardEntryCount;
-		smerLinked->reverseRouteCount=reverseEntryCount;
+		routeEntries=dAlloc(disp, sizeof(RouteTableEntry)*totalEntryCount);
+		smerLinked->forwardRouteEntries=routeEntries;
+		smerLinked->forwardRouteCount=totalEntryCount;
 
-		rtaUnpackRoutes(data, prefixBits, suffixBits, widthBits,
-				smerLinked->forwardRouteEntries, smerLinked->reverseRouteEntries, forwardEntryCount, reverseEntryCount,
-				NULL,NULL,NULL);
-				*/
+		rttwSeekStart(forwardWalker);
+
+		if(rttwGetCurrentEntry(forwardWalker, &upstream, &unpackedEntry))
+			{
+			do
+				{
+				routeEntries->prefix=upstream;
+				routeEntries->suffix=unpackedEntry->downstream;
+				routeEntries->width=unpackedEntry->width;
+
+				routeEntries++;
+				}
+			while(rttwNextEntry(forwardWalker, &upstream, &unpackedEntry));
+			}
+
+		if(smerLinked->forwardRouteEntries+smerLinked->forwardRouteCount != routeEntries)
+			LOG(LOG_CRITICAL,"Route dump mismatch");
 		}
 	else
 		{
 		smerLinked->forwardRouteEntries=NULL;
-		smerLinked->reverseRouteEntries=NULL;
-
 		smerLinked->forwardRouteCount=0;
+		}
+
+	rttwSeekStart(reverseWalker);
+
+	if(reverseWalker->leafEntryArray!=NULL)
+		{
+		totalEntryCount=reverseWalker->leafEntryArray->entryCount;
+
+		while(rttwAdvanceToNextArray(reverseWalker))
+			{
+			totalEntryCount+=reverseWalker->leafEntryArray->entryCount;
+			}
+
+		routeEntries=dAlloc(disp, sizeof(RouteTableEntry)*totalEntryCount);
+		smerLinked->reverseRouteEntries=routeEntries;
+		smerLinked->reverseRouteCount=totalEntryCount;
+
+		rttwSeekStart(reverseWalker);
+
+		if(rttwGetCurrentEntry(reverseWalker, &upstream, &unpackedEntry))
+			{
+			do
+				{
+				routeEntries->prefix=unpackedEntry->downstream;
+				routeEntries->suffix=upstream;
+				routeEntries->width=unpackedEntry->width;
+
+				routeEntries++;
+				}
+			while(rttwNextEntry(reverseWalker, &upstream, &unpackedEntry));
+
+			if(smerLinked->reverseRouteEntries+smerLinked->reverseRouteCount != routeEntries)
+				LOG(LOG_CRITICAL,"Route dump mismatch");
+			}
+		}
+	else
+		{
+		smerLinked->reverseRouteEntries=NULL;
 		smerLinked->reverseRouteCount=0;
 		}
-}
 
+}
 
 
 void rttGetStats(RouteTableTreeBuilder *builder,

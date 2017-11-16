@@ -41,6 +41,11 @@ void rttwSeekEnd(RouteTableTreeWalker *walker);
 
 s32 rttwGetCurrentEntry(RouteTableTreeWalker *walker, s16 *upstream, RouteTableUnpackedEntry **entry);
 
+s32 rttwAdvanceToNextLeaf(RouteTableTreeWalker *walker, s32 ensureUnpacked);
+s32 rttwAdvanceToNextArray(RouteTableTreeWalker *walker);
+
+s32 rttwNextEntry(RouteTableTreeWalker *walker, s16 *upstream, RouteTableUnpackedEntry **entry);
+
 //s32 walkerNextLeaf(RouteTableTreeWalker *walker, s16 *upstream, RouteTableUnpackedEntry **entry);
 //s32 walkerNextEntry(RouteTableTreeWalker *walker, s16 *upstream, RouteTableUnpackedEntry **entry, s32 holdUpstream);
 

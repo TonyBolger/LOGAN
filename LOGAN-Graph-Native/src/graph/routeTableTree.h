@@ -9,11 +9,9 @@
 // Forward Leaf block
 // Reverse Leaf block
 // Forward Branch block
-// Reverse Leaf block
+// Reverse Branch block
 
-// Offsets?
-
-// Leaves contain a single upstream ID, branches generally include leafs with multiple upstream IDs
+// Nodes contain a single upstream ID. Branches contain lists of downstream nodes.
 //
 // Minimum Valid tree: Empty root
 
@@ -226,7 +224,7 @@ void rttMergeRoutes(RouteTableTreeBuilder *builder,
 		RoutePatch *forwardRoutePatches, RoutePatch *reverseRoutePatches, s32 forwardRoutePatchCount, s32 reverseRoutePatchCount,
 		s32 prefixCount, s32 suffixCount, RoutingReadData **orderedDispatches, MemDispenser *disp);
 
-void rttUnpackRouteTableForSmerLinked(SmerLinked *smerLinked, u8 *data, MemDispenser *disp);
+void rttUnpackRouteTableForSmerLinked(SmerLinked *smerLinked, RouteTableTreeWalker *forwardWalker, RouteTableTreeWalker *reverseWalker, MemDispenser *disp);
 
 void rttGetStats(RouteTableTreeBuilder *builder,
 		s64 *routeTableForwardRouteEntriesPtr, s64 *routeTableForwardRoutesPtr, s64 *routeTableReverseRouteEntriesPtr, s64 *routeTableReverseRoutesPtr,
