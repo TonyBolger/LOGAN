@@ -25,7 +25,8 @@ static int tiDoIngress(ParallelTask *pt, int workerNo, void *workerState, void *
 	SwqBuffer *rec=ingressPtr;
 	IndexingBuilder *ib=pt->dataPtr;
 
-	int paddedLength=PAD_BYTELENGTH_4BYTE(rec->maxSequenceTotalLength);
+	//int paddedLength=PAD_BYTELENGTH_4BYTE(rec->maxSequenceTotalLength);
+	int paddedLength=PAD_BYTELENGTH_4BYTE(rec->maxSequenceLength);
 	u8 *packedSeq=G_ALLOC(paddedLength, MEMTRACKID_INDEXING_PACKSEQ);
 
 //	memset(packedSeq,0,PAD_BYTELENGTH_4BYTE(rec->maxSequenceTotalLength));
