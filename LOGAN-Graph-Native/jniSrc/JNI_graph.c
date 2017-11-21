@@ -559,6 +559,9 @@ JNIEXPORT jobject JNICALL Java_logan_graph_Graph_getLinkedSmer_1Native
 JNIEXPORT jbyteArray JNICALL Java_logan_graph_Graph_getRawSmerData_1Native
   (JNIEnv *env, jobject this, jlong handle, jlong jSmerId)
 {
+	// TODO
+	LOG(LOG_CRITICAL,"TODO");
+
 	return NULL;
 }
 
@@ -579,7 +582,8 @@ JNIEXPORT jlong JNICALL Java_logan_graph_Graph_makeIndexBuilder_1Native
 JNIEXPORT void JNICALL Java_logan_graph_Graph_addRawSmers_1Native
   (JNIEnv *env, jobject this, jlong handle, jlongArray jSmerIds)
 {
-
+	// TODO
+	LOG(LOG_CRITICAL,"TODO");
 }
 
 
@@ -599,7 +603,8 @@ JNIEXPORT jlong JNICALL Java_logan_graph_Graph_makeRouteBuilder_1Native
 JNIEXPORT void JNICALL Java_logan_graph_Graph_setRawSmerData_1Native
   (JNIEnv *env, jobject this, jlong handle, jlong jSmerId, jbyteArray jData)
 {
-
+	// TODO
+	LOG(LOG_CRITICAL,"TODO");
 }
 
 
@@ -653,6 +658,8 @@ JNIEXPORT void JNICALL Java_logan_graph_Graph_dump_1Native(
 {
 //	Graph *graph = (Graph *) handle;
 
+	// TODO
+	LOG(LOG_CRITICAL,"TODO");
 
 }
 

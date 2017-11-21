@@ -2139,8 +2139,10 @@ void rttUnpackRouteTableForSmerLinked(SmerLinked *smerLinked, RouteTableTreeWalk
 
 
 void rttGetStats(RouteTableTreeBuilder *builder,
-		s64 *routeTableForwardRouteEntriesPtr, s64 *routeTableForwardRoutesPtr, s64 *routeTableReverseRouteEntriesPtr, s64 *routeTableReverseRoutesPtr,
-		s64 *routeTableTreeTopBytesPtr, s64 *routeTableTreeArrayBytesPtr,
+		s64 *routeTableForwardRouteEntriesPtr, s64 *routeTableForwardRoutesPtr,
+		s64 *routeTableReverseRouteEntriesPtr, s64 *routeTableReverseRoutesPtr,
+		s64 *routeTableTreeTopBytesPtr,
+		s64 *routeTableTreeArrayBytesPtr,
 		s64 *routeTableTreeLeafBytes, s64 *routeTableTreeLeafOffsetBytes, s64 *routeTableTreeLeafEntryBytes,
 		s64 *routeTableTreeBranchBytes, s64 *routeTableTreeBranchOffsetBytes, s64 *routeTableTreeBranchChildBytes)
 {
@@ -2170,33 +2172,49 @@ void rttGetStats(RouteTableTreeBuilder *builder,
 		int leafCount=treeProxies[p]->leafArrayProxy.oldDataCount;
 		for(int i=0;i<leafCount;i++)
 			{
-			LOG(LOG_CRITICAL,"PackLeaf: rttGetStats TODO");
-
-			/*
 			RouteTableTreeLeafProxy *leafProxy=getRouteTableTreeLeafProxy(treeProxies[p], i);
+			rttlEnsureFullyUnpacked(treeProxies[p],leafProxy);
+
+			int packedSize=leafProxy->unpackedBlock->packingInfo.oldPackedSize;
+
+			RouteTablePackedSingleBlock *packedBlock=(RouteTablePackedSingleBlock *)(leafProxy->leafBlock->packedBlockData);
+			u16 blockHeader=packedBlock->blockHeader;
 
 
-			int dataSize=leafProxy->dataBlock->dataSize;
-			int offsetSize=(leafProxy->upstreamAlloc+leafProxy->downstreamAlloc)*sizeof(s32);
-			int entrySize=dataSize-offsetSize;
+			int coreSize=2+																// BlockHeader
+					leafProxy->unpackedBlock->unpackingInfo.sizePayloadSize+1+ 		// Payload Size
+					leafProxy->unpackedBlock->unpackingInfo.sizeUpstreamRange*2+2+ 	// Upstream Range
+					leafProxy->unpackedBlock->unpackingInfo.sizeDownstreamRange*2+2+ 	// Downstream Range
+					leafProxy->unpackedBlock->unpackingInfo.sizeArrayCount+1;			// Array Count
 
-			leafBytes+=leafProxy->dataBlock->dataSize;
+			s32 sizeOffset=((blockHeader&RTP_PACKEDHEADER_OFFSETSIZE_MASK)>>RTP_PACKEDHEADER_OFFSETSIZE_SHIFT)+1;
+			int offsetSize=(leafProxy->unpackedBlock->upstreamOffsetAlloc+leafProxy->unpackedBlock->downstreamOffsetAlloc)*sizeOffset;
 
-			//leafOffsetBytes+=((s32)leafProxy->dataBlock->offsetAlloc)*sizeof(RouteTableTreeLeafOffset);
-			//leafEntryBytes+=((s32)leafProxy->dataBlock->entryAlloc)*sizeof(RouteTableTreeLeafEntry);
+			int entrySize=packedSize-coreSize-offsetSize;
 
-			s32 routesTmp=0;
-			int leafElements=leafProxy->entryCount;
+			leafBytes+=packedSize;
+			leafOffsetBytes+=offsetSize;
+			leafEntryBytes+=entrySize;
 
+			s32 leafRoutes=0, leafEntries=0;
 
-			RouteTableTreeLeafEntry *entryPtr=getRouteTableTreeLeaf_EntryPtr(leafProxy->dataBlock);
+			int arrayCount=leafProxy->unpackedBlock->entryArrayCount;
 
-			for(int j=0;j<leafElements;j++)
-				routesTmp+=entryPtr[j].width;
+			for(int j=0;j<arrayCount;j++)
+				{
+				RouteTableUnpackedEntryArray *array=leafProxy->unpackedBlock->entryArrays[j];
 
-			routeEntries[p]+=leafElements;
-			routes[p]+=routesTmp;
-			*/
+				int entryCount=array->entryCount;
+
+				for(int k=0;k<entryCount;k++)
+					leafRoutes+=array->entries[k].width;
+
+				leafEntries+=entryCount;
+				}
+
+			routeEntries[p]+=leafEntries;
+			routes[p]+=leafRoutes;
+
 			}
 
 		// Process branches: Assume Direct
@@ -2213,7 +2231,10 @@ void rttGetStats(RouteTableTreeBuilder *builder,
 			branchChildBytes+=((s32)branchProxy->dataBlock->childAlloc)*sizeof(RouteTableTreeBranchChild);
 			}
 
+
+
 		}
+
 
 	if(routeTableForwardRouteEntriesPtr!=NULL)
 		*routeTableForwardRouteEntriesPtr=routeEntries[0];
