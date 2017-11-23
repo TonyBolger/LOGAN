@@ -12,6 +12,83 @@
 
 
 
+#define LINK_INDEX_DUMMY 0xFFFFFFFF
+
+
+#define SEQUENCE_LINK_BYTES 56
+#define SEQUENCE_LINK_BASES (SEQUENCE_LINK_BYTES*4)
+
+typedef struct sequenceLinkStr {
+	u32 nextIndex;			// Index of next SequenceLink in chain (or LINK_DUMMY at end)
+	u8 length;				// Length of packed sequence (in bp)
+	u8 position;			// Position of first unprocessed base (in bp)
+	u8 packedSequence[SEQUENCE_LINK_BYTES];	// Packed sequence (2bits per bp) - up to 232 bases2
+} SequenceLink;
+
+typedef struct lookupLinkStr {
+	u32 sourceIndex;		// Index of SeqLink or Dispatch
+	u8 indexType;			// Indicates meaning of previous (SeqLink or Dispatch)
+	u8 smerCount;			// Number of smers to lookup
+	u16 revComp;			// Indicates if the original smer was rc
+	SmerId smers[15];		// Specific smers to lookup
+} LookupLink;
+
+
+/* Defined in routeTable.h
+
+typedef struct dispatchLinkSmerStr {
+	SmerId smer;		// The actual smer ID
+	u16 seqIndexOffset; // Distance to next smer, or number of additional kmers already tested (if last)
+	u16 slice;			// Ranges (0-16383)
+	u32 sliceIndex;		// Index within slice
+} DispatchLinkSmer;
+
+typedef struct dispatchLinkStr {
+	u32 nextOrOriginIndex;		// Index of Next Dispatch or Origin SeqLink
+	u8 indexType;				// Indicates meaning of previous
+	u8 length;					// How many valid indexesSmers are there
+	u8 position;				// The current indexed smer
+	u8 revComp;					// Indicate if the original smer was rc
+	s32 minEdgePosition;
+	s32 maxEdgePosition;
+	DispatchLinkSmer smers[7];
+} DispatchLink;
+
+*/
+
+
+// 0 = idle, 1 = allocated, 2 = active, 3 = finished
+
+#define BLOCK_STATUS_IDLE 0
+#define BLOCK_STATUS_ALLOCATED 1
+#define BLOCK_STATUS_ACTIVE 2
+#define BLOCK_STATUS_COMPLETE 3
+
+/*
+typedef struct routingReadIngressSequenceStr {
+	u32 length;
+	u8 packedSeq[];
+} RoutingReadIngressSequence;
+*/
+typedef struct routingReadIngressBlockStr {
+//	RoutingReadIngressSequence *sequenceData[TR_INGRESS_BLOCKSIZE];
+
+//	MemDispenser *disp; // Unified dispenser
+
+//	u32 maxSequenceLength;
+
+	u32 sequenceBrickIndex[TR_INGRESS_BLOCKSIZE];
+
+	u32 sequenceCount;
+	u32 sequencePosition;
+
+	s32 completionCount;
+	u32 status; // 0 = idle, 1 = allocated, 2 = active, 3 = finished
+
+} RoutingReadIngressBlock;
+
+/*
+
 // Each block: 10000 reads * 150bp? * Smer: 8 * 2: Max 24MByte
 // 20 Lookups: 480MBytes (full)
 // 200 Dispatches: 2.4GBytes (50% real smers)
@@ -29,6 +106,7 @@
 
 //#define TR_DISPATCH_READS_PER_BLOCK 64
 #define TR_DISPATCH_READS_PER_INTERMEDIATE_BLOCK 256
+
 
 //__attribute__((aligned (32)))
 
@@ -125,7 +203,7 @@ typedef struct routingDispatchGroupStateStr {
 
 } RoutingDispatchGroupState;
 
-
+*/
 
 typedef struct routingWorkerStateStr {
 	int lookupSliceStart;
@@ -134,12 +212,6 @@ typedef struct routingWorkerStateStr {
 	int dispatchGroupStart;
 	int dispatchGroupEnd;
 
-//	int lookupSliceDefault;
-//	int lookupSliceCurrent;
-
-//	int dispatchGroupDefault;
-//	int dispatchGroupCurrent;
-
 } RoutingWorkerState;
 
 typedef struct routingBuilderStr {
@@ -147,6 +219,22 @@ typedef struct routingBuilderStr {
 	Graph *graph;
 
 	u64 pogoDebugFlag;
+
+	RoutingReadIngressBlock ingressBlocks[TR_READBLOCK_INGRESS_INFLIGHT]; // Batches of sequences in Ingress stage (currently only one)
+	u64 allocatedIngressBlocks;
+
+	MemSingleBrickPile sequenceLinkPile;	// Sequence chains: added during Ingress
+
+
+
+
+	MemDoubleBrickPile lookupLinkPile;		// Lookup chains
+
+
+	MemDoubleBrickPile dispatchLinkPile;	// Dispatch chains
+
+/*
+
 
 	RoutingReadLookupBlock readLookupBlocks[TR_READBLOCK_LOOKUPS_INFLIGHT]; // Batches of reads in lookup stage
 	u64 allocatedReadLookupBlocks;
@@ -159,6 +247,7 @@ typedef struct routingBuilderStr {
 	RoutingReadReferenceBlockDispatch *dispatchPtr[SMER_DISPATCH_GROUPS]; // Queued list of dispatches for each target SMER_DISPATCH_GROUP
 
 	RoutingDispatchGroupState dispatchGroupState[SMER_DISPATCH_GROUPS];		// Intermediate representation of a dispatch group during routing
+*/
 
 } RoutingBuilder;
 

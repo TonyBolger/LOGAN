@@ -37,6 +37,28 @@ typedef struct routingReadDataStr {
 } __attribute__((aligned (32))) RoutingReadData;
 
 
+
+typedef struct dispatchLinkSmerStr {
+	SmerId smer;		// The actual smer ID
+	u16 seqIndexOffset; // Distance to next smer, or number of additional kmers already tested (if last)
+	u16 slice;			// Ranges (0-16383)
+	u32 sliceIndex;		// Index within slice
+} DispatchLinkSmer;
+
+typedef struct dispatchLinkStr {
+	u32 nextOrOriginIndex;		// Index of Next Dispatch or Origin SeqLink
+	u8 indexType;				// Indicates meaning of previous
+	u8 length;					// How many valid indexesSmers are there
+	u8 position;				// The current indexed smer
+	u8 revComp;					// Indicate if the original smer was rc
+	s32 minEdgePosition;
+	s32 maxEdgePosition;
+	DispatchLinkSmer smers[7];
+} DispatchLink;
+
+
+
+
 typedef struct routePatchStr
 {
 	//struct routePatchStr *next;

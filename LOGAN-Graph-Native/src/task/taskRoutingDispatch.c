@@ -7,7 +7,7 @@
 
 #include "common.h"
 
-
+/*
 static void initDispatchIntermediateBlock(RoutingReadReferenceBlock *block, MemDispenser *disp)
 {
 	block->entryCount=0;
@@ -147,7 +147,7 @@ void initRoutingDispatchGroupState(RoutingDispatchGroupState *dispatchGroupState
 
 	dispatchGroupState->outboundDispatches=NULL;
 }
-
+*/
 /*
 void initRoutingDispatchGroupState(RoutingDispatchGroupState *dispatchGroupState)
 {
@@ -164,7 +164,7 @@ void initRoutingDispatchGroupState(RoutingDispatchGroupState *dispatchGroupState
 	dispatchGroupState->outboundDispatches=NULL;
 }
 */
-
+/*
 static RoutingReadReferenceBlockDispatchArray *cleanupRoutingDispatchArrays(RoutingReadReferenceBlockDispatchArray *in)
 {
 	RoutingReadReferenceBlockDispatchArray **scan=&in;
@@ -536,6 +536,8 @@ static int indexedReadReferenceBlockSorter(const void *a, const void *b)
 
 	return (*pa)->sliceIndex-(*pb)->sliceIndex;
 }
+*/
+
 /*
 static int indexDispatchesForSlice(RoutingReadReferenceBlock *smerInboundDispatches, int sliceSmerCount, MemDispenser *disp,
 		RoutingIndexedReadReferenceBlock ***indexedDispatchesPtr)
@@ -583,7 +585,7 @@ static int indexDispatchesForSlice(RoutingReadReferenceBlock *smerInboundDispatc
 	return usedCount;
 }
 */
-
+/*
 
 static int calcCapacityForIndexedEntries(int entryCount)
 {
@@ -636,7 +638,7 @@ static int indexDispatchesForSlice(RoutingReadReferenceBlock *smerInboundDispatc
 
 	return map->entryCount;
 }
-
+*/
 /*
 void dumpPatches(RoutePatch *patches, int patchCount)
 {
@@ -645,7 +647,7 @@ void dumpPatches(RoutePatch *patches, int patchCount)
 }
 */
 
-
+/*
 
 static void processSlice(RoutingReadReferenceBlock *smerInboundDispatches,  SmerArraySlice *slice, u32 sliceIndex,
 		RoutingReadData **orderedDispatches, MemDispenser *disp, MemDispenser *routingDisp, MemCircHeap *circHeap)
@@ -668,7 +670,7 @@ static void processSlice(RoutingReadReferenceBlock *smerInboundDispatches,  Smer
 		}
 }
 
-
+*/
 
 
 /*
@@ -698,6 +700,7 @@ for(int j=0;j<smerInboundDispatches->entryCount;j++)
 	LOG(LOG_INFO,"%s %s %s",bufferP, bufferC, bufferN);
 	*/
 
+/*
 static void prepareGroupOutbound(RoutingDispatchGroupState *groupState)
 {
 	RoutingReadReferenceBlockDispatchArray *outboundDispatches=allocDispatchArray(groupState->outboundDispatches);
@@ -829,10 +832,14 @@ static int scanForDispatchesForGroups(RoutingBuilder *rb, int startGroup, int en
 	return work;
 }
 
-
+*/
 
 int scanForDispatches(RoutingBuilder *rb, int workerNo, RoutingWorkerState *wState, int force)
 {
+	LOG(LOG_CRITICAL,"TODO");
+	return 0;
+
+	/*
 	//int position=wState->dispatchGroupCurrent;
 	int work=0;
 	int lastGroup=-1;
@@ -853,5 +860,6 @@ int scanForDispatches(RoutingBuilder *rb, int workerNo, RoutingWorkerState *wSta
 //	wState->dispatchGroupCurrent=lastGroup;
 
 	return work;
+	*/
 }
 

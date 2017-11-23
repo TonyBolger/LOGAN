@@ -156,8 +156,6 @@ void runRptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 {
 	RoutingBuilder *rb=allocRoutingBuilder(graph, threadCount);
 
-	LOG(LOG_INFO,"Configuration: Blocksize: %i LookupBlocks: %i DispatchBlocks: %i",TR_INGRESS_BLOCKSIZE, TR_READBLOCK_LOOKUPS_INFLIGHT, TR_READBLOCK_DISPATCHES_INFLIGHT);
-
 	pthread_t *threads=G_ALLOC(sizeof(pthread_t)*threadCount, MEMTRACKID_THREADS);
 	RptThreadData *data=G_ALLOC(sizeof(RptThreadData)*threadCount, MEMTRACKID_THREADS);
 
@@ -287,9 +285,16 @@ int main(int argc, char **argv)
 		LOG(LOG_CRITICAL,"Expected arguments: template files");
 		return 1;
 		}
-
+/*
 	LOG(LOG_INFO,"RoutingReadLookupData: %i (20) RoutingReadData: %i (20) RoutingReadIndexedDataEntry: %i (28)",
 			sizeof(RoutingReadLookupData), sizeof(RoutingReadData), sizeof(RoutingReadIndexedDataEntry));
+
+	LOG(LOG_INFO,"SequenceLink: %i (64) LookupLink: %i (128) DispatchLink: %i (128)",
+			sizeof(SequenceLink), sizeof(LookupLink), sizeof(DispatchLink));
+*/
+
+	LOG(LOG_INFO,"MemSingleBrickChunk: %i (2097152) MemDoubleBrickChunk %i (4194304)", sizeof(MemSingleBrickChunk), sizeof(MemDoubleBrickChunk));
+
 
 #ifdef FEATURE_ENABLE_MEMTRACK
 	mtInit();

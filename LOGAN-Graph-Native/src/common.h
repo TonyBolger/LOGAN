@@ -36,9 +36,21 @@
 #define THREAD_ROUTING_STACKSIZE (16*1024*1024)
 
 #define TR_INGRESS_BLOCKSIZE 10000
+#define TR_INGRESS_BASESTOTAL 10000000
+#define TR_INGRESS_MARGIN 10000
 
+#define TR_READBLOCK_INGRESS_INFLIGHT 1
 #define TR_READBLOCK_LOOKUPS_INFLIGHT 25
 #define TR_READBLOCK_DISPATCHES_INFLIGHT 250
+
+#define TR_BRICKCHUNKS_SEQUENCE_MIN 100
+#define TR_BRICKCHUNKS_SEQUENCE_MAX 100
+
+#define TR_BRICKCHUNKS_LOOKUP_MIN 20
+#define TR_BRICKCHUNKS_LOOKUP_MAX 50
+
+#define TR_BRICKCHUNKS_ROUTING_MIN 100
+#define TR_BRICKCHUNKS_ROUTING_MAX 100
 
 //#define TR_POGOSUPPRESSION_LOOKUP_TO_DISPATCH_FRACTION 0.25
 //#define TR_POGOSUPPRESSION_DISPATCH_PRIORITY_FRACTION 0.1
@@ -217,6 +229,7 @@ typedef struct swqBufferStr {
 #include "mem/memTracker.h"
 #include "mem/memSlab.h"
 
+#include "mem/memBricks.h"
 #include "mem/memDispenser.h"
 #include "mem/memPackStack.h"
 #include "mem/memCircHeap.h"
@@ -252,6 +265,7 @@ typedef struct swqBufferStr {
 
 #include "task/taskIndexing.h"
 #include "task/taskRouting.h"
+#include "task/taskRoutingIngress.h"
 #include "task/taskRoutingLookup.h"
 #include "task/taskRoutingDispatch.h"
 

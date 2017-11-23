@@ -7,7 +7,7 @@
 
 #include "common.h"
 
-
+/*
 static RoutingLookupPercolate *allocPercolateBlock(MemDispenser *disp)
 {
 
@@ -142,7 +142,7 @@ static void extractLookupPercolatesFromEntryLookups(RoutingSmerEntryLookup *smer
 		}
 }
 
-/*
+
 static int extractIndexedSmerDataFromLookupPercolates(SmerId *allSmers, int allSmerCount, SmerId *fsmers, SmerId *rsmers,
 			u32 *slices, u32 *sliceIndexes, u32 *readIndexes, RoutingLookupPercolate *smerLookupPercolates[])
 {
@@ -202,7 +202,7 @@ static int extractIndexedSmerDataFromLookupPercolates(SmerId *allSmers, int allS
 	return foundCount;
 }
 
-*/
+
 
 
 static int extractIndexedSmerDataFromLookupPercolates(SmerId *allSmers, int allSmerCount, RoutingReadIndexedDataEntry *indexedData, RoutingLookupPercolate *smerLookupPercolates[])
@@ -275,8 +275,9 @@ static int extractIndexedSmerDataFromLookupPercolates(SmerId *allSmers, int allS
 	return indexedDataOrig-indexedData;
 }
 
+*/
 
-
+/*
 static void queueLookupForSlice(RoutingBuilder *rb, RoutingSmerEntryLookup *lookupForSlice, int sliceNum)
 {
 	RoutingSmerEntryLookup *current=NULL;
@@ -676,16 +677,16 @@ static int scanForSmerLookupsForSlices(RoutingBuilder *rb, int startSlice, int e
 }
 
 
+*/
 
 int scanForSmerLookups(RoutingBuilder *rb, int workerNo, RoutingWorkerState *wState)
 {
-	//int startPos=(workerNo*SMER_SLICE_PRIME)&SMER_SLICE_MASK;
-/*
-	int work=0;
+	LOG(LOG_CRITICAL,"TODO");
+	return 0;
 
-	work=scanForSmerLookupsForSlices(rb,startPos,SMER_SLICES);
-	work+=scanForSmerLookupsForSlices(rb, 0, startPos);
-*/
+	/*
+	//int startPos=(workerNo*SMER_SLICE_PRIME)&SMER_SLICE_MASK;
+
 
 //	int position=wState->lookupSliceCurrent;
 	int work=0;
@@ -698,6 +699,7 @@ int scanForSmerLookups(RoutingBuilder *rb, int workerNo, RoutingWorkerState *wSt
 	//wState->lookupSliceCurrent=lastSlice;
 
 	return work;
+	*/
 }
 
 

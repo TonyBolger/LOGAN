@@ -41,7 +41,8 @@ static int trAllocateIngressSlot(ParallelTask *pt, int workerNo)
 {
 	RoutingBuilder *rb=pt->dataPtr;
 
-	return reserveReadLookupBlock(rb);
+	return reserveReadIngressBlock(rb);
+
 }
 
 
@@ -52,11 +53,11 @@ static int trDoIngress(ParallelTask *pt, int workerNo,void *wState, void *ingres
 	Graph *graph=rb->graph;
 	s32 nodeSize=graph->config.nodeSize;
 
-	queueReadsForSmerLookup(rec,ingressPosition,ingressSize,nodeSize,rb);
+	populateReadIngressBlock(rec,ingressPosition,ingressSize,nodeSize,rb);
 
 	return 1;
 }
-
+/*
 static void dumpUncleanDispatchReadBlocks(int blockNum, RoutingReadDispatchBlock *readDispatchBlock)
 {
 	if(readDispatchBlock->completionCount>0)
@@ -102,14 +103,18 @@ static void dumpUncleanDispatchGroup(int groupNum, RoutingReadReferenceBlockDisp
 		}
 
 }
+*/
 
 static void dumpUnclean(RoutingBuilder *rb)
 {
+	LOG(LOG_CRITICAL,"TODO: Dump unclean");
+	/*
 	for(int i=0;i<TR_READBLOCK_DISPATCHES_INFLIGHT;i++)
 		dumpUncleanDispatchReadBlocks(i, rb->readDispatchBlocks+i);
 
 	for(int i=0;i<SMER_DISPATCH_GROUPS;i++)
 		dumpUncleanDispatchGroup(i, rb->dispatchPtr[i], rb->dispatchGroupState+i);
+		*/
 
 }
 
@@ -145,8 +150,12 @@ static void dumpUnclean(RoutingBuilder *rb)
 
 static int trDoIntermediate(ParallelTask *pt, int workerNo, void *wState, int force)
 {
-	RoutingWorkerState *workerState=wState;
-	RoutingBuilder *rb=pt->dataPtr;
+	LOG(LOG_INFO,"trDoIntermediate");
+
+	sleep(1);
+
+//	RoutingWorkerState *workerState=wState;
+//	RoutingBuilder *rb=pt->dataPtr;
 
 /*
 	if(__atomic_load_n(&rb->pogoSuppressionFlag, __ATOMIC_RELAXED))
@@ -162,7 +171,7 @@ static int trDoIntermediate(ParallelTask *pt, int workerNo, void *wState, int fo
 		LOG(LOG_INFO,"Lookup %i (%i) Dispatch %i (%i) - force %i",lookupReads,arlb, dispatchReads, ardb, force);
 		}
 */
-
+/*
 	if(scanForCompleteReadDispatchBlocks(rb))
 		{
 		//LOG(LOG_INFO,"scanForCompleteReadDispatchBlocks OK");
@@ -217,89 +226,11 @@ static int trDoIntermediate(ParallelTask *pt, int workerNo, void *wState, int fo
 
 	if(arlb>0 || ardb>0) // If in force mode, and not finished, rally the minions
 		return force;
-
-	return 0;
-}
-
-/*
-int trDoIntermediate_bork(ParallelTask *pt, int workerNo, void *wState, int force)
-{
-	RoutingWorkerState *workerState=wState;
-	RoutingBuilder *rb=pt->dataPtr;
-
-	if(__atomic_load_n(&rb->pogoSuppressionFlag, __ATOMIC_RELAXED))
-		{
-		int ret=scanForCompleteReadDispatchBlocks(rb);
-		while(ret)
-			ret=scanForCompleteReadDispatchBlocks(rb);
-
-		if(ret)
-			return 1;
-
-//		int lookupReads=countLookupReadsRemaining(rb);
-		int dispatchReads=countDispatchReadsRemaining(rb);
-
-//		int arlb=__atomic_load_n(&rb->allocatedReadLookupBlocks, __ATOMIC_RELAXED);
-		int ardb=__atomic_load_n(&rb->allocatedReadDispatchBlocks, __ATOMIC_RELAXED);
-
-//		LOG(LOG_INFO,"Lookup %i (%i) Dispatch %i (%i) Limit %i %i",lookupReads,arlb, dispatchReads, ardb,
-//				TR_POGOSUPRESSION_LOOKUP_TO_DISPATCH_READ_LIMIT, TR_POGOSUPRESSION_DISPATCH_PRIORITY_READ_LIMIT);
-
-		if(dispatchReads<TR_POGOSUPRESSION_LOOKUP_TO_DISPATCH_READ_LIMIT && ardb<TR_READBLOCK_DISPATCHES_INFLIGHT)
-			{
-			ret=scanForAndDispatchLookupCompleteReadLookupBlocks(rb);
-
-			while(ret)
-				ret=scanForAndDispatchLookupCompleteReadLookupBlocks(rb);
-
-			if(ret)
-				return 1;
-
-			//lookupReads=countLookupReadsRemaining(rb);
-			dispatchReads=countDispatchReadsRemaining(rb);
-			ardb=__atomic_load_n(&rb->allocatedReadDispatchBlocks, __ATOMIC_RELAXED);
-			}
-
-		if(dispatchReads>TR_POGOSUPRESSION_DISPATCH_PRIORITY_READ_LIMIT || ardb==TR_READBLOCK_DISPATCHES_INFLIGHT)
-			__atomic_store_n(&rb->pogoPriorityFlag, 1, __ATOMIC_RELAXED);
-		else
-			__atomic_store_n(&rb->pogoPriorityFlag, 0, __ATOMIC_RELAXED);
-
-		__atomic_store_n(&rb->pogoSuppressionFlag, 0, __ATOMIC_RELAXED);
-		}
-
-	int priority=__atomic_load_n(&rb->pogoPriorityFlag, __ATOMIC_RELAXED);
-
-	if((force)||(priority==0))
-		{
-		if(scanForSmerLookups(rb, workerNo, workerState))
-			{
-			//LOG(LOG_INFO,"scanForSmerLookups");
-			return 1;
-			}
-		}
-
-	if((force) || (priority == 1))
-		{
-		if(scanForDispatches(rb, workerNo, workerState, force))
-			{
-			//LOG(LOG_INFO,"scanForDispatches 2");
-			return 1;
-			}
-		}
-
-
-	int arlb=__atomic_load_n(&rb->allocatedReadLookupBlocks, __ATOMIC_RELAXED);
-	int ardb=__atomic_load_n(&rb->allocatedReadDispatchBlocks, __ATOMIC_RELAXED);
-
-//	LOG(LOG_INFO,"trDoIntermediate: %i %i %i %i",workerNo, force, arlb, ardb);
-
-	if(arlb>0 || ardb>0) // If in force mode, and not finished, rally the minions
-		return force;
-
-	return 0;
-}
 */
+	return 0;
+}
+
+
 
 static int trDoTidy(ParallelTask *pt, int workerNo, void *wState, int tidyNo)
 {
@@ -318,7 +249,7 @@ static void trDoTickTock(ParallelTask *pt)
 
 RoutingBuilder *allocRoutingBuilder(Graph *graph, int threads)
 {
-	RoutingBuilder *rb=tiRoutingBuilderAlloc();
+	RoutingBuilder *rb=trRoutingBuilderAlloc();
 
 	ParallelTaskConfig *ptc=allocParallelTaskConfig(trDoRegister,trDoDeregister,trAllocateIngressSlot,trDoIngress,trDoIntermediate,trDoTidy,trDoTickTock,
 			threads,
@@ -329,6 +260,20 @@ RoutingBuilder *allocRoutingBuilder(Graph *graph, int threads)
 
 	rb->pogoDebugFlag=1;
 
+	rb->allocatedIngressBlocks=0;
+
+	mbInitSingleBrickPile(&(rb->sequenceLinkPile), TR_BRICKCHUNKS_SEQUENCE_MIN, TR_BRICKCHUNKS_SEQUENCE_MAX, MEMTRACKID_BRICK_SEQ);
+
+
+//	for(int i=0;i<TR_READBLOCK_INGRESS_INFLIGHT;i++)
+//		{
+		//rb->ingressBlocks[i].disp=dispenserAlloc(MEMTRACKID_DISPENSER_ROUTING_LOOKUP, DISPENSER_BLOCKSIZE_MEDIUM, DISPENSER_BLOCKSIZE_HUGE);
+		//for(int j=0;j<TR_INGRESS_BLOCKSIZE;j++)
+//			rb->ingressBlocks[i].sequenceBrickIndex[j]=LINK_INDEX_DUMMY;
+//		}
+
+
+	/*
 	rb->allocatedReadLookupBlocks=0;
 	for(int i=0;i<TR_READBLOCK_LOOKUPS_INFLIGHT;i++)
 		rb->readLookupBlocks[i].disp=dispenserAlloc(MEMTRACKID_DISPENSER_ROUTING_LOOKUP, DISPENSER_BLOCKSIZE_MEDIUM, DISPENSER_BLOCKSIZE_HUGE);
@@ -345,6 +290,7 @@ RoutingBuilder *allocRoutingBuilder(Graph *graph, int threads)
 		initRoutingDispatchGroupState(rb->dispatchGroupState+i);
 		rb->dispatchPtr[i]=NULL;
 		}
+*/
 
 	return rb;
 }
@@ -354,7 +300,7 @@ RoutingBuilder *allocRoutingBuilder(Graph *graph, int threads)
 void freeRoutingBuilder(RoutingBuilder *rb)
 {
 	dumpUnclean(rb);
-
+/*
 	for(int i=0;i<TR_READBLOCK_LOOKUPS_INFLIGHT;i++)
 		dispenserFree(rb->readLookupBlocks[i].disp);
 
@@ -363,6 +309,7 @@ void freeRoutingBuilder(RoutingBuilder *rb)
 
 	for(int i=0;i<SMER_DISPATCH_GROUPS;i++)
 		freeRoutingDispatchGroupState(rb->dispatchGroupState+i);
+*/
 
 	ParallelTask *pt=rb->pt;
 	ParallelTaskConfig *ptc=pt->config;
@@ -370,7 +317,7 @@ void freeRoutingBuilder(RoutingBuilder *rb)
 	freeParallelTask(pt);
 	freeParallelTaskConfig(ptc);
 
-	tiRoutingBuilderFree(rb);
+	trRoutingBuilderFree(rb);
 }
 
 

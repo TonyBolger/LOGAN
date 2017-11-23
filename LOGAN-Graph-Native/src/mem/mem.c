@@ -212,12 +212,12 @@ void tiIndexingBuilderFree(IndexingBuilder *ib)
  */
 
 
-RoutingBuilder *tiRoutingBuilderAlloc()
+RoutingBuilder *trRoutingBuilderAlloc()
 {
 	return G_ALLOC_C(sizeof(RoutingBuilder), MEMTRACKID_ROUTING_BUILDER);
 }
 
-void tiRoutingBuilderFree(RoutingBuilder *rb)
+void trRoutingBuilderFree(RoutingBuilder *rb)
 {
 	G_FREE(rb, sizeof(RoutingBuilder), MEMTRACKID_ROUTING_BUILDER);
 }
