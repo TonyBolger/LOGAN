@@ -614,12 +614,28 @@ static void updatePackingInfoSizeAndHeader(RouteTablePackingInfo *packingInfo)
 			(sizeUpstreamRange<<RTP_PACKEDHEADER_UPSTREAMRANGESIZE_SHIFT)|			// 12
 			(sizePayload<<RTP_PACKEDHEADER_PAYLOADSIZE_SHIFT);						// 13
 
-//	LOG(LOG_INFO,"PackedSizes: Payload %i: Up: %i Down: %i Offset: %i Array: %i Entry: %i Width: %i",
-//			payloadSize, packingInfo->packedUpstreamOffsetLast, packingInfo->packedDownstreamOffsetLast,
-//			packingInfo->maxOffset, packingInfo->arrayCount, packingInfo->maxEntryCount, packingInfo->maxEntryWidth);
+	if(payloadSize>65535)
+		{
+		LOG(LOG_INFO,"PackedSizes: Payload %i: Up: %i Down: %i Offset: %i Array: %i MaxEntries %i Width: %i",
+				payloadSize, packingInfo->packedUpstreamOffsetLast, packingInfo->packedDownstreamOffsetLast,
+				packingInfo->maxOffset, packingInfo->arrayCount, packingInfo->maxEntryCount, packingInfo->maxEntryWidth);
 
-//	LOG(LOG_INFO,"PackedHeaderSizes: Payload(1x8): %i Up(1x8): %i Down(1x8): %i Offset(2x8): %i Array(1x8): %i Entry(3x4): %i Width(5x1): %i",
-//			sizePayload, sizeUpstreamRange, sizeDownstreamRange, sizeOffset, sizeArrayCount, sizeEntryCount, sizeWidth);
+		LOG(LOG_INFO,"PackedHeaderSizes: Payload(1x8): %i Up(1x8): %i Down(1x8): %i Offset(2x8): %i Array(1x8): %i Entry(3x4): %i Width(5x1): %i",
+				sizePayload, sizeUpstreamRange, sizeDownstreamRange, sizeOffset, sizeArrayCount, sizeEntryCount, sizeWidth);
+
+                LOG(LOG_INFO,"Offsets U: %i, D: %i",packingInfo->packedUpstreamOffsetAlloc,packingInfo->packedDownstreamOffsetAlloc);
+
+		LOG(LOG_INFO,"TotalEntries: %i",packingInfo->totalEntryCount);
+
+	        int corePayloadSize=1+                                                                                                                                                                                      // Minimum 1 byte for packedSize
+	                2+(sizeUpstreamRange<<1)+                                                                                                                                                               // 2 or 4 bytes for UpstreamRange
+        	        2+(sizeDownstreamRange<<1)+                                                                                                                                                     // 2 or 4 bytes for DownstreamRange
+	                ((sizeOffset+1)*(packingInfo->packedUpstreamOffsetAlloc+packingInfo->packedDownstreamOffsetAlloc))+             // 1 - 4 bytes for each offset index
+        	        1+sizeArrayCount;
+	
+		LOG(LOG_INFO,"Core payload %i Array Bits: %i",corePayloadSize, arrayBits);
+		}
+
 }
 
 void rtpUpdateUnpackedSingleBlockPackingInfo(RouteTableUnpackedSingleBlock *block)
@@ -691,6 +707,27 @@ void rtpUpdateUnpackedSingleBlockPackingInfo(RouteTableUnpackedSingleBlock *bloc
 	packingInfo->maxEntryWidth=maxEntryWidth;
 
 	updatePackingInfoSizeAndHeader(packingInfo);
+
+        if(packingInfo->payloadSize>65535)
+          {
+          for(int i=0;i<block->upstreamOffsetAlloc;i++)
+                {
+                s32 offset=block->upstreamLeafOffsets[i];
+
+                if(offset)
+			LOG(LOG_INFO,"Upstream Edge %i has %i",i,offset);
+		}
+
+	  for(int i=0;i<block->downstreamOffsetAlloc;i++)
+                {
+                s32 offset=block->downstreamLeafOffsets[i];
+		
+		if(offset)
+			LOG(LOG_INFO,"Downstream Edge %i has %i",i,offset);
+
+                }
+
+          }
 
 //	LOG(LOG_INFO,"PackLeaf: rtpUpdateUnpackedSingleBlockSize Size: %i",packingInfo->packedSize);
 }
