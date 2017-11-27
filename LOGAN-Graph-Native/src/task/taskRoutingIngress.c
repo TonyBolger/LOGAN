@@ -16,7 +16,7 @@ s32 reserveReadIngressBlock(RoutingBuilder *rb)
 
 	if(!mbCheckSingleBrickAvailability(&(rb->sequenceLinkPile), maximumBricksForSequence))
 		{
-		LOG(LOG_INFO,"reserveIngressBlock insufficient bricks: Want %i Have %i",maximumBricksForSequence);
+		LOG(LOG_INFO,"reserveIngressBlock insufficient bricks: Want %i Have %i",maximumBricksForSequence, mbGetFreeSingleBrickPile(&(rb->sequenceLinkPile)));
 		return 0;
 		}
 
@@ -29,12 +29,12 @@ s32 reserveReadIngressBlock(RoutingBuilder *rb)
 
 }
 
-/*
-static void unreserveReadLookupBlock(RoutingBuilder *rb)
+
+static void unreserveReadIngressBlock(RoutingBuilder *rb)
 {
 	__atomic_fetch_sub(&(rb->allocatedIngressBlocks),1, __ATOMIC_SEQ_CST);
 }
-*/
+
 
 
 static RoutingReadIngressBlock *allocateReadIngressBlock(RoutingBuilder *rb)
@@ -61,11 +61,11 @@ static RoutingReadIngressBlock *allocateReadIngressBlock(RoutingBuilder *rb)
 	return 0;
 }
 
-/*
-static void queueReadIngressBlock(RoutingReadIngressBlock *readBlock)
+
+static void queueReadIngressBlock(RoutingReadIngressBlock *ingressBlock)
 {
 	u32 current=BLOCK_STATUS_ALLOCATED;
-	if(!__atomic_compare_exchange_n(&(readBlock->status), &current, BLOCK_STATUS_ACTIVE, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST))
+	if(!__atomic_compare_exchange_n(&(ingressBlock->status), &current, BLOCK_STATUS_ACTIVE, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST))
 		LOG(LOG_CRITICAL,"Tried to queue lookup readblock in wrong state, should never happen");
 }
 
@@ -77,11 +77,12 @@ static int scanForCompleteReadIngressBlock(RoutingBuilder *rb)
 	for(i=0;i<TR_READBLOCK_INGRESS_INFLIGHT;i++)
 		{
 		readBlock=rb->ingressBlocks+i;
-		if(__atomic_load_n(readBlock->status, __ATOMIC_RELAXED) == BLOCK_STATUS_ACTIVE && readBlock->completionCount==0)
+		if(__atomic_load_n(&(readBlock->status), __ATOMIC_RELAXED) == BLOCK_STATUS_ACTIVE && readBlock->completionCount==0)
 			return i;
 		}
 	return -1;
 }
+
 
 static RoutingReadIngressBlock *dequeueCompleteReadIngressBlock(RoutingBuilder *rb, int index)
 {
@@ -91,9 +92,9 @@ static RoutingReadIngressBlock *dequeueCompleteReadIngressBlock(RoutingBuilder *
 
 	u32 current=__atomic_load_n(&ingressBlock->status, __ATOMIC_SEQ_CST);
 
-	if(current == 2 && __atomic_load_n(&ingressBlock->completionCount, __ATOMIC_SEQ_CST) == 0)
+	if(current == BLOCK_STATUS_ACTIVE && __atomic_load_n(&ingressBlock->completionCount, __ATOMIC_SEQ_CST) == 0)
 		{
-		if(__atomic_compare_exchange_n(&(ingressBlock->status), &current, 3, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST))
+		if(__atomic_compare_exchange_n(&(ingressBlock->status), &current, BLOCK_STATUS_COMPLETE, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST))
 			return ingressBlock;
 		}
 
@@ -113,7 +114,61 @@ static void unallocateReadIngressBlock(RoutingReadIngressBlock *readBlock)
 		}
 }
 
-*/
+
+s32 getAvailableReadIngress(RoutingBuilder *rb)
+{
+	RoutingReadIngressBlock *readBlock;
+	int i;
+	int total=0;
+
+	for(i=0;i<TR_READBLOCK_INGRESS_INFLIGHT;i++)
+		{
+		readBlock=rb->ingressBlocks+i;
+
+		if(__atomic_load_n(&(readBlock->status), __ATOMIC_RELAXED) == BLOCK_STATUS_ACTIVE)
+			total+=__atomic_load_n(&(readBlock->completionCount), __ATOMIC_RELAXED);
+		}
+
+	return total;
+}
+
+s32 consumeReadIngress(RoutingBuilder *rb, s32 readsToConsume, u32 **sequenceLinkIndexPtr)
+{
+	RoutingReadIngressBlock *readBlock;
+	int i;
+
+	for(i=0;i<TR_READBLOCK_INGRESS_INFLIGHT;i++)
+		{
+		readBlock=rb->ingressBlocks+i;
+
+		if(__atomic_load_n(&(readBlock->status), __ATOMIC_RELAXED) == BLOCK_STATUS_ACTIVE)
+			{
+			s32 available=__atomic_load_n(&(readBlock->completionCount), __ATOMIC_RELAXED);
+			int loopCount=10000;
+			while(available>0 && --loopCount>0)
+				{
+				s32 sequencePosition=__atomic_load_n(&(readBlock->sequencePosition), __ATOMIC_SEQ_CST);
+				s32 nextSequencePosition=MIN(readBlock->sequenceCount, sequencePosition+readsToConsume);
+
+				if(__atomic_compare_exchange_n(&(readBlock->sequencePosition), &sequencePosition, nextSequencePosition, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST))
+					{
+					int consumed=nextSequencePosition-sequencePosition;
+					__atomic_fetch_sub(&(readBlock->completionCount), consumed, __ATOMIC_RELAXED);
+
+					*sequenceLinkIndexPtr=readBlock->sequenceLinkIndex+sequencePosition;
+					return consumed;
+					}
+
+				available=__atomic_load_n(&(readBlock->completionCount), __ATOMIC_RELAXED);
+				}
+			}
+		}
+
+	*sequenceLinkIndexPtr=NULL;
+	return 0;
+}
+
+
 
 
 
@@ -122,132 +177,71 @@ void populateReadIngressBlock(SwqBuffer *rec, int ingressPosition, int ingressSi
 	RoutingReadIngressBlock *ingressBlock=allocateReadIngressBlock(rb);
 
 	SequenceWithQuality *currentRec=rec->rec+ingressPosition;
-	int ingressLast=ingressPosition+ingressSize;
-
-//	int maxReadLength=0;
 
 	MemSingleBrickAllocator alloc;
 	mbInitSingleBrickAllocator(&alloc, &(rb->sequenceLinkPile));
 
-	for(int i=ingressPosition;i<ingressLast;i++)
+	for(int i=0;i<ingressSize;i++)
 		{
-		//int length=currentRec->length;
+		int length=currentRec->length;
+		int offset=0;
 
-		/*
-		readData->seqLength=length;
+		u32 *brickIndexPtr=ingressBlock->sequenceLinkIndex+i;
 
-		if(length>maxReadLength)
-			maxReadLength=length;
+		while(offset<length)
+			{
+			SequenceLink *sequenceLink=mbSingleBrickAllocate(&alloc, brickIndexPtr);
 
-		readData->packedSeq=dAllocQuadAligned(disp,PAD_2BITLENGTH_BYTE(length)); // Consider extra padding on these allocs
-		//readData->quality=dAlloc(disp,length+1);
-		readData->smers=dAllocQuadAligned(disp,length*sizeof(SmerId)*2);
+			s32 lengthToPack=MIN(PAD_2BITLENGTH_BYTE(length), SEQUENCE_LINK_BYTES);
 
-		//LOG(LOG_INFO,"Packing %p into %p with length %i",currentRec->seq, readData->packedSeq, length);
-		packSequence(currentRec->seq, readData->packedSeq, length);
+			packSequence(currentRec->seq+offset, sequenceLink->packedSequence, length);
 
-		s32 maxValidIndex=(length-nodeSize);
-		calculatePossibleSmersAndCompSmers(readData->packedSeq, maxValidIndex, readData->smers);
+			s32 basesPacked=(lengthToPack<<2);
 
-		assignSmersToLookupPercolates(readData->smers, maxValidIndex+1, readBlock->smerEntryLookupsPercolates, disp);
+			sequenceLink->length=basesPacked;
+			brickIndexPtr=&(sequenceLink->nextIndex);
+			offset+=basesPacked;
+			}
 
-*/
-		ingressBlock->sequenceBrickIndex[i]=LINK_INDEX_DUMMY;
-
+		*brickIndexPtr=LINK_INDEX_DUMMY;
 		currentRec++;
-
 		}
+
+	mbSingleBrickAllocatorCleanup(&alloc);
 
 	ingressBlock->sequenceCount=ingressSize;
 	ingressBlock->sequencePosition=0;
 
-	LOG(LOG_INFO,"populateReadIngressBlock");
+	ingressBlock->completionCount=ingressSize;
+
+	queueReadIngressBlock(ingressBlock);
+
+	int pileFree=mbGetFreeSingleBrickPile(&(rb->sequenceLinkPile));
+
+	LOG(LOG_INFO,"populateReadIngressBlock: %i",pileFree);
 }
 
 
 
 
+s32 scanForAndFreeCompleteReadIngressBlocks(RoutingBuilder *rb)
+{
+	int index=scanForCompleteReadIngressBlock(rb);
+	if(index<0)
+		return 0;
 
+	RoutingReadIngressBlock *ingressBlock=dequeueCompleteReadIngressBlock(rb, index);
 
-
-/*
-	//MemDispenser *disp=dispenserAlloc(MEMTRACKID_DISPENSER_ROUTING_LOOKUP, DISPENSER_BLOCKSIZE_MEDIUM, DISPENSER_BLOCKSIZE_HUGE);
-	//	readBlock->disp=disp;
-
-//	LOG(LOG_INFO,"DispAlloc %p",disp);
-	RoutingReadLookupBlock *readBlock=allocateReadLookupBlock(rb);
-
-	MemDispenser *disp=readBlock->disp;
-
-	//int smerCount=0;
-	int i=0;
-	int ingressLast=ingressPosition+ingressSize;
-
-	for(i=0;i<SMER_LOOKUP_PERCOLATES;i++)
-		readBlock->smerEntryLookupsPercolates[i]=allocPercolateBlock(disp);
-
-	for(i=0;i<SMER_SLICES;i++)
-		readBlock->smerEntryLookups[i]=allocEntryLookupBlock(disp);
-
-	SequenceWithQuality *currentRec=rec->rec+ingressPosition;
-	RoutingReadLookupData *readData=readBlock->readData;
-
-	int maxReadLength=0;
-
-	for(i=ingressPosition;i<ingressLast;i++)
+	if(ingressBlock!=NULL)
 		{
-		int length=currentRec->length;
-		readData->seqLength=length;
+		unallocateReadIngressBlock(ingressBlock);
+		unreserveReadIngressBlock(rb);
 
-		if(length>maxReadLength)
-			maxReadLength=length;
-
-		readData->packedSeq=dAllocQuadAligned(disp,PAD_2BITLENGTH_BYTE(length)); // Consider extra padding on these allocs
-		//readData->quality=dAlloc(disp,length+1);
-		readData->smers=dAllocQuadAligned(disp,length*sizeof(SmerId)*2);
-
-		//LOG(LOG_INFO,"Packing %p into %p with length %i",currentRec->seq, readData->packedSeq, length);
-		packSequence(currentRec->seq, readData->packedSeq, length);
-
-		s32 maxValidIndex=(length-nodeSize);
-		calculatePossibleSmersAndCompSmers(readData->packedSeq, maxValidIndex, readData->smers);
-
-		assignSmersToLookupPercolates(readData->smers, maxValidIndex+1, readBlock->smerEntryLookupsPercolates, disp);
-
-		currentRec++;
-		readData++;
+//		LOG(LOG_INFO,"Freed");
+		return 1;
 		}
-
-	readBlock->readCount=ingressLast-ingressPosition;
-	readBlock->maxReadLength=maxReadLength;
-
-	assignPercolatesToEntryLookups(readBlock->smerEntryLookupsPercolates, readBlock->smerEntryLookups, disp);
-
-	int usedSlices=0;
-	for(i=0;i<SMER_SLICES;i++)
-		{
-		RoutingSmerEntryLookup *lookupForSlice=readBlock->smerEntryLookups[i];
-
-		if(lookupForSlice->entryCount>0)
-			{
-			lookupForSlice->completionCountPtr=&(readBlock->completionCount);
-			usedSlices++;
-			}
-		else
-			lookupForSlice->completionCountPtr=NULL;
-		}
-
-	__atomic_store_n(&(readBlock->completionCount), usedSlices, __ATOMIC_SEQ_CST);
-
-	for(i=0;i<SMER_SLICES;i++)
-		{
-		RoutingSmerEntryLookup *lookupForSlice=readBlock->smerEntryLookups[i];
-		if(lookupForSlice->entryCount>0)
-			queueLookupForSlice(rb, lookupForSlice, i);
-		}
-
-	queueReadLookupBlock(readBlock);
-
+	return 0;
 }
-*/
+
+
 

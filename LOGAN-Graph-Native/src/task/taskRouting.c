@@ -107,7 +107,7 @@ static void dumpUncleanDispatchGroup(int groupNum, RoutingReadReferenceBlockDisp
 
 static void dumpUnclean(RoutingBuilder *rb)
 {
-	LOG(LOG_CRITICAL,"TODO: Dump unclean");
+	LOG(LOG_INFO,"TODO: Dump unclean??");
 	/*
 	for(int i=0;i<TR_READBLOCK_DISPATCHES_INFLIGHT;i++)
 		dumpUncleanDispatchReadBlocks(i, rb->readDispatchBlocks+i);
@@ -150,9 +150,24 @@ static void dumpUnclean(RoutingBuilder *rb)
 
 static int trDoIntermediate(ParallelTask *pt, int workerNo, void *wState, int force)
 {
-	LOG(LOG_INFO,"trDoIntermediate");
+	//LOG(LOG_INFO,"trDoIntermediate");
 
-	sleep(1);
+	//RoutingWorkerState *workerState=wState;
+	RoutingBuilder *rb=pt->dataPtr;
+
+
+	if(queueIngressReadsForSmerLookup(rb))
+		{
+		return 1;
+		}
+
+	if(scanForAndFreeCompleteReadIngressBlocks(rb))
+		{
+		return 1;
+		}
+
+
+//	sleep(1);
 
 //	RoutingWorkerState *workerState=wState;
 //	RoutingBuilder *rb=pt->dataPtr;
@@ -227,6 +242,8 @@ static int trDoIntermediate(ParallelTask *pt, int workerNo, void *wState, int fo
 	if(arlb>0 || ardb>0) // If in force mode, and not finished, rally the minions
 		return force;
 */
+
+	//LOG(LOG_INFO,"Worker did nothing");
 	return 0;
 }
 
@@ -260,27 +277,29 @@ RoutingBuilder *allocRoutingBuilder(Graph *graph, int threads)
 
 	rb->pogoDebugFlag=1;
 
-	rb->allocatedIngressBlocks=0;
+	if(sizeof(SequenceLink)!=SINGLEBRICK_BRICKSIZE)
+		LOG(LOG_CRITICAL,"SequenceLink size %i doesn't match expected %i", sizeof(SequenceLink), SINGLEBRICK_BRICKSIZE);
 
 	mbInitSingleBrickPile(&(rb->sequenceLinkPile), TR_BRICKCHUNKS_SEQUENCE_MIN, TR_BRICKCHUNKS_SEQUENCE_MAX, MEMTRACKID_BRICK_SEQ);
 
+	for(int i=0;i<TR_READBLOCK_INGRESS_INFLIGHT;i++)
+		rb->ingressBlocks[i].status=BLOCK_STATUS_IDLE;
+	rb->allocatedIngressBlocks=0;
 
-//	for(int i=0;i<TR_READBLOCK_INGRESS_INFLIGHT;i++)
-//		{
-		//rb->ingressBlocks[i].disp=dispenserAlloc(MEMTRACKID_DISPENSER_ROUTING_LOOKUP, DISPENSER_BLOCKSIZE_MEDIUM, DISPENSER_BLOCKSIZE_HUGE);
-		//for(int j=0;j<TR_INGRESS_BLOCKSIZE;j++)
-//			rb->ingressBlocks[i].sequenceBrickIndex[j]=LINK_INDEX_DUMMY;
-//		}
+	mbInitDoubleBrickPile(&(rb->lookupLinkPile), TR_BRICKCHUNKS_LOOKUP_MIN, TR_BRICKCHUNKS_LOOKUP_MAX, MEMTRACKID_BRICK_LOOKUP);
 
-
-	/*
-	rb->allocatedReadLookupBlocks=0;
 	for(int i=0;i<TR_READBLOCK_LOOKUPS_INFLIGHT;i++)
-		rb->readLookupBlocks[i].disp=dispenserAlloc(MEMTRACKID_DISPENSER_ROUTING_LOOKUP, DISPENSER_BLOCKSIZE_MEDIUM, DISPENSER_BLOCKSIZE_HUGE);
+		rb->readLookupBlocks[i].status=BLOCK_STATUS_IDLE;
+	rb->allocatedReadLookupBlocks=0;
 
 	for(int i=0;i<SMER_SLICES;i++)
 		rb->smerEntryLookupPtr[i]=NULL;
 
+	mbInitDoubleBrickPile(&(rb->dispatchLinkPile), TR_BRICKCHUNKS_DISPATCH_MIN, TR_BRICKCHUNKS_DISPATCH_MAX, MEMTRACKID_BRICK_DISPATCH);
+
+
+
+/*
 	rb->allocatedReadDispatchBlocks=0;
 	for(int i=0;i<TR_READBLOCK_DISPATCHES_INFLIGHT;i++)
 		rb->readDispatchBlocks[i].disp=dispenserAlloc(MEMTRACKID_DISPENSER_ROUTING_DISPATCH, DISPENSER_BLOCKSIZE_MEDIUM, DISPENSER_BLOCKSIZE_HUGE);

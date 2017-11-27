@@ -293,7 +293,7 @@ int main(int argc, char **argv)
 			sizeof(SequenceLink), sizeof(LookupLink), sizeof(DispatchLink));
 */
 
-	LOG(LOG_INFO,"MemSingleBrickChunk: %i (2097152) MemDoubleBrickChunk %i (4194304)", sizeof(MemSingleBrickChunk), sizeof(MemDoubleBrickChunk));
+	LOG(LOG_INFO,"MemSingleBrickChunk: %i (4194304) MemDoubleBrickChunk %i (8388608)", sizeof(MemSingleBrickChunk), sizeof(MemDoubleBrickChunk));
 
 
 #ifdef FEATURE_ENABLE_MEMTRACK

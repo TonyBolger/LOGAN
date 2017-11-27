@@ -12,7 +12,7 @@
 
 
 
-#define LINK_INDEX_DUMMY 0xFFFFFFFF
+#define LINK_INDEX_DUMMY 0x0
 
 
 #define SEQUENCE_LINK_BYTES 56
@@ -77,7 +77,7 @@ typedef struct routingReadIngressBlockStr {
 
 //	u32 maxSequenceLength;
 
-	u32 sequenceBrickIndex[TR_INGRESS_BLOCKSIZE];
+	u32 sequenceLinkIndex[TR_INGRESS_BLOCKSIZE];
 
 	u32 sequenceCount;
 	u32 sequencePosition;
@@ -86,6 +86,54 @@ typedef struct routingReadIngressBlockStr {
 	u32 status; // 0 = idle, 1 = allocated, 2 = active, 3 = finished
 
 } RoutingReadIngressBlock;
+
+
+
+// RoutingSmerEntryLookup has 24 bytes core
+// Each SmerEntry is 4
+// 64 bytes -> 40 spare -> 10 entries
+// 128 bytes -> 104 spare -> 26 entries
+// 256 bytes -> 232 spare -> 58 entries - 4MB per batch
+// 512 bytes -> 488 spare -> 122 entries - 8MB per batch
+// Probably best to pick non-binary values to lower thrashing
+
+typedef struct routingSmerEntryLookupStr {
+	struct routingSmerEntryLookupStr *nextPtr; //
+	s32 *completionCountPtr; // 8
+	u64 entryCount; // 8
+	SmerEntry *entries; // 8
+
+} __attribute__((aligned (32))) RoutingSmerEntryLookup;
+
+typedef struct routingLookupPercolateStr {
+	u32 entryCount; // 8
+	u32 entryPosition; // 8
+	u32 *entries; // 8 - pairs of (slice, smerEntry)
+} __attribute__((aligned (16))) RoutingLookupPercolate;
+
+
+typedef struct routingReadLookupBlockStr {
+	u32 lookupLinkIndex[TR_LOOKUP_BLOCKSIZE];
+
+	u32 readCount;
+	u32 maxReadLength;
+
+	RoutingLookupPercolate *smerEntryLookupsPercolates[SMER_LOOKUP_PERCOLATES]; // Holds intermediate lookup data
+	RoutingSmerEntryLookup *smerEntryLookups[SMER_SLICES]; // Holds per-slice smer details for lookup
+
+	MemDispenser *disp; // Unified dispenser
+	s32 completionCount;
+	u32 status; // 0 = idle, 1 = allocated, 2 = active, 3 = finished
+} RoutingReadLookupBlock;
+
+
+
+
+
+
+
+
+
 
 /*
 
@@ -225,11 +273,11 @@ typedef struct routingBuilderStr {
 
 	MemSingleBrickPile sequenceLinkPile;	// Sequence chains: added during Ingress
 
-
-
-
 	MemDoubleBrickPile lookupLinkPile;		// Lookup chains
+	RoutingReadLookupBlock readLookupBlocks[TR_READBLOCK_LOOKUPS_INFLIGHT]; // Batches of reads in lookup stage
+	u64 allocatedReadLookupBlocks;
 
+	RoutingSmerEntryLookup *smerEntryLookupPtr[SMER_SLICES]; // Per-slice list of lookups
 
 	MemDoubleBrickPile dispatchLinkPile;	// Dispatch chains
 
@@ -238,8 +286,6 @@ typedef struct routingBuilderStr {
 
 	RoutingReadLookupBlock readLookupBlocks[TR_READBLOCK_LOOKUPS_INFLIGHT]; // Batches of reads in lookup stage
 	u64 allocatedReadLookupBlocks;
-
-	RoutingSmerEntryLookup *smerEntryLookupPtr[SMER_SLICES]; // Per-slice list of lookups
 
 	RoutingReadDispatchBlock readDispatchBlocks[TR_READBLOCK_DISPATCHES_INFLIGHT]; // Batches of reads in dispatch stage
 	u64 allocatedReadDispatchBlocks;

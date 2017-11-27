@@ -519,10 +519,38 @@ void queueReadsForSmerLookup(SwqBuffer *rec, int ingressPosition, int ingressSiz
 	queueReadLookupBlock(readBlock);
 }
 
+*/
+
+s32 queueIngressReadsForSmerLookup(RoutingBuilder *rb)
+{
+	s32 availableReads=getAvailableReadIngress(rb);
+
+	if(!availableReads)
+		return 0;
+
+	int readsToLookup=MIN(availableReads, TR_LOOKUP_BLOCKSIZE);
+
+//	RoutingReadLookupBlock *readBlock=allocateReadLookupBlock(rb);
+//	MemDispenser *disp=readBlock->disp;
+
+	u32 *sequenceLinkIndexes;
+	s32 consumed=consumeReadIngress(rb, readsToLookup, &sequenceLinkIndexes);
+
+	LOG(LOG_INFO,"Consumed %i",consumed);
+
+	for(int i=0;i<consumed;i++)//=2)
+		{
+		mbSingleBrickFreeByIndex(&(rb->sequenceLinkPile), sequenceLinkIndexes[i]);
+		}
+
+
+	return consumed;
+}
 
 
 
 
+/*
 int scanForAndDispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb)
 {
 	Graph *graph=rb->graph;

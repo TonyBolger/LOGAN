@@ -309,8 +309,6 @@ static int performTaskActive(ParallelTask *pt, int workerNo, RoutingWorkerState 
 
 	if(__atomic_load_n(&(pt->activeIngressPtr), __ATOMIC_SEQ_CST)==NULL)
 		{
-//		LOG(LOG_INFO,"New ingress needed");
-
 		if(performTaskAcceptNewIngress(pt))
 			return 1;
 		}
