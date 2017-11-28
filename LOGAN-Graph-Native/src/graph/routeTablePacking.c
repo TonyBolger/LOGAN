@@ -448,9 +448,28 @@ RouteTableUnpackedSingleBlock *rtpUnpackSingleBlockHeaderAndOffsets(RouteTablePa
 	u16 blockHeader=packedBlock->blockHeader;
 	u8 *dataPtr=packedBlock->data;
 
-	s32 sizePayloadSize=((blockHeader&RTP_PACKEDHEADER_PAYLOADSIZE_MASK)?2:1);
+	s32 sizePayloadSize=1+((blockHeader&RTP_PACKEDHEADER_PAYLOADSIZE_MASK)>>RTP_PACKEDHEADER_PAYLOADSIZE_SHIFT);
+	s32 payloadSize;
 
-	s32 payloadSize=sizePayloadSize==1?(*dataPtr):(*((u16 *)(dataPtr)));
+	switch(sizePayloadSize)
+		{
+		case 1:
+			payloadSize=*dataPtr;
+			break;
+
+		case 2:
+			payloadSize=(*((u16 *)(dataPtr)));
+			break;
+
+		case 3:
+			payloadSize=(*((u16 *)(dataPtr)))+(((u32)(*(dataPtr+2)))<<16);
+			break;
+
+		case 4:
+			payloadSize=(*((u32 *)(dataPtr)));
+			break;
+		}
+
 	dataPtr+=sizePayloadSize;
 
 	s32 sizeUpstreamRange=blockHeader&RTP_PACKEDHEADER_UPSTREAMRANGESIZE_MASK?2:1;
@@ -596,7 +615,22 @@ static void updatePackingInfoSizeAndHeader(RouteTablePackingInfo *packingInfo)
 
 	int sizePayload=0;
 
-	if(payloadSize>255)
+	if(payloadSize>65534) // 65535-1
+		{
+		if(payloadSize>16777213) // 16777215-2
+			{
+			payloadSize+=3;
+			sizePayload=3;
+
+			}
+		else
+			{
+			payloadSize+=2;
+			sizePayload=2;
+			}
+
+		}
+	else if(payloadSize>255)
 		{
 		payloadSize++;
 		sizePayload=1;
@@ -614,6 +648,7 @@ static void updatePackingInfoSizeAndHeader(RouteTablePackingInfo *packingInfo)
 			(sizeUpstreamRange<<RTP_PACKEDHEADER_UPSTREAMRANGESIZE_SHIFT)|			// 12
 			(sizePayload<<RTP_PACKEDHEADER_PAYLOADSIZE_SHIFT);						// 13
 
+	/*
 	if(payloadSize>65535)
 		{
 		LOG(LOG_INFO,"PackedSizes: Payload %i: Up: %i Down: %i Offset: %i Array: %i MaxEntries %i Width: %i",
@@ -635,6 +670,7 @@ static void updatePackingInfoSizeAndHeader(RouteTablePackingInfo *packingInfo)
 	
 		LOG(LOG_INFO,"Core payload %i Array Bits: %i",corePayloadSize, arrayBits);
 		}
+*/
 
 }
 
@@ -746,6 +782,41 @@ void rtpPackSingleBlock(RouteTableUnpackedSingleBlock *unpackedBlock, RouteTable
 	// Section 1: Payload Size
 
 	u32 payloadSize=packingInfo->payloadSize;
+	switch(blockHeader >> RTP_PACKEDHEADER_PAYLOADSIZE_SHIFT)
+		{
+		case 0:
+			if(payloadSize>255)
+				LOG(LOG_CRITICAL, "Invalid payload size %i for 1-byte format",payloadSize);
+			*(dataPtr++)=(u8)(payloadSize);
+			break;
+
+		case 1:
+			if(payloadSize<256 || payloadSize>65535)
+				LOG(LOG_CRITICAL, "Invalid payload size %i for 2-byte format",payloadSize);
+
+			*((u16 *)(dataPtr))=(u16)(payloadSize);
+			dataPtr+=2;
+			break;
+
+		case 2:
+			if(payloadSize<65536 || payloadSize>16777215)
+				LOG(LOG_CRITICAL, "Invalid payload size %i for 3-byte format",payloadSize);
+
+			*((u16 *)(dataPtr))=(u16)(payloadSize&0xFFFF);
+			dataPtr+=2;
+			*(dataPtr++)=(u8)(payloadSize>>16);
+			break;
+
+		case 3:
+			if(payloadSize<16777216)
+				LOG(LOG_CRITICAL, "Invalid payload size %i for 4-byte format",payloadSize);
+
+			*((u32 *)(dataPtr))=(u32)(payloadSize);
+			dataPtr+=4;
+			break;
+		}
+
+	/*
 	if(blockHeader & RTP_PACKEDHEADER_PAYLOADSIZE_MASK)	// 2 byte payload size
 		{
 		if(payloadSize<256 || payloadSize>65535)
@@ -761,7 +832,7 @@ void rtpPackSingleBlock(RouteTableUnpackedSingleBlock *unpackedBlock, RouteTable
 
 		*(dataPtr++)=(u8)(payloadSize);
 		}
-
+*/
 
 	// Section 2: Upstream Ranges
 
@@ -889,7 +960,28 @@ s32 rtpGetPackedSingleBlockSize(RouteTablePackedSingleBlock *packedBlock)
 	u16 blockHeader=packedBlock->blockHeader;
 	u8 *dataPtr=packedBlock->data;
 
-	s32 payloadSize=(blockHeader&RTP_PACKEDHEADER_PAYLOADSIZE_MASK)?(*((u16 *)(dataPtr))):(*((u8 *)(dataPtr)));
+	s32 sizePayloadSize=((blockHeader&RTP_PACKEDHEADER_PAYLOADSIZE_MASK)>>RTP_PACKEDHEADER_PAYLOADSIZE_SHIFT);
+	s32 payloadSize;
+
+	switch(sizePayloadSize)
+		{
+		case 0:
+			payloadSize=*dataPtr;
+			break;
+
+		case 1:
+			payloadSize=(*((u16 *)(dataPtr)));
+			break;
+
+		case 2:
+			payloadSize=(*((u16 *)(dataPtr)))+(((s32)(*(dataPtr+2)))<<16);
+			break;
+
+		case 3:
+			payloadSize=(*((u32 *)(dataPtr)));
+			break;
+		}
+
 	s32 totalSize=payloadSize+2;
 
 //	LOG(LOG_INFO,"PackLeaf: rtpGetPackedSingleBlockSize size %i",totalSize);

@@ -3,7 +3,7 @@
 
 
 #define RTP_PACKEDHEADER_PAYLOADSIZE_SHIFT 13
-#define RTP_PACKEDHEADER_PAYLOADSIZE_MASK (1<<RTP_PACKEDHEADER_PAYLOADSIZE_SHIFT)
+#define RTP_PACKEDHEADER_PAYLOADSIZE_MASK (3<<RTP_PACKEDHEADER_PAYLOADSIZE_SHIFT)
 
 #define RTP_PACKEDHEADER_UPSTREAMRANGESIZE_SHIFT 12
 #define RTP_PACKEDHEADER_UPSTREAMRANGESIZE_MASK (1<<RTP_PACKEDHEADER_UPSTREAMRANGESIZE_SHIFT)
@@ -32,9 +32,9 @@
 // Represents packed form of a leaf or whole routing table.
 typedef struct routeTablePackedSingleBlockStr
 {
-	//SPARE 					2
+	//SPARE 					1
 
-	//payloadSize(8/16 bit)     1
+	//payloadSize(8/16/24/32 bit)     2
 	//upstreamRange(8/16 bit)  1
 	//downstreamRange(8/16 bit) 1
 	//offsetSize(8/16/24/32 bit) 2
