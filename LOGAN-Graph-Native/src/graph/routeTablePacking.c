@@ -743,28 +743,27 @@ void rtpUpdateUnpackedSingleBlockPackingInfo(RouteTableUnpackedSingleBlock *bloc
 	packingInfo->maxEntryWidth=maxEntryWidth;
 
 	updatePackingInfoSizeAndHeader(packingInfo);
+/*
+    if(packingInfo->payloadSize>65535)
+    	{
+    	for(int i=0;i<block->upstreamOffsetAlloc;i++)
+    		{
+    		s32 offset=block->upstreamLeafOffsets[i];
 
-        if(packingInfo->payloadSize>65535)
-          {
-          for(int i=0;i<block->upstreamOffsetAlloc;i++)
-                {
-                s32 offset=block->upstreamLeafOffsets[i];
+            if(offset)
+            	LOG(LOG_INFO,"Upstream Edge %i has %i",i,offset);
+    		}
 
-                if(offset)
-			LOG(LOG_INFO,"Upstream Edge %i has %i",i,offset);
-		}
-
-	  for(int i=0;i<block->downstreamOffsetAlloc;i++)
-                {
-                s32 offset=block->downstreamLeafOffsets[i];
+    	for(int i=0;i<block->downstreamOffsetAlloc;i++)
+            {
+            s32 offset=block->downstreamLeafOffsets[i];
 		
-		if(offset)
-			LOG(LOG_INFO,"Downstream Edge %i has %i",i,offset);
+            if(offset)
+            	LOG(LOG_INFO,"Downstream Edge %i has %i",i,offset);
+            }
 
-                }
-
-          }
-
+    	}
+*/
 //	LOG(LOG_INFO,"PackLeaf: rtpUpdateUnpackedSingleBlockSize Size: %i",packingInfo->packedSize);
 }
 
