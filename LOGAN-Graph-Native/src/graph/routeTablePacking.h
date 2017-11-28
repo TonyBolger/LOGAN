@@ -180,8 +180,8 @@ typedef struct routeTableUnpackedSingleBlockStr
 
 // Limit the total entries below ROUTEPACKING_ENTRYARRAYS_MAX * ROUTEPACKING_ENTRYS_MAX
 // This prevents 'optimally' filled leaves growing to big
-//#define ROUTEPACKING_TOTALENTRYS_SPLIT_THRESHOLD 16384
-#define ROUTEPACKING_TOTALENTRYS_SPLIT_THRESHOLD 4096
+#define ROUTEPACKING_TOTALENTRYS_SPLIT_THRESHOLD 16384
+//#define ROUTEPACKING_TOTALENTRYS_SPLIT_THRESHOLD 4096
 
 void rtpDumpUnpackedSingleBlock(RouteTableUnpackedSingleBlock *block);
 
