@@ -651,10 +651,10 @@ static void updatePackingInfoSizeAndHeader(RouteTablePackingInfo *packingInfo)
 
 void rtpUpdateUnpackedSingleBlockPackingInfo(RouteTableUnpackedSingleBlock *block)
 {
-	s32 firstUpstream=block->upstreamOffsetAlloc>0?INT32_MAX/2:0;
+	s32 firstUpstream=INT32_MAX/2;
 	s32 lastUpstream=0;
 
-	s32 firstDownstream=block->downstreamOffsetAlloc>0?INT32_MAX/2:0;
+	s32 firstDownstream=INT32_MAX/2;
 	s32 lastDownstream=0;
 
 	s32 maxOffset=0;
@@ -776,7 +776,7 @@ void rtpPackSingleBlock(RouteTableUnpackedSingleBlock *unpackedBlock, RouteTable
 //	if(upstreamFirst<minPackedValue[sizeUpstreamRange] && upstreamAlloc<minPackedValue[sizeUpstreamRange])
 //		LOG(LOG_CRITICAL, "Invalid upstream range %i %i for %i-byte format",upstreamFirst, upstreamAlloc, sizeUpstreamRange+1);
 
-	if(upstreamFirst>maxPackedValue[sizeUpstreamRange] || upstreamAlloc>maxPackedValue[sizeUpstreamRange])
+	if(upstreamAlloc>maxPackedValue[sizeUpstreamRange])
 		LOG(LOG_CRITICAL, "Invalid upstream range %i %i for %i-byte format",upstreamFirst, upstreamAlloc, sizeUpstreamRange+1);
 
 	dataPtr=apPackArray(dataPtr, &upstreamFirst, 1+sizeUpstreamRange, 1);
@@ -793,7 +793,7 @@ void rtpPackSingleBlock(RouteTableUnpackedSingleBlock *unpackedBlock, RouteTable
 //	if(downstreamFirst<minPackedValue[sizeDownstreamRange] && downstreamAlloc<minPackedValue[sizeDownstreamRange])
 //		LOG(LOG_CRITICAL, "Invalid downstream range %i %i for %i-byte format",downstreamFirst, downstreamAlloc, sizeDownstreamRange+1);
 
-	if(downstreamFirst>maxPackedValue[sizeDownstreamRange] || downstreamAlloc>maxPackedValue[sizeDownstreamRange])
+	if(downstreamAlloc>maxPackedValue[sizeDownstreamRange])
 		LOG(LOG_CRITICAL, "Invalid downstream range %i %i for %i-byte format",downstreamFirst, downstreamAlloc, sizeDownstreamRange+1);
 
 	dataPtr=apPackArray(dataPtr, &downstreamFirst, 1+sizeDownstreamRange, 1);
