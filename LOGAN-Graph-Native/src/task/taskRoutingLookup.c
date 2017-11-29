@@ -533,16 +533,21 @@ s32 queueIngressReadsForSmerLookup(RoutingBuilder *rb)
 //	RoutingReadLookupBlock *readBlock=allocateReadLookupBlock(rb);
 //	MemDispenser *disp=readBlock->disp;
 
+	RoutingReadIngressBlock *readBlock;
 	u32 *sequenceLinkIndexes;
-	s32 consumed=consumeReadIngress(rb, readsToLookup, &sequenceLinkIndexes);
+	s32 consumed=consumeReadIngress(rb, readsToLookup, &sequenceLinkIndexes, &readBlock);
 
-	LOG(LOG_INFO,"Consumed %i",consumed);
-
-	for(int i=0;i<consumed;i++)//=2)
+	if(sequenceLinkIndexes!=NULL)
 		{
-		mbSingleBrickFreeByIndex(&(rb->sequenceLinkPile), sequenceLinkIndexes[i]);
-		}
+//		LOG(LOG_INFO,"Consumed %i - %i",consumed, sequenceLinkIndexes[0], sequenceLinkIndexes[consumed]);
 
+		for(int i=0;i<consumed;i++)//=2)
+			{
+			mbSingleBrickFreeByIndex(&(rb->sequenceLinkPile), sequenceLinkIndexes[i]);
+			}
+
+		__atomic_fetch_sub(&(readBlock->completionCount), consumed, __ATOMIC_SEQ_CST);
+		}
 
 	return consumed;
 }

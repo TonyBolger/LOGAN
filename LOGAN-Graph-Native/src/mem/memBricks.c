@@ -506,7 +506,7 @@ static s32 singleBlockUnallocateEntry(MemSingleBrickChunk *chunk, u32 scanFlag, 
 
 		if(allocMask & freeAllocMask)
 			{
-			LOG(LOG_CRITICAL,"Entry is already free");
+			LOG(LOG_INFO,"Entry is already free %i %i (%i) - %016lx %016lx", scanFlag, allocIndex, loopCount, allocMask, freeAllocMask);
 			return 0;
 			}
 
@@ -632,7 +632,7 @@ static s32 doubleBlockUnallocateEntry(MemDoubleBrickChunk *chunk, u32 scanFlag, 
 
 		if(allocMask & freeAllocMask)
 			{
-			LOG(LOG_CRITICAL,"Entry is already free");
+			LOG(LOG_CRITICAL,"Entry is already free (%i)", loopCount);
 			return 0;
 			}
 
@@ -752,6 +752,11 @@ void mbSingleBrickAllocatorCleanup(MemSingleBrickAllocator *alloc)
 
 void mbSingleBrickFreeByIndex(MemSingleBrickPile *pile, u32 brickIndex)
 {
+	if(brickIndex==LINK_INDEX_DUMMY)
+		{
+		LOG(LOG_CRITICAL,"Invalid Index %i",brickIndex);
+		}
+
 	u32 chunkIndex=brickIndex>>16;
 	u32 flagIndex=(brickIndex &0xFFFF)>>6;
 	u32 allocIndex=(brickIndex & 0x3F);
@@ -759,7 +764,8 @@ void mbSingleBrickFreeByIndex(MemSingleBrickPile *pile, u32 brickIndex)
 	if(chunkIndex>pile->chunkCount)
 		LOG(LOG_CRITICAL,"Index beyond end of pile");
 
-	singleBlockUnallocateEntry(pile->chunks[chunkIndex], flagIndex, allocIndex);
+	if(!singleBlockUnallocateEntry(pile->chunks[chunkIndex], flagIndex, allocIndex))
+		LOG(LOG_CRITICAL,"Failed to free %i -> %i %i %i", brickIndex, chunkIndex, flagIndex, allocIndex);
 
 	__atomic_fetch_add(&pile->freeCount, 1, __ATOMIC_RELAXED);
 }

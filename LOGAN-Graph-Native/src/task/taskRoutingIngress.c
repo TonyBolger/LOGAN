@@ -132,7 +132,9 @@ s32 getAvailableReadIngress(RoutingBuilder *rb)
 	return total;
 }
 
-s32 consumeReadIngress(RoutingBuilder *rb, s32 readsToConsume, u32 **sequenceLinkIndexPtr)
+
+// Racey due to interaction of status and completion count. Redo with lock
+s32 consumeReadIngress(RoutingBuilder *rb, s32 readsToConsume, u32 **sequenceLinkIndexPtr, RoutingReadIngressBlock **blockPtr)
 {
 	RoutingReadIngressBlock *readBlock;
 	int i;
@@ -141,30 +143,36 @@ s32 consumeReadIngress(RoutingBuilder *rb, s32 readsToConsume, u32 **sequenceLin
 		{
 		readBlock=rb->ingressBlocks+i;
 
-		if(__atomic_load_n(&(readBlock->status), __ATOMIC_RELAXED) == BLOCK_STATUS_ACTIVE)
+		if(__atomic_load_n(&(readBlock->status), __ATOMIC_SEQ_CST) == BLOCK_STATUS_ACTIVE)
 			{
-			s32 available=__atomic_load_n(&(readBlock->completionCount), __ATOMIC_RELAXED);
+			s32 available=__atomic_load_n(&(readBlock->completionCount), __ATOMIC_SEQ_CST);
 			int loopCount=10000;
 			while(available>0 && --loopCount>0)
 				{
+				readsToConsume=MIN(readsToConsume, available);
+
 				s32 sequencePosition=__atomic_load_n(&(readBlock->sequencePosition), __ATOMIC_SEQ_CST);
 				s32 nextSequencePosition=MIN(readBlock->sequenceCount, sequencePosition+readsToConsume);
 
-				if(__atomic_compare_exchange_n(&(readBlock->sequencePosition), &sequencePosition, nextSequencePosition, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST))
+				if(sequencePosition<nextSequencePosition)
 					{
-					int consumed=nextSequencePosition-sequencePosition;
-					__atomic_fetch_sub(&(readBlock->completionCount), consumed, __ATOMIC_RELAXED);
+					if(__atomic_compare_exchange_n(&(readBlock->sequencePosition), &sequencePosition, nextSequencePosition, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST))
+						{
+						int consumed=nextSequencePosition-sequencePosition;
 
-					*sequenceLinkIndexPtr=readBlock->sequenceLinkIndex+sequencePosition;
-					return consumed;
+						*sequenceLinkIndexPtr=readBlock->sequenceLinkIndex+sequencePosition;
+						*blockPtr=readBlock;
+
+						return consumed;
+						}
 					}
-
-				available=__atomic_load_n(&(readBlock->completionCount), __ATOMIC_RELAXED);
+				available=__atomic_load_n(&(readBlock->completionCount), __ATOMIC_SEQ_CST);
 				}
 			}
 		}
 
 	*sequenceLinkIndexPtr=NULL;
+	*blockPtr=NULL;
 	return 0;
 }
 
@@ -216,9 +224,9 @@ void populateReadIngressBlock(SwqBuffer *rec, int ingressPosition, int ingressSi
 
 	queueReadIngressBlock(ingressBlock);
 
-	int pileFree=mbGetFreeSingleBrickPile(&(rb->sequenceLinkPile));
+	//int pileFree=mbGetFreeSingleBrickPile(&(rb->sequenceLinkPile));
 
-	LOG(LOG_INFO,"populateReadIngressBlock: %i",pileFree);
+	//LOG(LOG_INFO,"populateReadIngressBlock: %i",pileFree);
 }
 
 
