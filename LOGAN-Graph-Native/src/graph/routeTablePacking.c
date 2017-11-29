@@ -651,10 +651,10 @@ static void updatePackingInfoSizeAndHeader(RouteTablePackingInfo *packingInfo)
 
 void rtpUpdateUnpackedSingleBlockPackingInfo(RouteTableUnpackedSingleBlock *block)
 {
-	s32 firstUpstream=INT32_MAX/2;
+	s32 firstUpstream=block->upstreamOffsetAlloc>0?INT32_MAX/2:0;
 	s32 lastUpstream=0;
 
-	s32 firstDownstream=INT32_MAX/2;
+	s32 firstDownstream=block->downstreamOffsetAlloc>0?INT32_MAX/2:0;
 	s32 lastDownstream=0;
 
 	s32 maxOffset=0;
