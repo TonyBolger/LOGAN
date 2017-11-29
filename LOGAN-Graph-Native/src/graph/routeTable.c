@@ -278,7 +278,7 @@ Alloc Header:
 #define ALLOC_HEADER_BLOCK_TAIL 0x00						// - 0 0 -  - - - -
 #define ALLOC_HEADER_BLOCK_LEAF 0x20						// - 0 1 -  - - - -
 #define ALLOC_HEADER_BLOCK_BRANCH 0x40						// - 1 0 -  - - - -
-#define ALLOC_HEADER_BLOCK_OFFSET 0x60						// - 1 1 -  - - - -
+//#define ALLOC_HEADER_BLOCK_OFFSET 0x60						// - 1 1 -  - - - -
 
 
 
@@ -409,12 +409,15 @@ static void dumpTagData(u8 **tagData, s32 tagDataLength)
 		}
 }
 
+// FIXME
 s32 rtEncodeGapDirectBlockHeader(s32 tagOffsetDiff, u8 *data)
 {
 	if(tagOffsetDiff<0)
 		{
 		LOG(LOG_CRITICAL,"Expected positive tagOffsetDiff direct %i",tagOffsetDiff);
 		}
+
+	tagOffsetDiff>>=1;
 
 	if(tagOffsetDiff<256)
 		{
@@ -445,6 +448,7 @@ s32 rtEncodeGapDirectBlockHeader(s32 tagOffsetDiff, u8 *data)
 	return 2;
 }
 
+// FIXME
 
 s32 rtEncodeGapTopBlockHeader(s32 tagOffsetDiff, u8 *data)
 {
@@ -452,6 +456,8 @@ s32 rtEncodeGapTopBlockHeader(s32 tagOffsetDiff, u8 *data)
 		{
 		LOG(LOG_CRITICAL,"Expected positive tagOffsetDiff indirect: %i",tagOffsetDiff);
 		}
+
+	tagOffsetDiff>>=1;
 
 	if(tagOffsetDiff<256)
 		{
@@ -481,7 +487,7 @@ s32 rtEncodeGapTopBlockHeader(s32 tagOffsetDiff, u8 *data)
 
 	return 2;
 }
-
+// FIXME
 s32 rtDecodeGapBlockHeader(u8 *data, s32 *tagOffsetDiffPtr)
 {
 	u8 header=*data++;
@@ -495,7 +501,7 @@ s32 rtDecodeGapBlockHeader(u8 *data, s32 *tagOffsetDiffPtr)
 		if(exp>1)
 			res=(256+res)<<(exp-2);
 
-		*tagOffsetDiffPtr=res;
+		*tagOffsetDiffPtr=(res<<1);
 		}
 
 	return 2;

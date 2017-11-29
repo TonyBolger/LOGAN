@@ -2185,7 +2185,7 @@ void rttGetStats(RouteTableTreeBuilder *builder,
 					leafProxy->unpackedBlock->unpackingInfo.sizePayloadSize+1+ 		// Payload Size
 					leafProxy->unpackedBlock->unpackingInfo.sizeUpstreamRange*2+2+ 	// Upstream Range
 					leafProxy->unpackedBlock->unpackingInfo.sizeDownstreamRange*2+2+ 	// Downstream Range
-					leafProxy->unpackedBlock->unpackingInfo.sizeArrayCount+1;			// Array Count
+					1;																	// Array Count
 
 			s32 sizeOffset=((blockHeader&RTP_PACKEDHEADER_OFFSETSIZE_MASK)>>RTP_PACKEDHEADER_OFFSETSIZE_SHIFT)+1;
 			int offsetSize=(leafProxy->unpackedBlock->upstreamOffsetAlloc+leafProxy->unpackedBlock->downstreamOffsetAlloc)*sizeOffset;
