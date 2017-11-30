@@ -78,12 +78,12 @@ typedef struct smerLinkedStr
 	s64 *prefixes;
 	SmerId *prefixSmers;
 	s8 *prefixSmerExists;
-	s32 prefixCount;
+	u32 prefixCount;
 
 	s64 *suffixes;
 	SmerId *suffixSmers;
 	s8 *suffixSmerExists;
-	s32 suffixCount;
+	u32 suffixCount;
 
 	RouteTableEntry *forwardRouteEntries;
 	RouteTableEntry *reverseRouteEntries;

@@ -516,7 +516,7 @@ s32 rtEncodeTailBlockHeader(u32 prefixSuffix, u32 indexSize, u32 index, u8 *data
 	//ALLOC_HEADER_LIVE_TAIL
 
 	*data++=(prefixSuffix?ALLOC_HEADER_INIT_LIVE_SUFFIX:ALLOC_HEADER_INIT_LIVE_PREFIX)+(indexSize-1);
-	varipackEncode(index, data);
+	vpExtEncode(index, data);
 
 	return 1+indexSize;
 }
@@ -535,7 +535,7 @@ s32 rtDecodeTailBlockHeader(u8 *data, u32 *prefixSuffixPtr, u32 *indexSizePtr, u
 	if(indexSizePtr!=NULL)
 		*indexSizePtr=indexSize;
 
-	u32 index=varipackDecode(indexSize, data);
+	u32 index=vpExtDecode(indexSize, data);
 	if(indexPtr!=NULL)
 		*indexPtr=index;
 
@@ -555,7 +555,7 @@ s32 rtGetTailBlockHeaderSize(int indexSize)
 s32 rtEncodeArrayBlockHeader_Branch0(s32 fwdRev, s32 indexSize, s32 index, u8 *data)
 {
 	*data++=(ALLOC_HEADER_INIT_LIVE_BRANCH_ARRAY0+(fwdRev<<3)+(indexSize-1));
-	data+=varipackEncode(index, data);
+	data+=vpExtEncode(index, data);
 
 	return 1+indexSize;
 }
@@ -565,7 +565,7 @@ s32 rtDecodeArrayBlockHeader_Branch0(u8 *data, s32 *indexSizePtr, s32 *indexPtr)
 	u8 header=*data++;
 
 	s32 indexSize=(header&ALLOC_HEADER_INDEXSIZE_MASK)+1;
-	s32 index=varipackDecode(indexSize, data);
+	s32 index=vpExtDecode(indexSize, data);
 
 	if(indexSizePtr!=NULL)
 		*indexSizePtr=indexSize;
@@ -579,7 +579,7 @@ s32 rtDecodeArrayBlockHeader_Branch0(u8 *data, s32 *indexSizePtr, s32 *indexPtr)
 s32 rtEncodeArrayBlockHeader_Leaf0(s32 fwdRev, s32 levels, s32 indexSize, s32 index, u8 *data)
 {
 	*data++=(ALLOC_HEADER_INIT_LIVE_LEAF_ARRAY0+(fwdRev<<3)+(levels<<2)+(indexSize-1));
-	data+=varipackEncode(index, data);
+	data+=vpExtEncode(index, data);
 
 	return 1+indexSize;
 }
@@ -590,7 +590,7 @@ s32 rtDecodeArrayBlockHeader_Leaf0(u8 *data, s32 *levelsPtr, s32 *indexSizePtr, 
 
 	s32 levels=header&ALLOC_HEADER_VARIANT_MASK;
 	s32 indexSize=(header&ALLOC_HEADER_INDEXSIZE_MASK)+1;
-	s32 index=varipackDecode(indexSize, data);
+	s32 index=vpExtDecode(indexSize, data);
 
 	if(levelsPtr!=NULL)
 		*levelsPtr=levels;
@@ -611,7 +611,7 @@ s32 rtDecodeIndexedBlockHeader_0(u8 *data, s32 *variantPtr, s32 *indexSizePtr, s
 	s32 indexSize=(header&ALLOC_HEADER_INDEXSIZE_MASK)+1;
 	s32 variant=(header&ALLOC_HEADER_VARIANT_MASK)!=0;
 
-	s32 index=varipackDecode(indexSize, data);
+	s32 index=vpExtDecode(indexSize, data);
 
 	if(variantPtr!=NULL)
 		*variantPtr=variant;
@@ -635,7 +635,7 @@ s32 rtGetIndexedBlockHeaderSize_0(s32 indexSize)
 s32 rtEncodeArrayBlockHeader_Leaf1(s32 fwdRev, s32 indexSize, s32 index, s32 subindex, u8 *data)
 {
 	*data++=(ALLOC_HEADER_INIT_LIVE_LEAF_ARRAY1+(fwdRev<<3)+(indexSize-1));
-	data+=varipackEncode(index, data);
+	data+=vpExtEncode(index, data);
 	*data++=(u8)subindex;
 
 	return 2+indexSize;
@@ -646,7 +646,7 @@ s32 rtDecodeArrayBlockHeader_Leaf1(u8 *data, s32 *indexSizePtr, s32 *indexPtr, s
 	u8 header=*data++;
 
 	s32 indexSize=(header&ALLOC_HEADER_INDEXSIZE_MASK)+1;
-	s32 index=varipackDecode(indexSize, data);
+	s32 index=vpExtDecode(indexSize, data);
 
 	data+=indexSize;
 
@@ -668,7 +668,7 @@ s32 rtDecodeArrayBlockHeader_Leaf1(u8 *data, s32 *indexSizePtr, s32 *indexPtr, s
 s32 rtEncodeEntityBlockHeader_Branch1(s32 fwdRev, s32 indexSize, s32 index, s32 subindex, u8 *data)
 {
 	*data++=(ALLOC_HEADER_INIT_LIVE_BRANCH1+(fwdRev<<3)+(indexSize-1));
-	data+=varipackEncode(index, data);
+	data+=vpExtEncode(index, data);
 	*data++=(u8)subindex;
 
 	return 2+indexSize;
@@ -679,7 +679,7 @@ s32 rtDecodeEntityBlockHeader_Branch1(u8 *data, s32 *indexSizePtr, s32 *indexPtr
 	u8 header=*data++;
 
 	s32 indexSize=(header&ALLOC_HEADER_INDEXSIZE_MASK)+1;
-	s32 index=varipackDecode(indexSize, data);
+	s32 index=vpExtDecode(indexSize, data);
 
 	data+=indexSize;
 
@@ -703,7 +703,7 @@ s32 rtEncodeEntityBlockHeader_Leaf1(s32 fwdRev, s32 indexSize, s32 index, s32 su
 //	LOG(LOG_INFO,"Encode Leaf %i %i %i to %p",fwdRev, index, subindex, data);
 
 	*data++=(ALLOC_HEADER_INIT_LIVE_LEAF1+(fwdRev<<3)+(indexSize-1));
-	data+=varipackEncode(index, data);
+	data+=vpExtEncode(index, data);
 	*data++=(u8)subindex;
 
 	return 2+indexSize;
@@ -716,7 +716,7 @@ s32 rtDecodeEntityBlockHeader_Leaf1(u8 *data, s32 *indexSizePtr, s32 *indexPtr, 
 	u8 header=*data++;
 
 	s32 indexSize=(header&ALLOC_HEADER_INDEXSIZE_MASK)+1;
-	s32 index=varipackDecode(indexSize, data);
+	s32 index=vpExtDecode(indexSize, data);
 
 	data+=indexSize;
 
@@ -743,7 +743,7 @@ s32 rtDecodeIndexedBlockHeader_1(u8 *data, s32 *indexSizePtr, s32 *indexPtr, s32
 	u8 header=*data++;
 
 	s32 indexSize=(header&ALLOC_HEADER_INDEXSIZE_MASK)+1;
-	s32 index=varipackDecode(indexSize, data);
+	s32 index=vpExtDecode(indexSize, data);
 
 	data+=indexSize;
 
@@ -772,7 +772,7 @@ s32 rtGetIndexedBlockHeaderSize_1(s32 indexSize)
 s32 rtEncodeEntityBlockHeader_Leaf2(s32 fwdRev, s32 indexSize, s32 index, s32 subindex, u8 *data)
 {
 	*data++=(ALLOC_HEADER_INIT_LIVE_LEAF2+(fwdRev<<3)+(indexSize-1));
-	data+=varipackEncode(index, data);
+	data+=vpExtEncode(index, data);
 	*((u16 *)data)=subindex;
 
 	return 3+indexSize;
@@ -783,7 +783,7 @@ s32 rtDecodeEntityBlockHeader_Leaf2(u8 *data, s32 *indexSizePtr, s32 *indexPtr, 
 	u8 header=*data++;
 
 	s32 indexSize=(header&ALLOC_HEADER_INDEXSIZE_MASK)+1;
-	s32 index=varipackDecode(indexSize, data);
+	s32 index=vpExtDecode(indexSize, data);
 
 	data+=indexSize;
 
@@ -814,7 +814,7 @@ s32 rtDecodeIndexedBlockHeader(u8 *data, s32 *topindexPtr, s32 *indexSizePtr, s3
 
 	s32 topindex=((header & ALLOC_HEADER_TOP_MASK)-ALLOC_HEADER_TOP_TAIL_PREFIX)>>3; // Allow for Direct and Top
 	s32 indexSize=(header&ALLOC_HEADER_INDEXSIZE_MASK)+1;
-	s32 index=varipackDecode(indexSize, data);
+	s32 index=vpExtDecode(indexSize, data);
 
 	data+=indexSize;
 

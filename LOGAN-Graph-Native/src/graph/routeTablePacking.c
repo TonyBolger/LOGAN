@@ -656,6 +656,12 @@ void rtpUpdateUnpackedSingleBlockPackingInfo(RouteTableUnpackedSingleBlock *bloc
 			}
 		}
 
+	if(firstUpstream==INT32_MAX/2 || firstDownstream==INT32_MAX/2)
+		{
+		LOG(LOG_INFO,"STRANGE_OFFSETS:");
+		rtpDumpUnpackedSingleBlock(block);
+		}
+
 	s32 maxEntryCount=0;
 	s32 maxEntryWidth=0;
 

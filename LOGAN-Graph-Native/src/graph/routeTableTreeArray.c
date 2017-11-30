@@ -75,7 +75,7 @@ static void initBlockArrayProxy_scanIndirect(RouteTableTreeArrayBlock *arrayBloc
 {
 	int firstSubIndex=ptrCount-1;
 
-	int nestedHeaderSize=rtGetIndexedBlockHeaderSize_1(varipackLength(sliceIndex));
+	int nestedHeaderSize=rtGetIndexedBlockHeaderSize_1(vpExtCalcLength(sliceIndex));
 	RouteTableTreeArrayBlock *midBlock=(RouteTableTreeArrayBlock *)(arrayBlock->data[firstSubIndex]+nestedHeaderSize);
 
 	initBlockArrayProxy_scan(midBlock, allocPtr, countPtr);
@@ -257,7 +257,7 @@ void rttaDumpBlockArrayProxy(RouteTableTreeArrayProxy *arrayProxy)
 				{
 				LOG(LOG_INFO,"Indirect Raw Block [%i] is %p", i, arrayProxy->ptrBlock->data[i]);
 
-				int nestedHeaderSize=rtGetIndexedBlockHeaderSize_1(varipackLength(arrayProxy->heapDataBlock->sliceIndex));
+				int nestedHeaderSize=rtGetIndexedBlockHeaderSize_1(vpExtCalcLength(arrayProxy->heapDataBlock->sliceIndex));
 				RouteTableTreeArrayBlock *level1Block=(RouteTableTreeArrayBlock *)(arrayProxy->ptrBlock->data[i]+nestedHeaderSize);
 
 				LOG(LOG_INFO,"Indirect Block has %i",level1Block->dataAlloc);
@@ -331,7 +331,7 @@ u8 *rttaGetBlockArrayDataEntryRaw(RouteTableTreeArrayProxy *arrayProxy, s32 subi
 			int secondSubindex=subindex&ROUTE_TABLE_TREE_DEEP_DATA_ARRAY_ENTRIES_MASK;
 
 			u8 *interRaw=arrayProxy->ptrBlock->data[firstSubindex];
-			s32 headerSize=rtGetIndexedBlockHeaderSize_1(varipackLength(arrayProxy->heapDataBlock->sliceIndex));
+			s32 headerSize=rtGetIndexedBlockHeaderSize_1(vpExtCalcLength(arrayProxy->heapDataBlock->sliceIndex));
 			RouteTableTreeArrayBlock *interBlock=(RouteTableTreeArrayBlock *)(interRaw+headerSize);
 
 			if(secondSubindex<interBlock->dataAlloc)
@@ -380,7 +380,7 @@ void rttaSetBlockArrayDataEntryRaw(RouteTableTreeArrayProxy *arrayProxy, s32 sub
 			int secondSubindex=subindex&ROUTE_TABLE_TREE_DEEP_DATA_ARRAY_ENTRIES_MASK;
 
 			u8 *interRaw=arrayProxy->ptrBlock->data[firstSubindex];
-			RouteTableTreeArrayBlock *interBlock=(RouteTableTreeArrayBlock *)(interRaw+rtGetIndexedBlockHeaderSize_1(varipackLength(arrayProxy->heapDataBlock->sliceIndex)));
+			RouteTableTreeArrayBlock *interBlock=(RouteTableTreeArrayBlock *)(interRaw+rtGetIndexedBlockHeaderSize_1(vpExtCalcLength(arrayProxy->heapDataBlock->sliceIndex)));
 
 			if(secondSubindex<interBlock->dataAlloc)
 					interBlock->data[secondSubindex]=data;

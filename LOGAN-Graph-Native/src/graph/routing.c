@@ -1060,7 +1060,7 @@ static void writeBuildersAsIndirectData(RoutingComboBuilder *routingBuilder, u8 
 		rtHeaderMarkDead(oldData);
 		}
 
-	s16 indexSize=varipackLength(sliceIndex);
+	s16 indexSize=vpExtCalcLength(sliceIndex);
 	RouteTableTreeBuilder *treeBuilder=routingBuilder->treeBuilder;
 
 	RouteTableTreeTopBlock *topPtr=writeBuildersAsIndirectData_writeTop(routingBuilder, sliceTag, sliceIndex, circHeap);

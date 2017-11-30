@@ -19,7 +19,9 @@ typedef struct seqTailBuilderStr
 	s32 newTailCount;
 
 	s32 newTailAlloc;
-	s32 totalPackedSize;
+
+	s32 headerSize;
+	s32 dataSize;
 
 } SeqTailBuilder;
 

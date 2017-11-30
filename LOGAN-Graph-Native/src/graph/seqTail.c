@@ -11,6 +11,9 @@ static u32 unpackTails(u8 *data, s64 *tails, s32 tailCount)
 		{
 		s64 len=*data++;// Packing: Length byte, followed by packed 4 base per byte, as needed
 
+		if(len>23)
+			LOG(LOG_CRITICAL,"TAIL: Loaded len %i",len);
+
 		int bytes=(len+3)>>2;
 		packedSize+=bytes+1;
 
@@ -29,6 +32,10 @@ static u8 *skipTails(u8 *data,  s32 tailCount)
 	for(int i=0;i<tailCount;i++)
 		{
 		s64 len=*data++;
+
+		if(len>23)
+			LOG(LOG_CRITICAL,"TAIL: Skipped len %i",len);
+
 		int bytes=(len+3)>>2;
 		data+=bytes;
 		}
@@ -38,14 +45,17 @@ static u8 *skipTails(u8 *data,  s32 tailCount)
 
 static u8 *readSeqTailBuilderPackedData(SeqTailBuilder *builder, u8 *data)
 {
-	s32 totalPackedSize=0;
-	int oldCount=0;
+	s32 oldDataSize=0, oldHeaderSize=1;
+	u32 oldCount=0;
 
 	if(data!=NULL)
 		{
-		u16 *countPtr=(u16 *)data;
-		oldCount=*countPtr;
-		data+=2;
+		oldHeaderSize=vpIntDecode(data, &oldCount);
+		data+=oldHeaderSize;
+
+		//u16 *countPtr=(u16 *)data; // FIXME
+		//oldCount=*countPtr;
+		//data+=2;
 
 //		if(oldCount>20)
 //			LOG(LOG_INFO,"Loading %i tails from %p",oldCount,(data-2));
@@ -54,7 +64,7 @@ static u8 *readSeqTailBuilderPackedData(SeqTailBuilder *builder, u8 *data)
 	if(oldCount>0)
 		{
 		builder->oldTails=dAlloc(builder->disp, sizeof(s64) * oldCount);
-		totalPackedSize+=unpackTails(data, builder->oldTails, oldCount);
+		oldDataSize+=unpackTails(data, builder->oldTails, oldCount);
 		}
 	else
 		{
@@ -62,11 +72,14 @@ static u8 *readSeqTailBuilderPackedData(SeqTailBuilder *builder, u8 *data)
 		}
 
 	builder->oldTailCount=oldCount;
-	builder->totalPackedSize=totalPackedSize+2;
 
-	builder->oldDataSize=totalPackedSize;
+	//u32 totalPackedSize=oldDataSize+oldHeaderSize;
 
-	return data+totalPackedSize;
+	builder->oldDataSize=oldDataSize;
+	builder->dataSize=oldDataSize;
+	builder->headerSize=oldHeaderSize;
+
+	return data+oldDataSize;
 
 }
 
@@ -74,9 +87,12 @@ u8 *stScanTails(u8 *data)
 {
 	if(data!=NULL)
 		{
-		u16 *countPtr=(u16 *)data;
-		int count=*countPtr;
-		data+=2;
+		u32 count;
+		data+=vpIntDecode(data, &count);
+
+		//u16 *countPtr=(u16 *)data; // FIXME
+		//int count=*countPtr;
+		//data+=2;
 
 		data=skipTails(data, count);
 		return data;
@@ -106,7 +122,7 @@ s32 stGetSeqTailBuilderDirty(SeqTailBuilder *seqTailBuilder)
 
 s32 stGetSeqTailBuilderPackedSize(SeqTailBuilder *seqTailBuilder)
 {
-	return seqTailBuilder->totalPackedSize;
+	return seqTailBuilder->headerSize+seqTailBuilder->dataSize;
 }
 
 s32 stGetSeqTailTotalTailCount(SeqTailBuilder *builder)
@@ -132,8 +148,7 @@ void stDumpSeqTailBuilder(SeqTailBuilder *builder)
 
 static s32 writeSeqTailBuilderPackedDataSingle(u8 *data, SmerId smer, s32 smerLength)
 {
-	//LOG(LOG_INFO,"Writing tail of %i to %p",smerLength,data);
-	int bytes=(smerLength+7)>>2;
+	u32 bytes=(smerLength+7)>>2;
 
 	*data=smerLength;
 	u8 *pos=data+bytes;
@@ -159,12 +174,12 @@ u8 *stWriteSeqTailBuilderPackedData(SeqTailBuilder *builder, u8 *data)
 	int oldCount=builder->oldTailCount;
 	int newCount=builder->newTailCount;
 
-//	if(oldCount+newCount>20)
-//		LOG(LOG_INFO,"Writing %i %i tails to %p",oldCount,newCount,data);
+	int header=vpIntEncode(oldCount+newCount, data);
+	data+=header;
 
-	u16 *countPtr=(u16 *)data;
-	*countPtr=oldCount+newCount;
-	data+=2;
+	//u16 *countPtr=(u16 *)data; // FIXME
+	//*countPtr=oldCount+newCount;
+	//data+=2;
 
 	for(int i=0;i<oldCount;i++)
 		{
@@ -186,11 +201,15 @@ u8 *stWriteSeqTailBuilderPackedData(SeqTailBuilder *builder, u8 *data)
 
 	int size=data-initData;
 
-	if(size!=builder->totalPackedSize)
+	int totalPackedSize=builder->headerSize+builder->dataSize;
+
+	if(size!=totalPackedSize)
 	{
+		LOG(LOG_INFO,"Header is %i", header);
+
 		LOG(LOG_INFO,"Problem writing seqTails");
 		stDumpSeqTailBuilder(builder);
-		LOG(LOG_CRITICAL,"Size %i did not match expected size %i",size,builder->totalPackedSize);
+		LOG(LOG_CRITICAL,"Size %i did not match expected size %i",size,totalPackedSize);
 	}
 
 	return data;
@@ -269,7 +288,9 @@ s32 stFindOrCreateSeqTail(SeqTailBuilder *builder, SmerId smer, s32 tailLength)
 	//LOG(LOG_INFO,"Make new tail %li %i",smer,tailLength);
 
 	builder->newTails[builder->newTailCount++]=tail;
-	builder->totalPackedSize+=(tailLength+7)>>2; // Round up plus size byte
+	builder->dataSize+=(tailLength+7)>>2; // Round up plus size byte
+
+	builder->headerSize=vpIntCalcLength(builder->oldTailCount+builder->newTailCount);
 
 	return builder->oldTailCount+builder->newTailCount; // Increment provides offset
 }
@@ -279,9 +300,11 @@ void *stUnpackPrefixesForSmerLinked(SmerLinked *smerLinked, u8 *data, MemDispens
 {
 	if(data!=NULL)
 		{
-		u16 *countPtr=(u16 *)data;
-		smerLinked->prefixCount=*countPtr;
-		data+=2;
+		data+=vpIntDecode(data, &smerLinked->prefixCount);
+
+//		u16 *countPtr=(u16 *)data; // FIXME
+//		smerLinked->prefixCount=*countPtr;
+//		data+=2;
 
 		smerLinked->prefixes=dAlloc(disp, sizeof(s64)*smerLinked->prefixCount);
 
@@ -333,9 +356,11 @@ void *stUnpackSuffixesForSmerLinked(SmerLinked *smerLinked, u8 *data, MemDispens
 {
 	if(data!=NULL)
 		{
-		u16 *countPtr=(u16 *)data;
-		smerLinked->suffixCount=*countPtr;
-		data+=2;
+		data+=vpIntDecode(data, &smerLinked->prefixCount);
+
+//		u16 *countPtr=(u16 *)data; // FIXME
+//		smerLinked->suffixCount=*countPtr;
+//		data+=2;
 
 		smerLinked->suffixes=dAlloc(disp, sizeof(s64)*smerLinked->suffixCount);
 
