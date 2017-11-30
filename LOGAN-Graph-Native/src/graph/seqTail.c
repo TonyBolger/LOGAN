@@ -212,6 +212,14 @@ u8 *stWriteSeqTailBuilderPackedData(SeqTailBuilder *builder, u8 *data)
 		LOG(LOG_CRITICAL,"Size %i did not match expected size %i",size,totalPackedSize);
 	}
 
+	/*
+	if(oldCount<60000 && (oldCount+newCount)>60000)
+		{
+		LOG(LOG_INFO,"MEGATAILS");
+		stDumpSeqTailBuilder(builder);
+		}
+    */
+
 	return data;
 }
 
