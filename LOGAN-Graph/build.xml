@@ -1,0 +1,41 @@
+<project name="LOGAN-Graph" default="compile" basedir=".">
+	<!--<property name="version" value="0.0"/>-->
+	
+	<property name="src" location="src" />
+	<property name="lib" location="lib" />
+
+	<property name="dist" location="dist" />
+	<property name="dist_build" location="dist/build" />
+	<property name="dist_lib" location="dist/lib" />
+	<property name="dist_jar" location="dist/jar" />
+
+	<target name="init">
+		<mkdir dir="${dist}" />
+		<mkdir dir="${dist_build}" />
+		<mkdir dir="${dist_lib}"/>
+		<mkdir dir="${dist_jar}" />
+	</target>
+
+	<target name="compile" depends="init">
+		<javac srcdir="${src}" destdir="${dist_build}" debug="true" includeantruntime="false">
+			<classpath>
+				<fileset dir="${dist_lib}">
+					<include name="*.jar" />
+				</fileset>
+			</classpath>
+		</javac>
+		
+		<copy todir="${dist_build}">
+			<fileset dir="${src}">
+				<exclude name="**/*.java"/>
+			</fileset>
+		</copy>
+		
+		<!--<echo file="${dist_build}/version.properties" append="false">version=${version}${line.separator}</echo>-->
+	</target>
+
+	<target name="clean">
+		<delete dir="${dist}" />
+	</target>
+	
+</project>

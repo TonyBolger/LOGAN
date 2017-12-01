@@ -5,4 +5,5 @@ LOGAN-Graph-Native/bin/
 LOGAN-Graph/.classpath
 LOGAN-Graph/.project
 LOGAN-Graph/bin/
+LOGAN-Graph/dist/
 LOGAN-Graph-Native/jniHeaders/*
