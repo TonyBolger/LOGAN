@@ -153,7 +153,7 @@ int readFastqRecord(FILE *file, SequenceWithQuality *rec, int maxLength)
 }
 
 
-int parseAndProcess(char *path, int minSeqLength, int recordsToSkip, int recordsToUse,
+int parseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 recordsToUse,
 		SwqBuffer *swqBuffers, int bufferCount,
 		void *handlerContext, void (*handler)(SwqBuffer *buffer, void *handlerContext))
 {
@@ -165,13 +165,13 @@ int parseAndProcess(char *path, int minSeqLength, int recordsToSkip, int records
 		return 0;
 		}
 
-	int currentBuffer=0;
-	int batchReadCount=0;
-	long batchBaseCount=0;
+	s64 currentBuffer=0;
+	s64 batchReadCount=0;
+	s64 batchBaseCount=0;
 
-	int allRecordCount=0,validRecordCount=0,usedRecords=0;
+	s64 allRecordCount=0,validRecordCount=0,usedRecords=0;
 
-	int lastRecord=recordsToSkip+recordsToUse;
+	s64 lastRecord=recordsToSkip+recordsToUse;
 
 	waitForIdle(&swqBuffers[currentBuffer].usageCount);
 
@@ -405,7 +405,7 @@ void routingBuilderDataHandler(SwqBuffer *swqBuffer, ParallelTaskIngress *ingres
 
 
 
-int parseAndProcess(char *path, int minSeqLength, int recordsToSkip, int recordsToUse,
+int parseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 recordsToUse,
 		u8 *ioBuffer, int ioBufferRecycleSize, int ioBufferPrimarySize,
 		SwqBuffer *swqBuffers, ParallelTaskIngress *ingressBuffers, int bufferCount,
 		void *handlerContext, void (*handler)(SwqBuffer *swqBuffer, ParallelTaskIngress *ingressBuffer, void *handlerContext),
@@ -419,13 +419,13 @@ int parseAndProcess(char *path, int minSeqLength, int recordsToSkip, int records
 		return 0;
 		}
 
-	int currentBuffer=0;
-	int batchReadCount=0;
-	long batchBaseCount=0;
+	s64 currentBuffer=0;
+	s64 batchReadCount=0;
+	s64 batchBaseCount=0;
 
-	int allRecordCount=0,validRecordCount=0,usedRecords=0;
+	s64 allRecordCount=0,validRecordCount=0,usedRecords=0;
 
-	int lastRecord=recordsToSkip+recordsToUse;
+	s64 lastRecord=recordsToSkip+recordsToUse;
 
 	waitForIdle(&swqBuffers[currentBuffer].usageCount);
 

@@ -97,7 +97,7 @@ void runIptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 
 		LOG(LOG_INFO,"Indexing: Parsing %s",path);
 
-		int reads=parseAndProcess(path, FASTQ_MIN_READ_LENGTH, 0, 2000000000,
+		int reads=parseAndProcess(path, FASTQ_MIN_READ_LENGTH, 0, LONG_MAX,
 				ioBuffer, FASTQ_IO_RECYCLE_BUFFER, FASTQ_IO_PRIMARY_BUFFER,
 				swqBuffers, ingressBuffers, PT_INGRESS_BUFFERS,
 				ib, indexingBuilderDataHandler, monitor);
@@ -210,7 +210,7 @@ void runRptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 
 		LOG(LOG_INFO,"Routing: Parsing %s",path);
 
-		int reads=parseAndProcess(path, FASTQ_MIN_READ_LENGTH, 0, 2000000000,
+		int reads=parseAndProcess(path, FASTQ_MIN_READ_LENGTH, 0, LONG_MAX,
 				ioBuffer, FASTQ_IO_RECYCLE_BUFFER, FASTQ_IO_PRIMARY_BUFFER,
 				swqBuffers, ingressBuffers, PT_INGRESS_BUFFERS,
 				rb, routingBuilderDataHandler, monitor);
