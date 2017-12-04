@@ -69,6 +69,41 @@ static void queueReadIngressBlock(RoutingReadIngressBlock *ingressBlock)
 		LOG(LOG_CRITICAL,"Tried to queue lookup readblock in wrong state, should never happen");
 }
 
+
+static s32 lockIngressBlockForConsumption(RoutingReadIngressBlock *ingressBlock)
+{
+	s32 current=__atomic_load_n(&(ingressBlock->status), __ATOMIC_SEQ_CST);
+
+	if(current!=BLOCK_STATUS_ACTIVE)
+		return 0;
+
+	if(!__atomic_compare_exchange_n(&(ingressBlock->status), &current, BLOCK_STATUS_LOCKED, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST))
+		return 0;
+
+	return 1;
+}
+
+
+static void unlockIngressBlockIncomplete(RoutingReadIngressBlock *ingressBlock)
+{
+	u32 current=BLOCK_STATUS_LOCKED;
+
+	if(!__atomic_compare_exchange_n(&(ingressBlock->status), &current, BLOCK_STATUS_ACTIVE, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST))
+		LOG(LOG_CRITICAL,"Failed to unlock ingress block for consumption, should never happen");
+}
+
+
+static void unlockIngressBlockComplete(RoutingReadIngressBlock *ingressBlock)
+{
+	u32 current=BLOCK_STATUS_LOCKED;
+
+	if(!__atomic_compare_exchange_n(&(ingressBlock->status), &current, BLOCK_STATUS_COMPLETE, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST))
+		LOG(LOG_CRITICAL,"Failed to unlock ingress block for consumption, should never happen");
+}
+
+
+
+/*
 static int scanForCompleteReadIngressBlock(RoutingBuilder *rb)
 {
 	RoutingReadIngressBlock *readBlock;
@@ -82,24 +117,7 @@ static int scanForCompleteReadIngressBlock(RoutingBuilder *rb)
 		}
 	return -1;
 }
-
-
-static RoutingReadIngressBlock *dequeueCompleteReadIngressBlock(RoutingBuilder *rb, int index)
-{
-	//LOG(LOG_INFO,"Try dequeue readblock");
-
-	RoutingReadIngressBlock *ingressBlock=rb->ingressBlocks+index;
-
-	u32 current=__atomic_load_n(&ingressBlock->status, __ATOMIC_SEQ_CST);
-
-	if(current == BLOCK_STATUS_ACTIVE && __atomic_load_n(&ingressBlock->completionCount, __ATOMIC_SEQ_CST) == 0)
-		{
-		if(__atomic_compare_exchange_n(&(ingressBlock->status), &current, BLOCK_STATUS_COMPLETE, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST))
-			return ingressBlock;
-		}
-
-	return NULL;
-}
+*/
 
 
 
@@ -109,8 +127,7 @@ static void unallocateReadIngressBlock(RoutingReadIngressBlock *readBlock)
 	u32 current=BLOCK_STATUS_COMPLETE;
 	if(!__atomic_compare_exchange_n(&(readBlock->status), &current, BLOCK_STATUS_IDLE, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST))
 		{
-		LOG(LOG_INFO,"Tried to unreserve lookup readblock in wrong state, should never happen");
-		exit(1);
+		LOG(LOG_CRITICAL,"Tried to unreserve lookup readblock in wrong state, should never happen");
 		}
 }
 
@@ -126,56 +143,16 @@ s32 getAvailableReadIngress(RoutingBuilder *rb)
 		readBlock=rb->ingressBlocks+i;
 
 		if(__atomic_load_n(&(readBlock->status), __ATOMIC_RELAXED) == BLOCK_STATUS_ACTIVE)
-			total+=__atomic_load_n(&(readBlock->completionCount), __ATOMIC_RELAXED);
+			{
+			u32 count=__atomic_load_n(&(readBlock->sequenceCount), __ATOMIC_RELAXED);
+			u32 position=__atomic_load_n(&(readBlock->sequencePosition), __ATOMIC_RELAXED);
+
+			total+=(count-position);
+			}
 		}
 
 	return total;
 }
-
-
-// Racey due to interaction of status and completion count. Redo with lock
-s32 consumeReadIngress(RoutingBuilder *rb, s32 readsToConsume, u32 **sequenceLinkIndexPtr, RoutingReadIngressBlock **blockPtr)
-{
-	RoutingReadIngressBlock *readBlock;
-	int i;
-
-	for(i=0;i<TR_READBLOCK_INGRESS_INFLIGHT;i++)
-		{
-		readBlock=rb->ingressBlocks+i;
-
-		if(__atomic_load_n(&(readBlock->status), __ATOMIC_SEQ_CST) == BLOCK_STATUS_ACTIVE)
-			{
-			s32 available=__atomic_load_n(&(readBlock->completionCount), __ATOMIC_SEQ_CST);
-			int loopCount=10000;
-			while(available>0 && --loopCount>0)
-				{
-				readsToConsume=MIN(readsToConsume, available);
-
-				s32 sequencePosition=__atomic_load_n(&(readBlock->sequencePosition), __ATOMIC_SEQ_CST);
-				s32 nextSequencePosition=MIN(readBlock->sequenceCount, sequencePosition+readsToConsume);
-
-				if(sequencePosition<nextSequencePosition)
-					{
-					if(__atomic_compare_exchange_n(&(readBlock->sequencePosition), &sequencePosition, nextSequencePosition, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST))
-						{
-						int consumed=nextSequencePosition-sequencePosition;
-
-						*sequenceLinkIndexPtr=readBlock->sequenceLinkIndex+sequencePosition;
-						*blockPtr=readBlock;
-
-						return consumed;
-						}
-					}
-				available=__atomic_load_n(&(readBlock->completionCount), __ATOMIC_SEQ_CST);
-				}
-			}
-		}
-
-	*sequenceLinkIndexPtr=NULL;
-	*blockPtr=NULL;
-	return 0;
-}
-
 
 
 
@@ -220,8 +197,6 @@ void populateReadIngressBlock(SwqBuffer *rec, int ingressPosition, int ingressSi
 	ingressBlock->sequenceCount=ingressSize;
 	ingressBlock->sequencePosition=0;
 
-	ingressBlock->completionCount=ingressSize;
-
 	queueReadIngressBlock(ingressBlock);
 
 	//int pileFree=mbGetFreeSingleBrickPile(&(rb->sequenceLinkPile));
@@ -232,24 +207,91 @@ void populateReadIngressBlock(SwqBuffer *rec, int ingressPosition, int ingressSi
 
 
 
-s32 scanForAndFreeCompleteReadIngressBlocks(RoutingBuilder *rb)
+
+/*
+// Racey due to interaction of status and completion count. Redo with lock
+s32 consumeReadIngress(RoutingBuilder *rb, s32 readsToConsume, u32 **sequenceLinkIndexPtr, RoutingReadIngressBlock **blockPtr)
 {
-	int index=scanForCompleteReadIngressBlock(rb);
-	if(index<0)
-		return 0;
+	RoutingReadIngressBlock *readBlock;
+	int i;
 
-	RoutingReadIngressBlock *ingressBlock=dequeueCompleteReadIngressBlock(rb, index);
-
-	if(ingressBlock!=NULL)
+	for(i=0;i<TR_READBLOCK_INGRESS_INFLIGHT;i++)
 		{
-		unallocateReadIngressBlock(ingressBlock);
-		unreserveReadIngressBlock(rb);
+		readBlock=rb->ingressBlocks+i;
 
-//		LOG(LOG_INFO,"Freed");
-		return 1;
+		if(__atomic_load_n(&(readBlock->status), __ATOMIC_SEQ_CST) == BLOCK_STATUS_ACTIVE)
+			{
+			s32 available=__atomic_load_n(&(readBlock->completionCount), __ATOMIC_SEQ_CST);
+			int loopCount=10000;
+			while(available>0 && --loopCount>0)
+				{
+				readsToConsume=MIN(readsToConsume, available);
+
+				s32 sequencePosition=__atomic_load_n(&(readBlock->sequencePosition), __ATOMIC_SEQ_CST);
+				s32 nextSequencePosition=MIN(readBlock->sequenceCount, sequencePosition+readsToConsume);
+
+				if(sequencePosition<nextSequencePosition)
+					{
+					if(__atomic_compare_exchange_n(&(readBlock->sequencePosition), &sequencePosition, nextSequencePosition, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST))
+						{
+						int consumed=nextSequencePosition-sequencePosition;
+
+						*sequenceLinkIndexPtr=readBlock->sequenceLinkIndex+sequencePosition;
+						*blockPtr=readBlock;
+
+						return consumed;
+						}
+					}
+				available=__atomic_load_n(&(readBlock->completionCount), __ATOMIC_SEQ_CST);
+				}
+			}
+
 		}
+
+
+	*sequenceLinkIndexPtr=NULL;
+	*blockPtr=NULL;
 	return 0;
 }
+*/
+
+
+s32 processIngressedReads(RoutingBuilder *rb)
+{
+	s32 availableReads=getAvailableReadIngress(rb);
+
+	if(!availableReads)
+		return 0;
+
+	int work=0;
+
+	for(int i=0;i<TR_READBLOCK_INGRESS_INFLIGHT;i++)
+		{
+		RoutingReadIngressBlock *readBlock=rb->ingressBlocks+i;
+
+		if(lockIngressBlockForConsumption(readBlock))
+			{
+			work=queueSmerLookupsForIngress(rb, readBlock);
+
+			if(readBlock->sequencePosition==readBlock->sequenceCount)
+				{
+				unlockIngressBlockComplete(readBlock); // Status: LOCKED -> COMPLETE
+
+				unallocateReadIngressBlock(readBlock); // Status: COMPLETE -> IDLE
+
+				unreserveReadIngressBlock(rb);
+				}
+			else
+				unlockIngressBlockIncomplete(readBlock);
+			}
+		}
+
+	return work;
+
+}
+
+
+
 
 
 

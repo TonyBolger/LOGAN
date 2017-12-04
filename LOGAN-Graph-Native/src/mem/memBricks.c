@@ -750,6 +750,23 @@ void mbSingleBrickAllocatorCleanup(MemSingleBrickAllocator *alloc)
 	singleBrickPileUnreserve(alloc->pile, alloc->pileResLeft);
 }
 
+void *mbSingleBrickFindByIndex(MemSingleBrickPile *pile, u32 brickIndex)
+{
+	if(brickIndex==LINK_INDEX_DUMMY)
+		{
+		LOG(LOG_CRITICAL,"Invalid Index %i",brickIndex);
+		}
+
+	u32 chunkIndex=brickIndex>>16;
+	u32 index=(brickIndex &0xFFFF);
+
+	if(chunkIndex>pile->chunkCount)
+		LOG(LOG_CRITICAL,"Index beyond end of pile");
+
+	return pile->chunks[chunkIndex]->bricks+index;
+}
+
+
 void mbSingleBrickFreeByIndex(MemSingleBrickPile *pile, u32 brickIndex)
 {
 	if(brickIndex==LINK_INDEX_DUMMY)
@@ -865,6 +882,22 @@ void mbDoubleBrickAllocatorCleanup(MemDoubleBrickAllocator *alloc)
 	doubleBlockUnallocateGroup(alloc);
 	doubleBrickUnlockChunk(alloc->chunk, alloc->scanFlag);
 	doubleBrickPileUnreserve(alloc->pile, alloc->pileResLeft);
+}
+
+void *mbDoubleBrickFindByIndex(MemDoubleBrickPile *pile, u32 brickIndex)
+{
+	if(brickIndex==LINK_INDEX_DUMMY)
+		{
+		LOG(LOG_CRITICAL,"Invalid Index %i",brickIndex);
+		}
+
+	u32 chunkIndex=brickIndex>>16;
+	u32 index=(brickIndex &0xFFFF);
+
+	if(chunkIndex>pile->chunkCount)
+		LOG(LOG_CRITICAL,"Index beyond end of pile");
+
+	return pile->chunks[chunkIndex]->bricks+index;
 }
 
 void mbDoubleBrickFreeByIndex(MemDoubleBrickPile *pile, u32 brickIndex)

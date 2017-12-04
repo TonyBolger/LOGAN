@@ -156,15 +156,11 @@ static int trDoIntermediate(ParallelTask *pt, int workerNo, void *wState, int fo
 	RoutingBuilder *rb=pt->dataPtr;
 
 
-	if(queueIngressReadsForSmerLookup(rb))
+	if(processIngressedReads(rb))
 		{
 		return 1;
 		}
 
-	if(scanForAndFreeCompleteReadIngressBlocks(rb))
-		{
-		return 1;
-		}
 
 
 //	sleep(1);
@@ -289,7 +285,10 @@ RoutingBuilder *allocRoutingBuilder(Graph *graph, int threads)
 	mbInitDoubleBrickPile(&(rb->lookupLinkPile), TR_BRICKCHUNKS_LOOKUP_MIN, TR_BRICKCHUNKS_LOOKUP_MAX, MEMTRACKID_BRICK_LOOKUP);
 
 	for(int i=0;i<TR_READBLOCK_LOOKUPS_INFLIGHT;i++)
+		{
+		rb->readLookupBlocks[i].disp=dispenserAlloc(MEMTRACKID_DISPENSER_ROUTING_LOOKUP, DISPENSER_BLOCKSIZE_SMALL, DISPENSER_BLOCKSIZE_MEDIUM);
 		rb->readLookupBlocks[i].status=BLOCK_STATUS_IDLE;
+		}
 	rb->allocatedReadLookupBlocks=0;
 
 	for(int i=0;i<SMER_SLICES;i++)

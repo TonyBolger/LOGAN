@@ -156,6 +156,7 @@ s32 mbInitSingleBrickAllocator(MemSingleBrickAllocator *alloc, MemSingleBrickPil
 void *mbSingleBrickAllocate(MemSingleBrickAllocator *alloc, u32 *brickIndexPtr);
 void mbSingleBrickAllocatorCleanup(MemSingleBrickAllocator *alloc);
 
+void *mbSingleBrickFindByIndex(MemSingleBrickPile *pile, u32 brickIndex);
 void mbSingleBrickFreeByIndex(MemSingleBrickPile *pile, u32 brickIndex);
 
 
@@ -163,6 +164,7 @@ s32 mbInitDoubleBrickAllocator(MemDoubleBrickAllocator *alloc, MemDoubleBrickPil
 void *mbDoubleBrickAllocate(MemDoubleBrickAllocator *alloc, u32 *brickIndexPtr);
 void mbDoubleBrickAllocatorCleanup(MemDoubleBrickAllocator *alloc);
 
+void *mbDoubleBrickFindByIndex(MemDoubleBrickPile *pile, u32 brickIndex);
 void mbDoubleBrickFreeByIndex(MemDoubleBrickPile *pile, u32 brickIndex);
 
 

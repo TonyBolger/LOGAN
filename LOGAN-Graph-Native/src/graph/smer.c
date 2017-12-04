@@ -313,10 +313,110 @@ void calculatePossibleSmers(u8 *data, s32 maxIndex, SmerId *smerIds)
 
 		maxIndex--;
 		}
-
-
 }
 
+
+void calculatePossibleSmersAndOrientation(u8 *data, s32 smerCount, SmerId *smerIds, u32 *revCompPtr)
+{
+	int i=0;
+	u16 revCompAccum=0;
+	u16 revCompFlag=1;
+
+	//u64 rmerGen=*((SmerId *)data);
+	// Load 48 bits from *data (avoid passing end of buffer)
+	u64 rmerGen=((u64)(*((u32 *)data)))+(((u64)(*((u16 *)(data+4))))<<32);
+	u64 fmerGen= __builtin_bswap64(rmerGen);
+
+	data+=6; // First 24bp are now consumed
+
+	rmerGen=COMP_BASE_32(reverseWithinBytes(rmerGen));
+
+	fmerGen >>= 16;
+	rmerGen <<= 4;
+
+	while(smerCount>0)
+		{
+		SmerId fmer, rmer;
+
+		// Offset 0
+		fmer=(fmerGen>>2)&SMER_MASK;
+		rmer=(rmerGen>>4)&SMER_MASK;
+		if(fmer<rmer)
+			{
+			smerIds[i] = fmer;
+			}
+		else
+			{
+			revCompAccum|=revCompFlag;
+			smerIds[i] = rmer;
+			}
+		revCompFlag<<=1;
+		i++;
+
+		if(!--smerCount)
+			break;
+
+		// Offset 1
+		fmer=fmerGen&SMER_MASK;
+		rmer=(rmerGen>>6)&SMER_MASK;
+		if(fmer<rmer)
+			{
+			smerIds[i] = fmer;
+			}
+		else
+			{
+			revCompAccum|=revCompFlag;
+			smerIds[i] = rmer;
+			}
+		revCompFlag<<=1;
+		i++;
+
+		if(!--smerCount)
+			break;
+
+		// Load next 4bp
+		u64 tmp=*(data++);
+		fmerGen=(fmerGen<<8) | tmp;
+		rmerGen=(rmerGen>>8) | (COMP_BASE_QUAD(reverseWithinBytes(tmp)) << (SMER_BITS-2));
+
+		// Offset 2
+		fmer=(fmerGen>>6)&SMER_MASK;
+		rmer=(rmerGen)&SMER_MASK;
+		if(fmer<rmer)
+			{
+			smerIds[i] = fmer;
+			}
+		else
+			{
+			revCompAccum|=revCompFlag;
+			smerIds[i] = rmer;
+			}
+		revCompFlag<<=1;
+		i++;
+
+		if(!--smerCount)
+			break;
+
+		// Offset 3
+		fmer=(fmerGen>>4)&SMER_MASK;
+		rmer=(rmerGen>>2)&SMER_MASK;
+		if(fmer<rmer)
+			{
+			smerIds[i] = fmer;
+			}
+		else
+			{
+			revCompAccum|=revCompFlag;
+			smerIds[i] = rmer;
+			}
+		revCompFlag<<=1;
+		i++;
+
+		smerCount--;
+		}
+
+	*revCompPtr=revCompAccum;
+}
 
 
 void calculatePossibleSmersAndCompSmers(u8 *data, s32 maxIndex, SmerId *smerAndCompIds)

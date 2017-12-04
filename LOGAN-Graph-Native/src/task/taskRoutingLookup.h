@@ -3,13 +3,10 @@
 
 int countLookupReadsRemaining(RoutingBuilder *rb);
 
-// Entry point for trAllocateIngressSlot
-int reserveReadLookupBlock(RoutingBuilder *rb);
 
 // Entry points for trDoIntermediate
-s32 queueIngressReadsForSmerLookup(RoutingBuilder *rb);
 
-
+int queueSmerLookupsForIngress(RoutingBuilder *rb, RoutingReadIngressBlock *ingressBlock);
 
 int scanForAndDispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb);
 int scanForSmerLookups(RoutingBuilder *rb, int workerNo, RoutingWorkerState *wState);

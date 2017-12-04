@@ -7,7 +7,7 @@
 
 #include "common.h"
 
-/*
+
 static RoutingLookupPercolate *allocPercolateBlock(MemDispenser *disp)
 {
 
@@ -79,7 +79,7 @@ static RoutingSmerEntryLookup *allocEntryLookupBlock(MemDispenser *disp)
 	return block;
 }
 
-
+/*
 static void expandEntryLookupBlock(RoutingSmerEntryLookup *block, MemDispenser *disp)
 {
 	int oldSize=block->entryCount;
@@ -92,8 +92,9 @@ static void expandEntryLookupBlock(RoutingSmerEntryLookup *block, MemDispenser *
 	block->entries=entries;
 	//block->presenceAbsence=NULL;//dAlloc(disp, PAD_BYTELENGTH_8BYTE(PAD_1BITLENGTH_BYTE(size)));
 }
+*/
 
-
+/*
 static void assignPercolatesToEntryLookups(RoutingLookupPercolate *smerLookupPercolates[], RoutingSmerEntryLookup *smerEntryLookups[], MemDispenser *disp)
 {
 	for(int i=0;i<SMER_LOOKUP_PERCOLATES;i++)
@@ -277,7 +278,7 @@ static int extractIndexedSmerDataFromLookupPercolates(SmerId *allSmers, int allS
 
 */
 
-/*
+
 static void queueLookupForSlice(RoutingBuilder *rb, RoutingSmerEntryLookup *lookupForSlice, int sliceNum)
 {
 	RoutingSmerEntryLookup *current=NULL;
@@ -287,8 +288,7 @@ static void queueLookupForSlice(RoutingBuilder *rb, RoutingSmerEntryLookup *look
 		{
 		if(loopCount++>1000000)
 			{
-			LOG(LOG_INFO,"Loop Stuck");
-			exit(0);
+			LOG(LOG_CRITICAL,"Loop Stuck");
 			}
 
 		current=__atomic_load_n(rb->smerEntryLookupPtr+sliceNum, __ATOMIC_SEQ_CST);
@@ -308,8 +308,7 @@ static RoutingSmerEntryLookup *dequeueLookupForSliceList(RoutingBuilder *rb, int
 		{
 		if(loopCount++>1000000)
 			{
-			LOG(LOG_INFO,"Loop Stuck");
-			exit(0);
+			LOG(LOG_CRITICAL,"Loop Stuck");
 			}
 
 		current=__atomic_load_n(rb->smerEntryLookupPtr+sliceNum, __ATOMIC_SEQ_CST);
@@ -343,17 +342,18 @@ static RoutingReadLookupBlock *allocateReadLookupBlock(RoutingBuilder *rb)
 			}
 		}
 
-	LOG(LOG_INFO,"Failed to queue lookup readblock, should never happen"); // Can actually happen, just stupidly unlikely
-	exit(1);
+	LOG(LOG_CRITICAL,"Failed to queue lookup readblock, should never happen"); // Can actually happen, just stupidly unlikely
+	return NULL;
 }
+
+
 
 static void queueReadLookupBlock(RoutingReadLookupBlock *readBlock)
 {
 	u32 current=1;
 	if(!__atomic_compare_exchange_n(&(readBlock->status), &current, 2, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST))
 		{
-		LOG(LOG_INFO,"Tried to queue lookup readblock in wrong state, should never happen");
-		exit(1);
+		LOG(LOG_CRITICAL,"Tried to queue lookup readblock in wrong state, should never happen");
 		}
 }
 
@@ -388,13 +388,13 @@ static RoutingReadLookupBlock *dequeueCompleteReadLookupBlock(RoutingBuilder *rb
 	return NULL;
 }
 
+
 static void unallocateReadLookupBlock(RoutingReadLookupBlock *readBlock)
 {
 	u32 current=3;
 	if(!__atomic_compare_exchange_n(&(readBlock->status), &current, 0, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST))
 		{
-		LOG(LOG_INFO,"Tried to unreserve lookup readblock in wrong state, should never happen");
-		exit(1);
+		LOG(LOG_CRITICAL,"Tried to unreserve lookup readblock in wrong state, should never happen");
 		}
 }
 
@@ -416,9 +416,9 @@ int countLookupReadsRemaining(RoutingBuilder *rb)
 
 
 
-int reserveReadLookupBlock(RoutingBuilder *rb)
+static int reserveReadLookupBlock(RoutingBuilder *rb, int reservationMargin)
 {
-	u64 current=__atomic_load_n(&(rb->allocatedReadLookupBlocks), __ATOMIC_SEQ_CST);
+	u64 current=reservationMargin + __atomic_load_n(&(rb->allocatedReadLookupBlocks), __ATOMIC_SEQ_CST);
 
 	if(current>=TR_READBLOCK_LOOKUPS_INFLIGHT)
 		return 0;
@@ -437,6 +437,7 @@ static void unreserveReadLookupBlock(RoutingBuilder *rb)
 	__atomic_fetch_sub(&(rb->allocatedReadLookupBlocks),1, __ATOMIC_SEQ_CST);
 }
 
+/*
 
 void queueReadsForSmerLookup(SwqBuffer *rec, int ingressPosition, int ingressSize, int nodeSize, RoutingBuilder *rb)
 {
@@ -521,62 +522,156 @@ void queueReadsForSmerLookup(SwqBuffer *rec, int ingressPosition, int ingressSiz
 
 */
 
-s32 queueIngressReadsForSmerLookup(RoutingBuilder *rb)
-{
-	s32 availableReads=getAvailableReadIngress(rb);
 
-	if(!availableReads)
+void populateLookupLinkFromSequenceLink(LookupLink *lookupLink, u32 sequenceLinkIndex, MemSingleBrickPile *sequencePile)
+{
+	SequenceLink *sequenceLink=mbSingleBrickFindByIndex(sequencePile, sequenceLinkIndex);
+
+	int sequencePos=sequenceLink->position;
+	int sequenceLen=sequenceLink->length;
+	int sequenceSmers=sequenceLen-sequencePos;
+
+	if((sequenceSmers<LOOKUP_LINK_SMERS) && sequenceLink->nextIndex!=LINK_INDEX_DUMMY)
+		LOG(LOG_CRITICAL,"Need to handle chained sequences from %u",sequenceLinkIndex);
+
+	int smerCount=MIN(LOOKUP_LINK_SMERS, sequenceLen-sequencePos);
+
+	int sequencePackedPos=sequencePos>>2;
+	int sequenceSkipSmers=sequencePos&0x3;
+
+	SmerId smerBuf[LOOKUP_LINK_SMERS+3];
+	u32 revCompBuf=0;
+
+	calculatePossibleSmersAndOrientation(sequenceLink->packedSequence+sequencePackedPos, smerCount+sequenceSkipSmers, smerBuf, &revCompBuf);
+
+	revCompBuf>>=2*sequenceSkipSmers;
+
+	lookupLink->sourceIndex=sequenceLinkIndex;
+	lookupLink->indexType=LINK_INDEXTYPE_SEQ;
+	lookupLink->smerCount=smerCount;
+	lookupLink->revComp=(u16)(revCompBuf>>2*sequenceSkipSmers);
+	memcpy(lookupLink->smers, smerBuf+sequenceSkipSmers, smerCount*sizeof(SmerId));
+
+
+
+}
+
+
+int queueSmerLookupsForIngress(RoutingBuilder *rb, RoutingReadIngressBlock *ingressBlock)
+{
+	if(!reserveReadLookupBlock(rb, TR_LOOKUP_INGRESS_BLOCKMARGIN))
 		return 0;
 
-	int readsToLookup=MIN(availableReads, TR_LOOKUP_BLOCKSIZE);
+	u32 sequences=ingressBlock->sequenceCount-ingressBlock->sequencePosition;
+	if(sequences>TR_LOOKUP_BLOCKSIZE)
+		sequences=TR_LOOKUP_BLOCKSIZE;
 
-//	RoutingReadLookupBlock *readBlock=allocateReadLookupBlock(rb);
-//	MemDispenser *disp=readBlock->disp;
+	MemSingleBrickPile *sequencePile=&(rb->sequenceLinkPile);
+	MemDoubleBrickPile *lookupPile=&(rb->lookupLinkPile);
 
-	RoutingReadIngressBlock *readBlock;
-	u32 *sequenceLinkIndexes;
-	s32 consumed=consumeReadIngress(rb, readsToLookup, &sequenceLinkIndexes, &readBlock);
-
-	if(sequenceLinkIndexes!=NULL)
+	if(!mbCheckDoubleBrickAvailability(lookupPile, sequences+TR_LOOKUP_INGRESS_PILEMARGIN))
 		{
-//		LOG(LOG_INFO,"Consumed %i - %i",consumed, sequenceLinkIndexes[0], sequenceLinkIndexes[consumed]);
-
-		for(int i=0;i<consumed;i++)//=2)
-			{
-			mbSingleBrickFreeByIndex(&(rb->sequenceLinkPile), sequenceLinkIndexes[i]);
-			}
-
-		__atomic_fetch_sub(&(readBlock->completionCount), consumed, __ATOMIC_SEQ_CST);
+		unreserveReadLookupBlock(rb);
+		return 0;
 		}
 
-	return consumed;
+	RoutingReadLookupBlock *lookupBlock=allocateReadLookupBlock(rb);
+
+	if(lookupBlock==NULL)
+		LOG(LOG_CRITICAL,"Failed to allocate resevered lookup block");
+
+	MemDispenser *disp=lookupBlock->disp;
+
+	for(int i=0;i<SMER_LOOKUP_PERCOLATES;i++)
+		lookupBlock->smerEntryLookupsPercolates[i]=allocPercolateBlock(disp);
+
+	for(int i=0;i<SMER_SLICES;i++)
+		lookupBlock->smerEntryLookups[i]=allocEntryLookupBlock(disp);
+
+	MemDoubleBrickAllocator alloc;
+	mbInitDoubleBrickAllocator(&alloc, lookupPile);
+
+	u32 blockIndex=0;
+	u32 sequencePosition=ingressBlock->sequencePosition;
+
+	while(sequences>0)
+		{
+		LookupLink *lookupLink=mbDoubleBrickAllocate(&alloc, lookupBlock->lookupLinkIndex+blockIndex);
+
+		if(lookupLink==NULL)
+			break;
+
+		u32 sequenceLinkIndex=ingressBlock->sequenceLinkIndex[sequencePosition];
+
+		populateLookupLinkFromSequenceLink(lookupLink, sequenceLinkIndex, sequencePile);
+		assignSmersToLookupPercolates(lookupLink->smers, lookupLink->smerCount, lookupBlock->smerEntryLookupsPercolates, disp);
+
+		sequencePosition++;
+		blockIndex++;
+		sequences--;
+		}
+
+	mbDoubleBrickAllocatorCleanup(&alloc);
+
+	ingressBlock->sequencePosition=sequencePosition;
+	lookupBlock->readCount=blockIndex;
+
+
+	int usedSlices=0;
+	for(int i=0;i<SMER_SLICES;i++)
+		{
+		RoutingSmerEntryLookup *lookupForSlice=lookupBlock->smerEntryLookups[i];
+
+		if(lookupForSlice->entryCount>0)
+			{
+			lookupForSlice->completionCountPtr=&(lookupBlock->completionCount);
+			usedSlices++;
+			}
+		else
+			lookupForSlice->completionCountPtr=NULL;
+		}
+
+	__atomic_store_n(&(lookupBlock->completionCount), usedSlices, __ATOMIC_SEQ_CST);
+
+	for(int i=0;i<SMER_SLICES;i++)
+		{
+		RoutingSmerEntryLookup *lookupForSlice=lookupBlock->smerEntryLookups[i];
+		if(lookupForSlice->entryCount>0)
+			queueLookupForSlice(rb, lookupForSlice, i);
+		}
+
+	queueReadLookupBlock(lookupBlock);
+
+	return 0;
 }
 
 
 
 
-/*
+
+
 int scanForAndDispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb)
 {
-	Graph *graph=rb->graph;
-	s32 nodeSize=graph->config.nodeSize;
+	//Graph *graph=rb->graph;
+	//s32 nodeSize=graph->config.nodeSize;
 
 	int lookupReadBlockIndex=scanForCompleteReadLookupBlock(rb);
 
 	if(lookupReadBlockIndex<0)
 		return 0;
 
-	if(!reserveReadDispatchBlock(rb))
-		return 0;
+
+	//if(!reserveReadDispatchBlock(rb))
+//		return 0;
 
 	RoutingReadLookupBlock *lookupReadBlock=dequeueCompleteReadLookupBlock(rb, lookupReadBlockIndex);
 
 	if(lookupReadBlock==NULL)
 		{
-		unreserveReadDispatchBlock(rb);
+	//	unreserveReadDispatchBlock(rb);
 		return 0;
 		}
-
+/*
 	RoutingReadDispatchBlock *dispatchReadBlock=allocateReadDispatchBlock(rb);
 
 	//MemDispenser *disp=dispenserAlloc(MEMTRACKID_DISPENSER_ROUTING_DISPATCH, DISPENSER_BLOCKSIZE_MEDIUM, DISPENSER_BLOCKSIZE_LARGE);
@@ -658,11 +753,18 @@ int scanForAndDispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb)
 
 	//LOG(LOG_INFO,"Disp free %p",lookupReadBlock->disp);
 	dispenserReset(lookupReadBlock->disp);
+
+	*/
+
 	unallocateReadLookupBlock(lookupReadBlock);
 	unreserveReadLookupBlock(rb);
 
+	LOG(LOG_INFO,"Freed lookup block");
+
 	return 1;
 }
+
+
 
 static int scanForSmerLookupsForSlices(RoutingBuilder *rb, int startSlice, int endSlice)
 {
@@ -710,16 +812,13 @@ static int scanForSmerLookupsForSlices(RoutingBuilder *rb, int startSlice, int e
 }
 
 
-*/
+
+
+
 
 int scanForSmerLookups(RoutingBuilder *rb, int workerNo, RoutingWorkerState *wState)
 {
-	LOG(LOG_CRITICAL,"TODO");
-	return 0;
-
-	/*
 	//int startPos=(workerNo*SMER_SLICE_PRIME)&SMER_SLICE_MASK;
-
 
 //	int position=wState->lookupSliceCurrent;
 	int work=0;
@@ -732,7 +831,7 @@ int scanForSmerLookups(RoutingBuilder *rb, int workerNo, RoutingWorkerState *wSt
 	//wState->lookupSliceCurrent=lastSlice;
 
 	return work;
-	*/
+
 }
 
 

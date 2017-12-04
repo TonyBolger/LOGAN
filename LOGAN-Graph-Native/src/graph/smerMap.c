@@ -64,7 +64,6 @@ static int scanForSmer_HS(SmerMapSlice *smerMapSlice, SmerEntry entry, u32 hash,
 
 			if (scanCount > 200) {
 				LOG(LOG_CRITICAL,"Filled hashmap: count %i from %i in %i for %i",scanCount,(hash & mask), sliceNum, entry);
-				exit(1);
 			}
 		}
 	}

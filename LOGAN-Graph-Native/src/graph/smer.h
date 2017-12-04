@@ -112,6 +112,7 @@ SmerId complementSmerId(SmerId id);
 //SmerId shuffleSmerIdLeft(SmerId id, u8 base);
 
 void calculatePossibleSmers(u8 *data, s32 maxIndex, SmerId *smerIds);
+void calculatePossibleSmersAndOrientation(u8 *data, s32 smerCount, SmerId *smerIds, u32 *revCompPtr);
 void calculatePossibleSmersAndCompSmers(u8 *data, s32 maxIndex, SmerId *smerAndCompIds);
 //void calculatePossibleSmers2(u8 *data, s32 maxIndex, SmerId *smerIds, u32 *compFlags);
 

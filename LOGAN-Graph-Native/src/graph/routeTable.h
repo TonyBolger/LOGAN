@@ -36,7 +36,7 @@ typedef struct routingReadDataStr {
 
 } __attribute__((aligned (32))) RoutingReadData;
 
-
+#define DISPATCH_LINK_SMERS 7
 
 typedef struct dispatchLinkSmerStr {
 	SmerId smer;		// The actual smer ID
@@ -50,10 +50,10 @@ typedef struct dispatchLinkStr {
 	u8 indexType;				// Indicates meaning of previous
 	u8 length;					// How many valid indexesSmers are there
 	u8 position;				// The current indexed smer
-	u8 revComp;					// Indicate if the original smer was rc
+	u8 revComp;					// Indicate if each original smer was rc
 	s32 minEdgePosition;
 	s32 maxEdgePosition;
-	DispatchLinkSmer smers[7];
+	DispatchLinkSmer smers[DISPATCH_LINK_SMERS];
 } DispatchLink;
 
 

@@ -18,6 +18,8 @@
 #define SEQUENCE_LINK_BYTES 56
 #define SEQUENCE_LINK_BASES (SEQUENCE_LINK_BYTES*4)
 
+#define LOOKUP_LINK_SMERS 15
+
 typedef struct sequenceLinkStr {
 	u32 nextIndex;			// Index of next SequenceLink in chain (or LINK_DUMMY at end)
 	u8 length;				// Length of packed sequence (in bp)
@@ -25,12 +27,16 @@ typedef struct sequenceLinkStr {
 	u8 packedSequence[SEQUENCE_LINK_BYTES];	// Packed sequence (2bits per bp) - up to 232 bases2
 } SequenceLink;
 
+#define LINK_INDEXTYPE_SEQ 0
+#define LINK_INDEXTYPE_LOOKUP 1
+#define LINK_INDEXTYPE_DISPATCH 2
+
 typedef struct lookupLinkStr {
 	u32 sourceIndex;		// Index of SeqLink or Dispatch
 	u8 indexType;			// Indicates meaning of previous (SeqLink or Dispatch)
 	u8 smerCount;			// Number of smers to lookup
 	u16 revComp;			// Indicates if the original smer was rc
-	SmerId smers[15];		// Specific smers to lookup
+	SmerId smers[LOOKUP_LINK_SMERS];		// Specific smers to lookup
 } LookupLink;
 
 
@@ -57,12 +63,13 @@ typedef struct dispatchLinkStr {
 */
 
 
-// 0 = idle, 1 = allocated, 2 = active, 3 = finished
+// 0 = idle, 1 = allocated,2 = active,3 = locked, 4 = complete
 
 #define BLOCK_STATUS_IDLE 0
 #define BLOCK_STATUS_ALLOCATED 1
 #define BLOCK_STATUS_ACTIVE 2
-#define BLOCK_STATUS_COMPLETE 3
+#define BLOCK_STATUS_LOCKED 3
+#define BLOCK_STATUS_COMPLETE 4
 
 /*
 typedef struct routingReadIngressSequenceStr {
@@ -70,6 +77,10 @@ typedef struct routingReadIngressSequenceStr {
 	u8 packedSeq[];
 } RoutingReadIngressSequence;
 */
+
+//#define BLOCK_INGRESS_UNLOCKED 0
+//#define BLOCK_INGRESS_LOCKED 1
+
 typedef struct routingReadIngressBlockStr {
 //	RoutingReadIngressSequence *sequenceData[TR_INGRESS_BLOCKSIZE];
 
@@ -82,8 +93,11 @@ typedef struct routingReadIngressBlockStr {
 	u32 sequenceCount;
 	u32 sequencePosition;
 
-	s32 completionCount;
-	u32 status; // 0 = idle, 1 = allocated, 2 = active, 3 = finished
+	u32 status; // 0 = idle: Available
+				// 1 = allocated: Reads being ingressed
+				// 2 = active: Reads need lookups
+				// 3 = locked: Reads being transferred to lookup
+				// 4 = complete: May be superfluous
 
 } RoutingReadIngressBlock;
 
@@ -116,7 +130,6 @@ typedef struct routingReadLookupBlockStr {
 	u32 lookupLinkIndex[TR_LOOKUP_BLOCKSIZE];
 
 	u32 readCount;
-	u32 maxReadLength;
 
 	RoutingLookupPercolate *smerEntryLookupsPercolates[SMER_LOOKUP_PERCOLATES]; // Holds intermediate lookup data
 	RoutingSmerEntryLookup *smerEntryLookups[SMER_SLICES]; // Holds per-slice smer details for lookup
@@ -147,7 +160,7 @@ typedef struct routingReadLookupBlockStr {
 // Dispatch work is in groups (max TR_LOOKUPS_PER_SLICE_BLOCK)
 //#define TR_DISPATCH_MAX_WORK 4
 #define TR_DISPATCH_MAX_WORK 64
-
+*/
 // TR_LOOKUPS_PER_SLICE_BLOCK / TR_LOOKUPS_PER_INTERMEDIATE_BLOCK must be a power of 2
 #define TR_LOOKUPS_PER_SLICE_BLOCK 64
 #define TR_LOOKUPS_PER_PERCOLATE_BLOCK 16384
@@ -155,7 +168,7 @@ typedef struct routingReadLookupBlockStr {
 //#define TR_DISPATCH_READS_PER_BLOCK 64
 #define TR_DISPATCH_READS_PER_INTERMEDIATE_BLOCK 256
 
-
+/*
 //__attribute__((aligned (32)))
 
 typedef struct routingReadLookupDataStr {

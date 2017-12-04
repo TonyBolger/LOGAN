@@ -97,7 +97,7 @@ void runIptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 
 		LOG(LOG_INFO,"Indexing: Parsing %s",path);
 
-		int reads=parseAndProcess(path, FASTQ_MIN_READ_LENGTH, 0, 2000000000,
+		int reads=parseAndProcess(path, FASTQ_MIN_READ_LENGTH, 0, LONG_MAX,
 				ioBuffer, FASTQ_IO_RECYCLE_BUFFER, FASTQ_IO_PRIMARY_BUFFER,
 				swqBuffers, ingressBuffers, PT_INGRESS_BUFFERS,
 				ib, indexingBuilderDataHandler, monitor);
@@ -285,13 +285,12 @@ int main(int argc, char **argv)
 		LOG(LOG_CRITICAL,"Expected arguments: template files");
 		return 1;
 		}
-/*
-	LOG(LOG_INFO,"RoutingReadLookupData: %i (20) RoutingReadData: %i (20) RoutingReadIndexedDataEntry: %i (28)",
-			sizeof(RoutingReadLookupData), sizeof(RoutingReadData), sizeof(RoutingReadIndexedDataEntry));
+
+//	LOG(LOG_INFO,"RoutingReadLookupData: %i (20) RoutingReadData: %i (20) RoutingReadIndexedDataEntry: %i (28)",
+//			sizeof(RoutingReadLookupData), sizeof(RoutingReadData), sizeof(RoutingReadIndexedDataEntry));
 
 	LOG(LOG_INFO,"SequenceLink: %i (64) LookupLink: %i (128) DispatchLink: %i (128)",
 			sizeof(SequenceLink), sizeof(LookupLink), sizeof(DispatchLink));
-*/
 
 	LOG(LOG_INFO,"MemSingleBrickChunk: %i (4194304) MemDoubleBrickChunk %i (8388608)", sizeof(MemSingleBrickChunk), sizeof(MemDoubleBrickChunk));
 

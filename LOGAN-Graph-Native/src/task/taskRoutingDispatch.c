@@ -125,8 +125,7 @@ void assignToDispatchArrayEntry(RoutingReadReferenceBlockDispatchArray *array, R
 
 	if(sliceNew != slice)
 		{
-		LOG(LOG_INFO,"SLICE MISMATCH: %08lx %08lx Slice %i %i Group %i %i",fsmer, rsmer, sliceNew, slice, group, readData->indexCount);
-		exit(1);
+		LOG(LOG_CRITICAL,"SLICE MISMATCH: %08lx %08lx Slice %i %i Group %i %i",fsmer, rsmer, sliceNew, slice, group, readData->indexCount);
 		}
 
 	assignReadDataToDispatchIntermediate(&(array->dispatches[group].data), readData, array->disp);
@@ -739,8 +738,7 @@ static int gatherSliceOutbound(RoutingDispatchGroupState *groupState, int sliceN
 
 			else // Wrapped
 				{
-				LOG(LOG_INFO,"Wrapped smer Index %i",nextIndexCount);
-				exit(1);
+				LOG(LOG_CRITICAL,"Wrapped smer Index %i",nextIndexCount);
 				}
 			}
 
