@@ -147,12 +147,13 @@ s32 mbGetFreeSingleBrickPile(MemSingleBrickPile *pile);
 s32 mbGetFreeSingleBrickChunk(MemSingleBrickChunk *chunk);
 s32 mbCheckSingleBrickAvailability(MemSingleBrickPile *pile, s32 brickCount);
 
+
 s32 mbGetFreeDoubleBrickPile(MemDoubleBrickPile *pile);
 s32 mbGetFreeDoubleBrickChunk(MemDoubleBrickChunk *chunk);
 s32 mbCheckDoubleBrickAvailability(MemDoubleBrickPile *pile, s32 brickCount);
 
 
-s32 mbInitSingleBrickAllocator(MemSingleBrickAllocator *alloc, MemSingleBrickPile *pile);
+s32 mbInitSingleBrickAllocator(MemSingleBrickAllocator *alloc, MemSingleBrickPile *pile, s32 pileResRequest);
 void *mbSingleBrickAllocate(MemSingleBrickAllocator *alloc, u32 *brickIndexPtr);
 void mbSingleBrickAllocatorCleanup(MemSingleBrickAllocator *alloc);
 
@@ -160,7 +161,7 @@ void *mbSingleBrickFindByIndex(MemSingleBrickPile *pile, u32 brickIndex);
 void mbSingleBrickFreeByIndex(MemSingleBrickPile *pile, u32 brickIndex);
 
 
-s32 mbInitDoubleBrickAllocator(MemDoubleBrickAllocator *alloc, MemDoubleBrickPile *pile);
+s32 mbInitDoubleBrickAllocator(MemDoubleBrickAllocator *alloc, MemDoubleBrickPile *pile, s32 pileResRequest);
 void *mbDoubleBrickAllocate(MemDoubleBrickAllocator *alloc, u32 *brickIndexPtr);
 void mbDoubleBrickAllocatorCleanup(MemDoubleBrickAllocator *alloc);
 

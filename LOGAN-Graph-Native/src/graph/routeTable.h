@@ -48,7 +48,7 @@ typedef struct dispatchLinkSmerStr {
 typedef struct dispatchLinkStr {
 	u32 nextOrOriginIndex;		// Index of Next Dispatch or Origin SeqLink
 	u8 indexType;				// Indicates meaning of previous
-	u8 length;					// How many valid indexesSmers are there
+	u8 length;					// How many valid indexedSmers are there
 	u8 position;				// The current indexed smer
 	u8 revComp;					// Indicate if each original smer was rc
 	s32 minEdgePosition;

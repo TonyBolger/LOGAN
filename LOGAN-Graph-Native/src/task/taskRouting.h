@@ -102,6 +102,15 @@ typedef struct routingReadIngressBlockStr {
 } RoutingReadIngressBlock;
 
 
+typedef union
+{
+	u64 combined;
+	struct {
+		u32 status;				// 0 = idle, 1 = allocated,2 = active,3 = locked, 4 = complete
+		s32 completionCount;	// Work still to be done
+		} split;
+} RoutingBlockCompletionStatus;
+
 
 // RoutingSmerEntryLookup has 24 bytes core
 // Each SmerEntry is 4
@@ -127,7 +136,7 @@ typedef struct routingLookupPercolateStr {
 
 
 typedef struct routingReadLookupBlockStr {
-	u32 lookupLinkIndex[TR_LOOKUP_BLOCKSIZE];
+	u32 lookupLinkIndex[TR_ROUTING_BLOCKSIZE];
 
 	u32 readCount;
 
@@ -135,16 +144,13 @@ typedef struct routingReadLookupBlockStr {
 	RoutingSmerEntryLookup *smerEntryLookups[SMER_SLICES]; // Holds per-slice smer details for lookup
 
 	MemDispenser *disp; // Unified dispenser
-	s32 completionCount;
-	u32 status; // 0 = idle, 1 = allocated, 2 = active, 3 = finished
+
+	RoutingBlockCompletionStatus compStat;
+
 } RoutingReadLookupBlock;
 
 
-
-
-
-
-
+#define TR_ROUTING_DISPATCHES_PER_LOOKUP 3
 
 
 
@@ -215,7 +221,7 @@ typedef struct routingReadLookupBlockStr {
 } RoutingReadLookupBlock;
 
 
-
+*/
 
 // Extends a block of read references with queueing and reversing pointers
 typedef struct routingReadReferenceBlockDispatchStr {
@@ -232,26 +238,29 @@ typedef struct routingDispatchArray {
 	struct routingDispatchArray *nextPtr;
 
 	MemDispenser *disp;
-	s32 completionCount;
+	//s32 completionCount;
 
 	RoutingReadReferenceBlockDispatch dispatches[SMER_DISPATCH_GROUPS];
 } RoutingReadReferenceBlockDispatchArray;
 
+/*
 
 // Represents an array of reads which are undergoing routing
 typedef struct routingReadDispatchBlockStr {
-	RoutingReadData *readData[TR_INGRESS_BLOCKSIZE];
+	RoutingReadData *readData[TR_ROUTING_BLOCKSIZE];
 	u32 readCount;
 
 	MemDispenser *disp;
-	s32 completionCount;
 
 	RoutingReadReferenceBlockDispatchArray *dispatchArray;
 
 	u32 status; // 0 = idle, 1 = allocated, 2 = active, 3 = finished
+	s32 completionCount;
+
 } RoutingReadDispatchBlock;
 
-
+*/
+/*
 // Represents the intermediate state of an SMER_DISPATCH_GROUP during read routing, including in and outbound reads
 typedef struct routingDispatchGroupStateStr {
 
@@ -294,19 +303,13 @@ typedef struct routingBuilderStr {
 
 	MemDoubleBrickPile dispatchLinkPile;	// Dispatch chains
 
-/*
-
-
-	RoutingReadLookupBlock readLookupBlocks[TR_READBLOCK_LOOKUPS_INFLIGHT]; // Batches of reads in lookup stage
-	u64 allocatedReadLookupBlocks;
-
-	RoutingReadDispatchBlock readDispatchBlocks[TR_READBLOCK_DISPATCHES_INFLIGHT]; // Batches of reads in dispatch stage
-	u64 allocatedReadDispatchBlocks;
+	//RoutingReadDispatchBlock readDispatchBlocks[TR_READBLOCK_DISPATCHES_INFLIGHT]; // Batches of reads in dispatch stage
+	//u64 allocatedReadDispatchBlocks;
 
 	RoutingReadReferenceBlockDispatch *dispatchPtr[SMER_DISPATCH_GROUPS]; // Queued list of dispatches for each target SMER_DISPATCH_GROUP
 
-	RoutingDispatchGroupState dispatchGroupState[SMER_DISPATCH_GROUPS];		// Intermediate representation of a dispatch group during routing
-*/
+//	RoutingDispatchGroupState dispatchGroupState[SMER_DISPATCH_GROUPS];		// Intermediate representation of a dispatch group during routing
+
 
 } RoutingBuilder;
 

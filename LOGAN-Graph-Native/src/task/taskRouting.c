@@ -152,13 +152,14 @@ static int trDoIntermediate(ParallelTask *pt, int workerNo, void *wState, int fo
 {
 	//LOG(LOG_INFO,"trDoIntermediate");
 
-	//RoutingWorkerState *workerState=wState;
+	RoutingWorkerState *workerState=wState;
 	RoutingBuilder *rb=pt->dataPtr;
 
 
 	if(processIngressedReads(rb))
 		{
-		return 1;
+		if(!force)
+			return 1;
 		}
 
 
@@ -182,7 +183,8 @@ static int trDoIntermediate(ParallelTask *pt, int workerNo, void *wState, int fo
 		LOG(LOG_INFO,"Lookup %i (%i) Dispatch %i (%i) - force %i",lookupReads,arlb, dispatchReads, ardb, force);
 		}
 */
-/*
+
+	/*
 	if(scanForCompleteReadDispatchBlocks(rb))
 		{
 		//LOG(LOG_INFO,"scanForCompleteReadDispatchBlocks OK");
@@ -190,6 +192,7 @@ static int trDoIntermediate(ParallelTask *pt, int workerNo, void *wState, int fo
 		if(!force)
 			return 1;
 		}
+*/
 
 	if(scanForAndDispatchLookupCompleteReadLookupBlocks(rb))
 		{
@@ -198,9 +201,12 @@ static int trDoIntermediate(ParallelTask *pt, int workerNo, void *wState, int fo
 			return 1;
 		}
 
-	int arlb=__atomic_load_n(&rb->allocatedReadLookupBlocks, __ATOMIC_SEQ_CST);
-	int ardb=__atomic_load_n(&rb->allocatedReadDispatchBlocks, __ATOMIC_SEQ_CST);
 
+	int arib=__atomic_load_n(&rb->allocatedIngressBlocks, __ATOMIC_SEQ_CST);
+	int arlb=__atomic_load_n(&rb->allocatedReadLookupBlocks, __ATOMIC_SEQ_CST);
+	int ardb=0;//__atomic_load_n(&rb->allocatedReadDispatchBlocks, __ATOMIC_SEQ_CST);
+
+/*
 	if(ardb==TR_READBLOCK_DISPATCHES_INFLIGHT)
 		{
 		if(scanForDispatches(rb, workerNo, workerState, force))
@@ -209,9 +215,7 @@ static int trDoIntermediate(ParallelTask *pt, int workerNo, void *wState, int fo
 			return 1;
 			}
 		}
-
-
-	//if((force)||(rb->allocatedReadLookupBlocks==TR_READBLOCK_LOOKUPS_INFLIGHT))
+*/
 	if((force)||(arlb==TR_READBLOCK_LOOKUPS_INFLIGHT))
 		{
 		if(scanForSmerLookups(rb, workerNo, workerState))
@@ -220,7 +224,7 @@ static int trDoIntermediate(ParallelTask *pt, int workerNo, void *wState, int fo
 			return 1;
 			}
 		}
-
+/*
 	if(force)
 		{
 		if(scanForDispatches(rb, workerNo, workerState, force))
@@ -229,15 +233,17 @@ static int trDoIntermediate(ParallelTask *pt, int workerNo, void *wState, int fo
 			return 1;
 			}
 		}
+*/
 
+	arib=__atomic_load_n(&rb->allocatedIngressBlocks, __ATOMIC_SEQ_CST);
 	arlb=__atomic_load_n(&rb->allocatedReadLookupBlocks, __ATOMIC_SEQ_CST);
-	ardb=__atomic_load_n(&rb->allocatedReadDispatchBlocks, __ATOMIC_SEQ_CST);
+//	ardb=__atomic_load_n(&rb->allocatedReadDispatchBlocks, __ATOMIC_SEQ_CST);
 
 //	LOG(LOG_INFO,"trDoIntermediate: %i %i %i %i",workerNo, force, arlb, ardb);
 
-	if(arlb>0 || ardb>0) // If in force mode, and not finished, rally the minions
+	if(arib>0 || arlb>0 || ardb>0) // If in force mode, and not finished, rally the minions
 		return force;
-*/
+
 
 	//LOG(LOG_INFO,"Worker did nothing");
 	return 0;
@@ -287,7 +293,7 @@ RoutingBuilder *allocRoutingBuilder(Graph *graph, int threads)
 	for(int i=0;i<TR_READBLOCK_LOOKUPS_INFLIGHT;i++)
 		{
 		rb->readLookupBlocks[i].disp=dispenserAlloc(MEMTRACKID_DISPENSER_ROUTING_LOOKUP, DISPENSER_BLOCKSIZE_SMALL, DISPENSER_BLOCKSIZE_MEDIUM);
-		rb->readLookupBlocks[i].status=BLOCK_STATUS_IDLE;
+		rb->readLookupBlocks[i].compStat.split.status=BLOCK_STATUS_IDLE;
 		}
 	rb->allocatedReadLookupBlocks=0;
 

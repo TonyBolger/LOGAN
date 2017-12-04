@@ -40,7 +40,7 @@ void indexingBuilderDataHandler(SwqBuffer *swqBuffer, ParallelTaskIngress *ingre
 void routingBuilderDataHandler(SwqBuffer *swqBuffer, ParallelTaskIngress *ingressBuffer, void *context);
 
 
-int parseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 recordsToUse,
+s64 parseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 recordsToUse,
 		u8 *ioBuffer, int ioBufferRecycleSize, int ioBufferPrimarySize,
 		SwqBuffer *swqBuffers, ParallelTaskIngress *ingressBuffers, int bufferCount,
 		void *handlerContext, void (*handler)(SwqBuffer *swqBuffer, ParallelTaskIngress *ingressBuffer, void *handlerContext),

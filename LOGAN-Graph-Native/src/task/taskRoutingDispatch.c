@@ -7,7 +7,7 @@
 
 #include "common.h"
 
-/*
+
 static void initDispatchIntermediateBlock(RoutingReadReferenceBlock *block, MemDispenser *disp)
 {
 	block->entryCount=0;
@@ -44,13 +44,11 @@ RoutingReadReferenceBlockDispatchArray *allocDispatchArray(RoutingReadReferenceB
 
 	array->nextPtr=nextPtr;
 	array->disp=disp;
-	array->completionCount=0;
 
 	for(int i=0;i<SMER_DISPATCH_GROUPS;i++)
 		{
 		array->dispatches[i].nextPtr=NULL;
 		array->dispatches[i].prevPtr=NULL;
-		array->dispatches[i].completionCountPtr=&(array->completionCount);
 
 		initDispatchIntermediateBlock(&(array->dispatches[i].data),disp);
 		}
@@ -58,6 +56,7 @@ RoutingReadReferenceBlockDispatchArray *allocDispatchArray(RoutingReadReferenceB
 	return array;
 }
 
+/*
 static void expandIntermediateDispatchBlock(RoutingReadReferenceBlock *block, MemDispenser *disp)
 {
 	int oldSize=block->entryCount;
@@ -218,7 +217,7 @@ void freeRoutingDispatchGroupState(RoutingDispatchGroupState *dispatchGroupState
 	dispatchGroupState->outboundDispatches=cleanupRoutingDispatchArrays(dispatchGroupState->outboundDispatches);
 
 }
-
+*/
 
 static void queueDispatchForGroup(RoutingBuilder *rb, RoutingReadReferenceBlockDispatch *dispatchForGroup, int groupNum)
 {
@@ -239,6 +238,7 @@ static void queueDispatchForGroup(RoutingBuilder *rb, RoutingReadReferenceBlockD
 
 }
 
+/*
 static RoutingReadReferenceBlockDispatch *dequeueDispatchForGroupList(RoutingBuilder *rb, int groupNum)
 {
 	RoutingReadReferenceBlockDispatch *current=NULL;
@@ -311,8 +311,8 @@ static int unlockRoutingDispatchGroupState(RoutingBuilder *rb, int groupNum)
 
 
 
-
-
+*/
+/*
 int reserveReadDispatchBlock(RoutingBuilder *rb)
 {
 	u64 allocated=__atomic_load_n(&(rb->allocatedReadDispatchBlocks), __ATOMIC_SEQ_CST);
@@ -336,8 +336,8 @@ void unreserveReadDispatchBlock(RoutingBuilder *rb)
 {
 	__atomic_fetch_sub(&(rb->allocatedReadDispatchBlocks),1, __ATOMIC_RELEASE);
 }
-
-
+*/
+/*
 
 RoutingReadDispatchBlock *allocateReadDispatchBlock(RoutingBuilder *rb)
 {
@@ -454,17 +454,9 @@ int scanForCompleteReadDispatchBlocks(RoutingBuilder *rb)
 	return 1;
 }
 
-
+*/
 void queueDispatchArray(RoutingBuilder *rb, RoutingReadReferenceBlockDispatchArray *dispArray)
 {
-	int count=0;
-
-	for(int i=0;i<SMER_DISPATCH_GROUPS;i++)
-		if(dispArray->dispatches[i].data.entryCount>0)
-			count++;
-
-	dispArray->completionCount=count;
-
 	for(int i=0;i<SMER_DISPATCH_GROUPS;i++)
 		{
 		if(dispArray->dispatches[i].data.entryCount>0)
@@ -475,7 +467,8 @@ void queueDispatchArray(RoutingBuilder *rb, RoutingReadReferenceBlockDispatchArr
 
 }
 
-
+/*
+ *
 static RoutingReadReferenceBlockDispatch *buildPrevLinks(RoutingReadReferenceBlockDispatch *dispatchEntry)
 {
 	RoutingReadReferenceBlockDispatch *prev=NULL;

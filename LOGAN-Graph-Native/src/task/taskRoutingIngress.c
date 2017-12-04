@@ -164,7 +164,7 @@ void populateReadIngressBlock(SwqBuffer *rec, int ingressPosition, int ingressSi
 	SequenceWithQuality *currentRec=rec->rec+ingressPosition;
 
 	MemSingleBrickAllocator alloc;
-	mbInitSingleBrickAllocator(&alloc, &(rb->sequenceLinkPile));
+	mbInitSingleBrickAllocator(&alloc, &(rb->sequenceLinkPile), ingressSize);
 
 	for(int i=0;i<ingressSize;i++)
 		{
@@ -183,6 +183,7 @@ void populateReadIngressBlock(SwqBuffer *rec, int ingressPosition, int ingressSi
 
 			s32 basesPacked=(lengthToPack<<2);
 
+			sequenceLink->position=0;
 			sequenceLink->length=basesPacked;
 			brickIndexPtr=&(sequenceLink->nextIndex);
 			offset+=basesPacked;

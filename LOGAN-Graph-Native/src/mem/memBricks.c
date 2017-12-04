@@ -659,10 +659,10 @@ static s32 doubleBlockUnallocateEntry(MemDoubleBrickChunk *chunk, u32 scanFlag, 
 
 
 
-s32 mbInitSingleBrickAllocator(MemSingleBrickAllocator *alloc, MemSingleBrickPile *pile)
+s32 mbInitSingleBrickAllocator(MemSingleBrickAllocator *alloc, MemSingleBrickPile *pile, s32 pileResRequest)
 {
 	alloc->pile=pile;
-	alloc->pileResRequest=SINGLEBRICK_DEFAULT_RESERVATION;
+	alloc->pileResRequest=pileResRequest+SINGLEBRICK_DEFAULT_RESERVATION;
 
 	if(!singleBrickAttemptPileReserve(pile, alloc->pileResRequest))
 		{
@@ -693,14 +693,19 @@ void *mbSingleBrickAllocate(MemSingleBrickAllocator *alloc, u32 *brickIndexPtr)
 		{
 		alloc->scanFlag=singleBrickPileNextFlag(alloc->scanFlag);
 
-		int additionalReserve=alloc->pileResRequest-alloc->pileResLeft;
-		if(!singleBrickAttemptPileReserve(alloc->pile, additionalReserve))
+		if(alloc->pileResLeft < SINGLEBRICK_DEFAULT_RESERVATION)
 			{
-			LOG(LOG_INFO,"Pile Reserve Failed");
-			return NULL;
-			}
+			int additionalReserve=SINGLEBRICK_DEFAULT_RESERVATION-alloc->pileResLeft;
+			LOG(LOG_INFO,"Pile Reserve extension %i",additionalReserve);
 
-		alloc->pileResLeft=alloc->pileResRequest;
+			if(!singleBrickAttemptPileReserve(alloc->pile, additionalReserve))
+				{
+				LOG(LOG_INFO,"Pile Reserve Failed");
+				return NULL;
+				}
+
+			alloc->pileResLeft=DOUBLEBRICK_DEFAULT_RESERVATION;
+			}
 
 		if(!singleBlockAllocateGroup(alloc))
 			{
@@ -793,10 +798,10 @@ void mbSingleBrickFreeByIndex(MemSingleBrickPile *pile, u32 brickIndex)
 
 
 
-s32 mbInitDoubleBrickAllocator(MemDoubleBrickAllocator *alloc, MemDoubleBrickPile *pile)
+s32 mbInitDoubleBrickAllocator(MemDoubleBrickAllocator *alloc, MemDoubleBrickPile *pile, s32 pileResRequest)
 {
 	alloc->pile=pile;
-	alloc->pileResRequest=DOUBLEBRICK_DEFAULT_RESERVATION;
+	alloc->pileResRequest=pileResRequest+DOUBLEBRICK_DEFAULT_RESERVATION;
 
 	if(!doubleBrickAttemptPileReserve(pile, alloc->pileResRequest))
 		{
@@ -827,14 +832,19 @@ void *mbDoubleBrickAllocate(MemDoubleBrickAllocator *alloc, u32 *brickIndexPtr)
 		{
 		alloc->scanFlag=doubleBrickPileNextFlag(alloc->scanFlag);
 
-		int additionalReserve=alloc->pileResRequest-alloc->pileResLeft;
-		if(!doubleBrickAttemptPileReserve(alloc->pile, additionalReserve))
+		if(alloc->pileResLeft < DOUBLEBRICK_DEFAULT_RESERVATION)
 			{
-			LOG(LOG_INFO,"Pile Reserve Failed");
-			return NULL;
-			}
+			int additionalReserve=DOUBLEBRICK_DEFAULT_RESERVATION-alloc->pileResLeft;
+			LOG(LOG_INFO,"Pile Reserve extension %i",additionalReserve);
 
-		alloc->pileResLeft=alloc->pileResRequest;
+			if(!doubleBrickAttemptPileReserve(alloc->pile, additionalReserve))
+				{
+				LOG(LOG_INFO,"Pile Reserve Failed");
+				return NULL;
+				}
+
+			alloc->pileResLeft=DOUBLEBRICK_DEFAULT_RESERVATION;
+			}
 
 		if(!doubleBlockAllocateGroup(alloc))
 			{

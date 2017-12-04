@@ -405,7 +405,7 @@ void routingBuilderDataHandler(SwqBuffer *swqBuffer, ParallelTaskIngress *ingres
 
 
 
-int parseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 recordsToUse,
+s64 parseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 recordsToUse,
 		u8 *ioBuffer, int ioBufferRecycleSize, int ioBufferPrimarySize,
 		SwqBuffer *swqBuffers, ParallelTaskIngress *ingressBuffers, int bufferCount,
 		void *handlerContext, void (*handler)(SwqBuffer *swqBuffer, ParallelTaskIngress *ingressBuffer, void *handlerContext),
@@ -446,7 +446,7 @@ int parseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 records
 	int len = readBufferedFastqRecord(ioBuffer, &ioOffset, swqBuffers[currentBuffer].rec, maxBasesPerRead);
 	swqBuffers[currentBuffer].rec[batchReadCount].length=len;
 
-	int totalBatch=0;
+	s64 totalBatch=0;
 
 	while(len>0 && validRecordCount<lastRecord)
 		{
@@ -484,7 +484,7 @@ int parseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 records
 
 				if(usedRecords % 1000000 ==0)
 					{
-					LOG(LOG_INFO,"Reads: %i", usedRecords);
+					LOG(LOG_INFO,"Reads: %li", usedRecords);
 
 					if(monitor!=NULL && (usedRecords % 10000000 ==0))
 						(*monitor)();
@@ -523,7 +523,7 @@ int parseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 records
 		totalBatch+=batchReadCount;
 		}
 
-	LOG(LOG_INFO,"Used %i %i",usedRecords,totalBatch);
+	LOG(LOG_INFO,"Used %li %li",usedRecords,totalBatch);
 
 	if(len<0)
 		{

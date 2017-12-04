@@ -17,10 +17,9 @@ static void wakeIdleWorkers(ParallelTask *pt)
 }
 
 
-static void sleepIdleWorker(ParallelTask *pt, int workerNo)
+static void sleepIdleWorker(ParallelTask *pt, int workerNo, int pokeCount)
 {
 	//LOG(LOG_INFO,"Sleep %i", workerNo);
-	int pokeCount=__atomic_load_n(&(pt->idleThreadPokeCount),__ATOMIC_SEQ_CST);
 
 	__atomic_fetch_add(&pt->idleThreads, 1, __ATOMIC_SEQ_CST);
 
@@ -410,14 +409,15 @@ void performTask_worker(ParallelTask *pt)
 
 		if(state==PTSTATE_ACTIVE)
 			{
+			int pokeCount=__atomic_load_n(&(pt->idleThreadPokeCount),__ATOMIC_SEQ_CST);
+
 			if(!performTaskActive(pt,workerNo, wState))
 				{
-				sleepIdleWorker(pt, workerNo);
+				sleepIdleWorker(pt, workerNo, pokeCount);
 				}
 			else
 				{
-				if(__atomic_load_n(&(pt->idleThreads),__ATOMIC_SEQ_CST)>0)
-					wakeIdleWorkers(pt);
+				wakeIdleWorkers(pt);
 				}
 			}
 		else if(state==PTSTATE_TIDY_WAIT)
