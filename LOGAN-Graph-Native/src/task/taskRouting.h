@@ -35,7 +35,7 @@ typedef struct lookupLinkStr {
 	u32 sourceIndex;		// Index of SeqLink or Dispatch
 	u8 indexType;			// Indicates meaning of previous (SeqLink or Dispatch)
 	u8 smerCount;			// Number of smers to lookup
-	u16 revComp;			// Indicates if the original smer was rc
+	u16 revComp;			// Indicates if the original smer was rc (lsb = first smer)
 	SmerId smers[LOOKUP_LINK_SMERS];		// Specific smers to lookup
 } LookupLink;
 
@@ -313,6 +313,10 @@ typedef struct routingBuilderStr {
 
 } RoutingBuilder;
 
+
+void trDumpSequenceLink(SequenceLink *link, u32 linkIndex);
+void trDumpLookupLink(LookupLink *link, u32 linkIndex);
+void trDumpDispatchLink(DispatchLink *link, u32 linkIndex);
 
 
 RoutingBuilder *allocRoutingBuilder(Graph *graph, int threads);

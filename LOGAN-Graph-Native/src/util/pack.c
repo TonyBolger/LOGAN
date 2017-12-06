@@ -193,6 +193,34 @@ char unpackChar(u32 pack)
 	return 0;
 }
 
+void unpackSequence(u8 *packedSeq, int length, char *seq)
+{
+	int packedIndex=0;
+
+	seq[length]=0;
+
+	u8 val=0;
+
+	for(int i=0;i<length;i++)
+		{
+		switch(i & 0x3)
+			{
+			case 0:
+				val=packedSeq[packedIndex++];
+				seq[i]=unpackChar((val>>6)&0x3);
+				break;
+			case 1:
+				seq[i]=unpackChar((val>>4)&0x3);
+				break;
+			case 2:
+				seq[i]=unpackChar((val>>2)&0x3);
+				break;
+			default:
+				seq[i]=unpackChar(val&0x3);
+			}
+		}
+}
+
 void unpackSmer(SmerId smer, char *out)
 {
 	int pos=SMER_BASES-1;

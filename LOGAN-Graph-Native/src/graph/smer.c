@@ -322,14 +322,15 @@ void calculatePossibleSmersAndOrientation(u8 *data, s32 smerCount, SmerId *smerI
 	u16 revCompAccum=0;
 	u16 revCompFlag=1;
 
-	//u64 rmerGen=*((SmerId *)data);
+//	u64 rmerGen0=*((SmerId *)data);
+
 	// Load 48 bits from *data (avoid passing end of buffer)
 	u64 rmerGen=((u64)(*((u32 *)data)))+(((u64)(*((u16 *)(data+4))))<<32);
 	u64 fmerGen= __builtin_bswap64(rmerGen);
 
 	data+=6; // First 24bp are now consumed
 
-	rmerGen=COMP_BASE_32(reverseWithinBytes(rmerGen));
+	rmerGen=COMP_BASE_32(reverseWithinBytes(rmerGen)) & 0xFFFFFFFFFFFF;
 
 	fmerGen >>= 16;
 	rmerGen <<= 4;

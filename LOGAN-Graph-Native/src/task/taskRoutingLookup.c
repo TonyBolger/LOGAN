@@ -8,6 +8,7 @@
 #include "common.h"
 
 
+
 static RoutingLookupPercolate *allocPercolateBlock(MemDispenser *disp)
 {
 
@@ -50,6 +51,10 @@ static void assignSmersToLookupPercolates(SmerId *smers, int smerCount, RoutingL
 		u64 hash=hashForSmer(smerEntry);
 		u32 slice=sliceForSmer(smer,hash);
 		u32 sliceGroup=slice>>SMER_LOOKUP_PERCOLATE_SHIFT;
+
+		//char buffer[SMER_BASES+1];
+		//unpackSmer(smer, buffer);
+		//LOG(LOG_INFO,"Assigned %s to %i as %x", buffer, slice, smerEntry);
 
 		RoutingLookupPercolate *percolate=smerLookupPercolates[sliceGroup];
 		u64 entryCount=percolate->entryCount;
@@ -204,9 +209,10 @@ static int extractIndexedSmerDataFromLookupPercolates(SmerId *allSmers, int allS
 }
 
 
+*/
 
-
-static int extractIndexedSmerDataFromLookupPercolates(SmerId *allSmers, int allSmerCount, RoutingReadIndexedDataEntry *indexedData, RoutingLookupPercolate *smerLookupPercolates[])
+//static
+int extractIndexedSmerDataFromLookupPercolates(SmerId *allSmers, int allSmerCount, RoutingReadIndexedDataEntry *indexedData, RoutingLookupPercolate *smerLookupPercolates[])
 {
 	//int foundCount=0;
 
@@ -214,10 +220,7 @@ static int extractIndexedSmerDataFromLookupPercolates(SmerId *allSmers, int allS
 
 	for(int i=0;i<allSmerCount;i++)
 		{
-		SmerId fsmer=allSmers[i*2];
-		SmerId rsmer=allSmers[i*2+1];
-
-		SmerId smer=CANONICAL_SMER(fsmer,rsmer);
+		SmerId smer=allSmers[i];
 
 		SmerEntry smerEntry=SMER_GET_BOTTOM(smer);
 		u64 hash=hashForSmer(smerEntry);
@@ -235,34 +238,14 @@ static int extractIndexedSmerDataFromLookupPercolates(SmerId *allSmers, int allS
 		u64 entryCount=percolate->entryPosition+1;
 		int sliceIndex=percolate->entries[entryCount++];
 
-		if(i==0)
-			{
-			indexedData->fsmer=fsmer;
-			indexedData->rsmer=rsmer;
-			indexedData->slice=slice;
-			indexedData->sliceIndex=sliceIndex;
-			indexedData->readIndex=i;
-			indexedData--;
-			}
-
 		if(sliceIndex!=SMER_DUMMY)
 			{
-			indexedData->fsmer=fsmer;
-			indexedData->rsmer=rsmer;
+			//indexedData->fsmer=fsmer;
+			//indexedData->rsmer=rsmer;
 			indexedData->slice=slice;
 			indexedData->sliceIndex=sliceIndex;
 			indexedData->readIndex=i;
-			indexedData--;
-			}
-
-		if(i==allSmerCount-1)
-			{
-			indexedData->fsmer=fsmer;
-			indexedData->rsmer=rsmer;
-			indexedData->slice=slice;
-			indexedData->sliceIndex=sliceIndex;
-			indexedData->readIndex=i;
-			indexedData--;
+			indexedData++;
 			}
 
 		percolate->entryPosition=entryCount;
@@ -273,10 +256,10 @@ static int extractIndexedSmerDataFromLookupPercolates(SmerId *allSmers, int allS
 			}
 		}
 
-	return indexedDataOrig-indexedData;
+	return indexedData-indexedDataOrig;
 }
 
-*/
+
 
 
 static void queueLookupForSlice(RoutingBuilder *rb, RoutingSmerEntryLookup *lookupForSlice, int sliceNum)
@@ -523,7 +506,7 @@ void queueReadsForSmerLookup(SwqBuffer *rec, int ingressPosition, int ingressSiz
 */
 
 
-void populateLookupLinkFromSequenceLink(LookupLink *lookupLink, u32 sequenceLinkIndex, MemSingleBrickPile *sequencePile)
+void populateLookupLinkFromSequenceLink(LookupLink *lookupLink, u32 lookupLinkIndex, u32 sequenceLinkIndex, MemSingleBrickPile *sequencePile)
 {
 	SequenceLink *sequenceLink=mbSingleBrickFindByIndex(sequencePile, sequenceLinkIndex);
 
@@ -547,14 +530,17 @@ void populateLookupLinkFromSequenceLink(LookupLink *lookupLink, u32 sequenceLink
 
 	calculatePossibleSmersAndOrientation(sequenceLink->packedSequence+sequencePackedPos, smerCount+sequenceSkipSmers, smerBuf, &revCompBuf);
 
-	revCompBuf>>=2*sequenceSkipSmers;
+	revCompBuf>>=sequenceSkipSmers;
 
 	lookupLink->sourceIndex=sequenceLinkIndex;
 	lookupLink->indexType=LINK_INDEXTYPE_SEQ;
 	lookupLink->smerCount=smerCount;
-	lookupLink->revComp=(u16)(revCompBuf>>2*sequenceSkipSmers);
+	lookupLink->revComp=(u16)revCompBuf;
 
 	memcpy(lookupLink->smers, smerBuf+sequenceSkipSmers, smerCount*sizeof(SmerId));
+
+//	trDumpSequenceLink(sequenceLink, sequenceLinkIndex);
+//	trDumpLookupLink(lookupLink, lookupLinkIndex);
 }
 
 
@@ -580,11 +566,12 @@ int queueSmerLookupsForIngress(RoutingBuilder *rb, RoutingReadIngressBlock *ingr
 		return 0;
 		}
 
+//	LOG(LOG_INFO,"queueSmerLookupsForIngress");
+
 	RoutingReadLookupBlock *lookupBlock=allocateReadLookupBlock(rb);
 
 	if(lookupBlock==NULL)
 		LOG(LOG_CRITICAL,"Failed to allocate reserved lookup block");
-
 
 	MemDispenser *disp=lookupBlock->disp;
 
@@ -609,7 +596,7 @@ int queueSmerLookupsForIngress(RoutingBuilder *rb, RoutingReadIngressBlock *ingr
 
 		u32 sequenceLinkIndex=ingressBlock->sequenceLinkIndex[sequencePosition];
 
-		populateLookupLinkFromSequenceLink(lookupLink, sequenceLinkIndex, sequencePile);
+		populateLookupLinkFromSequenceLink(lookupLink, lookupBlock->lookupLinkIndex[blockIndex], sequenceLinkIndex, sequencePile);
 
 		assignSmersToLookupPercolates(lookupLink->smers, lookupLink->smerCount, lookupBlock->smerEntryLookupsPercolates, disp);
 
@@ -650,6 +637,8 @@ int queueSmerLookupsForIngress(RoutingBuilder *rb, RoutingReadIngressBlock *ingr
 
 	queueReadLookupBlock(lookupBlock);
 
+//	LOG(LOG_INFO,"queueSmerLookupsForIngress DONE");
+
 	return 0;
 }
 
@@ -687,6 +676,8 @@ int scanForAndDispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb)
 		return 0;
 		}
 
+	LOG(LOG_INFO,"scanForAndDispatchLookupCompleteReadLookupBlocks");
+
 	extractLookupPercolatesFromEntryLookups(lookupReadBlock->smerEntryLookups, lookupReadBlock->smerEntryLookupsPercolates);
 
 	RoutingReadReferenceBlockDispatchArray *dispArray=allocDispatchArray();
@@ -695,6 +686,26 @@ int scanForAndDispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb)
 
 	for(int i=0;i<reads;i++)
 		{
+		u32 lookupLinkIndex=lookupReadBlock->lookupLinkIndex[i];
+
+		LookupLink *lookupLink=mbDoubleBrickFindByIndex(&(rb->lookupLinkPile), lookupLinkIndex);
+
+		switch(lookupLink->indexType) // FIXME
+			{
+			case LINK_INDEXTYPE_LOOKUP:
+				LOG(LOG_CRITICAL,"Unable to handle lookup link with lookup sourceIndexType");
+				break;
+
+			case LINK_INDEXTYPE_DISPATCH:
+				LOG(LOG_CRITICAL,"Unable to handle lookup link with dispatch sourceIndexType");
+				break;
+			}
+
+
+		RoutingReadIndexedDataEntry indexedSmers[LOOKUP_LINK_SMERS];
+		int foundCount=extractIndexedSmerDataFromLookupPercolates(lookupLink->smers, lookupLink->smerCount, indexedSmers, lookupReadBlock->smerEntryLookupsPercolates);
+		LOG(LOG_INFO,"Found %i",foundCount);
+
 		/*
 
 		int smerCount=readLookup->seqLength-nodeSize+1;
@@ -746,15 +757,20 @@ int scanForAndDispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb)
 		*/
 		}
 
+	mbDoubleBrickAllocatorCleanup(&alloc);
+
 	queueDispatchArray(rb, dispArray);
 
 
 	for(int i=0;i<lookupReadBlock->readCount;i++)
 		{
 		LookupLink *lookupLink=mbDoubleBrickFindByIndex(&(rb->lookupLinkPile), lookupReadBlock->lookupLinkIndex[i]);
+		SequenceLink *seqLink=mbSingleBrickFindByIndex(&(rb->sequenceLinkPile), lookupLink->sourceIndex);
+
+		trDumpSequenceLink(seqLink, lookupLink->sourceIndex);
+		trDumpLookupLink(lookupLink, lookupReadBlock->lookupLinkIndex[i]);
 
 		mbSingleBrickFreeByIndex(&(rb->sequenceLinkPile), lookupLink->sourceIndex);
-
 		mbDoubleBrickFreeByIndex(&(rb->lookupLinkPile), lookupReadBlock->lookupLinkIndex[i]);
 		}
 
@@ -765,6 +781,8 @@ int scanForAndDispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb)
 	unreserveReadLookupBlock(rb);
 
 	//LOG(LOG_INFO,"Freed lookup block");
+
+	LOG(LOG_INFO,"scanForAndDispatchLookupCompleteReadLookupBlocks DONE");
 
 	return 1;
 }
@@ -797,8 +815,10 @@ static int scanForSmerLookupsForSlices(RoutingBuilder *rb, int startSlice, int e
 					{
 					int index=saFindSmerEntry(slice,lookupEntryScan->entries[j]);
 
-					//if(index==-1)
-						//LOG(LOG_INFO,"Failed to find smer entry: %i",lookupEntryScan->entries[j]);
+//					if(index==-1)
+//						LOG(LOG_INFO,"Failed to find smer entry: %lx in %i",lookupEntryScan->entries[j],i);
+//					else
+//						LOG(LOG_INFO,"Found smer entry: %lx in %i",lookupEntryScan->entries[j],i);
 
 					lookupEntryScan->entries[j]=index;
 					}

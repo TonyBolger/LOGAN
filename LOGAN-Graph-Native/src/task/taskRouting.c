@@ -7,7 +7,107 @@
 
 #include "common.h"
 
+static char *decodeLinkIndexType(u8 indexType)
+{
+	switch(indexType)
+		{
+		case LINK_INDEXTYPE_SEQ:
+			return "SEQ";
+		case LINK_INDEXTYPE_LOOKUP:
+			return "LOOKUP";
+		case LINK_INDEXTYPE_DISPATCH:
+			return "DISPATCH";
+		default:
+			LOG(LOG_INFO,"Unknown link index type %u",(u32)(indexType));
+			return "UNKNOWN";
+		}
 
+}
+
+void trDumpSequenceLink(SequenceLink *link, u32 linkIndex)
+{
+//	u32 nextIndex;			// Index of next SequenceLink in chain (or LINK_DUMMY at end)
+//	u8 length;				// Length of packed sequence (in bp)
+//	u8 position;			// Position of first unprocessed base (in bp)
+//	u8 packedSequence[SEQUENCE_LINK_BYTES];
+
+	LOG(LOG_INFO,"SequenceLink Dump: Idx %i (%p)",linkIndex, link);
+
+	LOG(LOG_INFO,"  NextIdx: %u", link->nextIndex);
+	LOG(LOG_INFO,"  Len: %u",(u32)(link->length));
+	LOG(LOG_INFO,"  Pos: %u",(u32)(link->position));
+
+	char buffer[SEQUENCE_LINK_BASES+1];
+	unpackSequence(link->packedSequence, (u32)link->length, buffer);
+
+	LOG(LOG_INFO,"  Seq: %s",buffer);
+}
+
+void trDumpLookupLink(LookupLink *link, u32 linkIndex)
+{
+//	u32 sourceIndex;		// Index of SeqLink or Dispatch
+//	u8 indexType;			// Indicates meaning of previous (SeqLink or Dispatch)
+//	u8 smerCount;			// Number of smers to lookup
+//	u16 revComp;			// Indicates if the original smer was rc (lsb = first smer)
+//	SmerId smers[LOOKUP_LINK_SMERS];		// Specific smers to lookup
+
+	LOG(LOG_INFO,"LookupLink Dump: Idx %i (%p)",linkIndex, link);
+
+	LOG(LOG_INFO,"  SrcIdx: %u (%s)", link->sourceIndex, decodeLinkIndexType(link->indexType));
+	LOG(LOG_INFO,"  SmerCount: %u", (u32)link->smerCount);
+
+	char buffer[SMER_BASES+1];
+
+	u16 revComp=link->revComp;
+	for(int i=0;i<link->smerCount;i++)
+		{
+		unpackSmer(link->smers[i], buffer);
+
+		if(revComp&1)
+			LOG(LOG_INFO, "  Smer: %s (rc)", buffer);
+		else
+			LOG(LOG_INFO, "  Smer: %s", buffer);
+
+		revComp>>=1;
+		}
+}
+
+void trDumpDispatchLink(DispatchLink *link, u32 linkIndex)
+{
+	//	u32 nextOrOriginIndex;		// Index of Next Dispatch or Origin SeqLink
+	//	u8 indexType;				// Indicates meaning of previous
+	//	u8 length;					// How many valid indexedSmers are there
+	//	u8 position;				// The current indexed smer
+	//	u8 revComp;					// Indicate if each original smer was rc
+	//	s32 minEdgePosition;
+	//	s32 maxEdgePosition;
+	//	DispatchLinkSmer smers[DISPATCH_LINK_SMERS];
+
+	LOG(LOG_INFO,"LookupLink Dump: Idx %i (%p)",linkIndex, link);
+
+	LOG(LOG_INFO,"  NooIdx: %u (%s)", link->nextOrOriginIndex, decodeLinkIndexType(link->indexType));
+	LOG(LOG_INFO,"  Len: %u",(u32)(link->length));
+	LOG(LOG_INFO,"  Pos: %u",(u32)(link->position));
+
+	LOG(LOG_INFO,"  EdgePos: [%i %i]", link->minEdgePosition, link->maxEdgePosition);
+
+	char buffer[SMER_BASES+1];
+
+	u16 revComp=link->revComp;
+	for(int i=0;i<link->length;i++)
+		{
+		DispatchLinkSmer *dls=link->smers+i;
+		unpackSmer(dls->smer, buffer);
+
+		if(revComp&1)
+			LOG(LOG_INFO, "  Smer: %s (rc) Offset: %u Slice: %u SliceIndex: %u", buffer, (u32)dls->seqIndexOffset, (u32)dls->slice, dls->sliceIndex);
+		else
+			LOG(LOG_INFO, "  Smer: %s      Offset: %u Slice: %u SliceIndex: %u", buffer, (u32)dls->seqIndexOffset, (u32)dls->slice, dls->sliceIndex);
+
+		revComp>>=1;
+		}
+
+}
 
 
 static void *trDoRegister(ParallelTask *pt, int workerNo, int totalWorkers)
@@ -57,6 +157,10 @@ static int trDoIngress(ParallelTask *pt, int workerNo,void *wState, void *ingres
 
 	return 1;
 }
+
+
+
+
 /*
 static void dumpUncleanDispatchReadBlocks(int blockNum, RoutingReadDispatchBlock *readDispatchBlock)
 {
