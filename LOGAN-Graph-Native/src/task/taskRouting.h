@@ -24,18 +24,20 @@ typedef struct sequenceLinkStr {
 	u32 nextIndex;			// Index of next SequenceLink in chain (or LINK_DUMMY at end)
 	u8 length;				// Length of packed sequence (in bp)
 	u8 position;			// Position of first unprocessed base (in bp)
-	u8 packedSequence[SEQUENCE_LINK_BYTES];	// Packed sequence (2bits per bp) - up to 232 bases2
+	u8 packedSequence[SEQUENCE_LINK_BYTES];	// Packed sequence (2bits per bp) - up to 224 bases2
 } SequenceLink;
 
 #define LINK_INDEXTYPE_SEQ 0
 #define LINK_INDEXTYPE_LOOKUP 1
 #define LINK_INDEXTYPE_DISPATCH 2
 
+#define LOOKUPLINK_FIRSTFLAG 0x8000
+
 typedef struct lookupLinkStr {
 	u32 sourceIndex;		// Index of SeqLink or Dispatch
 	u8 indexType;			// Indicates meaning of previous (SeqLink or Dispatch)
 	u8 smerCount;			// Number of smers to lookup
-	u16 revComp;			// Indicates if the original smer was rc (lsb = first smer)
+	u16 revComp;			// Indicates if the original smer was rc (lsb = first smer). Top bit indicates if first lookup in sequence
 	SmerId smers[LOOKUP_LINK_SMERS];		// Specific smers to lookup
 } LookupLink;
 
