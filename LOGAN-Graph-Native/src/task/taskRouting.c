@@ -85,7 +85,7 @@ void trDumpDispatchLink(DispatchLink *link, u32 linkIndex)
 
 	LOG(LOG_INFO,"LookupLink Dump: Idx %i (%p)",linkIndex, link);
 
-	LOG(LOG_INFO,"  NooIdx: %u (%s)", link->nextOrOriginIndex, decodeLinkIndexType(link->indexType));
+	LOG(LOG_INFO,"  NosIdx: %u (%s)", link->nextOrSourceIndex, decodeLinkIndexType(link->indexType));
 	LOG(LOG_INFO,"  Len: %u",(u32)(link->length));
 	LOG(LOG_INFO,"  Pos: %u",(u32)(link->position));
 
@@ -403,6 +403,8 @@ RoutingBuilder *allocRoutingBuilder(Graph *graph, int threads)
 
 	for(int i=0;i<SMER_SLICES;i++)
 		rb->smerEntryLookupPtr[i]=NULL;
+
+	rb->lookupRecyclePtr=NULL;
 
 	mbInitDoubleBrickPile(&(rb->dispatchLinkPile), TR_BRICKCHUNKS_DISPATCH_MIN, TR_BRICKCHUNKS_DISPATCH_MAX, MEMTRACKID_BRICK_DISPATCH);
 

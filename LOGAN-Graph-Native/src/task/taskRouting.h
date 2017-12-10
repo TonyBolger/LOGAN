@@ -31,13 +31,13 @@ typedef struct sequenceLinkStr {
 #define LINK_INDEXTYPE_LOOKUP 1
 #define LINK_INDEXTYPE_DISPATCH 2
 
-#define LOOKUPLINK_FIRSTFLAG 0x8000
+#define LOOKUPLINK_EOS_FLAG 0x8000
 
 typedef struct lookupLinkStr {
 	u32 sourceIndex;		// Index of SeqLink or Dispatch
 	u8 indexType;			// Indicates meaning of previous (SeqLink or Dispatch)
 	u8 smerCount;			// Number of smers to lookup
-	u16 revComp;			// Indicates if the original smer was rc (lsb = first smer). Top bit indicates if first lookup in sequence
+	u16 revComp;			// Indicates if the original smer was rc (lsb = first smer). Top bit indicates if last lookup is end-of-sequence
 	SmerId smers[LOOKUP_LINK_SMERS];		// Specific smers to lookup
 } LookupLink;
 
@@ -52,7 +52,7 @@ typedef struct dispatchLinkSmerStr {
 } DispatchLinkSmer;
 
 typedef struct dispatchLinkStr {
-	u32 nextOrOriginIndex;		// Index of Next Dispatch or Origin SeqLink
+	u32 nextOrSourceIndex;		// Index of Next Dispatch or Source SeqLink
 	u8 indexType;				// Indicates meaning of previous
 	u8 length;					// How many valid indexesSmers are there
 	u8 position;				// The current indexed smer
@@ -145,11 +145,25 @@ typedef struct routingReadLookupBlockStr {
 	RoutingLookupPercolate *smerEntryLookupsPercolates[SMER_LOOKUP_PERCOLATES]; // Holds intermediate lookup data
 	RoutingSmerEntryLookup *smerEntryLookups[SMER_SLICES]; // Holds per-slice smer details for lookup
 
-	MemDispenser *disp; // Unified dispenser
+	MemDispenser *disp; // Used for percolate / entryLookups
 
 	RoutingBlockCompletionStatus compStat;
 
 } RoutingReadLookupBlock;
+
+
+typedef struct routingReadLookupRecycleBlockStr {
+	struct routingReadLookupRecycleBlockStr *nextPtr;
+
+	MemDispenser *disp;
+
+	s32 readCount;
+	s32 readPosition;
+
+	u32 lookupLinkIndex[TR_LOOKUP_RECYCLE_BLOCKSIZE];
+
+} RoutingReadLookupRecycleBlock;
+
 
 
 #define TR_ROUTING_DISPATCHES_PER_LOOKUP 3
@@ -157,10 +171,6 @@ typedef struct routingReadLookupBlockStr {
 
 
 /*
-
-// Each block: 10000 reads * 150bp? * Smer: 8 * 2: Max 24MByte
-// 20 Lookups: 480MBytes (full)
-// 200 Dispatches: 2.4GBytes (50% real smers)
 
 // Lookup work is in slices (max 16384)
 //#define TR_LOOKUP_MAX_WORK 1024
@@ -302,6 +312,8 @@ typedef struct routingBuilderStr {
 	u64 allocatedReadLookupBlocks;
 
 	RoutingSmerEntryLookup *smerEntryLookupPtr[SMER_SLICES]; // Per-slice list of lookups
+
+	RoutingReadLookupRecycleBlock *lookupRecyclePtr; // Queue of lookups for recycling
 
 	MemDoubleBrickPile dispatchLinkPile;	// Dispatch chains
 
