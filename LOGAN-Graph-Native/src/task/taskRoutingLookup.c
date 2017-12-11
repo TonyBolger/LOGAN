@@ -745,7 +745,23 @@ int queueSmerLookupsForIngress(RoutingBuilder *rb, RoutingReadIngressBlock *ingr
 }
 
 
+static u32 findSequenceLinkIndexForDispatchLink(RoutingBuilder *rb, DispatchLink *dispatchLink)
+{
+	u8 indexType=dispatchLink->indexType;
 
+	while(indexType!=LINK_INDEXTYPE_SEQ)
+		{
+		if(indexType!=LINK_INDEXTYPE_DISPATCH)
+			LOG(LOG_CRITICAL,"Unable to handle dispatch link with lookup sourceIndexType");
+
+		u32 linkIndex=dispatchLink->nextOrSourceIndex;
+		dispatchLink=mbDoubleBrickFindByIndex(&(rb->dispatchLinkPile), linkIndex);
+
+		indexType=dispatchLink->indexType;
+		}
+
+	return dispatchLink->nextOrSourceIndex;
+}
 
 
 
@@ -795,7 +811,9 @@ int scanForAndDispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb)
 		LookupLink *lookupLink=mbDoubleBrickFindByIndex(&(rb->lookupLinkPile), lookupLinkIndex);
 
 		DispatchLink *dispatchLink=NULL;
-		u32 dispatchLinkIndex;
+		u32 dispatchLinkIndex=LINK_INDEX_DUMMY;
+		u32 sequenceLinkIndex=LINK_INDEX_DUMMY;
+
 		int firstFlag=0;
 
 		if(lookupLink->indexType==LINK_INDEXTYPE_SEQ)
@@ -812,16 +830,22 @@ int scanForAndDispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb)
 			dispatchLink->maxEdgePosition=TR_INIT_MAXEDGEPOSITION;
 			// dispatchLink->smers populated later
 
+			sequenceLinkIndex=lookupLink->sourceIndex;
+
 			lookupLink->sourceIndex=dispatchLinkIndex;
 			lookupLink->indexType=LINK_INDEXTYPE_DISPATCH;
 			}
 		else if(lookupLink->indexType==LINK_INDEXTYPE_DISPATCH)
 			{
 			dispatchLinkIndex=lookupLink->sourceIndex;
-			mbDoubleBrickFindByIndex(&(rb->dispatchLinkPile), dispatchLinkIndex);
+			dispatchLink=mbDoubleBrickFindByIndex(&(rb->dispatchLinkPile), dispatchLinkIndex);
+
+			sequenceLinkIndex=findSequenceLinkIndexForDispatchLink(rb, dispatchLink);
 			}
 		else
 			LOG(LOG_CRITICAL,"Unable to handle lookup link with lookup sourceIndexType");
+
+		SequenceLink *sequenceLink=mbSingleBrickFindByIndex(&(rb->sequenceLinkPile), sequenceLinkIndex);
 
 		int lastFlag=lookupLink->revComp & LOOKUPLINK_EOS_FLAG;
 
@@ -843,6 +867,11 @@ int scanForAndDispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb)
 			{
 			if(!lastFlag)  // more to come - recycle to lookup
 				{
+				trDumpSequenceLink(sequenceLink, sequenceLinkIndex);
+				trDumpDispatchLink(dispatchLink, dispatchLinkIndex);
+				trDumpLookupLink(lookupLink, lookupLinkIndex);
+
+
 				LOG(LOG_CRITICAL,"Recycle scenario");
 
 //				recycleLookupLink(rb, recycleBlock, lookupLinkIndex);
