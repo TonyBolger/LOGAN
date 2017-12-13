@@ -798,6 +798,8 @@ static void advanceSequenceChainPosition(MemSingleBrickPile *sequencePile, Seque
 
 	if(newPosition>=length)
 		{
+		u32 sequenceLinkNextIndex=sequenceLink->nextIndex;
+
 		u32 sequenceLinkIndex=*sequenceLinkIndexPtr;
 		mbSingleBrickFreeByIndex(sequencePile, sequenceLinkIndex);
 
