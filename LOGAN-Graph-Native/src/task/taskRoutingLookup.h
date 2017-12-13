@@ -9,6 +9,9 @@ int countLookupReadsRemaining(RoutingBuilder *rb);
 int queueSmerLookupsForIngress(RoutingBuilder *rb, RoutingReadIngressBlock *ingressBlock);
 
 int scanForAndDispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb);
+
+int scanForAndProcessLookupRecycles(RoutingBuilder *rb);
+
 int scanForSmerLookups(RoutingBuilder *rb, int workerNo, RoutingWorkerState *wState);
 
 #endif

@@ -83,7 +83,7 @@ void trDumpDispatchLink(DispatchLink *link, u32 linkIndex)
 	//	s32 maxEdgePosition;
 	//	DispatchLinkSmer smers[DISPATCH_LINK_SMERS];
 
-	LOG(LOG_INFO,"LookupLink Dump: Idx %i (%p)",linkIndex, link);
+	LOG(LOG_INFO,"DispatchLink Dump: Idx %i (%p)",linkIndex, link);
 
 	LOG(LOG_INFO,"  NosIdx: %u (%s)", link->nextOrSourceIndex, decodeLinkIndexType(link->indexType));
 	LOG(LOG_INFO,"  Len: %u",(u32)(link->length));
@@ -252,12 +252,29 @@ static void dumpUnclean(RoutingBuilder *rb)
 */
 
 
+static int checkForWork(RoutingBuilder *rb, int *lookupBlocksPtr, int *dispatchBlocksPtr)
+{
+	int arib=__atomic_load_n(&rb->allocatedIngressBlocks, __ATOMIC_SEQ_CST);
+	int arlb=__atomic_load_n(&rb->allocatedReadLookupBlocks, __ATOMIC_SEQ_CST);
+	int lrr=__atomic_load_n(&rb->lookupRecyclePtr, __ATOMIC_SEQ_CST)!=NULL;
+	int ardb=0;//__atomic_load_n(&rb->allocatedReadDispatchBlocks, __ATOMIC_SEQ_CST);
+
+	//*ingressBlocksPtr=arib;
+	*lookupBlocksPtr=arlb;
+	*dispatchBlocksPtr=ardb;
+
+	return arib || arlb || lrr || ardb;
+}
+
+
 static int trDoIntermediate(ParallelTask *pt, int workerNo, void *wState, int force)
 {
 	//LOG(LOG_INFO,"trDoIntermediate");
 
 	RoutingWorkerState *workerState=wState;
 	RoutingBuilder *rb=pt->dataPtr;
+
+
 
 
 	if(processIngressedReads(rb))
@@ -300,15 +317,20 @@ static int trDoIntermediate(ParallelTask *pt, int workerNo, void *wState, int fo
 
 	if(scanForAndDispatchLookupCompleteReadLookupBlocks(rb))
 		{
-		//LOG(LOG_INFO,"scanForAndDispatchLookupCompleteReadLookupBlocks OK");
 		if(!force)
 			return 1;
 		}
 
+	if(scanForAndProcessLookupRecycles(rb))
+		{
+		if(!force)
+			return 1;
+		}
 
-	int arib=__atomic_load_n(&rb->allocatedIngressBlocks, __ATOMIC_SEQ_CST);
-	int arlb=__atomic_load_n(&rb->allocatedReadLookupBlocks, __ATOMIC_SEQ_CST);
-	int ardb=0;//__atomic_load_n(&rb->allocatedReadDispatchBlocks, __ATOMIC_SEQ_CST);
+	int arlb=0;
+	int ardb=0;
+
+	checkForWork(rb, &arlb, &ardb);
 
 /*
 	if(ardb==TR_READBLOCK_DISPATCHES_INFLIGHT)
@@ -339,15 +361,8 @@ static int trDoIntermediate(ParallelTask *pt, int workerNo, void *wState, int fo
 		}
 */
 
-	arib=__atomic_load_n(&rb->allocatedIngressBlocks, __ATOMIC_SEQ_CST);
-	arlb=__atomic_load_n(&rb->allocatedReadLookupBlocks, __ATOMIC_SEQ_CST);
-//	ardb=__atomic_load_n(&rb->allocatedReadDispatchBlocks, __ATOMIC_SEQ_CST);
-
-//	LOG(LOG_INFO,"trDoIntermediate: %i %i %i %i",workerNo, force, arlb, ardb);
-
-	if(arib>0 || arlb>0 || ardb>0) // If in force mode, and not finished, rally the minions
+	if(checkForWork(rb, &arlb, &ardb)) // If in force mode, and not finished, rally the minions
 		return force;
-
 
 	//LOG(LOG_INFO,"Worker did nothing");
 	return 0;
