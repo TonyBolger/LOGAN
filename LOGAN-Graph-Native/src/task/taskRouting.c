@@ -358,21 +358,21 @@ static int trDoIntermediate(ParallelTask *pt, int workerNo, void *wState, int fo
 			return 1;
 		}
 
-	scanForAndProcessLookupRecycles(rb, force);
+//	scanForAndProcessLookupRecycles(rb, force);
 
-//	if(scanForAndProcessLookupRecycles(rb, force))
-//		{
-//		if(!force)
-//			return 1;
-//		}
+	if(scanForAndProcessLookupRecycles(rb, force))
+		{
+		if(!force)
+			return 1;
+		}
 
-	processIngressedReads(rb);
+//	processIngressedReads(rb);
 
-//	if(processIngressedReads(rb))
-//		{
-//		if(!force)
-//			return 1;
-//		}
+	if(processIngressedReads(rb))
+		{
+		if(!force)
+			return 1;
+		}
 
 	int arlb=0;
 	int ardb=0;

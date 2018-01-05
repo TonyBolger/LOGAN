@@ -12,11 +12,11 @@ s32 reserveReadIngressBlock(RoutingBuilder *rb)
 	// Also need to ensure space for sequences 10M/224 per link, plus 10K partially filled, plus 10K margin: 44,643 + 20,000 -> ~65K free bricks
 	// In practice, less will be needed. This hack only works if there's a single ingressBlock which can consume the bricks.
 
-	int maximumBricksForSequence=((TR_INGRESS_BASESTOTAL+SEQUENCE_LINK_BASES)/SEQUENCE_LINK_BASES)+TR_INGRESS_BLOCKSIZE;
+	int maximumBricksForSequence=((TASK_INGRESS_BASESTOTAL+SEQUENCE_LINK_BASES)/SEQUENCE_LINK_BASES)+TR_INGRESS_BLOCKSIZE;
 
 	if(!mbCheckSingleBrickAvailability(&(rb->sequenceLinkPile), maximumBricksForSequence))
 		{
-		LOG(LOG_INFO,"reserveIngressBlock insufficient bricks: Want %i Have %i",maximumBricksForSequence, mbGetFreeSingleBrickPile(&(rb->sequenceLinkPile)));
+		//LOG(LOG_INFO,"reserveIngressBlock insufficient bricks: Want %i Have %i",maximumBricksForSequence, mbGetFreeSingleBrickPile(&(rb->sequenceLinkPile)));
 		return 0;
 		}
 
@@ -163,7 +163,7 @@ void populateReadIngressBlock(SwqBuffer *rec, int ingressPosition, int ingressSi
 
 	SequenceWithQuality *currentRec=rec->rec+ingressPosition;
 
-	int maximumBricksForSequence=((TR_INGRESS_BASESTOTAL+SEQUENCE_LINK_BASES)/SEQUENCE_LINK_BASES)+TR_INGRESS_BLOCKSIZE;
+	int maximumBricksForSequence=((TASK_INGRESS_BASESTOTAL+SEQUENCE_LINK_BASES)/SEQUENCE_LINK_BASES)+TR_INGRESS_BLOCKSIZE;
 
 	MemSingleBrickAllocator alloc;
 	mbInitSingleBrickAllocator(&alloc, &(rb->sequenceLinkPile), maximumBricksForSequence);

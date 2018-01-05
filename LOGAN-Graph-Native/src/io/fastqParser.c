@@ -48,7 +48,7 @@ void freeSequenceBuffer(SwqBuffer *swqBuffer)
 
 static void waitForIdle(int *usageCount)
 {
-//	LOG(LOG_INFO,"WaitForIdle");
+	//LOG(LOG_INFO,"WaitForIdle");
 
 	while(__atomic_load_n(usageCount,__ATOMIC_SEQ_CST)>0)
 		{
@@ -63,7 +63,7 @@ static void waitForIdle(int *usageCount)
 	if(__atomic_load_n(usageCount,__ATOMIC_SEQ_CST)<0)
 		LOG(LOG_CRITICAL,"Negative usage");
 
-//	LOG(LOG_INFO,"WaitForIdle Done");
+	//LOG(LOG_INFO,"WaitForIdle Done");
 }
 
 

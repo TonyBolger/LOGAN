@@ -1,7 +1,7 @@
 
 #include "../common.h"
 
-static const float MAX_LOAD_FACTOR = 0.40; // 0.68 -> 0.65 -> 0.60 -> 0.45 -> 0.40: Reduced to eliminate large scan counts
+static const float MAX_LOAD_FACTOR = 0.35; // 0.68 -> 0.65 -> 0.60 -> 0.45 -> 0.40: Reduced to eliminate large scan counts
 
 static const u32 INIT_SHIFT=10;
 
@@ -443,7 +443,7 @@ void smGetSmerIds(SmerMap *smerMap, SmerId *smerIds)
 
 }
 
-
+/*
 static int checkStealthIndexing(s32 *indexes, u32 indexCount, SmerId *smerIds, SmerId smerId)
 {
 	int i=0;
@@ -456,7 +456,7 @@ static int checkStealthIndexing(s32 *indexes, u32 indexCount, SmerId *smerIds, S
 
 	return 0;
 }
-
+*/
 
 
 
@@ -481,7 +481,7 @@ void smAddPathSmers(SmerMap *smerMap, u32 dataLength, u8 *data, s32 nodeSize, s3
 	//LOG(LOG_INFO, "Existing Indexes: ");
 	//LogIndexes(oldIndexes, oldIndexCount, smerIds);
 
-	s32 prevIndex=-1; // TODO: Consider -1 vs 0 here (length of first edge)
+	s32 prevIndex=0; // TODO: Consider -1 vs 0 here (length of first edge)
 
 	int i,j;
 	s32 distance;
@@ -495,15 +495,16 @@ void smAddPathSmers(SmerMap *smerMap, u32 dataLength, u8 *data, s32 nodeSize, s3
 			{
 			for(j=prevIndex+1;j<index;j++)
 				{
-				SmerId smerId=smerIds[j];
+//				SmerId smerId=smerIds[j];
 
 				distance=j-prevIndex;
-
+/*
 				if(checkStealthIndexing(newIndexes, newIndexCount, smerIds, smerId))
 					{
 					prevIndex=j;
 					}
-				else if (distance>=indexMaxDistance)
+				else */
+				if (distance>=indexMaxDistance)
 					{
 					newIndexes[newIndexCount++]=j;
 					prevIndex=j;
@@ -515,15 +516,16 @@ void smAddPathSmers(SmerMap *smerMap, u32 dataLength, u8 *data, s32 nodeSize, s3
 
 	for(j=prevIndex+1;j<=maxValidIndex;j++)
 		{
-		SmerId smerId=smerIds[j];
+//		SmerId smerId=smerIds[j];
 
 		distance=j-prevIndex;
-
+/*
 		if(checkStealthIndexing(newIndexes, newIndexCount, smerIds, smerId))
 			{
 			prevIndex=j;
 			}
-		else if (distance>=indexMaxDistance)
+		else */
+		if (distance>=indexMaxDistance)
 			{
 			newIndexes[newIndexCount++]=j;
 			prevIndex=j;

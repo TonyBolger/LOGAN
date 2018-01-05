@@ -24,7 +24,7 @@
 
 // Record count can be larger than ingress blocksize, but base limit must match
 #define FASTQ_RECORDS_PER_BATCH 100000
-#define FASTQ_BASES_PER_BATCH TR_INGRESS_BASESTOTAL
+#define FASTQ_BASES_PER_BATCH TASK_INGRESS_BASESTOTAL
 
 // RECYCLE_BUFFER should be at least FASTQ_MAX_READ_LENGTH * 4
 

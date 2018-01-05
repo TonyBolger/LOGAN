@@ -92,11 +92,9 @@ void waitForShutdown(ParallelTask *pt)
 
 int queueIngress(ParallelTask *pt, ParallelTaskIngress *ingressData)
 {
-//	LOG(LOG_INFO,"Master: QueueIngress %p %i",ingressPtr,ingressCount);
+	//LOG(LOG_INFO,"Master: Queue Ingress %p %i - Usage %i", ingressData->ingressPtr, ingressData->ingressTotal, *(ingressData->ingressUsageCount));
 
 	__atomic_store_n(ingressData->ingressUsageCount,1,__ATOMIC_SEQ_CST); // Allow for 'queued usage'
-
-//	LOG(LOG_INFO,"Master: Queue Ingress %p %i - Usage %i", ingressData->ingressPtr, ingressData->ingressTotal, *(ingressData->ingressUsageCount));
 
 	while(!queueTryInsert(pt->ingressQueue, ingressData))
 		{
@@ -117,6 +115,8 @@ int queueIngress(ParallelTask *pt, ParallelTaskIngress *ingressData)
 		pt->config->doTickTock(pt);
 
 	wakeIdleWorkers(pt);
+
+	//LOG(LOG_INFO,"Master: Queue Ingress Done");
 
 	return 0;
 }
@@ -151,8 +151,8 @@ static int performTaskAcceptNewIngress(ParallelTask *pt)
 		{
 		__atomic_fetch_add(&(pt->accumulatedIngressArrived), newIngress->ingressTotal, __ATOMIC_SEQ_CST);
 
-		__atomic_store_n(&pt->activeIngressPosition, 0, __ATOMIC_RELAXED);
-		__atomic_store_n(&pt->activeIngressPtr, newIngress, __ATOMIC_RELAXED);
+		__atomic_store_n(&pt->activeIngressPosition, 0, __ATOMIC_SEQ_CST);
+		__atomic_store_n(&pt->activeIngressPtr, newIngress, __ATOMIC_SEQ_CST);
 
 		wakeIdleWorkers(pt);
 		}
@@ -272,26 +272,7 @@ static int performTaskActive(ParallelTask *pt, int workerNo, RoutingWorkerState 
 			return 1;
 		}
 
-	// 2nd priority - active ingress
-
-	if(__atomic_load_n(&(pt->activeIngressPtr), __ATOMIC_SEQ_CST)!=NULL)
-		{
-		if(performTaskConsumeActiveIngress(pt, workerNo, wState))
-			return 1;
-		}
-
-	// 3rd priority - low priority intermediates
-	if(pt->config->doIntermediate!=NULL)
-		{
-		__atomic_thread_fence(__ATOMIC_SEQ_CST);
-		ret = pt->config->doIntermediate(pt,workerNo,wState, 1);
-		__atomic_thread_fence(__ATOMIC_SEQ_CST);
-
-		if(ret)
-			return 1;
-		}
-
-	// 4th priority - tidy
+	// 2nd priority - tidy
 	if(__atomic_load_n(&(pt->activeTidyTotal), __ATOMIC_SEQ_CST)>0)
 		{
 		// Last non-sleeping thread
@@ -306,13 +287,35 @@ static int performTaskActive(ParallelTask *pt, int workerNo, RoutingWorkerState 
 			return 0;
 		}
 
-	// 5th priority - new ingress
+
+	// 2nd priority - active ingress
+
+	if(__atomic_load_n(&(pt->activeIngressPtr), __ATOMIC_SEQ_CST)!=NULL)
+		{
+		if(performTaskConsumeActiveIngress(pt, workerNo, wState))
+			return 1;
+		}
+
+	// 4th priority - new ingress
 
 	if(__atomic_load_n(&(pt->activeIngressPtr), __ATOMIC_SEQ_CST)==NULL)
 		{
 		if(performTaskAcceptNewIngress(pt))
 			return 1;
 		}
+
+	// 5rd priority - low priority intermediates
+	if(pt->config->doIntermediate!=NULL)
+		{
+		__atomic_thread_fence(__ATOMIC_SEQ_CST);
+		ret = pt->config->doIntermediate(pt,workerNo,wState, 1);
+		__atomic_thread_fence(__ATOMIC_SEQ_CST);
+
+		if(ret)
+			return 1;
+		}
+
+
 
 	// 6th priority - shutdown (hacky for now)
 	if(queueIsEmpty(pt->ingressQueue) &&
