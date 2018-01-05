@@ -316,7 +316,7 @@ void calculatePossibleSmers(u8 *data, s32 maxIndex, SmerId *smerIds)
 }
 
 
-void calculatePossibleSmersAndOrientation(u8 *data, s32 smerCount, SmerId *smerIds, u32 *revCompPtr)
+void calculatePossibleSmersAndOrientation(u8 *data, u8 *secondData, s32 dataBytes, s32 secondDataBytes, s32 smerCount, SmerId *smerIds, u32 *revCompPtr)
 {
 	int i=0;
 	u16 revCompAccum=0;
@@ -324,12 +324,40 @@ void calculatePossibleSmersAndOrientation(u8 *data, s32 smerCount, SmerId *smerI
 
 //	u64 rmerGen0=*((SmerId *)data);
 
-	// Load 48 bits from *data (avoid passing end of buffer)
-	u64 rmerGen=((u64)(*((u32 *)data)))+(((u64)(*((u16 *)(data+4))))<<32);
-	u64 fmerGen= __builtin_bswap64(rmerGen);
+	u64 rmerGen=0;
+	u64 fmerGen=0;
 
-	data+=6; // First 24bp are now consumed
+	if(dataBytes>=6) // Easy case - all 6 bytes together
+		{
+		// Load 48 bits from *data (avoid passing end of buffer)
+		rmerGen=((u64)(*((u32 *)data)))+(((u64)(*((u16 *)(data+4))))<<32);
+		data+=6; // First 24bp are now consumed
+		dataBytes-=6;
+		}
+	else  // Awkward case - 6 starting bytes are split
+		{
+		int count=0;
+		while(dataBytes>0)
+			{
+			rmerGen|=((u64)(*data))<<(count*8);
+			data++;
+			count++;
+			dataBytes--;
+			}
 
+		data=secondData;
+		secondData=NULL;
+		dataBytes=secondDataBytes;
+
+		while(count<6)
+			{
+			rmerGen|=((u64)(*data))<<(count*8);
+			data++;
+			count++;
+			}
+		}
+
+	fmerGen= __builtin_bswap64(rmerGen);
 	rmerGen=COMP_BASE_32(reverseWithinBytes(rmerGen)) & 0xFFFFFFFFFFFF;
 
 	fmerGen >>= 16;
@@ -376,6 +404,16 @@ void calculatePossibleSmersAndOrientation(u8 *data, s32 smerCount, SmerId *smerI
 			break;
 
 		// Load next 4bp
+
+		if(dataBytes==0)
+			{
+			data=secondData;
+			secondData=NULL;
+			dataBytes=secondDataBytes;
+			}
+		else
+			dataBytes--;
+
 		u64 tmp=*(data++);
 		fmerGen=(fmerGen<<8) | tmp;
 		rmerGen=(rmerGen>>8) | (COMP_BASE_QUAD(reverseWithinBytes(tmp)) << (SMER_BITS-2));

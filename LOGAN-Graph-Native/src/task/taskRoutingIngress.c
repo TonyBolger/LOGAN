@@ -163,8 +163,12 @@ void populateReadIngressBlock(SwqBuffer *rec, int ingressPosition, int ingressSi
 
 	SequenceWithQuality *currentRec=rec->rec+ingressPosition;
 
+	int maximumBricksForSequence=((TR_INGRESS_BASESTOTAL+SEQUENCE_LINK_BASES)/SEQUENCE_LINK_BASES)+TR_INGRESS_BLOCKSIZE;
+
 	MemSingleBrickAllocator alloc;
-	mbInitSingleBrickAllocator(&alloc, &(rb->sequenceLinkPile), ingressSize);
+	mbInitSingleBrickAllocator(&alloc, &(rb->sequenceLinkPile), maximumBricksForSequence);
+
+	//LOG(LOG_INFO,"Ingress is %i",ingressSize);
 
 	for(int i=0;i<ingressSize;i++)
 		{
@@ -173,20 +177,20 @@ void populateReadIngressBlock(SwqBuffer *rec, int ingressPosition, int ingressSi
 
 		u32 *brickIndexPtr=ingressBlock->sequenceLinkIndex+i;
 
+		if(length>1000000)
+			LOG(LOG_CRITICAL,"Length is %i",length);
+
 		while(offset<length)
 			{
 			SequenceLink *sequenceLink=mbSingleBrickAllocate(&alloc, brickIndexPtr);
 
-			s32 lengthToPack=MIN(PAD_2BITLENGTH_BYTE(length), SEQUENCE_LINK_BYTES);
-
-			packSequence(currentRec->seq+offset, sequenceLink->packedSequence, length);
-
-			s32 basesPacked=(lengthToPack<<2);
+			s32 lengthToPack=MIN(length-offset, SEQUENCE_LINK_BASES);
+			packSequence(currentRec->seq+offset, sequenceLink->packedSequence, lengthToPack);
 
 			sequenceLink->position=0;
-			sequenceLink->length=basesPacked;
+			sequenceLink->length=lengthToPack;
 			brickIndexPtr=&(sequenceLink->nextIndex);
-			offset+=basesPacked;
+			offset+=lengthToPack;
 			}
 
 		*brickIndexPtr=LINK_INDEX_DUMMY;
@@ -277,9 +281,7 @@ s32 processIngressedReads(RoutingBuilder *rb)
 			if(readBlock->sequencePosition==readBlock->sequenceCount)
 				{
 				unlockIngressBlockComplete(readBlock); // Status: LOCKED -> COMPLETE
-
 				unallocateReadIngressBlock(readBlock); // Status: COMPLETE -> IDLE
-
 				unreserveReadIngressBlock(rb);
 				}
 			else

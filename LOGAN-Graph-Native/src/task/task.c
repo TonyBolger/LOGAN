@@ -177,6 +177,8 @@ static int performTaskConsumeActiveIngress(ParallelTask *pt, int workerNo, Routi
 {
 	int oldToken=1;
 
+//	LOG(LOG_INFO,"Ingress - think about it"); Gets to this
+
 	if(!__atomic_compare_exchange_n(&pt->ingressConsumeToken, &oldToken, 0, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST))
 		{
 		return 0;
@@ -196,9 +198,9 @@ static int performTaskConsumeActiveIngress(ParallelTask *pt, int workerNo, Routi
 		return 0;
 		}
 
-	int ingressPos=__atomic_load_n(&(pt->activeIngressPosition), __ATOMIC_RELAXED);
-	int ingressTotal=__atomic_load_n(&(ptIngressPtr->ingressTotal), __ATOMIC_RELAXED);
-	int *ingressUsageCount = __atomic_load_n(&(ptIngressPtr->ingressUsageCount), __ATOMIC_RELAXED);
+	int ingressPos=__atomic_load_n(&(pt->activeIngressPosition), __ATOMIC_SEQ_CST);
+	int ingressTotal=__atomic_load_n(&(ptIngressPtr->ingressTotal), __ATOMIC_SEQ_CST);
+	int *ingressUsageCount = __atomic_load_n(&(ptIngressPtr->ingressUsageCount), __ATOMIC_SEQ_CST);
 
 	int ingressSize=pt->config->ingressBlocksize;
 
@@ -213,8 +215,8 @@ static int performTaskConsumeActiveIngress(ParallelTask *pt, int workerNo, Routi
 		{
 		newIngressFlag=1;
 
-		__atomic_store_n(&(pt->activeIngressPtr), NULL, __ATOMIC_RELAXED);
-		__atomic_store_n(&(pt->activeIngressPosition), 0, __ATOMIC_RELAXED);
+		__atomic_store_n(&(pt->activeIngressPtr), NULL, __ATOMIC_SEQ_CST);
+		__atomic_store_n(&(pt->activeIngressPosition), 0, __ATOMIC_SEQ_CST);
 
 
 		if(pt->config->tasksPerTidy>0)							// If tidy is configured
@@ -244,7 +246,7 @@ static int performTaskConsumeActiveIngress(ParallelTask *pt, int workerNo, Routi
 
 	__atomic_fetch_add(&(pt->accumulatedIngressProcessed), ingressSize, __ATOMIC_SEQ_CST);
 
-	__atomic_sub_fetch(ingressUsageCount, 1, __ATOMIC_RELEASE);
+	__atomic_sub_fetch(ingressUsageCount, 1, __ATOMIC_SEQ_CST);
 
 	if(newIngressFlag)
 		performTaskAcceptNewIngress(pt);

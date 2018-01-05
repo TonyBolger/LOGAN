@@ -141,8 +141,9 @@ static int trAllocateIngressSlot(ParallelTask *pt, int workerNo)
 {
 	RoutingBuilder *rb=pt->dataPtr;
 
-	return reserveReadIngressBlock(rb);
+	int res=reserveReadIngressBlock(rb);
 
+	return res;
 }
 
 
@@ -252,6 +253,48 @@ static void dumpUnclean(RoutingBuilder *rb)
 */
 
 
+static void showWorkStatus(RoutingBuilder *rb)
+{
+	int arib=__atomic_load_n(&rb->allocatedIngressBlocks, __ATOMIC_SEQ_CST);
+	int arlb=__atomic_load_n(&rb->allocatedReadLookupBlocks, __ATOMIC_SEQ_CST);
+	int lrr=__atomic_load_n(&rb->lookupRecyclePtr, __ATOMIC_SEQ_CST)!=NULL;
+	int ardb=0;//__atomic_load_n(&rb->allocatedReadDispatchBlocks, __ATOMIC_SEQ_CST);
+
+	MemSingleBrickPile *seqPile=&(rb->sequenceLinkPile);
+	MemDoubleBrickPile *lookupPile=&(rb->lookupLinkPile);
+	MemDoubleBrickPile *dispatchPile=&(rb->dispatchLinkPile);
+
+	int seqTotal=mbGetSingleBrickPileCapacity(seqPile);
+	int seqFree=mbGetFreeSingleBrickPile(seqPile);
+	int seqUsed=seqTotal-seqFree;
+
+	int lookupTotal=mbGetDoubleBrickPileCapacity(lookupPile);
+	int lookupFree=mbGetFreeDoubleBrickPile(lookupPile);
+	int lookupUsed=lookupTotal-lookupFree;
+
+	int dispatchTotal=mbGetDoubleBrickPileCapacity(dispatchPile);
+	int dispatchFree=mbGetFreeDoubleBrickPile(dispatchPile);
+	int dispatchUsed=dispatchTotal-dispatchFree;
+
+	LOG(LOG_INFO,"TickTock: RB - IB: %i LB: %i LR: %i DB: %i", arib, arlb, lrr, ardb);
+	LOG(LOG_INFO,"TickTock: BricksUFT - Seq %i %i %i Lookup %i %i %i Dispatch %i %i %i",
+			seqUsed,seqFree,seqTotal, lookupUsed,lookupFree,lookupTotal, dispatchUsed,dispatchFree,dispatchTotal);
+
+	ParallelTask *pt=rb->pt;
+
+	int iat=__atomic_load_n(&pt->ingressAcceptToken, __ATOMIC_SEQ_CST);
+	int ict=__atomic_load_n(&pt->ingressConsumeToken, __ATOMIC_SEQ_CST);
+	ParallelTaskIngress *aiptr=__atomic_load_n(&pt->activeIngressPtr, __ATOMIC_SEQ_CST);
+	int aip=__atomic_load_n(&pt->activeIngressPosition, __ATOMIC_SEQ_CST);
+
+	int iTotal=0;
+	if(aiptr!=NULL)
+		iTotal=__atomic_load_n(&aiptr->ingressTotal, __ATOMIC_SEQ_CST);
+
+	LOG(LOG_INFO,"TickTock: Ingress: IAT: %i ICT: %i IPtr: %p IPos: %i ITot: %i",iat,ict,aiptr,aip, iTotal);
+}
+
+
 static int checkForWork(RoutingBuilder *rb, int *lookupBlocksPtr, int *dispatchBlocksPtr)
 {
 	int arib=__atomic_load_n(&rb->allocatedIngressBlocks, __ATOMIC_SEQ_CST);
@@ -276,12 +319,6 @@ static int trDoIntermediate(ParallelTask *pt, int workerNo, void *wState, int fo
 
 
 
-
-	if(processIngressedReads(rb))
-		{
-		if(!force)
-			return 1;
-		}
 
 
 
@@ -321,11 +358,21 @@ static int trDoIntermediate(ParallelTask *pt, int workerNo, void *wState, int fo
 			return 1;
 		}
 
-	if(scanForAndProcessLookupRecycles(rb))
-		{
-		if(!force)
-			return 1;
-		}
+	scanForAndProcessLookupRecycles(rb, force);
+
+//	if(scanForAndProcessLookupRecycles(rb, force))
+//		{
+//		if(!force)
+//			return 1;
+//		}
+
+	processIngressedReads(rb);
+
+//	if(processIngressedReads(rb))
+//		{
+//		if(!force)
+//			return 1;
+//		}
 
 	int arlb=0;
 	int ardb=0;
@@ -342,7 +389,7 @@ static int trDoIntermediate(ParallelTask *pt, int workerNo, void *wState, int fo
 			}
 		}
 */
-	if((force)||(arlb==TR_READBLOCK_LOOKUPS_INFLIGHT))
+	if((force)||(arlb>TR_READBLOCK_LOOKUPS_THRESHOLD))
 		{
 		if(scanForSmerLookups(rb, workerNo, workerState))
 			{
@@ -377,11 +424,18 @@ static int trDoTidy(ParallelTask *pt, int workerNo, void *wState, int tidyNo)
 
 static void trDoTickTock(ParallelTask *pt)
 {
+	static int counter=0;
 //	LOG(LOG_INFO,"Tick tock MF");
 
 	RoutingBuilder *rb=pt->dataPtr;
-
 	__atomic_store_n(&(rb->pogoDebugFlag), 1, __ATOMIC_RELAXED);
+
+	if(++counter>1000)
+		{
+		showWorkStatus(rb);
+		counter=0;
+		}
+
 }
 
 
@@ -420,6 +474,7 @@ RoutingBuilder *allocRoutingBuilder(Graph *graph, int threads)
 		rb->smerEntryLookupPtr[i]=NULL;
 
 	rb->lookupRecyclePtr=NULL;
+	rb->lookupRecycleCount=0;
 
 	mbInitDoubleBrickPile(&(rb->dispatchLinkPile), TR_BRICKCHUNKS_DISPATCH_MIN, TR_BRICKCHUNKS_DISPATCH_MAX, MEMTRACKID_BRICK_DISPATCH);
 
@@ -445,10 +500,10 @@ RoutingBuilder *allocRoutingBuilder(Graph *graph, int threads)
 void freeRoutingBuilder(RoutingBuilder *rb)
 {
 	dumpUnclean(rb);
-/*
+
 	for(int i=0;i<TR_READBLOCK_LOOKUPS_INFLIGHT;i++)
 		dispenserFree(rb->readLookupBlocks[i].disp);
-
+/*
 	for(int i=0;i<TR_READBLOCK_DISPATCHES_INFLIGHT;i++)
 		dispenserFree(rb->readDispatchBlocks[i].disp);
 
@@ -461,6 +516,10 @@ void freeRoutingBuilder(RoutingBuilder *rb)
 
 	freeParallelTask(pt);
 	freeParallelTaskConfig(ptc);
+
+	mbFreeSingleBrickPile(&(rb->sequenceLinkPile));
+	mbFreeDoubleBrickPile(&(rb->lookupLinkPile));
+	mbFreeDoubleBrickPile(&(rb->dispatchLinkPile));
 
 	trRoutingBuilderFree(rb);
 }

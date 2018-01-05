@@ -86,7 +86,7 @@ void runIptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 
 	void (*monitor)() = NULL;
 
-#ifdef FEATURE_ENABLE_MEMTRACK
+#ifdef FEATURE_ENABLE_MEMTRACK_CONTINUOUS
 	monitor=mtDump;
 #endif
 
@@ -197,7 +197,7 @@ void runRptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 
 	void (*monitor)() = NULL;
 
-#ifdef FEATURE_ENABLE_MEMTRACK
+#ifdef FEATURE_ENABLE_MEMTRACK_CONTINUOUS
 	monitor=mtDump;
 #endif
 

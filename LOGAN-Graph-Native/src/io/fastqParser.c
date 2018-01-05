@@ -424,6 +424,7 @@ s64 parseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 records
 	s64 batchBaseCount=0;
 
 	s64 allRecordCount=0,validRecordCount=0,usedRecords=0;
+	s32 progressCounter=0;
 
 	s64 lastRecord=recordsToSkip+recordsToUse;
 
@@ -480,14 +481,17 @@ s64 parseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 records
 //						LOG(LOG_INFO, "New buffer usage count is now %i",buffers[currentBuffer].usageCount);
 					}
 
+				progressCounter++;
 				usedRecords++;
 
-				if(usedRecords % 1000000 ==0)
+				if(progressCounter >= 1000000)
 					{
 					LOG(LOG_INFO,"Reads: %li", usedRecords);
 
-					if(monitor!=NULL && (usedRecords % 10000000 ==0))
+					if(monitor!=NULL)
 						(*monitor)();
+
+					progressCounter=0;
 					}
 				}
 

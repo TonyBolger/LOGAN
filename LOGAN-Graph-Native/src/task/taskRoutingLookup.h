@@ -10,7 +10,7 @@ int queueSmerLookupsForIngress(RoutingBuilder *rb, RoutingReadIngressBlock *ingr
 
 int scanForAndDispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb);
 
-int scanForAndProcessLookupRecycles(RoutingBuilder *rb);
+int scanForAndProcessLookupRecycles(RoutingBuilder *rb, int force);
 
 int scanForSmerLookups(RoutingBuilder *rb, int workerNo, RoutingWorkerState *wState);
 

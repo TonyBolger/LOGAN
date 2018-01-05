@@ -139,19 +139,20 @@ typedef struct memDoubleBrickAllocatorStr {
 
 
 void mbInitSingleBrickPile(MemSingleBrickPile *pile, s32 chunkCount, s32 chunkLimit, s32 memTrackId);
+void mbFreeSingleBrickPile(MemSingleBrickPile *pile);
 
 void mbInitDoubleBrickPile(MemDoubleBrickPile *pile, s32 chunkCount, s32 chunkLimit, s32 memTrackId);
-
+void mbFreeDoubleBrickPile(MemDoubleBrickPile *pile);
 
 s32 mbGetFreeSingleBrickPile(MemSingleBrickPile *pile);
 s32 mbGetFreeSingleBrickChunk(MemSingleBrickChunk *chunk);
 s32 mbCheckSingleBrickAvailability(MemSingleBrickPile *pile, s32 brickCount);
-
+s32 mbGetSingleBrickPileCapacity(MemSingleBrickPile *pile);
 
 s32 mbGetFreeDoubleBrickPile(MemDoubleBrickPile *pile);
 s32 mbGetFreeDoubleBrickChunk(MemDoubleBrickChunk *chunk);
 s32 mbCheckDoubleBrickAvailability(MemDoubleBrickPile *pile, s32 brickCount);
-
+s32 mbGetDoubleBrickPileCapacity(MemDoubleBrickPile *pile);
 
 s32 mbInitSingleBrickAllocator(MemSingleBrickAllocator *alloc, MemSingleBrickPile *pile, s32 pileResRequest);
 void *mbSingleBrickAllocate(MemSingleBrickAllocator *alloc, u32 *brickIndexPtr);

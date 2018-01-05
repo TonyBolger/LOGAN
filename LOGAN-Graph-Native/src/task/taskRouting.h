@@ -180,8 +180,12 @@ typedef struct routingReadLookupRecycleBlockStr {
 #define TR_DISPATCH_MAX_WORK 64
 */
 // TR_LOOKUPS_PER_SLICE_BLOCK / TR_LOOKUPS_PER_INTERMEDIATE_BLOCK must be a power of 2
-#define TR_LOOKUPS_PER_SLICE_BLOCK 64
-#define TR_LOOKUPS_PER_PERCOLATE_BLOCK 16384
+
+//#define TR_LOOKUPS_PER_SLICE_BLOCK 64
+//#define TR_LOOKUPS_PER_PERCOLATE_BLOCK 16384
+
+#define TR_LOOKUPS_PER_SLICE_BLOCK 16
+#define TR_LOOKUPS_PER_PERCOLATE_BLOCK 8192
 
 //#define TR_DISPATCH_READS_PER_BLOCK 64
 #define TR_DISPATCH_READS_PER_INTERMEDIATE_BLOCK 256
@@ -314,6 +318,7 @@ typedef struct routingBuilderStr {
 	RoutingSmerEntryLookup *smerEntryLookupPtr[SMER_SLICES]; // Per-slice list of lookups
 
 	RoutingReadLookupRecycleBlock *lookupRecyclePtr; // Queue of lookups for recycling
+	u64 lookupRecycleCount; // Approximate length of recycle queue
 
 	MemDoubleBrickPile dispatchLinkPile;	// Dispatch chains
 

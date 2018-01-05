@@ -44,6 +44,15 @@ void mbInitSingleBrickPile(MemSingleBrickPile *pile, s32 chunkCount, s32 chunkLi
 		initSingleBrickChunk(pile);
 }
 
+void mbFreeSingleBrickPile(MemSingleBrickPile *pile)
+{
+	for(int i=0;i<pile->chunkCount;i++)
+		G_FREE(pile->chunks[i], sizeof(MemSingleBrickChunk), pile->memTrackId);
+
+	G_FREE(pile->chunks, sizeof(MemSingleBrickChunk *)*pile->chunkLimit, pile->memTrackId);
+}
+
+
 // Called during init() (eventually also while holding pile->lock) but still needs to be thread-safe against regular uses
 
 static void initDoubleBrickChunk(MemDoubleBrickPile *pile)
@@ -51,7 +60,7 @@ static void initDoubleBrickChunk(MemDoubleBrickPile *pile)
 	if(pile->chunkCount>=pile->chunkLimit)
 		LOG(LOG_CRITICAL,"Cannot init another chunk: Pile at limit");
 
-	MemDoubleBrickChunk *chunk=G_ALLOC_ALIGNED(sizeof(MemSingleBrickChunk), DOUBLEBRICK_ALIGNMENT, pile->memTrackId);
+	MemDoubleBrickChunk *chunk=G_ALLOC_ALIGNED(sizeof(MemDoubleBrickChunk), DOUBLEBRICK_ALIGNMENT, pile->memTrackId);
 
 	chunk->header.freeCount=DOUBLEBRICK_BRICKS_PER_CHUNK;
 	chunk->header.flagPosition=DOUBLEBRICK_SKIP_FLAGS_PER_CHUNK;
@@ -86,6 +95,14 @@ void mbInitDoubleBrickPile(MemDoubleBrickPile *pile, s32 chunkCount, s32 chunkLi
 }
 
 
+void mbFreeDoubleBrickPile(MemDoubleBrickPile *pile)
+{
+	for(int i=0;i<pile->chunkCount;i++)
+		G_FREE(pile->chunks[i], sizeof(MemDoubleBrickChunk), pile->memTrackId);
+
+	G_FREE(pile->chunks, sizeof(MemDoubleBrickChunk *)*pile->chunkLimit, pile->memTrackId);
+}
+
 
 s32 mbGetFreeSingleBrickPile(MemSingleBrickPile *pile)
 {
@@ -99,13 +116,17 @@ s32 mbGetFreeSingleBrickChunk(MemSingleBrickChunk *chunk)
 	return free;
 }
 
-
 s32 mbCheckSingleBrickAvailability(MemSingleBrickPile *pile, s32 brickCount)
 {
 	s32 availableCount=mbGetFreeSingleBrickPile(pile);
 	int needed=brickCount+pile->chunkCount*SINGLEBRICK_PILE_MARGIN_PER_CHUNK;
 
 	return needed<availableCount;
+}
+
+s32 mbGetSingleBrickPileCapacity(MemSingleBrickPile *pile)
+{
+	return pile->chunkCount*(SINGLEBRICK_FLAGS_PER_CHUNK*64);
 }
 
 
@@ -129,6 +150,11 @@ s32 mbCheckDoubleBrickAvailability(MemDoubleBrickPile *pile, s32 brickCount)
 	int needed=brickCount+pile->chunkCount*DOUBLEBRICK_PILE_MARGIN_PER_CHUNK;
 
 	return needed<availableCount;
+}
+
+s32 mbGetDoubleBrickPileCapacity(MemDoubleBrickPile *pile)
+{
+	return pile->chunkCount*(DOUBLEBRICK_FLAGS_PER_CHUNK*64);
 }
 
 
@@ -486,7 +512,7 @@ static s32 singleBlockUnallocateGroup(MemSingleBrickAllocator *alloc)
 			}
 
 		}
-	while(--loopCount>10000);
+	while(--loopCount>0);
 
 	LOG(LOG_CRITICAL,"Failed to unallocate group");
 	return 0;
@@ -514,13 +540,13 @@ static s32 singleBlockUnallocateEntry(MemSingleBrickChunk *chunk, u32 scanFlag, 
 
 		if(__atomic_compare_exchange_n(chunk->freeFlag+scanFlag, &allocMask, newAllocMask, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST))
 			{
-			__atomic_fetch_add(&(chunk->header.freeCount), 1, __ATOMIC_RELAXED);
+			__atomic_fetch_add(&(chunk->header.freeCount), 1, __ATOMIC_SEQ_CST);
 
 			return 1;
 			}
 
 		}
-	while(--loopCount>10000);
+	while(--loopCount>0);
 
 	LOG(LOG_CRITICAL,"Failed to unallocate entry");
 	return 0;
@@ -612,7 +638,7 @@ static s32 doubleBlockUnallocateGroup(MemDoubleBrickAllocator *alloc)
 			}
 
 		}
-	while(--loopCount>10000);
+	while(--loopCount>0);
 
 	LOG(LOG_CRITICAL,"Failed to unallocate group");
 	return 0;
@@ -640,13 +666,13 @@ static s32 doubleBlockUnallocateEntry(MemDoubleBrickChunk *chunk, u32 scanFlag, 
 
 		if(__atomic_compare_exchange_n(chunk->freeFlag+scanFlag, &allocMask, newAllocMask, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST))
 			{
-			__atomic_fetch_add(&(chunk->header.freeCount), 1, __ATOMIC_RELAXED);
+			__atomic_fetch_add(&(chunk->header.freeCount), 1, __ATOMIC_SEQ_CST);
 
 			return 1;
 			}
 
 		}
-	while(--loopCount>10000);
+	while(--loopCount>0);
 
 	LOG(LOG_CRITICAL,"Failed to unallocate entry");
 	return 0;
@@ -696,7 +722,7 @@ void *mbSingleBrickAllocate(MemSingleBrickAllocator *alloc, u32 *brickIndexPtr)
 		if(alloc->pileResLeft < SINGLEBRICK_DEFAULT_RESERVATION)
 			{
 			int additionalReserve=SINGLEBRICK_DEFAULT_RESERVATION-alloc->pileResLeft;
-			LOG(LOG_INFO,"Pile Reserve extension %i",additionalReserve);
+			LOG(LOG_CRITICAL,"Pile Reserve extension %i",additionalReserve);
 
 			if(!singleBrickAttemptPileReserve(alloc->pile, additionalReserve))
 				{
@@ -835,7 +861,7 @@ void *mbDoubleBrickAllocate(MemDoubleBrickAllocator *alloc, u32 *brickIndexPtr)
 		if(alloc->pileResLeft < DOUBLEBRICK_DEFAULT_RESERVATION)
 			{
 			int additionalReserve=DOUBLEBRICK_DEFAULT_RESERVATION-alloc->pileResLeft;
-			LOG(LOG_INFO,"Pile Reserve extension %i",additionalReserve);
+			LOG(LOG_CRITICAL,"Pile Reserve extension %i",additionalReserve);
 
 			if(!doubleBrickAttemptPileReserve(alloc->pile, additionalReserve))
 				{

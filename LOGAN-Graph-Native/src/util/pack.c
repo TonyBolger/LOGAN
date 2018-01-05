@@ -43,8 +43,8 @@ void packSequence(char *seq, u8 *packedSeq, int length)
 {
 	u8 data=0;
 
-	while(length>0)
-	{
+	while(length>=4)
+		{
 		length-=4;
 
 		u8 ch=*(seq++);
@@ -60,7 +60,31 @@ void packSequence(char *seq, u8 *packedSeq, int length)
 		data|=(ch&0x6)>>1;
 
 		*(packedSeq++)=data^((data&0xAA)>>1);
-	}
+		}
+
+	if(length>0)
+		{
+		u8 ch1=0,ch2=0,ch3=0;
+		switch(length)
+			{
+			case 3:
+				ch1=*(seq++);
+				ch2=*(seq++);
+				ch3=*(seq++);
+				break;
+			case 2:
+				ch1=*(seq++);
+				ch2=*(seq++);
+				break;
+			case 1:
+				ch1=*(seq++);
+				break;
+			}
+
+		data=((ch1&0x6)<<5) || ((ch2&0x6)<<3) || ((ch3&0x6)<<1);
+		*(packedSeq++)=data^((data&0xAA)>>1);
+		}
+
 
 }
 
