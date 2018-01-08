@@ -140,13 +140,15 @@ void freeIndexingBuilder(IndexingBuilder *ib)
 
 	int threadCount=ib->pt->config->expectedThreads;
 
-	void *status;
+	if(ib->thread!=NULL)
+	    {
+	    void *status;
 
-	for(int i=0;i<threadCount;i++)
+   	    for(int i=0;i<threadCount;i++)
 		pthread_join(ib->thread[i], &status);
 
-	if(ib->thread!=NULL)
-		G_FREE(ib->thread, sizeof(pthread_t)*threadCount, MEMTRACKID_THREADS);
+	    G_FREE(ib->thread, sizeof(pthread_t)*threadCount, MEMTRACKID_THREADS);
+	    }
 
 	if(ib->threadData!=NULL)
 		G_FREE(ib->threadData, sizeof(IptThreadData)*threadCount, MEMTRACKID_THREADS);

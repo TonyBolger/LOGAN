@@ -416,13 +416,15 @@ void freeRoutingBuilder(RoutingBuilder *rb)
 
 	int threadCount=rb->pt->config->expectedThreads;
 
-	void *status;
+        if(rb->thread!=NULL)
+	    {
+   	    void *status;
 
-	for(int i=0;i<threadCount;i++)
+	    for(int i=0;i<threadCount;i++)
 		pthread_join(rb->thread[i], &status);
 
-	if(rb->thread!=NULL)
-		G_FREE(rb->thread, sizeof(pthread_t)*threadCount, MEMTRACKID_THREADS);
+	    G_FREE(rb->thread, sizeof(pthread_t)*threadCount, MEMTRACKID_THREADS);
+	    }
 
 	if(rb->threadData!=NULL)
 		G_FREE(rb->threadData, sizeof(IptThreadData)*threadCount, MEMTRACKID_THREADS);
