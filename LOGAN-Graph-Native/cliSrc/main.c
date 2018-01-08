@@ -1,76 +1,11 @@
 
 #include "cliCommon.h"
 
-typedef struct iptThreadDataStr
-{
-	Graph *graph;
-	IndexingBuilder *indexingBuilder;
-
-	int threadIndex;
-} IptThreadData;
-
-typedef struct rptThreadDataStr
-{
-	Graph *graph;
-	RoutingBuilder *routingBuilder;
-
-	int threadIndex;
-} RptThreadData;
-
-
-
-
-
-
-
-
-void *runIptWorker(void *voidData)
-{
-	IptThreadData *data=(IptThreadData *)voidData;
-	IndexingBuilder *ib=data->indexingBuilder;
-
-	//setitimer(ITIMER_PROF, &(data->profilingTimer), NULL);
-
-	performTask_worker(ib->pt);
-
-	return NULL;
-}
-
-
-
-
 void runIptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *graph)
 {
 	IndexingBuilder *ib=allocIndexingBuilder(graph, threadCount);
-
-	pthread_t *threads=G_ALLOC(sizeof(pthread_t)*threadCount, MEMTRACKID_THREADS);
-	IptThreadData *data=G_ALLOC(sizeof(IptThreadData)*threadCount, MEMTRACKID_THREADS);
-
-	pthread_attr_t attr;
-	pthread_attr_init(&attr);
-	pthread_attr_setstacksize(&attr, THREAD_INDEXING_STACKSIZE);
-
-	int i=0;
-	for(i=0;i<threadCount;i++)
-		{
-		data[i].graph=graph;
-		data[i].indexingBuilder=ib;
-
-		data[i].threadIndex=i;
-
-		int err=pthread_create(threads+i,&attr,runIptWorker,data+i);
-
-		if(err)
-			{
-			char errBuf[ERRORBUF];
-			strerror_r(err,errBuf,ERRORBUF);
-
-			LOG(LOG_CRITICAL,"Error %i (%s) creating worker thread %i",err,errBuf,i);
-			}
-		}
-
+	createIndexingBuilderWorkers(ib);
 	waitForStartup(ib->pt);
-
 
 	LOG(LOG_INFO,"Indexing: Ready to parse");
 
@@ -79,7 +14,7 @@ void runIptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 	static SwqBuffer swqBuffers[PT_INGRESS_BUFFERS];
 	static ParallelTaskIngress ingressBuffers[PT_INGRESS_BUFFERS];
 
-	for(i=0;i<PT_INGRESS_BUFFERS;i++)
+	for(int i=0;i<PT_INGRESS_BUFFERS;i++)
 		initSequenceBuffer(swqBuffers+i, FASTQ_BASES_PER_BATCH, FASTQ_RECORDS_PER_BATCH, FASTQ_MAX_READ_LENGTH);
 
 	u8 *ioBuffer=G_ALLOC(FASTQ_IO_RECYCLE_BUFFER+FASTQ_IO_PRIMARY_BUFFER, MEMTRACKID_IOBUF);
@@ -90,7 +25,7 @@ void runIptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 	monitor=mtDump;
 #endif
 
-	for(i=0;i<fileCount;i++)
+	for(int i=0;i<fileCount;i++)
 		{
 		char path[1024];
 		sprintf(path,pathTemplate,fileCount,i);
@@ -114,12 +49,7 @@ void runIptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 
 	waitForShutdown(ib->pt);
 
-	void *status;
-
-	for(i=0;i<threadCount;i++)
-		pthread_join(threads[i], &status);
-
-	for(i=0;i<PT_INGRESS_BUFFERS;i++)
+	for(int i=0;i<PT_INGRESS_BUFFERS;i++)
 		{
 		freeSequenceBuffer(swqBuffers+i);
 		if(ingressBuffers[i].ingressUsageCount!=NULL && *(ingressBuffers[i].ingressUsageCount)>0)
@@ -129,25 +59,8 @@ void runIptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 	freeIndexingBuilder(ib);
 
 	G_FREE(ioBuffer, FASTQ_IO_RECYCLE_BUFFER+FASTQ_IO_PRIMARY_BUFFER, MEMTRACKID_IOBUF);
-	G_FREE(threads, sizeof(pthread_t)*threadCount, MEMTRACKID_THREADS);
-	G_FREE(data, sizeof(IptThreadData)*threadCount, MEMTRACKID_THREADS);
 
 }
-
-
-void *runRptWorker(void *voidData)
-{
-	RptThreadData *data=(RptThreadData *)voidData;
-	RoutingBuilder *rb=data->routingBuilder;
-
-    //setitimer(ITIMER_PROF, &(data->profilingTimer), NULL);
-
-	performTask_worker(rb->pt);
-
-	return NULL;
-}
-
-
 
 
 
@@ -158,30 +71,7 @@ void runRptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 
 	LOG(LOG_INFO,"Configuration: Blocksize: %i LookupBlocks: %i DispatchBlocks: %i",TR_INGRESS_BLOCKSIZE, TR_READBLOCK_LOOKUPS_INFLIGHT, TR_READBLOCK_DISPATCHES_INFLIGHT);
 
-	pthread_t *threads=G_ALLOC(sizeof(pthread_t)*threadCount, MEMTRACKID_THREADS);
-	RptThreadData *data=G_ALLOC(sizeof(RptThreadData)*threadCount, MEMTRACKID_THREADS);
-
-	pthread_attr_t attr;
-	pthread_attr_init(&attr);
-	pthread_attr_setstacksize(&attr,THREAD_ROUTING_STACKSIZE);
-
-	int i=0;
-	for(i=0;i<threadCount;i++)
-		{
-		data[i].graph=graph;
-		data[i].routingBuilder=rb;
-
-		data[i].threadIndex=i;
-		int err=pthread_create(threads+i,&attr,runRptWorker,data+i);
-
-		if(err)
-			{
-			char errBuf[ERRORBUF];
-			strerror_r(err,errBuf,ERRORBUF);
-
-			LOG(LOG_CRITICAL,"Error %i (%s) creating worker thread %i",err,errBuf,i);
-			}
-		}
+	createRoutingBuilderWorkers(rb);
 
 	waitForStartup(rb->pt);
 
@@ -192,7 +82,7 @@ void runRptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 	static SwqBuffer swqBuffers[PT_INGRESS_BUFFERS];
 	static ParallelTaskIngress ingressBuffers[PT_INGRESS_BUFFERS];
 
-	for(i=0;i<PT_INGRESS_BUFFERS;i++)
+	for(int i=0;i<PT_INGRESS_BUFFERS;i++)
 		initSequenceBuffer(swqBuffers+i, FASTQ_BASES_PER_BATCH, FASTQ_RECORDS_PER_BATCH, FASTQ_MAX_READ_LENGTH);
 
 	u8 *ioBuffer=G_ALLOC(FASTQ_IO_RECYCLE_BUFFER+FASTQ_IO_PRIMARY_BUFFER, MEMTRACKID_IOBUF);
@@ -203,7 +93,7 @@ void runRptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 	monitor=mtDump;
 #endif
 
-	for(i=0;i<fileCount;i++)
+	for(int i=0;i<fileCount;i++)
 		{
 		char path[1024];
 		sprintf(path,pathTemplate,fileCount,i);
@@ -227,12 +117,7 @@ void runRptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 
 	waitForShutdown(rb->pt);
 
-	void *status;
-
-	for(i=0;i<threadCount;i++)
-		pthread_join(threads[i], &status);
-
-	for(i=0;i<PT_INGRESS_BUFFERS;i++)
+	for(int i=0;i<PT_INGRESS_BUFFERS;i++)
 		{
 		freeSequenceBuffer(swqBuffers+i);
 
@@ -241,8 +126,6 @@ void runRptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 		}
 
 	G_FREE(ioBuffer, FASTQ_IO_RECYCLE_BUFFER+FASTQ_IO_PRIMARY_BUFFER, MEMTRACKID_IOBUF);
-	G_FREE(threads, sizeof(pthread_t)*threadCount, MEMTRACKID_THREADS);
-	G_FREE(data, sizeof(RptThreadData)*threadCount, MEMTRACKID_THREADS);
 
 	freeRoutingBuilder(rb);
 }

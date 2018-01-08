@@ -327,6 +327,9 @@ RoutingBuilder *allocRoutingBuilder(Graph *graph, int threads)
 	rb->pt=allocParallelTask(ptc,rb);
 	rb->graph=graph;
 
+	rb->thread=NULL;
+	rb->threadData=NULL;
+
 	rb->pogoDebugFlag=1;
 
 	rb->allocatedReadLookupBlocks=0;
@@ -350,6 +353,50 @@ RoutingBuilder *allocRoutingBuilder(Graph *graph, int threads)
 }
 
 
+void *runRptWorker(void *voidData)
+{
+	RptThreadData *data=(RptThreadData *)voidData;
+	RoutingBuilder *rb=data->routingBuilder;
+
+    //setitimer(ITIMER_PROF, &(data->profilingTimer), NULL);
+
+	performTask_worker(rb->pt);
+
+	return NULL;
+}
+
+
+void createRoutingBuilderWorkers(RoutingBuilder *rb)
+{
+	int threadCount=rb->pt->config->expectedThreads;
+
+	rb->thread=G_ALLOC(sizeof(pthread_t)*threadCount, MEMTRACKID_THREADS);
+	rb->threadData=G_ALLOC(sizeof(IptThreadData)*threadCount, MEMTRACKID_THREADS);
+
+	pthread_attr_t attr;
+	pthread_attr_init(&attr);
+	pthread_attr_setstacksize(&attr, THREAD_INDEXING_STACKSIZE);
+
+	int i=0;
+	for(i=0;i<threadCount;i++)
+		{
+		rb->threadData[i].routingBuilder=rb;
+		rb->threadData[i].threadIndex=i;
+
+		int err=pthread_create(rb->thread+i,&attr,runRptWorker,rb->threadData+i);
+
+		if(err)
+			{
+			char errBuf[ERRORBUF];
+			strerror_r(err,errBuf,ERRORBUF);
+
+			LOG(LOG_CRITICAL,"Error %i (%s) creating worker thread %i",err,errBuf,i);
+			}
+		}
+}
+
+
+
 
 void freeRoutingBuilder(RoutingBuilder *rb)
 {
@@ -366,6 +413,19 @@ void freeRoutingBuilder(RoutingBuilder *rb)
 
 	ParallelTask *pt=rb->pt;
 	ParallelTaskConfig *ptc=pt->config;
+
+	int threadCount=rb->pt->config->expectedThreads;
+
+	void *status;
+
+	for(int i=0;i<threadCount;i++)
+		pthread_join(rb->thread[i], &status);
+
+	if(rb->thread!=NULL)
+		G_FREE(rb->thread, sizeof(pthread_t)*threadCount, MEMTRACKID_THREADS);
+
+	if(rb->threadData!=NULL)
+		G_FREE(rb->threadData, sizeof(IptThreadData)*threadCount, MEMTRACKID_THREADS);
 
 	freeParallelTask(pt);
 	freeParallelTaskConfig(ptc);

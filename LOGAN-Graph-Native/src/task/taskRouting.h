@@ -142,9 +142,22 @@ typedef struct routingWorkerStateStr {
 
 } RoutingWorkerState;
 
-typedef struct routingBuilderStr {
+
+typedef struct routingBuilderStr RoutingBuilder;
+
+typedef struct rptThreadDataStr
+{
+	RoutingBuilder *routingBuilder;
+	int threadIndex;
+} RptThreadData;
+
+
+struct routingBuilderStr {
 	ParallelTask *pt;
 	Graph *graph;
+
+	pthread_t *thread;
+	RptThreadData *threadData;
 
 	u64 pogoDebugFlag;
 
@@ -160,11 +173,15 @@ typedef struct routingBuilderStr {
 
 	RoutingDispatchGroupState dispatchGroupState[SMER_DISPATCH_GROUPS];		// Intermediate representation of a dispatch group during routing
 
-} RoutingBuilder;
+
+};
 
 
 
 RoutingBuilder *allocRoutingBuilder(Graph *graph, int threads);
+
+void createRoutingBuilderWorkers(RoutingBuilder *rb);
+
 void freeRoutingBuilder(RoutingBuilder *rb);
 
 
