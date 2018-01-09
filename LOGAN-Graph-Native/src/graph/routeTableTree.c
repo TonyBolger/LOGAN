@@ -1941,7 +1941,7 @@ static void rttMergeRoutes_ordered_reverseMulti(RouteTableTreeBuilder *builder, 
 
 void rttMergeRoutes(RouteTableTreeBuilder *builder,
 		RoutePatch *forwardRoutePatches, RoutePatch *reverseRoutePatches, s32 forwardRoutePatchCount, s32 reverseRoutePatchCount,
-		s32 prefixCount, s32 suffixCount, RoutingReadData **orderedDispatches, MemDispenser *disp)
+		s32 prefixCount, s32 suffixCount, DispatchLink **orderedDispatches, MemDispenser *disp)
 {
 	rttUpdateRouteTableTreeBuilderTailCounts(builder, prefixCount, suffixCount);
 

@@ -254,13 +254,13 @@ typedef struct routingDispatchArray {
 	struct routingDispatchArray *nextPtr;
 
 	MemDispenser *disp;
-	//s32 completionCount;
+	s32 completionCount;
 
 	RoutingReadReferenceBlockDispatch dispatches[SMER_DISPATCH_GROUPS];
 } RoutingReadReferenceBlockDispatchArray;
 
-/*
 
+/*
 // Represents an array of reads which are undergoing routing
 typedef struct routingReadDispatchBlockStr {
 	RoutingReadData *readData[TR_ROUTING_BLOCKSIZE];
@@ -276,7 +276,7 @@ typedef struct routingReadDispatchBlockStr {
 } RoutingReadDispatchBlock;
 
 */
-/*
+
 // Represents the intermediate state of an SMER_DISPATCH_GROUP during read routing, including in and outbound reads
 typedef struct routingDispatchGroupStateStr {
 
@@ -289,7 +289,7 @@ typedef struct routingDispatchGroupStateStr {
 
 } RoutingDispatchGroupState;
 
-*/
+
 
 typedef struct routingWorkerStateStr {
 	int lookupSliceStart;
@@ -327,7 +327,7 @@ typedef struct routingBuilderStr {
 
 	RoutingReadReferenceBlockDispatch *dispatchPtr[SMER_DISPATCH_GROUPS]; // Queued list of dispatches for each target SMER_DISPATCH_GROUP
 
-//	RoutingDispatchGroupState dispatchGroupState[SMER_DISPATCH_GROUPS];		// Intermediate representation of a dispatch group during routing
+	RoutingDispatchGroupState dispatchGroupState[SMER_DISPATCH_GROUPS];		// Intermediate representation of a dispatch group during routing
 
 
 } RoutingBuilder;

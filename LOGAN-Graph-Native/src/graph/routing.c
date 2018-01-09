@@ -1236,7 +1236,7 @@ static void reorderForwardPatchRange(RoutePatch *forwardPatches, int firstPositi
 			if(maxLater<=minEarlier) // Swap incompatible groups based on position
 				{
 				swap=1;
-				RoutingReadData *rdiPtr=(*(forwardPatches[k].rdiPtr));
+				DispatchLink *rdiPtr=(*(forwardPatches[k].rdiPtr));
 				rdiPtr->minEdgePosition++;
 				rdiPtr->maxEdgePosition++;
 
@@ -1324,7 +1324,7 @@ static void reorderReversePatchRange(RoutePatch *reversePatches, int firstPositi
 			if(maxLater<=minEarlier) // Swap incompatible groups based on position
 				{
 				swap=1;
-				RoutingReadData *rdiPtr=(*(reversePatches[k].rdiPtr));
+				DispatchLink *rdiPtr=(*(reversePatches[k].rdiPtr));
 				rdiPtr->minEdgePosition++;
 				rdiPtr->maxEdgePosition++;
 
@@ -1400,12 +1400,12 @@ static void createRoutePatches(RoutingIndexedReadReferenceBlock *rdi, int entryC
 
 	for(int i=0;i<entryCount;i++)
 	{
-		RoutingReadData *rdd=rdi->entries[i];
+		DispatchLink *rdd=rdi->entries[i];
 
-		int index=rdd->indexCount;
+		int index=rdd->position+1;
 
 		if(0)
-		{
+		{/*
 			SmerId currSmer=rdd->indexedData[index].fsmer;
 			SmerId prevSmer=rdd->indexedData[index+1].fsmer;
 			SmerId nextSmer=rdd->indexedData[index-1].fsmer;
@@ -1422,20 +1422,26 @@ static void createRoutePatches(RoutingIndexedReadReferenceBlock *rdi, int entryC
 			unpackSmer(nextSmer, bufferN);
 
 			LOG(LOG_INFO,"Read Orientation: %s (%i) %s %s (%i)",bufferP, upstreamLength, bufferC, bufferN, downstreamLength);
+			*/
 		}
 
-		SmerId currFmer=rdd->indexedData[index].fsmer;
-		SmerId currRmer=rdd->indexedData[index].rsmer;
+		int smerRc=(rdd->revComp>>index)&0x1;
 
-		if(currFmer<=currRmer) // Canonical Read Orientation
+		//SmerId currRmer=rdd->indexedData[index].rsmer;
+
+		if(!smerRc) // Canonical Read Orientation
 			{
 //				smerId=currFmer;
 
-				SmerId prefixSmer=rdd->indexedData[index+1].rsmer; // Previous smer in read, reversed
-				SmerId suffixSmer=rdd->indexedData[index-1].fsmer; // Next smer in read
+				//SmerId prefixSmer=rdd->indexedData[index+1].rsmer; // Previous smer in read, reversed
+				//SmerId suffixSmer=rdd->indexedData[index-1].fsmer; // Next smer in read
+				SmerId currSmer=rdd->smers[index].smer;
 
-				int prefixLength=rdd->indexedData[index].readIndex-rdd->indexedData[index+1].readIndex;
-				int suffixLength=rdd->indexedData[index-1].readIndex-rdd->indexedData[index].readIndex;
+				SmerId prefixSmer=complementSmerId(rdd->smers[index-1].smer);
+				SmerId suffixSmer=rdd->smers[index+1].smer;
+
+				int prefixLength=rdd->smers[index-1].seqIndexOffset;
+				int suffixLength=rdd->smers[index].seqIndexOffset;
 
 //				forwardPatches[forwardCount].next=NULL;
 				forwardPatches[forwardCount].rdiPtr=rdi->entries+i;
@@ -1452,7 +1458,7 @@ static void createRoutePatches(RoutingIndexedReadReferenceBlock *rdi, int entryC
 					char bufferS[SMER_BASES+1]={0};
 
 					unpackSmer(prefixSmer, bufferP);
-					unpackSmer(currFmer, bufferN);
+					unpackSmer(currSmer, bufferN);
 					unpackSmer(suffixSmer, bufferS);
 
 					LOG(LOG_INFO,"Node Orientation: %s (%i) @ %i %s %s (%i) @ %i",
@@ -1463,11 +1469,16 @@ static void createRoutePatches(RoutingIndexedReadReferenceBlock *rdi, int entryC
 			}
 		else	// Reverse-complement Read Orientation
 			{
-				SmerId prefixSmer=rdd->indexedData[index-1].fsmer; // Next smer in read
-				SmerId suffixSmer=rdd->indexedData[index+1].rsmer; // Previous smer in read, reversed
+				//SmerId prefixSmer=rdd->indexedData[index-1].fsmer; // Next smer in read
+				//SmerId suffixSmer=rdd->indexedData[index+1].rsmer; // Previous smer in read, reversed
 
-				int prefixLength=rdd->indexedData[index-1].readIndex-rdd->indexedData[index].readIndex;
-				int suffixLength=rdd->indexedData[index].readIndex-rdd->indexedData[index+1].readIndex;
+				SmerId currSmer=complementSmerId(rdd->smers[index].smer);
+
+				SmerId prefixSmer=complementSmerId(rdd->smers[index+1].smer);
+				SmerId suffixSmer=rdd->smers[index-1].smer;
+
+				int prefixLength=rdd->smers[index].seqIndexOffset;
+				int suffixLength=rdd->smers[index-1].seqIndexOffset;
 
 //				reversePatches[reverseCount].next=NULL;
 				reversePatches[reverseCount].rdiPtr=rdi->entries+i;
@@ -1483,7 +1494,7 @@ static void createRoutePatches(RoutingIndexedReadReferenceBlock *rdi, int entryC
 					char bufferS[SMER_BASES+1]={0};
 
 					unpackSmer(prefixSmer, bufferP);
-					unpackSmer(currRmer, bufferN);
+					unpackSmer(currSmer, bufferN);
 					unpackSmer(suffixSmer, bufferS);
 
 					LOG(LOG_INFO,"Node Orientation: %s (%i) @ %i %s %s (%i) @ %i",
@@ -1515,7 +1526,7 @@ static void createRoutePatches(RoutingIndexedReadReferenceBlock *rdi, int entryC
 
 
 int rtRouteReadsForSmer(RoutingIndexedReadReferenceBlock *rdi, SmerArraySlice *slice,
-		RoutingReadData **orderedDispatches, MemDispenser *disp, MemCircHeap *circHeap, u8 sliceTag)
+		DispatchLink **orderedDispatches, MemDispenser *disp, MemCircHeap *circHeap, u8 sliceTag)
 {
 	s32 sliceIndex=rdi->sliceIndex;
 
@@ -1590,12 +1601,11 @@ int rtRouteReadsForSmer(RoutingIndexedReadReferenceBlock *rdi, SmerArraySlice *s
 
 		if(rdi->entryCount>0)
 			{
-			RoutingReadData *rdd=rdi->entries[0];
-			int index=rdd->indexCount;
-			SmerId currFmer=rdd->indexedData[index].fsmer;
-			SmerId currRmer=rdd->indexedData[index].rsmer;
+			DispatchLink *rdd=rdi->entries[0];
+			int index=rdd->position+1;
 
-			SmerId currSmer=currFmer<currRmer?currFmer:currRmer;
+			SmerId currSmer=rdd->smers[index].smer;
+
 			char buffer[SMER_BASES+1]={0};
 			unpackSmer(currSmer, buffer);
 

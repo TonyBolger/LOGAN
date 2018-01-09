@@ -379,16 +379,6 @@ static int trDoIntermediate(ParallelTask *pt, int workerNo, void *wState, int fo
 
 	checkForWork(rb, &arlb, &ardb);
 
-/*
-	if(ardb==TR_READBLOCK_DISPATCHES_INFLIGHT)
-		{
-		if(scanForDispatches(rb, workerNo, workerState, force))
-			{
-			//LOG(LOG_INFO,"scanForDispatches 1");
-			return 1;
-			}
-		}
-*/
 	if((force)||(arlb>TR_READBLOCK_LOOKUPS_THRESHOLD))
 		{
 		if(scanForSmerLookups(rb, workerNo, workerState))
@@ -397,16 +387,12 @@ static int trDoIntermediate(ParallelTask *pt, int workerNo, void *wState, int fo
 			return 1;
 			}
 		}
-/*
-	if(force)
+
+	if(scanForDispatches(rb, workerNo, workerState, force))
 		{
-		if(scanForDispatches(rb, workerNo, workerState, force))
-			{
-			//LOG(LOG_INFO,"scanForDispatches 2");
-			return 1;
-			}
+		//LOG(LOG_INFO,"scanForDispatches 2");
+		return 1;
 		}
-*/
 
 	if(checkForWork(rb, &arlb, &ardb)) // If in force mode, and not finished, rally the minions
 		return force;
@@ -484,13 +470,12 @@ RoutingBuilder *allocRoutingBuilder(Graph *graph, int threads)
 	rb->allocatedReadDispatchBlocks=0;
 	for(int i=0;i<TR_READBLOCK_DISPATCHES_INFLIGHT;i++)
 		rb->readDispatchBlocks[i].disp=dispenserAlloc(MEMTRACKID_DISPENSER_ROUTING_DISPATCH, DISPENSER_BLOCKSIZE_MEDIUM, DISPENSER_BLOCKSIZE_HUGE);
-
+*/
 	for(int i=0;i<SMER_DISPATCH_GROUPS;i++)
 		{
 		initRoutingDispatchGroupState(rb->dispatchGroupState+i);
 		rb->dispatchPtr[i]=NULL;
 		}
-*/
 
 	return rb;
 }
@@ -506,10 +491,10 @@ void freeRoutingBuilder(RoutingBuilder *rb)
 /*
 	for(int i=0;i<TR_READBLOCK_DISPATCHES_INFLIGHT;i++)
 		dispenserFree(rb->readDispatchBlocks[i].disp);
+*/
 
 	for(int i=0;i<SMER_DISPATCH_GROUPS;i++)
 		freeRoutingDispatchGroupState(rb->dispatchGroupState+i);
-*/
 
 	ParallelTask *pt=rb->pt;
 	ParallelTaskConfig *ptc=pt->config;

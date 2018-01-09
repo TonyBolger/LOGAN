@@ -11,7 +11,7 @@
 static void initDispatchIntermediateBlock(RoutingReadReferenceBlock *block, MemDispenser *disp)
 {
 	block->entryCount=0;
-	block->entries=dAllocCacheAligned(disp, TR_DISPATCH_READS_PER_INTERMEDIATE_BLOCK*sizeof(RoutingReadData *));
+	block->entries=dAllocCacheAligned(disp, TR_DISPATCH_READS_PER_INTERMEDIATE_BLOCK*sizeof(DispatchLink *));
 }
 
 RoutingReadReferenceBlock *allocDispatchIntermediateBlock(MemDispenser *disp)
@@ -24,7 +24,7 @@ RoutingReadReferenceBlock *allocDispatchIntermediateBlock(MemDispenser *disp)
 static void initDispatchIndexedIntermediateBlock(RoutingIndexedReadReferenceBlock *block, MemDispenser *disp)
 {
 	block->entryCount=0;
-	block->entries=dAllocCacheAligned(disp, TR_DISPATCH_READS_PER_INTERMEDIATE_BLOCK*sizeof(RoutingReadData *));
+	block->entries=dAllocCacheAligned(disp, TR_DISPATCH_READS_PER_INTERMEDIATE_BLOCK*sizeof(DispatchLink *));
 
 }
 
@@ -44,11 +44,13 @@ RoutingReadReferenceBlockDispatchArray *allocDispatchArray(RoutingReadReferenceB
 
 	array->nextPtr=nextPtr;
 	array->disp=disp;
+    array->completionCount=0;
 
 	for(int i=0;i<SMER_DISPATCH_GROUPS;i++)
 		{
 		array->dispatches[i].nextPtr=NULL;
 		array->dispatches[i].prevPtr=NULL;
+        array->dispatches[i].completionCountPtr=&(array->completionCount);
 
 		initDispatchIntermediateBlock(&(array->dispatches[i].data),disp);
 		}
@@ -56,21 +58,21 @@ RoutingReadReferenceBlockDispatchArray *allocDispatchArray(RoutingReadReferenceB
 	return array;
 }
 
-/*
+
 static void expandIntermediateDispatchBlock(RoutingReadReferenceBlock *block, MemDispenser *disp)
 {
 	int oldSize=block->entryCount;
 	int size=oldSize*2;
 
-	int oldEntrySize=oldSize*sizeof(RoutingReadData *);
+	int oldEntrySize=oldSize*sizeof(DispatchLink *);
 
-	RoutingReadData **entries=dAllocCacheAligned(disp, size*sizeof(RoutingReadData  *));
+	DispatchLink **entries=dAllocCacheAligned(disp, size*sizeof(DispatchLink  *));
 	memcpy(entries,block->entries,oldEntrySize);
 	block->entries=entries;
 
 }
 
-static void assignReadDataToDispatchIntermediate(RoutingReadReferenceBlock *intermediate, RoutingReadData *readData, MemDispenser *disp)
+static void assignReadDataToDispatchIntermediate(RoutingReadReferenceBlock *intermediate, DispatchLink *readData, MemDispenser *disp)
 {
 	u64 entryCount=intermediate->entryCount;
 	if(entryCount>=TR_DISPATCH_READS_PER_INTERMEDIATE_BLOCK && !((entryCount & (entryCount - 1))))
@@ -81,20 +83,23 @@ static void assignReadDataToDispatchIntermediate(RoutingReadReferenceBlock *inte
 }
 
 
-static void expandIndexedIntermediateDispatchBlock(RoutingIndexedReadReferenceBlock *block, MemDispenser *disp)
+//static
+void expandIndexedIntermediateDispatchBlock(RoutingIndexedReadReferenceBlock *block, MemDispenser *disp)
 {
 	int oldSize=block->entryCount;
 	int size=oldSize*2;
 
-	int oldEntrySize=oldSize*sizeof(RoutingReadData *);
+	int oldEntrySize=oldSize*sizeof(DispatchLink *);
 
-	RoutingReadData **entries=dAllocCacheAligned(disp, size*sizeof(RoutingReadData  *));
+	DispatchLink **entries=dAllocCacheAligned(disp, size*sizeof(DispatchLink  *));
 	memcpy(entries,block->entries,oldEntrySize);
 	block->entries=entries;
 
 }
 
-static void assignReadDataToDispatchIndexedIntermediate(RoutingIndexedReadReferenceBlock *intermediate, RoutingReadData *readData, MemDispenser *disp)
+
+//static
+void assignReadDataToDispatchIndexedIntermediate(RoutingIndexedReadReferenceBlock *intermediate, DispatchLink *readData, MemDispenser *disp)
 {
 	s32 entryCount=intermediate->entryCount;
 	if(entryCount>=TR_DISPATCH_READS_PER_INTERMEDIATE_BLOCK && !((entryCount & (entryCount - 1))))
@@ -108,23 +113,21 @@ static void assignReadDataToDispatchIndexedIntermediate(RoutingIndexedReadRefere
 
 
 
-void assignToDispatchArrayEntry(RoutingReadReferenceBlockDispatchArray *array, RoutingReadData *readData)
+void assignToDispatchArrayEntry(RoutingReadReferenceBlockDispatchArray *array, DispatchLink *readData)
 {
-	SmerId fsmer=readData->indexedData[readData->indexCount].fsmer;
-	SmerId rsmer=readData->indexedData[readData->indexCount].rsmer;
-
-	SmerId smer=CANONICAL_SMER(fsmer,rsmer);
+	int index=readData->position+1;
+	SmerId smer=readData->smers[index].smer;
 
 	SmerEntry smerEntry=SMER_GET_BOTTOM(smer);
 	u64 hash=hashForSmer(smerEntry);
 	u32 sliceNew=sliceForSmer(smer,hash);
 
-	u32 slice=readData->indexedData[readData->indexCount].slice;
+	u32 slice=readData->smers[index].slice;
 	u32 group=(slice >> SMER_DISPATCH_GROUP_SHIFT);
 
 	if(sliceNew != slice)
 		{
-		LOG(LOG_CRITICAL,"SLICE MISMATCH: %08lx %08lx Slice %i %i Group %i %i",fsmer, rsmer, sliceNew, slice, group, readData->indexCount);
+		LOG(LOG_CRITICAL,"SLICE MISMATCH: %08lx Slice %i %i Group %i %i",smer, sliceNew, slice, group, readData->length);
 		}
 
 	assignReadDataToDispatchIntermediate(&(array->dispatches[group].data), readData, array->disp);
@@ -145,24 +148,9 @@ void initRoutingDispatchGroupState(RoutingDispatchGroupState *dispatchGroupState
 
 	dispatchGroupState->outboundDispatches=NULL;
 }
-*/
-/*
-void initRoutingDispatchGroupState(RoutingDispatchGroupState *dispatchGroupState)
-{
-	dispatchGroupState->status=0;
-	dispatchGroupState->forceCount=0;
-	dispatchGroupState->disp=NULL;
 
-	for(int j=0;j<SMER_DISPATCH_GROUP_SLICES;j++)
-		{
-		dispatchGroupState->smerInboundDispatches[j].entryCount=0;
-		dispatchGroupState->smerInboundDispatches[j].entries=NULL;
-		}
 
-	dispatchGroupState->outboundDispatches=NULL;
-}
-*/
-/*
+
 static RoutingReadReferenceBlockDispatchArray *cleanupRoutingDispatchArrays(RoutingReadReferenceBlockDispatchArray *in)
 {
 	RoutingReadReferenceBlockDispatchArray **scan=&in;
@@ -181,7 +169,6 @@ static RoutingReadReferenceBlockDispatchArray *cleanupRoutingDispatchArrays(Rout
 		else
 			scan=&(current->nextPtr);
 		}
-
 
 	return in;
 }
@@ -217,7 +204,7 @@ void freeRoutingDispatchGroupState(RoutingDispatchGroupState *dispatchGroupState
 	dispatchGroupState->outboundDispatches=cleanupRoutingDispatchArrays(dispatchGroupState->outboundDispatches);
 
 }
-*/
+
 
 static void queueDispatchForGroup(RoutingBuilder *rb, RoutingReadReferenceBlockDispatch *dispatchForGroup, int groupNum)
 {
@@ -238,7 +225,7 @@ static void queueDispatchForGroup(RoutingBuilder *rb, RoutingReadReferenceBlockD
 
 }
 
-/*
+
 static RoutingReadReferenceBlockDispatch *dequeueDispatchForGroupList(RoutingBuilder *rb, int groupNum)
 {
 	RoutingReadReferenceBlockDispatch *current=NULL;
@@ -261,7 +248,7 @@ static RoutingReadReferenceBlockDispatch *dequeueDispatchForGroupList(RoutingBui
 	return current;
 }
 
-
+/*
 int countDispatchReadsRemaining(RoutingBuilder *rb)
 {
 	int readsRemaining=0;
@@ -290,7 +277,7 @@ int countNonEmptyDispatchGroups(RoutingBuilder *rb)
 
 	return count;
 }
-
+*/
 
 static int lockRoutingDispatchGroupState(RoutingBuilder *rb, int groupNum)
 {
@@ -311,7 +298,7 @@ static int unlockRoutingDispatchGroupState(RoutingBuilder *rb, int groupNum)
 
 
 
-*/
+
 /*
 int reserveReadDispatchBlock(RoutingBuilder *rb)
 {
@@ -415,60 +402,29 @@ void unallocateReadDispatchBlock(RoutingReadDispatchBlock *readBlock)
 }
 
 
-int scanForCompleteReadDispatchBlocks(RoutingBuilder *rb)
-{
-//	Graph *graph=rb->graph;
-
-	int dispatchReadBlockIndex=scanForCompleteReadDispatchBlock(rb);
-
-	if(dispatchReadBlockIndex<0)
-		return 0;
-
-	RoutingReadDispatchBlock *dispatchReadBlock=dequeueCompleteReadDispatchBlock(rb, dispatchReadBlockIndex);
-
-	if(dispatchReadBlock==NULL)
-		return 1;
-
-	if(dispatchReadBlock->dispatchArray!=NULL)
-		{
-		int dispCompletion=__atomic_load_n(&(dispatchReadBlock->dispatchArray->completionCount), __ATOMIC_SEQ_CST);
-
-		if(dispCompletion!=0)
-			{
-			LOG(LOG_CRITICAL,"EECK - Dispatch array not completed");
-			}
-
-		else
-			{
-			dispenserFree(dispatchReadBlock->dispatchArray->disp);
-			}
-		}
-
-	dispenserReset(dispatchReadBlock->disp);
-
-	unallocateReadDispatchBlock(dispatchReadBlock);
-	unreserveReadDispatchBlock(rb);
-
-	//LOG(LOG_INFO,"Dispatch block completed");
-
-	return 1;
-}
-
 */
+
+
+
 void queueDispatchArray(RoutingBuilder *rb, RoutingReadReferenceBlockDispatchArray *dispArray)
 {
-	for(int i=0;i<SMER_DISPATCH_GROUPS;i++)
-		{
-		if(dispArray->dispatches[i].data.entryCount>0)
-			{
-			queueDispatchForGroup(rb,dispArray->dispatches+i,i);
-			}
-		}
+    int count=0;
 
+    for(int i=0;i<SMER_DISPATCH_GROUPS;i++)
+    	if(dispArray->dispatches[i].data.entryCount>0)
+    		count++;
+
+    dispArray->completionCount=count;
+
+    for(int i=0;i<SMER_DISPATCH_GROUPS;i++)
+    	{
+    	if(dispArray->dispatches[i].data.entryCount>0)
+    		{
+    		queueDispatchForGroup(rb,dispArray->dispatches+i,i);
+    		}
+    	}
 }
 
-/*
- *
 static RoutingReadReferenceBlockDispatch *buildPrevLinks(RoutingReadReferenceBlockDispatch *dispatchEntry)
 {
 	RoutingReadReferenceBlockDispatch *prev=NULL;
@@ -492,6 +448,8 @@ static int assignReversedInboundDispatchesToSlices(RoutingReadReferenceBlockDisp
 {
 	RoutingReadReferenceBlock *smerInboundDispatches=dispatchGroupState->smerInboundDispatches;
 
+	LOG(LOG_INFO,"assignReversedInboundDispatchesToSlices");
+
 	while(dispatches!=NULL)
 		{
 		RoutingReadReferenceBlockDispatch *nextDispatches=dispatches->prevPtr;
@@ -502,33 +460,36 @@ static int assignReversedInboundDispatchesToSlices(RoutingReadReferenceBlockDisp
 
 		for(int i=0;i<dispatches->data.entryCount;i++)
 			{
-			RoutingReadData *readData=dispatches->data.entries[i];
+			DispatchLink *readData=dispatches->data.entries[i];
 
-			int indexCount=readData->indexCount;
-			u32 slice=readData->indexedData[indexCount].slice;
+			int index=readData->position+1;
+			u32 slice=readData->smers[index].slice;
 
 			u32 inboundIndex=slice & SMER_DISPATCH_GROUP_SLICEMASK;
 
 			assignReadDataToDispatchIntermediate(smerInboundDispatches+inboundIndex, readData, dispatchGroupState->disp);
 			}
 
-		__atomic_fetch_sub(dispatches->completionCountPtr,1, __ATOMIC_RELEASE);
+		//__atomic_fetch_sub(dispatches->completionCountPtr,1, __ATOMIC_RELEASE);
 
 		dispatches=nextDispatches;
 		}
+
+	LOG(LOG_INFO,"assignReversedInboundDispatchesToSlices done");
 
 	return 0;
 }
 
 
-static int indexedReadReferenceBlockSorter(const void *a, const void *b)
+//static
+int indexedReadReferenceBlockSorter(const void *a, const void *b)
 {
 	RoutingIndexedReadReferenceBlock **pa=(RoutingIndexedReadReferenceBlock **)a;
 	RoutingIndexedReadReferenceBlock **pb=(RoutingIndexedReadReferenceBlock **)b;
 
 	return (*pa)->sliceIndex-(*pb)->sliceIndex;
 }
-*/
+
 
 /*
 static int indexDispatchesForSlice(RoutingReadReferenceBlock *smerInboundDispatches, int sliceSmerCount, MemDispenser *disp,
@@ -577,7 +538,7 @@ static int indexDispatchesForSlice(RoutingReadReferenceBlock *smerInboundDispatc
 	return usedCount;
 }
 */
-/*
+
 
 static int calcCapacityForIndexedEntries(int entryCount)
 {
@@ -590,6 +551,7 @@ static int calcCapacityForIndexedEntries(int entryCount)
 	return size;
 }
 
+
 static int indexDispatchesForSlice(RoutingReadReferenceBlock *smerInboundDispatches, int sliceSmerCount, MemDispenser *disp,
 		RoutingIndexedReadReferenceBlock ***indexedDispatchesPtr)
 {
@@ -600,8 +562,9 @@ static int indexDispatchesForSlice(RoutingReadReferenceBlock *smerInboundDispatc
 
 	for(int i=0;i<smerInboundDispatches->entryCount;i++)
 		{
-		RoutingReadData *readData=smerInboundDispatches->entries[i];
-		int sliceIndex=readData->indexedData[readData->indexCount].sliceIndex;
+		DispatchLink *readData=smerInboundDispatches->entries[i];
+		int index=readData->position+1;
+		int sliceIndex=readData->smers[index].sliceIndex;
 
 		if(sliceIndex>=0 && sliceIndex<sliceSmerCount)
 			{
@@ -630,7 +593,7 @@ static int indexDispatchesForSlice(RoutingReadReferenceBlock *smerInboundDispatc
 
 	return map->entryCount;
 }
-*/
+
 /*
 void dumpPatches(RoutePatch *patches, int patchCount)
 {
@@ -639,10 +602,10 @@ void dumpPatches(RoutePatch *patches, int patchCount)
 }
 */
 
-/*
+
 
 static void processSlice(RoutingReadReferenceBlock *smerInboundDispatches,  SmerArraySlice *slice, u32 sliceIndex,
-		RoutingReadData **orderedDispatches, MemDispenser *disp, MemDispenser *routingDisp, MemCircHeap *circHeap)
+		DispatchLink **orderedDispatches, MemDispenser *disp, MemDispenser *routingDisp, MemCircHeap *circHeap)
 {
 	if(smerInboundDispatches->entryCount>0)
 		{
@@ -662,7 +625,7 @@ static void processSlice(RoutingReadReferenceBlock *smerInboundDispatches,  Smer
 		}
 }
 
-*/
+
 
 
 /*
@@ -692,54 +655,53 @@ for(int j=0;j<smerInboundDispatches->entryCount;j++)
 	LOG(LOG_INFO,"%s %s %s",bufferP, bufferC, bufferN);
 	*/
 
-/*
+
 static void prepareGroupOutbound(RoutingDispatchGroupState *groupState)
 {
 	RoutingReadReferenceBlockDispatchArray *outboundDispatches=allocDispatchArray(groupState->outboundDispatches);
 	groupState->outboundDispatches=outboundDispatches;
 }
 
-static int gatherSliceOutbound(RoutingDispatchGroupState *groupState, int sliceNum, RoutingReadData **orderedDispatches)
+
+static int gatherSliceOutbound(RoutingDispatchGroupState *groupState, int sliceNum, DispatchLink **orderedDispatches)
 {
 	int work=0;
+
 	RoutingReadReferenceBlockDispatchArray *dispatchArray=groupState->outboundDispatches;
 
-//	for(int i=0;i<SMER_DISPATCH_GROUP_SLICES;i++)
-//		{
-		RoutingReadReferenceBlock *smerInboundDispatches=groupState->smerInboundDispatches+sliceNum;
+	RoutingReadReferenceBlock *smerInboundDispatches=groupState->smerInboundDispatches+sliceNum;
 
-		for(int j=0;j<smerInboundDispatches->entryCount;j++)
+	for(int i=0;i<smerInboundDispatches->entryCount;i++)
+		{
+		DispatchLink *readData=orderedDispatches[i];
+
+		int nextIndexCount=__atomic_add_fetch(&(readData->position),1, __ATOMIC_SEQ_CST);
+
+		LOG(LOG_INFO,"Outbound is %i, length %i", nextIndexCount, readData->length);
+
+		if(nextIndexCount<(readData->length-2))
+			assignToDispatchArrayEntry(dispatchArray, readData);
+
+		/*
+		if(nextIndexCount==(readData->length-1)) // Past last Smer - read is done
 			{
-//			int entryIndex=rdiIndexes[j];
-
-			//if(entryIndex!=j)
-//				LOG(LOG_INFO,"Mismatch %i vs %i",entryIndex,j);
-
-			RoutingReadData *readData=orderedDispatches[j];
-
-			int nextIndexCount=__atomic_sub_fetch(&(readData->indexCount),1, __ATOMIC_SEQ_CST);
-
-			if(nextIndexCount==0) // Past last Smer - read is done
-				{
-				__atomic_fetch_sub(readData->completionCountPtr,1, __ATOMIC_SEQ_CST);
-				}
-
-			else if(nextIndexCount>0)
-				{
-				assignToDispatchArrayEntry(dispatchArray, readData);
-				}
-
-			else // Wrapped
-				{
-				LOG(LOG_CRITICAL,"Wrapped smer Index %i",nextIndexCount);
-				}
+			__atomic_fetch_sub(readData->completionCountPtr,1, __ATOMIC_SEQ_CST);
 			}
+		else if(nextIndexCount>0)
+			{
+			assignToDispatchArrayEntry(dispatchArray, readData);
+			}
+		else // Wrapped
+			{
+			LOG(LOG_CRITICAL,"Wrapped smer Index %i",nextIndexCount);
+			}
+		*/
+		}
 
-		if(smerInboundDispatches->entryCount)
-			work=1;
+	if(smerInboundDispatches->entryCount)
+		work=1;
 
-		smerInboundDispatches->entryCount=0;
-//		}
+	smerInboundDispatches->entryCount=0;
 
 	return work;
 }
@@ -750,6 +712,8 @@ static int scanForDispatchesForGroups(RoutingBuilder *rb, int startGroup, int en
 {
 	int work=0;
 	int i;
+
+	LOG(LOG_INFO,"scanForDispatchesForGroups");
 
 	MemDispenser *routingDisp=NULL;
 
@@ -785,6 +749,7 @@ static int scanForDispatchesForGroups(RoutingBuilder *rb, int startGroup, int en
 					//array->dispatches[group].data
 
 					MemCircHeap *circHeap=rb->graph->smerArray.heaps[i];
+
 					SmerArraySlice *baseSlice=rb->graph->smerArray.slice+(i << SMER_DISPATCH_GROUP_SHIFT);
 					for(int j=0;j<SMER_DISPATCH_GROUP_SLICES;j++)
 						{
@@ -794,10 +759,10 @@ static int scanForDispatchesForGroups(RoutingBuilder *rb, int startGroup, int en
 
 						if(inboundEntryCount>0)
 							{
-							RoutingReadData **orderedDispatches=dAlloc(groupState->disp, sizeof(RoutingReadData *)*inboundEntryCount);
+							DispatchLink **orderedDispatches=dAlloc(groupState->disp, sizeof(DispatchLink *)*inboundEntryCount);
 
-//							int sliceNumber=j+(i << SMER_DISPATCH_GROUP_SHIFT);
-//							LOG(LOG_INFO,"Processing slice %i",sliceNumber);
+							int sliceNumber=j+(i << SMER_DISPATCH_GROUP_SHIFT);
+							LOG(LOG_INFO,"Processing slice %i",sliceNumber);
 
 							processSlice(smerInboundDispatches, slice, j, orderedDispatches, groupState->disp, routingDisp, circHeap);
 							dispenserReset(routingDisp);
@@ -820,17 +785,15 @@ static int scanForDispatchesForGroups(RoutingBuilder *rb, int startGroup, int en
 		dispenserFree(routingDisp);
 		}
 
+	LOG(LOG_INFO,"scanForDispatchesForGroups done");
+
 	return work;
 }
 
-*/
+
 
 int scanForDispatches(RoutingBuilder *rb, int workerNo, RoutingWorkerState *wState, int force)
 {
-	LOG(LOG_CRITICAL,"TODO");
-	return 0;
-
-	/*
 	//int position=wState->dispatchGroupCurrent;
 	int work=0;
 	int lastGroup=-1;
@@ -851,6 +814,6 @@ int scanForDispatches(RoutingBuilder *rb, int workerNo, RoutingWorkerState *wSta
 //	wState->dispatchGroupCurrent=lastGroup;
 
 	return work;
-	*/
+
 }
 

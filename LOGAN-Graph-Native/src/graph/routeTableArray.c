@@ -1589,7 +1589,7 @@ RouteTableEntry *rtaMergeRoutes_ordered_reverseMulti(RouteTableArrayBuilder *bui
 
 
 void rtaMergeRoutes(RouteTableArrayBuilder *builder, RoutePatch *forwardRoutePatches, RoutePatch *reverseRoutePatches, s32 forwardRoutePatchCount, s32 reverseRoutePatchCount,
-		s32 prefixCount, s32 suffixCount, RoutingReadData **orderedDispatches, MemDispenser *disp)
+		s32 prefixCount, s32 suffixCount, DispatchLink **orderedDispatches, MemDispenser *disp)
 {
 	if(builder->newForwardEntryCount>0 || builder->newReverseEntryCount>0)
 		{
