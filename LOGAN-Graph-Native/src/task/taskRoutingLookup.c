@@ -217,7 +217,7 @@ static int extractIndexedSmerDataFromLookupPercolates(SmerId *allSmers, int allS
 //static
 int extractIndexedSmerDataFromLookupPercolates(SmerId *allSmers, int allSmerCount, u16 allRevComp,
 		DispatchLinkSmer *indexedData, u8 *revCompFlag,
-		s32 extractFlag, RoutingLookupPercolate *smerLookupPercolates[], int *firstIndexPtr)
+		s32 extractFlag, RoutingLookupPercolate *smerLookupPercolates[])
 {
 	//int foundCount=0;
 
@@ -288,19 +288,14 @@ int extractIndexedSmerDataFromLookupPercolates(SmerId *allSmers, int allSmerCoun
 	int entries=indexedData-indexedDataOrig;
 
 	// Calculate differential offsets
-	int nextIndex=allSmerCount;
-	while(indexedData>indexedDataOrig)
+
+	int prevIndex=indexedData->seqIndexOffset;
+	for(int i=1; i<entries; i++)
 		{
-		indexedData--;
-
-		int thisIndex=indexedData->seqIndexOffset;
-		int dist=nextIndex-thisIndex;
-		nextIndex=thisIndex;
-		indexedData->seqIndexOffset=dist;
+		int thisIndex=indexedData[i].seqIndexOffset;
+		indexedData[i].seqIndexOffset=thisIndex-prevIndex;
+		prevIndex=thisIndex;
 		}
-
-	if(firstIndexPtr!=NULL)
-		*firstIndexPtr=nextIndex;
 
 	return entries;
 }
@@ -491,6 +486,11 @@ static void unreserveReadLookupBlock(RoutingBuilder *rb)
 
 static void queueLookupRecycleBlock(RoutingBuilder *rb, RoutingReadLookupRecycleBlock *recycleBlock)
 {
+	s32 blockType=recycleBlock->blockType;
+
+	RoutingReadLookupRecycleBlock **recycleBlockPtr=(blockType==LOOKUP_RECYCLE_BLOCK_PREDISPATCH?&(rb->lookupPredispatchRecyclePtr):&(rb->lookupPostdispatchRecyclePtr));
+	u64 *recycleCountPtr=(blockType==LOOKUP_RECYCLE_BLOCK_PREDISPATCH?&(rb->lookupPredispatchRecycleCount):&(rb->lookupPostdispatchRecycleCount));
+
 	RoutingReadLookupRecycleBlock *current=NULL;
 	int loopCount=0;
 
@@ -499,17 +499,17 @@ static void queueLookupRecycleBlock(RoutingBuilder *rb, RoutingReadLookupRecycle
 		if(loopCount++>10000)
 			LOG(LOG_CRITICAL,"Loop Stuck");
 
-		current= __atomic_load_n(&(rb->lookupRecyclePtr), __ATOMIC_SEQ_CST);
+		current= __atomic_load_n(recycleBlockPtr, __ATOMIC_SEQ_CST);
 		__atomic_store_n(&(recycleBlock->nextPtr), current, __ATOMIC_SEQ_CST);
 		}
-	while(!__atomic_compare_exchange_n(&(rb->lookupRecyclePtr), &current, recycleBlock, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST));
+	while(!__atomic_compare_exchange_n(recycleBlockPtr, &current, recycleBlock, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST));
 
-	__atomic_fetch_add(&(rb->lookupRecycleCount),1, __ATOMIC_SEQ_CST);
+	__atomic_fetch_add(recycleCountPtr ,1, __ATOMIC_SEQ_CST);
 
 }
 
 //static
-RoutingReadLookupRecycleBlock *recycleLookupLink(RoutingBuilder *rb, RoutingReadLookupRecycleBlock *recycleBlock, u32 lookupLinkIndex)
+RoutingReadLookupRecycleBlock *recycleLookupLink(RoutingBuilder *rb, RoutingReadLookupRecycleBlock *recycleBlock, s32 blockType, u32 lookupLinkIndex)
 {
 	if(recycleBlock==NULL)
 		{
@@ -517,6 +517,7 @@ RoutingReadLookupRecycleBlock *recycleLookupLink(RoutingBuilder *rb, RoutingRead
 
 		recycleBlock=dAlloc(disp, sizeof(RoutingReadLookupRecycleBlock));
 		recycleBlock->disp=disp;
+		recycleBlock->blockType=blockType;
 		recycleBlock->readCount=0;
 		recycleBlock->readPosition=0;
 		}
@@ -541,18 +542,25 @@ void flushRecycleBlock(RoutingBuilder *rb, RoutingReadLookupRecycleBlock *recycl
 }
 
 
-static RoutingReadLookupRecycleBlock *scanLookupRecyclePtr(RoutingBuilder *rb)
+static RoutingReadLookupRecycleBlock *scanLookupRecyclePtr(RoutingBuilder *rb, int blockType)
 {
-	return __atomic_load_n(&(rb->lookupRecyclePtr), __ATOMIC_SEQ_CST);
+	RoutingReadLookupRecycleBlock **recycleBlockPtr=(blockType==LOOKUP_RECYCLE_BLOCK_PREDISPATCH?&(rb->lookupPredispatchRecyclePtr):&(rb->lookupPostdispatchRecyclePtr));
+
+	return __atomic_load_n(recycleBlockPtr, __ATOMIC_SEQ_CST);
 }
 
-static int getLookupRecycleCount(RoutingBuilder *rb)
+static int getLookupRecycleCount(RoutingBuilder *rb, int blockType)
 {
-	return __atomic_load_n(&(rb->lookupRecycleCount), __ATOMIC_SEQ_CST);
+	u64 *recycleCountPtr=(blockType==LOOKUP_RECYCLE_BLOCK_PREDISPATCH?&(rb->lookupPredispatchRecycleCount):&(rb->lookupPostdispatchRecycleCount));
+
+	return __atomic_load_n(recycleCountPtr, __ATOMIC_SEQ_CST);
 }
 
-static RoutingReadLookupRecycleBlock *dequeueLookupRecycleList(RoutingBuilder *rb)
+static RoutingReadLookupRecycleBlock *dequeueLookupRecycleList(RoutingBuilder *rb, int blockType)
 {
+	RoutingReadLookupRecycleBlock **recycleBlockPtr=(blockType==LOOKUP_RECYCLE_BLOCK_PREDISPATCH?&(rb->lookupPredispatchRecyclePtr):&(rb->lookupPostdispatchRecyclePtr));
+	u64 *recycleCountPtr=(blockType==LOOKUP_RECYCLE_BLOCK_PREDISPATCH?&(rb->lookupPredispatchRecycleCount):&(rb->lookupPostdispatchRecycleCount));
+
 	RoutingReadLookupRecycleBlock *current=NULL;
 	int loopCount=0;
 
@@ -563,14 +571,14 @@ static RoutingReadLookupRecycleBlock *dequeueLookupRecycleList(RoutingBuilder *r
 			LOG(LOG_CRITICAL,"Loop Stuck");
 			}
 
-		current= __atomic_load_n(&(rb->lookupRecyclePtr), __ATOMIC_SEQ_CST);
+		current= __atomic_load_n(recycleBlockPtr, __ATOMIC_SEQ_CST);
 
 		if(current==NULL)
 			return NULL;
 		}
-	while(!__atomic_compare_exchange_n(&(rb->lookupRecyclePtr), &current, NULL, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST));
+	while(!__atomic_compare_exchange_n(recycleBlockPtr, &current, NULL, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST));
 
-	__atomic_store_n(&(rb->lookupRecycleCount), 0, __ATOMIC_SEQ_CST);
+	__atomic_store_n(recycleCountPtr, 0, __ATOMIC_SEQ_CST);
 
 	return current;
 }
@@ -728,27 +736,9 @@ static void populateLookupLinkSmers(LookupLink *lookupLink, SequenceLink *sequen
 
 	revCompBuf>>=sequenceSkipSmers;
 	lookupLink->revComp=revCompBuf | (eosFlag?LOOKUPLINK_EOS_FLAG:0);
-	lookupLink->smerCount=smerCount;
+	lookupLink->smerCount=-smerCount;
 
 	memcpy(lookupLink->smers, smerBuf+sequenceSkipSmers, smerCount*sizeof(SmerId));
-
-	// Update positions
-
-	sequencePos+=smerCount;
-
-	int posOverflow=sequencePos-sequenceLen;
-	if(posOverflow>0)
-		{
-		sequencePos=sequenceLen;
-
-		if(nextSequenceLink==NULL)
-			LOG(LOG_CRITICAL,"No next sequence link with position overflow");
-
-		nextSequenceLink->position=posOverflow;
-		}
-
-	sequenceLink->position=sequencePos;
-
 }
 
 static void populateLookupLinkFromIngress(LookupLink *lookupLink, u32 sequenceLinkIndex, MemSingleBrickPile *sequencePile)
@@ -768,9 +758,11 @@ static void populateLookupLinkFromIngress(LookupLink *lookupLink, u32 sequenceLi
 }
 
 
-void populateLookupLinkFromRecycle(LookupLink *lookupLink, u32 dispatchLinkIndex, SequenceLink *sequenceLink, MemSingleBrickPile *sequencePile)
+void populateLookupLinkForNonDispatchRecycle(LookupLink *lookupLink, u32 dispatchLinkIndex, SequenceLink *sequenceLink, MemSingleBrickPile *sequencePile)
 {
 	populateLookupLinkSmers(lookupLink, sequenceLink, sequencePile);
+
+	// Ensures: Lookup -> Dispatch -> Seq* -> null
 
 	lookupLink->sourceIndex=dispatchLinkIndex;
 	lookupLink->indexType=LINK_INDEXTYPE_DISPATCH;
@@ -778,6 +770,21 @@ void populateLookupLinkFromRecycle(LookupLink *lookupLink, u32 dispatchLinkIndex
 //	trDumpSequenceLink(sequenceLink, sequenceLinkIndex);
 //	trDumpLookupLink(lookupLink, lookupLinkIndex);
 }
+
+void populateLookupLinkForDispatch(LookupLink *lookupLink, u32 lookupLinkIndex, DispatchLink *dispatchLink,
+		SequenceLink *sequenceLink, u32 sequenceLinkIndex, MemSingleBrickPile *sequencePile)
+{
+	populateLookupLinkSmers(lookupLink, sequenceLink, sequencePile);
+
+	// Ensures: Dispatch -> Lookup -> Seq* -> null
+
+	dispatchLink->nextOrSourceIndex=lookupLinkIndex;
+	dispatchLink->indexType=LINK_INDEXTYPE_DISPATCH;
+
+	lookupLink->sourceIndex=sequenceLinkIndex;
+	lookupLink->indexType=LINK_INDEXTYPE_SEQ;
+}
+
 
 
 
@@ -835,7 +842,7 @@ int queueSmerLookupsForIngress(RoutingBuilder *rb, RoutingReadIngressBlock *ingr
 		u32 sequenceLinkIndex=ingressBlock->sequenceLinkIndex[sequencePosition];
 		populateLookupLinkFromIngress(lookupLink, sequenceLinkIndex, sequencePile);
 
-		assignSmersToLookupPercolates(lookupLink->smers, lookupLink->smerCount, lookupBlock->smerEntryLookupsPercolates, disp);
+		assignSmersToLookupPercolates(lookupLink->smers, -(lookupLink->smerCount), lookupBlock->smerEntryLookupsPercolates, disp);
 
 		sequencePosition++;
 		blockIndex++;
@@ -899,6 +906,7 @@ u32 findSequenceLinkIndexForDispatchLink(RoutingBuilder *rb, DispatchLink *dispa
 	return dispatchLink->nextOrSourceIndex;
 }
 
+/*
 static SequenceLink *findUnfinishedSequenceLinkInChain(MemSingleBrickPile *sequencePile, u32 sequenceLinkIndex)
 {
 	SequenceLink *sequenceLink=mbSingleBrickFindByIndex(sequencePile, sequenceLinkIndex);
@@ -918,28 +926,15 @@ static SequenceLink *findUnfinishedSequenceLinkInChain(MemSingleBrickPile *seque
 		else
 			return NULL;
 		}
-
 	return sequenceLink;
 }
-
+*/
 
 static int transferFoundSmersToDispatch(DispatchLink *dispatchLink, MemDoubleBrickAllocator *dispatchLinkalloc,
-		int foundCount, int firstIndex, DispatchLinkSmer *indexedSmers, u8 *indexedRevComp)
+		int foundCount, DispatchLinkSmer *indexedSmers, u8 *indexedRevComp)
 {
-	LOG(LOG_INFO,"Has %i, Found %i, First %i", dispatchLink->length, foundCount, firstIndex);
-
 	int smerIndex=dispatchLink->length;
 	int totalCount=smerIndex;
-
-	// First increment the last seqIndexOffset if needed.
-
-	if(firstIndex>0)
-		{
-		if(smerIndex>0) // Should be true
-			dispatchLink->smers[smerIndex-1].seqIndexOffset+=firstIndex;
-		else
-			LOG(LOG_CRITICAL,"FirstIndex non-zero with empty dispatchLink");
-		}
 
 	for(int i=0;i<foundCount;i++)
 	{
@@ -977,6 +972,229 @@ void freeSequenceLinkChain(MemSingleBrickPile *sequencePile, u32 sequenceLinkInd
 }
 
 
+static s32 getAndUpdateSequenceLinkPosition(SequenceLink *sequenceLink, MemSingleBrickPile *sequencePile, int smerCount, SequenceLink **seqLinkUnfinished)
+{
+	s32 lookupPosition=0;
+
+	int sequenceLen=sequenceLink->length;
+	int sequencePos=sequenceLink->position;
+
+	while(sequencePos==sequenceLen)
+		{
+		lookupPosition+=sequencePos;
+
+		u32 seqLinkIndex=sequenceLink->nextIndex;
+
+		if(seqLinkIndex==LINK_INDEX_DUMMY)
+			{
+			if(sequencePos>0)
+				LOG(LOG_CRITICAL,"No next sequence link with position overflow");
+			}
+
+		sequenceLink=mbSingleBrickFindByIndex(sequencePile, seqLinkIndex);
+		sequenceLen=sequenceLink->length;
+		sequencePos=sequenceLink->position;
+		}
+
+	lookupPosition+=sequencePos; // Add partial
+
+	sequencePos+=smerCount; // Possible onto next seqLink
+
+	while(sequencePos>=sequenceLen)
+		{
+		sequenceLink->position=sequenceLen;
+		sequencePos-=sequenceLen;
+
+		u32 seqLinkIndex=sequenceLink->nextIndex;
+
+		if(seqLinkIndex==LINK_INDEX_DUMMY)
+			{
+			if(sequencePos>0)
+				LOG(LOG_CRITICAL,"No next sequence link with position overflow");
+
+			*seqLinkUnfinished=NULL;
+			return lookupPosition;
+			}
+
+		sequenceLink=mbSingleBrickFindByIndex(sequencePile, seqLinkIndex);
+		sequenceLen=sequenceLink->length;
+		sequencePos=sequenceLink->position;
+		}
+
+	sequenceLink->position=sequencePos;
+	*seqLinkUnfinished=sequenceLink;
+
+	return lookupPosition;
+}
+
+static s32 getLastDispatchPosition(DispatchLink *dispatchLink)
+{
+	s32 total=0;
+	for(int i=0;i<dispatchLink->length;i++)
+		total+=dispatchLink->smers[i].seqIndexOffset;
+
+	return total;
+}
+
+
+static void processPredispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb, MemDoubleBrickAllocator *dispatchLinkAlloc, RoutingReadLookupBlock *lookupReadBlock)
+{
+	MemSingleBrickPile *sequencePile=&(rb->sequenceLinkPile);
+	MemDoubleBrickPile *lookupPile=&(rb->lookupLinkPile);
+	MemDoubleBrickPile *dispatchPile=&(rb->dispatchLinkPile);
+
+	extractLookupPercolatesFromEntryLookups(lookupReadBlock->smerEntryLookups, lookupReadBlock->smerEntryLookupsPercolates);
+
+	RoutingReadReferenceBlockDispatchArray *dispArray=allocDispatchArray();
+	RoutingReadLookupRecycleBlock *predispatchRecycleBlock=NULL;
+	RoutingReadLookupRecycleBlock *postdispatchRecycleBlock=NULL;
+
+	int reads=lookupReadBlock->readCount;
+
+	for(int i=0;i<reads;i++)
+		{
+		u32 lookupLinkIndex=lookupReadBlock->lookupLinkIndex[i];
+
+		LookupLink *lookupLink=mbDoubleBrickFindByIndex(lookupPile, lookupLinkIndex);
+
+		lookupLink->smerCount=-(lookupLink->smerCount); // Swap sign to indicate completion
+
+		DispatchLink *dispatchLink=NULL;
+		u32 dispatchLinkIndex=LINK_INDEX_DUMMY;
+		u32 sequenceLinkIndex=LINK_INDEX_DUMMY;
+
+		s32 dispatchPosition=0;
+
+		int firstFlag=0;
+
+		if(lookupLink->indexType==LINK_INDEXTYPE_SEQ) // First lookup scenario: Lookup -> Seq* -> null
+			{
+			firstFlag=1;
+
+			dispatchLink=
+					mbDoubleBrickAllocate(dispatchLinkAlloc, &dispatchLinkIndex);
+
+			dispatchLink->nextOrSourceIndex=lookupLink->sourceIndex;
+			dispatchLink->indexType=LINK_INDEXTYPE_SEQ;
+			dispatchLink->length=0;
+			dispatchLink->position=0;
+			dispatchLink->revComp=0;
+			dispatchLink->minEdgePosition=TR_INIT_MINEDGEPOSITION;
+			dispatchLink->maxEdgePosition=TR_INIT_MAXEDGEPOSITION;
+
+			// dispatchLink->smers populated later
+
+			sequenceLinkIndex=lookupLink->sourceIndex;
+
+			lookupLink->sourceIndex=dispatchLinkIndex;
+			lookupLink->indexType=LINK_INDEXTYPE_DISPATCH;
+			}
+		else if(lookupLink->indexType==LINK_INDEXTYPE_DISPATCH) // Recycled lookup scenario: Lookup -> Dispatch -> Seq* -> null
+			{
+			dispatchLinkIndex=lookupLink->sourceIndex;
+			dispatchLink=mbDoubleBrickFindByIndex(dispatchPile, dispatchLinkIndex);
+
+			dispatchPosition=getLastDispatchPosition(dispatchLink);
+
+			sequenceLinkIndex=findSequenceLinkIndexForDispatchLink(rb, dispatchLink);
+			}
+		else
+			LOG(LOG_CRITICAL,"Unable to handle lookup link with lookup sourceIndexType");
+
+		SequenceLink *sequenceLink=mbSingleBrickFindByIndex(sequencePile, sequenceLinkIndex);
+
+		// Get current position, update for lookup and get first link with unused smers in chain (could be NULL if at end)
+		SequenceLink *seqLinkUnfinished=NULL;
+		s32 lookupPosition=getAndUpdateSequenceLinkPosition(sequenceLink, sequencePile, lookupLink->smerCount, &seqLinkUnfinished);
+
+		int lastFlag=lookupLink->revComp & LOOKUPLINK_EOS_FLAG;
+
+		DispatchLinkSmer indexedSmers[LOOKUP_LINK_SMERS+2]; // Allow for possible seq start/end smers
+		u8 indexedRevComp[LOOKUP_LINK_SMERS+2];
+
+		s32 extractFlag=(firstFlag?EXTRACT_FIRST_SMER:0) | (lastFlag?EXTRACT_LAST_SMER:0);
+
+		int foundCount=
+				extractIndexedSmerDataFromLookupPercolates(lookupLink->smers, lookupLink->smerCount, lookupLink->revComp,
+				indexedSmers, indexedRevComp,
+				extractFlag, lookupReadBlock->smerEntryLookupsPercolates);
+		//LOG(LOG_INFO,"Found %i - flags %i",foundCount, extractFlag);
+
+		// Correct offset of first found smer, allowing for lookup position and existing dispatch smers
+
+		int positionAdjust=lookupPosition-dispatchPosition;
+
+		LOG(LOG_INFO,"Adjust position by %i (%i %i)",positionAdjust, lookupPosition, dispatchPosition);
+
+		indexedSmers[0].seqIndexOffset+=positionAdjust;
+
+		// Copy the needful
+		int dispatchCount=transferFoundSmersToDispatch(dispatchLink, dispatchLinkAlloc, foundCount, indexedSmers, indexedRevComp);
+
+
+
+		//LOG(LOG_INFO,"Ignoring found smers");
+		if(dispatchCount < DISPATCH_LINK_SMER_THRESHOLD) // If dispatch link less than threshold
+			{
+			if(!lastFlag)  // more to come - recycle to lookup
+				{
+//				LOG(LOG_INFO,"Recycle scenario");
+//				trDumpSequenceLink(sequenceLink, sequenceLinkIndex);
+//				trDumpDispatchLink(dispatchLink, dispatchLinkIndex);
+//				trDumpLookupLink(lookupLink, lookupLinkIndex);
+
+				// Populate lookup with first unfinished seqLink entries and recycle
+				populateLookupLinkForNonDispatchRecycle(lookupLink, dispatchLinkIndex, seqLinkUnfinished, sequencePile);
+				predispatchRecycleBlock=recycleLookupLink(rb, predispatchRecycleBlock, LOOKUP_RECYCLE_BLOCK_PREDISPATCH, lookupLinkIndex);
+
+				//LOG(LOG_INFO,"Recycle scenario done");
+				}
+			else // Reached end - copy and dispatch anyway
+				{
+				LOG(LOG_INFO,"Small dispatch scenario");
+
+				mbDoubleBrickFreeByIndex(lookupPile, lookupLinkIndex);
+				assignToDispatchArrayEntry(dispArray, dispatchLinkIndex, dispatchLink);
+				}
+			}
+		else if(dispatchCount <= DISPATCH_LINK_SMERS) // Can fit in one dispatch link, copy and dispatch
+			{
+			if(!lastFlag)
+				{
+				LOG(LOG_INFO,"Single dispatch scenario with lookup");
+
+				populateLookupLinkForDispatch(lookupLink,lookupLinkIndex, dispatchLink, sequenceLink, sequenceLinkIndex, sequencePile);
+				postdispatchRecycleBlock=recycleLookupLink(rb, postdispatchRecycleBlock, LOOKUP_RECYCLE_BLOCK_POSTDISPATCH, lookupLinkIndex);
+				}
+			else
+				{
+				LOG(LOG_INFO,"Single dispatch scenario without lookup");
+
+				mbDoubleBrickFreeByIndex(lookupPile, lookupLinkIndex);
+				}
+
+			assignToDispatchArrayEntry(dispArray, dispatchLinkIndex, dispatchLink);
+			}
+		else // Need to split into multiple dispatch links, then dispatch
+			{
+			LOG(LOG_CRITICAL,"Multiple dispatch scenario");
+
+			}
+		}
+
+	flushRecycleBlock(rb, predispatchRecycleBlock);
+	flushRecycleBlock(rb, postdispatchRecycleBlock);
+
+	queueDispatchArray(rb, dispArray);
+}
+
+/*
+static void processPostdispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb)
+{
+
+}
+*/
+
 
 int scanForAndDispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb)
 {
@@ -1011,196 +1229,10 @@ int scanForAndDispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb)
 
 	//LOG(LOG_INFO,"scanForAndDispatchLookupCompleteReadLookupBlocks");
 
-	MemSingleBrickPile *sequencePile=&(rb->sequenceLinkPile);
-	MemDoubleBrickPile *lookupPile=&(rb->lookupLinkPile);
 
-	extractLookupPercolatesFromEntryLookups(lookupReadBlock->smerEntryLookups, lookupReadBlock->smerEntryLookupsPercolates);
+	processPredispatchLookupCompleteReadLookupBlocks(rb, &dispatchLinkAlloc, lookupReadBlock);
 
-	RoutingReadReferenceBlockDispatchArray *dispArray=allocDispatchArray();
-	RoutingReadLookupRecycleBlock *recycleBlock=NULL;
-
-	int reads=lookupReadBlock->readCount;
-
-	for(int i=0;i<reads;i++)
-		{
-		u32 lookupLinkIndex=lookupReadBlock->lookupLinkIndex[i];
-
-		LookupLink *lookupLink=mbDoubleBrickFindByIndex(lookupPile, lookupLinkIndex);
-
-		DispatchLink *dispatchLink=NULL;
-		u32 dispatchLinkIndex=LINK_INDEX_DUMMY;
-		u32 sequenceLinkIndex=LINK_INDEX_DUMMY;
-
-		int firstFlag=0;
-
-		if(lookupLink->indexType==LINK_INDEXTYPE_SEQ)
-			{
-			firstFlag=1;
-
-			dispatchLink=
-					mbDoubleBrickAllocate(&dispatchLinkAlloc, &dispatchLinkIndex);
-
-			dispatchLink->nextOrSourceIndex=lookupLink->sourceIndex;
-			dispatchLink->indexType=LINK_INDEXTYPE_SEQ;
-			dispatchLink->length=0;
-			dispatchLink->position=0;
-			dispatchLink->revComp=0;
-			dispatchLink->minEdgePosition=TR_INIT_MINEDGEPOSITION;
-			dispatchLink->maxEdgePosition=TR_INIT_MAXEDGEPOSITION;
-
-			// dispatchLink->smers populated later
-
-			sequenceLinkIndex=lookupLink->sourceIndex;
-
-			lookupLink->sourceIndex=dispatchLinkIndex;
-			lookupLink->indexType=LINK_INDEXTYPE_DISPATCH;
-			}
-		else if(lookupLink->indexType==LINK_INDEXTYPE_DISPATCH)
-			{
-			dispatchLinkIndex=lookupLink->sourceIndex;
-			dispatchLink=mbDoubleBrickFindByIndex(dispatchPile, dispatchLinkIndex);
-
-			sequenceLinkIndex=findSequenceLinkIndexForDispatchLink(rb, dispatchLink);
-			}
-		else
-			LOG(LOG_CRITICAL,"Unable to handle lookup link with lookup sourceIndexType");
-
-		int lastFlag=lookupLink->revComp & LOOKUPLINK_EOS_FLAG;
-
-		DispatchLinkSmer indexedSmers[LOOKUP_LINK_SMERS+2]; // Allow for possible seq start/end smers
-		u8 indexedRevComp[LOOKUP_LINK_SMERS+2];
-
-		s32 extractFlag=(firstFlag?EXTRACT_FIRST_SMER:0) | (lastFlag?EXTRACT_LAST_SMER:0);
-
-		int firstIndex=0;
-
-		int foundCount=
-				extractIndexedSmerDataFromLookupPercolates(lookupLink->smers, lookupLink->smerCount, lookupLink->revComp,
-				indexedSmers, indexedRevComp,
-				extractFlag, lookupReadBlock->smerEntryLookupsPercolates, &firstIndex);
-		//LOG(LOG_INFO,"Found %i - flags %i",foundCount, extractFlag);
-
-
-//		dumpExtractedIndexedSmers(indexedSmers, indexedRevComp, foundCount);
-
-		//mbSingleBrickFreeByIndex(sequencePile, sequenceLinkIndex);
-		//mbDoubleBrickFreeByIndex(lookupPile, lookupLinkIndex);
-		//if(dispatchLinkIndex!=LINK_INDEX_DUMMY)
-			//mbDoubleBrickFreeByIndex(dispatchPile, dispatchLinkIndex);
-
-		// Copy the needful
-		int dispatchCount=transferFoundSmersToDispatch(dispatchLink, &dispatchLinkAlloc, foundCount, firstIndex, indexedSmers, indexedRevComp);
-
-		//LOG(LOG_INFO,"Ignoring found smers");
-		if(dispatchCount < DISPATCH_LINK_SMER_THRESHOLD) // If dispatch link less than threshold
-			{
-			if(!lastFlag)  // more to come - recycle to lookup
-				{
-				//LOG(LOG_INFO,"Recycle scenario");
-				//trDumpSequenceLink(sequenceLink, sequenceLinkIndex);
-				//trDumpDispatchLink(dispatchLink, dispatchLinkIndex);
-				//trDumpLookupLink(lookupLink, lookupLinkIndex);
-
-				// Find first link with unused smers in chain
-				SequenceLink *seqLinkUnfinished=findUnfinishedSequenceLinkInChain(sequencePile, sequenceLinkIndex);
-
-				populateLookupLinkFromRecycle(lookupLink, dispatchLinkIndex, seqLinkUnfinished, sequencePile);
-				recycleBlock=recycleLookupLink(rb, recycleBlock, lookupLinkIndex);
-
-				//LOG(LOG_INFO,"Recycle scenario done");
-				}
-			else // Reached end - copy and dispatch anyway
-				{
-				//LOG(LOG_INFO,"Small dispatch scenario");
-				//trDumpSequenceLink(sequenceLink, sequenceLinkIndex);
-				trDumpDispatchLink(dispatchLink, dispatchLinkIndex);
-				//trDumpLookupLink(lookupLink, lookupLinkIndex);
-
-				assignToDispatchArrayEntry(dispArray, dispatchLink);
-
-				LOG(LOG_INFO,"Small dispatch scenario");
-
-				// Temporary - longer term sequence chain can be deleted only after dispatch is done
-				//freeSequenceLinkChain(sequencePile, sequenceLinkIndex);
-
-				//mbDoubleBrickFreeByIndex(lookupPile, lookupLinkIndex);
-				//mbDoubleBrickFreeByIndex(dispatchPile, dispatchLinkIndex);
-				}
-			}
-		else if(dispatchCount < DISPATCH_LINK_SMERS) // Can fit in one dispatch link, copy and dispatch
-			{
-			trDumpDispatchLink(dispatchLink, dispatchLinkIndex);
-
-			assignToDispatchArrayEntry(dispArray, dispatchLink);
-
-			LOG(LOG_INFO,"Single dispatch scenario");
-
-			}
-		else // Need to split into multiple dispatch links, then dispatch
-			{
-			LOG(LOG_CRITICAL,"Multiple dispatch scenario");
-
-			}
-
-
-		}
-
-
-		/* LEGACY
-
-		int smerCount=readLookup->seqLength-nodeSize+1;
-
-		int foundCount=extractIndexedSmerDataFromLookupPercolates(readLookup->smers, smerCount, indexedDataEntries, lookupReadBlock->smerEntryLookupsPercolates);
-
-		if(foundCount==2)
-			{
-			LOG(LOG_INFO,"Failed to find any valid smers for read [%i] with length %i and %i possible smers", i, readLookup->seqLength, smerCount);
-
-			LOG(LOG_INFO,"Dispenser %p",lookupReadBlock->disp);
-
-			LOG(LOG_INFO,"Comp count: %i", lookupReadBlock->completionCount);
-
-			for(int j=0;j<smerCount;j++)
-				LOG(LOG_INFO,"Smer: %012lx %12lx",readLookup->smers[j*2],readLookup->smers[j*2+1]);
-
-			LOG(LOG_CRITICAL,"Bailing out");
-			}
-
-		RoutingReadData *readDispatch=dAlloc(disp, sizeof(RoutingReadData)+foundCount*sizeof(RoutingReadIndexedDataEntry));
-		*readDispatchPtrArray=readDispatch;
-
-//		int length=readLookup->seqLength;
-//		int packLength=PAD_2BITLENGTH_BYTE(length);
-
-//		readDispatch->packedSeq=dAllocQuadAligned(disp,packLength); // Consider extra padding on these allocs
-//		memcpy(readDispatch->packedSeq, readLookup->packedSeq, packLength);
-
-//		readDispatch->quality=dAlloc(disp,length+1);
-//		memcpy(readDispatch->quality, readLookup->quality, length+1);
-
-//		readDispatch->seqLength=length;
-
-		int offset=foundCount-1;
-		readDispatch->indexCount=foundCount-2;
-
-		memcpy(readDispatch->indexedData, indexedDataEntries-offset, foundCount*sizeof(RoutingReadIndexedDataEntry));
-
-		readDispatch->minEdgePosition=TR_INIT_MINEDGEPOSITION;
-		readDispatch->maxEdgePosition=TR_INIT_MAXEDGEPOSITION;
-
-		readDispatch->completionCountPtr=&(dispatchReadBlock->completionCount);
-
-		assignToDispatchArrayEntry(dispArray, readDispatch);
-
-		readLookup++;
-		readDispatch++;
-		*/
-
-
-	flushRecycleBlock(rb, recycleBlock);
 	mbDoubleBrickAllocatorCleanup(&dispatchLinkAlloc);
-
-	queueDispatchArray(rb, dispArray);
 
 	dispenserReset(lookupReadBlock->disp);
 
@@ -1242,7 +1274,7 @@ static RoutingReadLookupRecycleBlock *queueLookupBlockFromRecycleList(RoutingBui
 			u32 lookupLinkIndex=recycleList->lookupLinkIndex[recyclePosition++];
 
 			LookupLink *lookupLink=mbDoubleBrickFindByIndex(lookupPile, lookupLinkIndex);
-			assignSmersToLookupPercolates(lookupLink->smers, lookupLink->smerCount, lookupBlock->smerEntryLookupsPercolates, disp);
+			assignSmersToLookupPercolates(lookupLink->smers, -(lookupLink->smerCount), lookupBlock->smerEntryLookupsPercolates, disp);
 
 			lookupBlock->lookupLinkIndex[lookupReadCount++]=lookupLinkIndex;
 			}
@@ -1291,12 +1323,12 @@ static RoutingReadLookupRecycleBlock *queueLookupBlockFromRecycleList(RoutingBui
 }
 
 
-int scanForAndProcessLookupRecycles(RoutingBuilder *rb, int force)
+static int scanForAndProcessLookupRecyclesByType(RoutingBuilder *rb, int force, int blockType)
 {
-	if(scanLookupRecyclePtr(rb)==NULL)
+	if(scanLookupRecyclePtr(rb, blockType)==NULL)
 		return 0;
 
-	int recycleCount=getLookupRecycleCount(rb);
+	int recycleCount=getLookupRecycleCount(rb, blockType);
 
 	if(!force && recycleCount < TR_LOOKUP_RECYCLE_BLOCK_THRESHOLD)
 		return 0;
@@ -1306,7 +1338,7 @@ int scanForAndProcessLookupRecycles(RoutingBuilder *rb, int force)
 	if(!reserveReadLookupBlock(rb,TR_LOOKUP_RECYCLE_BLOCKMARGIN))
 		return 0;
 
-	RoutingReadLookupRecycleBlock *recycleList=dequeueLookupRecycleList(rb);
+	RoutingReadLookupRecycleBlock *recycleList=dequeueLookupRecycleList(rb, blockType);
 
 	if(recycleList==NULL)
 		{
@@ -1336,6 +1368,12 @@ int scanForAndProcessLookupRecycles(RoutingBuilder *rb, int force)
 		}
 
 	return 1;
+}
+
+int scanForAndProcessLookupRecycles(RoutingBuilder *rb, int force)
+{
+	return scanForAndProcessLookupRecyclesByType(rb, force, LOOKUP_RECYCLE_BLOCK_PREDISPATCH)+
+		scanForAndProcessLookupRecyclesByType(rb, force, LOOKUP_RECYCLE_BLOCK_POSTDISPATCH);
 }
 
 

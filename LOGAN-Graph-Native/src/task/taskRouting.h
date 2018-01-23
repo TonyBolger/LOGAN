@@ -23,7 +23,7 @@
 typedef struct sequenceLinkStr {
 	u32 nextIndex;			// Index of next SequenceLink in chain (or LINK_DUMMY at end)
 	u8 length;				// Length of packed sequence (in bp)
-	u8 position;			// Position of first unprocessed base (in bp)
+	u8 position;			// Position of next base for lookup (in bp, from start of this brick)
 	u8 packedSequence[SEQUENCE_LINK_BYTES];	// Packed sequence (2bits per bp) - up to 224 bases2
 } SequenceLink;
 
@@ -36,7 +36,7 @@ typedef struct sequenceLinkStr {
 typedef struct lookupLinkStr {
 	u32 sourceIndex;		// Index of SeqLink or Dispatch
 	u8 indexType;			// Indicates meaning of previous (SeqLink or Dispatch)
-	u8 smerCount;			// Number of smers to lookup
+	s8 smerCount;			// Number of smers to lookup (negative means in progress, positive means complete)
 	u16 revComp;			// Indicates if the original smer was rc (lsb = first smer). Top bit indicates if last lookup is end-of-sequence
 	SmerId smers[LOOKUP_LINK_SMERS];		// Specific smers to lookup
 } LookupLink;
@@ -152,11 +152,15 @@ typedef struct routingReadLookupBlockStr {
 } RoutingReadLookupBlock;
 
 
+#define LOOKUP_RECYCLE_BLOCK_PREDISPATCH 0
+#define LOOKUP_RECYCLE_BLOCK_POSTDISPATCH 1
+
 typedef struct routingReadLookupRecycleBlockStr {
 	struct routingReadLookupRecycleBlockStr *nextPtr;
 
 	MemDispenser *disp;
 
+	s32 blockType;
 	s32 readCount;
 	s32 readPosition;
 
@@ -245,7 +249,7 @@ typedef struct routingReadReferenceBlockDispatchStr {
 	struct routingReadReferenceBlockDispatchStr *prevPtr; // Used to reverse ordering
 	s32 *completionCountPtr; // 8
 
-	RoutingReadReferenceBlock data;
+	RoutingDispatchLinkIndexBlock data;
 } RoutingReadReferenceBlockDispatch;
 
 
@@ -284,7 +288,7 @@ typedef struct routingDispatchGroupStateStr {
 	s32 forceCount;
 	MemDispenser *disp;
 
-	RoutingReadReferenceBlock smerInboundDispatches[SMER_DISPATCH_GROUP_SLICES]; // Accumulator for inbound reads to this group
+	RoutingDispatchLinkIndexBlock smerInboundDispatches[SMER_DISPATCH_GROUP_SLICES]; // Accumulator for inbound reads to this group
 	RoutingReadReferenceBlockDispatchArray *outboundDispatches; // Array with partially routed reads going to next dispatch group
 
 } RoutingDispatchGroupState;
@@ -317,8 +321,11 @@ typedef struct routingBuilderStr {
 
 	RoutingSmerEntryLookup *smerEntryLookupPtr[SMER_SLICES]; // Per-slice list of lookups
 
-	RoutingReadLookupRecycleBlock *lookupRecyclePtr; // Queue of lookups for recycling
-	u64 lookupRecycleCount; // Approximate length of recycle queue
+	RoutingReadLookupRecycleBlock *lookupPredispatchRecyclePtr; // Queue of lookups for recycling (pre-dispatch)
+	u64 lookupPredispatchRecycleCount; // Approximate length of recycle queue
+
+	RoutingReadLookupRecycleBlock *lookupPostdispatchRecyclePtr; // Queue of lookups for recycling (post-dispatch)
+	u64 lookupPostdispatchRecycleCount; // Approximate length of recycle queue
 
 	MemDoubleBrickPile dispatchLinkPile;	// Dispatch chains
 

@@ -1388,7 +1388,7 @@ static RoutePatch *reorderReversePatches(RoutePatch *reversePatches, s32 reverse
 
 
 
-static void createRoutePatches(RoutingIndexedReadReferenceBlock *rdi, int entryCount,
+static void createRoutePatches(RoutingIndexedDispatchLinkIndexBlock *rdi, int entryCount,
 		SeqTailBuilder *prefixBuilder, SeqTailBuilder *suffixBuilder,
 		RoutePatch **forwardPatchesPtr, RoutePatch **reversePatchesPtr,
 		int *forwardCountPtr, int *reverseCountPtr, MemDispenser *disp)
@@ -1400,7 +1400,7 @@ static void createRoutePatches(RoutingIndexedReadReferenceBlock *rdi, int entryC
 
 	for(int i=0;i<entryCount;i++)
 	{
-		DispatchLink *rdd=rdi->entries[i];
+		DispatchLink *rdd=rdi->linkEntries[i];
 
 		int index=rdd->position+1;
 
@@ -1440,12 +1440,11 @@ static void createRoutePatches(RoutingIndexedReadReferenceBlock *rdi, int entryC
 				SmerId prefixSmer=complementSmerId(rdd->smers[index-1].smer);
 				SmerId suffixSmer=rdd->smers[index+1].smer;
 
-				int prefixLength=rdd->smers[index-1].seqIndexOffset;
-				int suffixLength=rdd->smers[index].seqIndexOffset;
+				int prefixLength=rdd->smers[index].seqIndexOffset;
+				int suffixLength=rdd->smers[index+1].seqIndexOffset;
 
-//				forwardPatches[forwardCount].next=NULL;
-				forwardPatches[forwardCount].rdiPtr=rdi->entries+i;
-//				forwardPatches[forwardCount].rdiIndex=i;
+				forwardPatches[forwardCount].rdiPtr=rdi->linkEntries+i;
+				forwardPatches[forwardCount].dispatchLinkIndex=rdi->linkIndexEntries[i];
 
 				forwardPatches[forwardCount].prefixIndex=stFindOrCreateSeqTail(prefixBuilder, prefixSmer, prefixLength);
 				forwardPatches[forwardCount].suffixIndex=stFindOrCreateSeqTail(suffixBuilder, suffixSmer, suffixLength);
@@ -1477,12 +1476,11 @@ static void createRoutePatches(RoutingIndexedReadReferenceBlock *rdi, int entryC
 				SmerId prefixSmer=complementSmerId(rdd->smers[index+1].smer);
 				SmerId suffixSmer=rdd->smers[index-1].smer;
 
-				int prefixLength=rdd->smers[index].seqIndexOffset;
-				int suffixLength=rdd->smers[index-1].seqIndexOffset;
+				int prefixLength=rdd->smers[index+1].seqIndexOffset;
+				int suffixLength=rdd->smers[index].seqIndexOffset;
 
-//				reversePatches[reverseCount].next=NULL;
-				reversePatches[reverseCount].rdiPtr=rdi->entries+i;
-//				reversePatches[reverseCount].rdiIndex=i;
+				reversePatches[reverseCount].rdiPtr=rdi->linkEntries+i;
+				reversePatches[reverseCount].dispatchLinkIndex=rdi->linkIndexEntries[i];
 
 				reversePatches[reverseCount].prefixIndex=stFindOrCreateSeqTail(prefixBuilder, prefixSmer, prefixLength);
 				reversePatches[reverseCount].suffixIndex=stFindOrCreateSeqTail(suffixBuilder, suffixSmer, suffixLength);
@@ -1525,8 +1523,8 @@ static void createRoutePatches(RoutingIndexedReadReferenceBlock *rdi, int entryC
 
 
 
-int rtRouteReadsForSmer(RoutingIndexedReadReferenceBlock *rdi, SmerArraySlice *slice,
-		DispatchLink **orderedDispatches, MemDispenser *disp, MemCircHeap *circHeap, u8 sliceTag)
+int rtRouteReadsForSmer(RoutingIndexedDispatchLinkIndexBlock *rdi, SmerArraySlice *slice,
+		u32 *orderedDispatches, MemDispenser *disp, MemCircHeap *circHeap, u8 sliceTag)
 {
 	s32 sliceIndex=rdi->sliceIndex;
 
@@ -1601,7 +1599,7 @@ int rtRouteReadsForSmer(RoutingIndexedReadReferenceBlock *rdi, SmerArraySlice *s
 
 		if(rdi->entryCount>0)
 			{
-			DispatchLink *rdd=rdi->entries[0];
+			DispatchLink *rdd=rdi->linkEntries[0];
 			int index=rdd->position+1;
 
 			SmerId currSmer=rdd->smers[index].smer;

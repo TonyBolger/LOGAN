@@ -45,7 +45,7 @@ typedef struct routingReadDataStr {
 
 typedef struct dispatchLinkSmerStr {
 	SmerId smer;		// The actual smer ID
-	u16 seqIndexOffset; // Distance to next smer, or number of additional kmers already tested (if last)
+	u16 seqIndexOffset; // Offset from previous smer, or from start of first seqLink (if first)
 	u16 slice;			// Ranges (0-16383)
 	u32 sliceIndex;		// Index within slice
 } DispatchLinkSmer;
@@ -66,24 +66,26 @@ typedef struct dispatchLinkStr {
 
 typedef struct routePatchStr
 {
-	//struct routePatchStr *next;
 	DispatchLink **rdiPtr; // Needs double ptr to enable sorting by inbound position
+	u32 dispatchLinkIndex;
 
 	s32 prefixIndex;
 	s32 suffixIndex;
 } RoutePatch;
 
 
-typedef struct routingReadReferenceBlockStr {
-	u64 entryCount; // 8
-	DispatchLink **entries; // 8
-} __attribute__((aligned (16))) RoutingReadReferenceBlock;
-
-typedef struct routingIndexedReadReferenceBlockStr {
+typedef struct routingIndexedDispatchLinkIndexBlockStr {
 	s32 sliceIndex; // 4
 	u32 entryCount; // 4
-	DispatchLink **entries; // 8
-} __attribute__((aligned (16))) RoutingIndexedReadReferenceBlock;
+	u32 *linkIndexEntries; // 8
+	DispatchLink **linkEntries; // 8
+} __attribute__((aligned (16))) RoutingIndexedDispatchLinkIndexBlock;
+
+
+typedef struct routingDispatchLinkIndexBlockStr {
+	u64 entryCount; // 8
+	u32 *entries; // 4
+} __attribute__((aligned (16))) RoutingDispatchLinkIndexBlock;
 
 
 typedef union s32floatUnion {

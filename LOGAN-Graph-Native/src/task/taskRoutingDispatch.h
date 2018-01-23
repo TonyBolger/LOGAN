@@ -5,7 +5,7 @@
 RoutingReadReferenceBlockDispatchArray *allocDispatchArray();
 
 
-void assignToDispatchArrayEntry(RoutingReadReferenceBlockDispatchArray *array, DispatchLink *readData);
+void assignToDispatchArrayEntry(RoutingReadReferenceBlockDispatchArray *array, u32 dispatchLinkIndex, DispatchLink *readData);
 
 void initRoutingDispatchGroupState(RoutingDispatchGroupState *dispatchGroupState);
 void freeRoutingDispatchGroupState(RoutingDispatchGroupState *dispatchGroupState);

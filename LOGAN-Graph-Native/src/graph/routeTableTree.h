@@ -222,7 +222,7 @@ RouteTableTreeArrayProxy *rttGetTopArrayByIndex(RouteTableTreeBuilder *builder, 
 
 void rttMergeRoutes(RouteTableTreeBuilder *builder,
 		RoutePatch *forwardRoutePatches, RoutePatch *reverseRoutePatches, s32 forwardRoutePatchCount, s32 reverseRoutePatchCount,
-		s32 prefixCount, s32 suffixCount, DispatchLink **orderedDispatches, MemDispenser *disp);
+		s32 prefixCount, s32 suffixCount, u32 *orderedDispatches, MemDispenser *disp);
 
 void rttUnpackRouteTableForSmerLinked(SmerLinked *smerLinked, RouteTableTreeWalker *forwardWalker, RouteTableTreeWalker *reverseWalker, MemDispenser *disp);
 

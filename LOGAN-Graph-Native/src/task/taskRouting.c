@@ -54,12 +54,16 @@ void trDumpLookupLink(LookupLink *link, u32 linkIndex)
 	LOG(LOG_INFO,"LookupLink Dump: Idx %i (%p)",linkIndex, link);
 
 	LOG(LOG_INFO,"  SrcIdx: %u (%s)", link->sourceIndex, decodeLinkIndexType(link->indexType));
-	LOG(LOG_INFO,"  SmerCount: %u", (u32)link->smerCount);
+	LOG(LOG_INFO,"  SmerCount: %i", link->smerCount);
 
 	char buffer[SMER_BASES+1];
 
 	u16 revComp=link->revComp;
-	for(int i=0;i<link->smerCount;i++)
+
+	int smerCount=link->smerCount;
+	smerCount=(smerCount<0)?-smerCount:smerCount;
+
+	for(int i=0;i<smerCount;i++)
 		{
 		unpackSmer(link->smers[i], buffer);
 
@@ -257,7 +261,8 @@ static void showWorkStatus(RoutingBuilder *rb)
 {
 	int arib=__atomic_load_n(&rb->allocatedIngressBlocks, __ATOMIC_SEQ_CST);
 	int arlb=__atomic_load_n(&rb->allocatedReadLookupBlocks, __ATOMIC_SEQ_CST);
-	int lrr=__atomic_load_n(&rb->lookupRecyclePtr, __ATOMIC_SEQ_CST)!=NULL;
+	int lrr=(__atomic_load_n(&rb->lookupPredispatchRecyclePtr, __ATOMIC_SEQ_CST)!=NULL) + (__atomic_load_n(&rb->lookupPostdispatchRecyclePtr, __ATOMIC_SEQ_CST)!=NULL);
+
 	int ardb=0;//__atomic_load_n(&rb->allocatedReadDispatchBlocks, __ATOMIC_SEQ_CST);
 
 	MemSingleBrickPile *seqPile=&(rb->sequenceLinkPile);
@@ -299,7 +304,8 @@ static int checkForWork(RoutingBuilder *rb, int *lookupBlocksPtr, int *dispatchB
 {
 	int arib=__atomic_load_n(&rb->allocatedIngressBlocks, __ATOMIC_SEQ_CST);
 	int arlb=__atomic_load_n(&rb->allocatedReadLookupBlocks, __ATOMIC_SEQ_CST);
-	int lrr=__atomic_load_n(&rb->lookupRecyclePtr, __ATOMIC_SEQ_CST)!=NULL;
+	int lrr=(__atomic_load_n(&rb->lookupPredispatchRecyclePtr, __ATOMIC_SEQ_CST)!=NULL) + (__atomic_load_n(&rb->lookupPostdispatchRecyclePtr, __ATOMIC_SEQ_CST)!=NULL);
+
 	int ardb=0;//__atomic_load_n(&rb->allocatedReadDispatchBlocks, __ATOMIC_SEQ_CST);
 
 	//*ingressBlocksPtr=arib;
@@ -459,8 +465,11 @@ RoutingBuilder *allocRoutingBuilder(Graph *graph, int threads)
 	for(int i=0;i<SMER_SLICES;i++)
 		rb->smerEntryLookupPtr[i]=NULL;
 
-	rb->lookupRecyclePtr=NULL;
-	rb->lookupRecycleCount=0;
+	rb->lookupPredispatchRecyclePtr=NULL;
+	rb->lookupPredispatchRecycleCount=0;
+
+	rb->lookupPostdispatchRecyclePtr=NULL;
+	rb->lookupPostdispatchRecycleCount=0;
 
 	mbInitDoubleBrickPile(&(rb->dispatchLinkPile), TR_BRICKCHUNKS_DISPATCH_MIN, TR_BRICKCHUNKS_DISPATCH_MAX, MEMTRACKID_BRICK_DISPATCH);
 
