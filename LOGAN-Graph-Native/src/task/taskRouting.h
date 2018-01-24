@@ -140,6 +140,7 @@ typedef struct routingLookupPercolateStr {
 typedef struct routingReadLookupBlockStr {
 	u32 lookupLinkIndex[TR_ROUTING_BLOCKSIZE];
 
+	s32 blockType;
 	u32 readCount;
 
 	RoutingLookupPercolate *smerEntryLookupsPercolates[SMER_LOOKUP_PERCOLATES]; // Holds intermediate lookup data

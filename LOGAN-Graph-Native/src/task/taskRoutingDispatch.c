@@ -670,7 +670,23 @@ static void prepareGroupOutbound(RoutingDispatchGroupState *groupState)
 }
 
 
-static int gatherSliceOutbound(MemSingleBrickPile *sequencePile, MemDoubleBrickPile *dispatchPile,
+
+static void freeSequenceLinkChain(MemSingleBrickPile *sequencePile, u32 sequenceLinkIndex)
+{
+	while(sequenceLinkIndex!=LINK_INDEX_DUMMY)
+		{
+		SequenceLink *sequenceLink=mbSingleBrickFindByIndex(sequencePile, sequenceLinkIndex);
+		u32 sequenceLinkNextIndex=sequenceLink->nextIndex;
+
+		mbSingleBrickFreeByIndex(sequencePile, sequenceLinkIndex);
+		sequenceLinkIndex=sequenceLinkNextIndex;
+		}
+}
+
+
+
+
+static int gatherSliceOutbound(MemSingleBrickPile *sequencePile, MemDoubleBrickPile *lookupPile, MemDoubleBrickPile *dispatchPile,
 		RoutingDispatchGroupState *groupState, int sliceNum, u32 *orderedDispatches)
 {
 	int work=0;
@@ -705,17 +721,21 @@ static int gatherSliceOutbound(MemSingleBrickPile *sequencePile, MemDoubleBrickP
 					if(sequenceLink->nextIndex!=LINK_INDEX_DUMMY)
 						LOG(LOG_CRITICAL,"Invalid Sequence NextIndex without lookup: %i",sequenceLink->nextIndex);
 
-					if(sequenceLink->position+SMER_BASES-1==sequenceLink->length)
+					if(sequenceLink->position+SMER_BASES-1!=sequenceLink->length)
 						LOG(LOG_CRITICAL,"Invalid Sequence Position without lookup: %i %i",sequenceLink->position, sequenceLink->length);
 
-					mbSingleBrickFreeByIndex(sequencePile, sequenceLinkIndex);
+					freeSequenceLinkChain(sequencePile, sequenceLinkIndex); // Possibly more than one seqLink in chain
 					mbDoubleBrickFreeByIndex(dispatchPile, dispatchLinkIndex);
 					break;
 					}
 
 				case LINK_INDEXTYPE_LOOKUP: // Dispatch -> Lookup -> Seq* -> null
-					LOG(LOG_CRITICAL,"TODO: Lookup type");
+					{
+					LookupLink *lookupLink=mbDoubleBrickFindByIndex(lookupPile, dispatchLink->nextOrSourceIndex);
+
+					LOG(LOG_CRITICAL,"TODO: Lookup type: SmerCount: %i",lookupLink->smerCount);
 					break;
+					}
 
 				case LINK_INDEXTYPE_DISPATCH: // Dispatch -> Dispatch -> ...
 					LOG(LOG_CRITICAL,"TODO: Dispatch type");
@@ -758,6 +778,7 @@ static int scanForDispatchesForGroups(RoutingBuilder *rb, int startGroup, int en
 	LOG(LOG_INFO,"scanForDispatchesForGroups");
 
 	MemSingleBrickPile *sequencePile=&(rb->sequenceLinkPile);
+	MemDoubleBrickPile *lookupPile=&(rb->lookupLinkPile);
 	MemDoubleBrickPile *dispatchPile=&(rb->dispatchLinkPile);
 
 	MemDispenser *routingDisp=NULL;
@@ -812,7 +833,7 @@ static int scanForDispatchesForGroups(RoutingBuilder *rb, int startGroup, int en
 							processSlice(dispatchPile, smerInboundDispatches, slice, j, orderedDispatches, groupState->disp, routingDisp, circHeap);
 							dispenserReset(routingDisp);
 
-							gatherSliceOutbound(sequencePile, dispatchPile, groupState, j, orderedDispatches);
+							gatherSliceOutbound(sequencePile, lookupPile, dispatchPile, groupState, j, orderedDispatches);
 							}
 						}
 
