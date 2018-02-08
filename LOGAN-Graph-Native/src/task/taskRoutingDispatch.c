@@ -614,6 +614,17 @@ void dumpPatches(RoutePatch *patches, int patchCount)
 static void processSlice(MemDoubleBrickPile *dispatchPile, RoutingDispatchLinkIndexBlock *smerInboundDispatches,  SmerArraySlice *slice, u32 sliceIndex,
 		u32 *orderedDispatches, MemDispenser *disp, MemDispenser *routingDisp, MemCircHeap *circHeap)
 {
+	for(int i=0;i<smerInboundDispatches->entryCount;i++)
+		{
+		u32 dispatchLinkIndex=smerInboundDispatches->entries[i];
+		DispatchLink *dispatchLink=mbDoubleBrickFindByIndex(dispatchPile, dispatchLinkIndex);
+
+		if(dispatchLink->length<3)
+			{
+			LOG(LOG_CRITICAL,"Insufficient smers in dispatchLink");
+			}
+		}
+
 	if(smerInboundDispatches->entryCount>0)
 		{
 		RoutingIndexedDispatchLinkIndexBlock **indexedDispatches=NULL;
@@ -683,7 +694,34 @@ static void freeSequenceLinkChain(MemSingleBrickPile *sequencePile, u32 sequence
 		}
 }
 
+static void shuffleProcessedDispatchLinkEntries(DispatchLink *dispatchLink)
+{
+	// Keep entries smer[length-2] and smer[length-1], and adjust offset
 
+	int total=0;
+
+	int firstToKeep=dispatchLink->length-2;
+
+	for(int i=0;i<firstToKeep;i++)
+		total+=dispatchLink->smers[i].seqIndexOffset;
+
+	memcpy(dispatchLink->smers, dispatchLink->smers+firstToKeep, sizeof(DispatchLinkSmer)*2);
+
+	dispatchLink->smers[0].seqIndexOffset+=total;
+	dispatchLink->revComp>>=firstToKeep;
+	dispatchLink->length=2;
+	dispatchLink->position=0;
+}
+
+static s32 calculateDispatchLinkTotalSequenceOffset(DispatchLink *dispatchLink)
+{
+	s32 total=0;
+
+	for(int i=0;i<dispatchLink->length;i++)
+		total+=dispatchLink->smers[i].seqIndexOffset;
+
+	return total;
+}
 
 
 static int gatherSliceOutbound(MemSingleBrickPile *sequencePile, MemDoubleBrickPile *lookupPile, MemDoubleBrickPile *dispatchPile,
@@ -700,7 +738,7 @@ static int gatherSliceOutbound(MemSingleBrickPile *sequencePile, MemDoubleBrickP
 		u32 dispatchLinkIndex=orderedDispatches[i];
 		DispatchLink *dispatchLink=mbDoubleBrickFindByIndex(dispatchPile, dispatchLinkIndex);
 
-		int nextIndexCount=__atomic_add_fetch(&(dispatchLink->position),1, __ATOMIC_SEQ_CST);
+		int nextIndexCount=__atomic_add_fetch(&(dispatchLink->position),1, __ATOMIC_SEQ_CST); // Needed?
 
 		LOG(LOG_INFO,"Outbound is %i, length %i", nextIndexCount, dispatchLink->length);
 
@@ -712,7 +750,7 @@ static int gatherSliceOutbound(MemSingleBrickPile *sequencePile, MemDoubleBrickP
 
 			switch(dispatchLink->indexType)
 				{
-				case LINK_INDEXTYPE_SEQ: // Dispatch -> Seq* -> null
+				case LINK_INDEXTYPE_SEQ: // Dispatch -> Seq* -> null - should be at end of sequence
 					{
 					u32 sequenceLinkIndex=dispatchLink->nextOrSourceIndex;
 
@@ -729,17 +767,29 @@ static int gatherSliceOutbound(MemSingleBrickPile *sequencePile, MemDoubleBrickP
 					break;
 					}
 
-				case LINK_INDEXTYPE_LOOKUP: // Dispatch -> Lookup -> Seq* -> null
+				case LINK_INDEXTYPE_LOOKUP: // Dispatch -> Lookup -> Seq* -> null - shuffle 'used' dispatch link and dispatch
 					{
-					LookupLink *lookupLink=mbDoubleBrickFindByIndex(lookupPile, dispatchLink->nextOrSourceIndex);
+					shuffleProcessedDispatchLinkEntries(dispatchLink);
+					assignToDispatchArrayEntry(dispatchArray, dispatchLinkIndex, dispatchLink);
 
-					LOG(LOG_CRITICAL,"TODO: Lookup type: SmerCount: %i",lookupLink->smerCount);
+					//LookupLink *lookupLink=mbDoubleBrickFindByIndex(lookupPile, dispatchLink->nextOrSourceIndex);
+					//LOG(LOG_CRITICAL,"TODO: Lookup type: SmerCount: %i",lookupLink->smerCount);
 					break;
 					}
 
-				case LINK_INDEXTYPE_DISPATCH: // Dispatch -> Dispatch -> ...
-					LOG(LOG_CRITICAL,"TODO: Dispatch type");
+				case LINK_INDEXTYPE_DISPATCH: // Dispatch -> Dispatch -> ... - dispatch from later dispatch link
+					{
+					u32 nextDispatchLinkIndex=dispatchLink->nextOrSourceIndex;
+					DispatchLink *nextDispatchLink=mbDoubleBrickFindByIndex(dispatchPile, nextDispatchLinkIndex);
+
+					s32 offsetAdjust=calculateDispatchLinkTotalSequenceOffset(dispatchLink);
+					nextDispatchLink->smers[0].seqIndexOffset+=offsetAdjust; // Should try to remove seqLinks here too
+
+					mbDoubleBrickFreeByIndex(dispatchPile, dispatchLinkIndex);
+					assignToDispatchArrayEntry(dispatchArray, nextDispatchLinkIndex, nextDispatchLink);
+
 					break;
+					}
 				}
 
 			}

@@ -73,6 +73,22 @@ typedef struct routePatchStr
 	s32 suffixIndex;
 } RoutePatch;
 
+// Need new more flexible dispatchLink queue options here
+// RoutingSmerAssignedDispatchLink - indexes of all the dispatchLinks queued for a single smer
+// RoutingSliceAssignedDispatchLinkQueue - all dispatchLinks queued for a single SliceGroup
+
+typedef struct routingSmerAssignedDispatchLinkQueueStr {
+	s32 sliceIndex; // 4
+	u32 entryCount; // 4
+	u32 position; // 4
+	u32 *dispatchLinkIndexEntries; // 8
+} RoutingSmerAssignedDispatchLink;
+
+typedef struct routingSliceAssignedDispatchLinkQueueStr {
+	IohHash *smerQueueMap;
+
+} RoutingSliceAssignedDispatchLinkQueue;
+
 
 typedef struct routingIndexedDispatchLinkIndexBlockStr {
 	s32 sliceIndex; // 4
