@@ -138,6 +138,45 @@ void assignToDispatchArrayEntry(RoutingReadReferenceBlockDispatchArray *array, u
 
 
 
+static void initDispatchLinkQueue(RoutingSmerAssignedDispatchLinkQueue *queue, s32 sliceIndex, MemDispenser *disp)
+{
+	queue->sliceIndex=sliceIndex;
+	queue->entryCount=0;
+	queue->position=0;
+	queue->dispatchLinkIndexEntries=dAllocCacheAligned(disp, TR_DISPATCH_READS_PER_QUEUE_BLOCK*sizeof(u32));
+}
+
+RoutingSmerAssignedDispatchLinkQueue *allocDispatchLinkQueue(MemDispenser *disp,  s32 sliceIndex)
+{
+	RoutingSmerAssignedDispatchLinkQueue *queue=dAlloc(disp, sizeof(RoutingSmerAssignedDispatchLinkQueue));
+	initDispatchLinkQueue(queue, sliceIndex, disp);
+	return queue;
+}
+
+static void expandDispatchLinkQueue(RoutingSmerAssignedDispatchLinkQueue *queue, MemDispenser *disp)
+{
+	int oldSize=queue->entryCount;
+	int size=oldSize*2;
+
+	int oldEntrySize=oldSize*sizeof(u32);
+
+	u32 *entries=dAllocCacheAligned(disp, size*sizeof(u32));
+	memcpy(entries,queue->dispatchLinkIndexEntries,oldEntrySize);
+	queue->dispatchLinkIndexEntries=entries;
+
+}
+
+static void assignDispatchLinkToQueue(RoutingSmerAssignedDispatchLinkQueue *queue, u32 dispatchLinkIndex, MemDispenser *disp)
+{
+	u64 entryCount=queue->entryCount;
+	if(entryCount>=TR_DISPATCH_READS_PER_QUEUE_BLOCK && !((entryCount & (entryCount - 1))))
+		expandDispatchLinkQueue(queue, disp);
+
+	queue->dispatchLinkIndexEntries[entryCount]=dispatchLinkIndex;
+	queue->entryCount++;
+}
+
+
 void initRoutingDispatchGroupState(RoutingDispatchGroupState *dispatchGroupState)
 {
 	MemDispenser *disp=dispenserAlloc(MEMTRACKID_DISPENSER_ROUTING_DISPATCH_GROUPSTATE, DISPENSER_BLOCKSIZE_MEDIUM, DISPENSER_BLOCKSIZE_HUGE);
@@ -146,10 +185,16 @@ void initRoutingDispatchGroupState(RoutingDispatchGroupState *dispatchGroupState
 	dispatchGroupState->forceCount=0;
 	dispatchGroupState->disp=disp;
 
+	dispatchGroupState->swapDisp=dispenserAlloc(MEMTRACKID_DISPENSER_ROUTING_DISPATCH_GROUPSTATE, DISPENSER_BLOCKSIZE_MEDIUM, DISPENSER_BLOCKSIZE_HUGE);
+
 	for(int j=0;j<SMER_DISPATCH_GROUP_SLICES;j++)
 		initDispatchIntermediateBlock(dispatchGroupState->smerInboundDispatches+j, disp);
 
 	dispatchGroupState->outboundDispatches=NULL;
+
+	for(int j=0;j<SMER_DISPATCH_GROUP_SLICES;j++)
+		dispatchGroupState->dispatchLinkQueue.smerQueueMap[j]=NULL;
+
 }
 
 
@@ -184,10 +229,18 @@ void recycleRoutingDispatchGroupState(RoutingDispatchGroupState *dispatchGroupSt
 		{
 		disp=dispenserAlloc(MEMTRACKID_DISPENSER_ROUTING_DISPATCH_GROUPSTATE, DISPENSER_BLOCKSIZE_MEDIUM, DISPENSER_BLOCKSIZE_HUGE);
 		dispatchGroupState->disp=disp;
+		dispatchGroupState->swapDisp=dispenserAlloc(MEMTRACKID_DISPENSER_ROUTING_DISPATCH_GROUPSTATE, DISPENSER_BLOCKSIZE_MEDIUM, DISPENSER_BLOCKSIZE_HUGE);
 		}
 	else
 		{
+		// TODO: copy remaining queue items into 'swapDisp' space
+
 		dispenserReset(disp);
+
+		dispatchGroupState->disp=dispatchGroupState->swapDisp;
+		dispatchGroupState->swapDisp=disp;
+
+		disp=dispatchGroupState->disp;
 		}
 
 	for(int j=0;j<SMER_DISPATCH_GROUP_SLICES;j++)
@@ -557,7 +610,8 @@ static int calcCapacityForIndexedEntries(int entryCount)
 }
 
 
-static int indexDispatchesForSlice(MemDoubleBrickPile *dispatchPile, RoutingDispatchLinkIndexBlock *smerInboundDispatches, int sliceSmerCount, MemDispenser *disp,
+static int indexDispatchesForSlice(MemDoubleBrickPile *dispatchPile, RoutingDispatchLinkIndexBlock *smerInboundDispatches,
+		int sliceSmerCount, MemDispenser *disp,
 		RoutingIndexedDispatchLinkIndexBlock ***indexedDispatchesPtr)
 {
 	//for(int i=0;i<smerInboundDispatches->entryCount;i++)
@@ -609,11 +663,45 @@ void dumpPatches(RoutePatch *patches, int patchCount)
 }
 */
 
+static void assignInboundDispatchesToLinkQueue(MemDoubleBrickPile *dispatchPile, RoutingDispatchLinkIndexBlock *smerInboundDispatches,
+		int sliceSmerCount, MemDispenser *disp, RoutingSliceAssignedDispatchLinkQueue *dispatchLinkQueue, s32 sliceWithinGroupIndex)
+{
+
+	for(int i=0;i<smerInboundDispatches->entryCount;i++)
+		{
+		u32 dispatchLinkIndex=smerInboundDispatches->entries[i];
+		DispatchLink *dispatchLink=mbDoubleBrickFindByIndex(dispatchPile, dispatchLinkIndex);
+
+		int index=dispatchLink->position+1;
+		int sliceIndex=dispatchLink->smers[index].sliceIndex;
+
+		IohHash *map=dispatchLinkQueue->smerQueueMap[sliceWithinGroupIndex];
+
+		if(map==NULL)
+			{
+			map=iohInitMap(disp, 8);
+			dispatchLinkQueue->smerQueueMap[sliceWithinGroupIndex]=map;
+			}
+
+		RoutingSmerAssignedDispatchLinkQueue *dispatchQueue=iohGet(map, sliceIndex);
+
+		if(dispatchQueue==NULL)
+			{
+			dispatchQueue=allocDispatchLinkQueue(disp, sliceIndex);
+			iohPut(map, sliceIndex, dispatchQueue);
+			}
+
+		assignDispatchLinkToQueue(dispatchQueue, dispatchLinkIndex, disp);
+		}
+
+}
 
 
 static void processSlice(MemDoubleBrickPile *dispatchPile, RoutingDispatchLinkIndexBlock *smerInboundDispatches,  SmerArraySlice *slice, u32 sliceIndex,
 		u32 *orderedDispatches, MemDispenser *disp, MemDispenser *routingDisp, MemCircHeap *circHeap)
 {
+
+
 	for(int i=0;i<smerInboundDispatches->entryCount;i++)
 		{
 		u32 dispatchLinkIndex=smerInboundDispatches->entries[i];
@@ -627,6 +715,8 @@ static void processSlice(MemDoubleBrickPile *dispatchPile, RoutingDispatchLinkIn
 
 	if(smerInboundDispatches->entryCount>0)
 		{
+
+
 		RoutingIndexedDispatchLinkIndexBlock **indexedDispatches=NULL;
 
 		int indexLength=indexDispatchesForSlice(dispatchPile, smerInboundDispatches, slice->smerCount, disp, &indexedDispatches);
@@ -875,6 +965,13 @@ static int scanForDispatchesForGroups(RoutingBuilder *rb, int startGroup, int en
 
 						if(inboundEntryCount>0)
 							{
+							assignInboundDispatchesToLinkQueue(dispatchPile, smerInboundDispatches, inboundEntryCount,
+									groupState->disp, &(groupState->dispatchLinkQueue), j);
+
+
+							LOG(LOG_CRITICAL,"Use queues");
+
+							// Older stuff here
 							u32 *orderedDispatches=dAlloc(groupState->disp, sizeof(u32)*inboundEntryCount);
 
 							int sliceNumber=j+(i << SMER_DISPATCH_GROUP_SHIFT);

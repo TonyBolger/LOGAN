@@ -195,6 +195,8 @@ typedef struct routingReadLookupRecycleBlockStr {
 //#define TR_DISPATCH_READS_PER_BLOCK 64
 #define TR_DISPATCH_READS_PER_INTERMEDIATE_BLOCK 256
 
+#define TR_DISPATCH_READS_PER_QUEUE_BLOCK 256
+
 /*
 //__attribute__((aligned (32)))
 
@@ -288,9 +290,12 @@ typedef struct routingDispatchGroupStateStr {
 	u32 status; // 0 = idle, 1 = active
 	s32 forceCount;
 	MemDispenser *disp;
+	MemDispenser *swapDisp;
 
 	RoutingDispatchLinkIndexBlock smerInboundDispatches[SMER_DISPATCH_GROUP_SLICES]; // Accumulator for inbound reads to this group
 	RoutingReadReferenceBlockDispatchArray *outboundDispatches; // Array with partially routed reads going to next dispatch group
+
+	RoutingSliceAssignedDispatchLinkQueue dispatchLinkQueue;
 
 } RoutingDispatchGroupState;
 
