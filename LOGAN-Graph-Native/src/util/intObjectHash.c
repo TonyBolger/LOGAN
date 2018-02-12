@@ -103,6 +103,24 @@ void **iohGetAllValues(IohHash *map)
 	return out;
 }
 
+int iohGetNext(IohHash *map, int startIndex, int *keyPtr, void **valuePtr)
+{
+	for(int i=startIndex;i<=map->bucketMask;i++)
+		{
+		int key=map->keys[i];
+		if(key!=KEY_DUMMY)
+			{
+			*keyPtr=key;
+			*valuePtr=map->values[i];
+			return i+1;
+			}
+		}
+
+	return 0;
+}
+
+
+
 static void resize(IohHash *map)
 {
 	LOG(LOG_INFO,"Hash Resize");

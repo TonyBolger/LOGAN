@@ -1047,7 +1047,7 @@ static s32 getAndUpdateSequenceLinkPosition(SequenceLink *sequenceLink, MemSingl
 
 static s32 getLastDispatchPosition(DispatchLink *dispatchLink)
 {
-	LOG(LOG_CRITICAL,"HERE");
+	LOG(LOG_INFO,"getLastDispatchPosition");
 
 	s32 total=0;
 	for(int i=0;i<dispatchLink->length;i++)
