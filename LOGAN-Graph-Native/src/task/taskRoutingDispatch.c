@@ -780,7 +780,7 @@ static int countLinkQueueDispatchesForSlice(RoutingSliceAssignedDispatchLinkQueu
 }
 
 
-static void processSlice(MemDoubleBrickPile *dispatchPile, RoutingSliceAssignedDispatchLinkQueue *dispatchLinkQueue,  SmerArraySlice *slice, u32 sliceWithinGroupIndex,
+static int processSlice(MemDoubleBrickPile *dispatchPile, RoutingSliceAssignedDispatchLinkQueue *dispatchLinkQueue,  SmerArraySlice *slice, u32 sliceWithinGroupIndex,
 		u32 *orderedDispatches, MemDispenser *stateDisp, MemDispenser *routingDisp, MemCircHeap *circHeap)
 {
 	IohHash *map=dispatchLinkQueue->smerQueueMap[sliceWithinGroupIndex];
@@ -835,6 +835,10 @@ static void processSlice(MemDoubleBrickPile *dispatchPile, RoutingSliceAssignedD
 
 		nextIndex=iohGetNext(map, nextIndex, &sliceIndex, (void **)&dispatchQueue);
 		}
+
+	return dispatchOffset;
+
+
 
 	/*
 	for(int i=0;i<smerInboundDispatches->entryCount;i++)
@@ -950,7 +954,7 @@ static s32 calculateDispatchLinkTotalSequenceOffset(DispatchLink *dispatchLink)
 
 
 static int gatherSliceOutbound(MemSingleBrickPile *sequencePile, MemDoubleBrickPile *lookupPile, MemDoubleBrickPile *dispatchPile,
-		RoutingDispatchGroupState *groupState, int sliceNum, u32 *orderedDispatches)
+		RoutingDispatchGroupState *groupState, int sliceNum, u32 *orderedDispatches, int sliceDispatches)
 {
 	int work=0;
 
@@ -958,10 +962,13 @@ static int gatherSliceOutbound(MemSingleBrickPile *sequencePile, MemDoubleBrickP
 	RoutingReadReferenceBlockDispatchArray *dispatchArray=groupState->outboundDispatches;
 	RoutingDispatchLinkIndexBlock *smerInboundDispatches=groupState->smerInboundDispatches+sliceNum;
 
-	for(int i=0;i<smerInboundDispatches->entryCount;i++)
+	for(int i=0;i<sliceDispatches;i++)
 		{
 		u32 dispatchLinkIndex=orderedDispatches[i];
+
+		LOG(LOG_INFO,"HERE1");
 		DispatchLink *dispatchLink=mbDoubleBrickFindByIndex(dispatchPile, dispatchLinkIndex);
+		LOG(LOG_INFO,"HERE2");
 
 		int nextIndexCount=__atomic_add_fetch(&(dispatchLink->position),1, __ATOMIC_SEQ_CST); // Needed?
 
@@ -1104,20 +1111,20 @@ static int scanForDispatchesForGroups(RoutingBuilder *rb, int startGroup, int en
 									groupState->disp, &(groupState->dispatchLinkQueue), j);
 							}
 
-						int totalDispatches=countLinkQueueDispatchesForSlice(&(groupState->dispatchLinkQueue), j);
+						int sliceDispatches=countLinkQueueDispatchesForSlice(&(groupState->dispatchLinkQueue), j);
 
 						//dumpDispatchLinkQueue(&(groupState->dispatchLinkQueue));
 
 						//int sliceNumber=j+(i << SMER_DISPATCH_GROUP_SHIFT);
 						//LOG(LOG_INFO,"Processing slice %i",sliceNumber);
 
-						if(totalDispatches>0)
+						if(sliceDispatches>0)
 							{
-							u32 *orderedDispatches=dAlloc(groupState->disp, sizeof(u32)*totalDispatches);
-							processSlice(dispatchPile, &(groupState->dispatchLinkQueue), slice, j, orderedDispatches, groupState->disp, routingDisp, circHeap);
+							u32 *orderedDispatches=dAlloc(groupState->disp, sizeof(u32)*sliceDispatches);
+							int dispatched=processSlice(dispatchPile, &(groupState->dispatchLinkQueue), slice, j, orderedDispatches, groupState->disp, routingDisp, circHeap);
 
 							dispenserReset(routingDisp);
-							gatherSliceOutbound(sequencePile, lookupPile, dispatchPile, groupState, j, orderedDispatches);
+							gatherSliceOutbound(sequencePile, lookupPile, dispatchPile, groupState, j, orderedDispatches, dispatched);
 							}
 
 						}
