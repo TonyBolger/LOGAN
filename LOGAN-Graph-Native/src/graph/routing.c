@@ -1528,6 +1528,8 @@ int rtRouteReadsForSmer(RoutingIndexedDispatchLinkIndexBlock *rdi, SmerArraySlic
 {
 	s32 sliceIndex=rdi->sliceIndex;
 
+	LOG(LOG_INFO,"SliceIndex is %i",sliceIndex);
+
 	u8 *smerDataOrig=slice->smerData[sliceIndex];
 	u8 *smerData=smerDataOrig;
 

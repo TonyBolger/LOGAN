@@ -350,6 +350,7 @@ void trDumpSequenceLink(SequenceLink *link, u32 linkIndex);
 void trDumpLookupLink(LookupLink *link, u32 linkIndex);
 void trDumpDispatchLink(DispatchLink *link, u32 linkIndex);
 
+void trDumpDispatchLinkChain(MemDoubleBrickPile *dispatchPile, DispatchLink *link, u32 linkIndex);
 
 RoutingBuilder *allocRoutingBuilder(Graph *graph, int threads);
 void freeRoutingBuilder(RoutingBuilder *rb);

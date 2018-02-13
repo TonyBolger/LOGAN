@@ -319,8 +319,8 @@ void calculatePossibleSmers(u8 *data, s32 maxIndex, SmerId *smerIds)
 void calculatePossibleSmersAndOrientation(u8 *data, u8 *secondData, s32 dataBytes, s32 secondDataBytes, s32 smerCount, SmerId *smerIds, u32 *revCompPtr)
 {
 	int i=0;
-	u16 revCompAccum=0;
-	u16 revCompFlag=1;
+	u32 revCompAccum=0;
+	u32 revCompFlag=1;
 
 //	u64 rmerGen0=*((SmerId *)data);
 

@@ -114,6 +114,20 @@ void trDumpDispatchLink(DispatchLink *link, u32 linkIndex)
 }
 
 
+void trDumpDispatchLinkChain(MemDoubleBrickPile *dispatchPile, DispatchLink *link, u32 linkIndex)
+{
+	trDumpDispatchLink(link, linkIndex);
+
+	while(link->indexType==LINK_INDEXTYPE_DISPATCH)
+		{
+		linkIndex=link->nextOrSourceIndex;
+		link=mbDoubleBrickFindByIndex(dispatchPile, linkIndex);
+
+		trDumpDispatchLink(link, linkIndex);
+		}
+}
+
+
 static void *trDoRegister(ParallelTask *pt, int workerNo, int totalWorkers)
 {
 	RoutingWorkerState *workerState=G_ALLOC(sizeof(RoutingWorkerState), MEMTRACKID_ROUTING_WORKERSTATE);

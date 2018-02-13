@@ -312,7 +312,7 @@ static void rtaDumpRoutingTableArray_single(char *name, RouteTableEntry *entries
 
 void rtaDumpRoutingTableArray(RouteTableArrayBuilder *builder)
 {
-	LOG(LOG_INFO,"Header: %i %i %i", builder->maxPrefix, builder->maxSuffix, builder->maxWidth);
+	LOG(LOG_INFO,"Header: MaxPrefix: %i MaxSuffix: %i MaxWidth: %i", builder->maxPrefix, builder->maxSuffix, builder->maxWidth);
 
 	rtaDumpRoutingTableArray_single("Old Forward", builder->oldForwardEntries, builder->oldForwardEntryCount);
 	rtaDumpRoutingTableArray_single("New Forward", builder->newForwardEntries, builder->newForwardEntryCount);
@@ -848,6 +848,8 @@ RouteTableEntry *rtaMergeRoutes_ordered_forwardMulti(RouteTableArrayBuilder *bui
 
 	while(patchPtr<patchPtrEnd)
 		{
+		LOG(LOG_INFO,"rtaMergeRoutes_ordered_forwardMulti");
+
 		int targetPrefix=patchPtr->prefixIndex;
 		int targetSuffix=patchPtr->suffixIndex;
 		int minEdgePosition=(*(patchPtr->rdiPtr))->minEdgePosition;
@@ -1738,6 +1740,7 @@ void rtaMergeRoutes(RouteTableArrayBuilder *builder, RoutePatch *forwardRoutePat
 
 		for(int i=0;i<forwardRoutePatchCount;i++)
 			{
+			LOG(LOG_INFO,"OrderDispFwd: %i",patchPtr->dispatchLinkIndex);
 			*(orderedDispatches++)=patchPtr->dispatchLinkIndex;
 			patchPtr++;
 			}
@@ -1860,6 +1863,7 @@ void rtaMergeRoutes(RouteTableArrayBuilder *builder, RoutePatch *forwardRoutePat
 
 		for(int i=0;i<reverseRoutePatchCount;i++)
 			{
+			LOG(LOG_INFO,"OrderDispRev: %i",patchPtr->dispatchLinkIndex);
 			*(orderedDispatches++)=patchPtr->dispatchLinkIndex;
 			patchPtr++;
 			}

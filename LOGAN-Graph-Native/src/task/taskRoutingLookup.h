@@ -3,6 +3,8 @@
 
 int countLookupReadsRemaining(RoutingBuilder *rb);
 
+RoutingReadLookupRecycleBlock *recycleLookupLink(RoutingBuilder *rb, RoutingReadLookupRecycleBlock *recycleBlock, s32 blockType, u32 lookupLinkIndex);
+void flushRecycleBlock(RoutingBuilder *rb, RoutingReadLookupRecycleBlock *recycleBlock);
 
 // Entry points for trDoIntermediate
 
