@@ -90,6 +90,23 @@ void waitForShutdown(ParallelTask *pt)
 }
 
 
+static void considerTickTock(ParallelTask *pt)
+{
+	static int counter=0;
+//	LOG(LOG_INFO,"Tick tock MF");
+
+	if(++counter>1000)
+		{
+		if(pt->config->doTickTock != NULL)
+			pt->config->doTickTock(pt);
+
+		counter=0;
+		}
+}
+
+
+
+
 int queueIngress(ParallelTask *pt, ParallelTaskIngress *ingressData)
 {
 	//LOG(LOG_INFO,"Master: Queue Ingress %p %i - Usage %i", ingressData->ingressPtr, ingressData->ingressTotal, *(ingressData->ingressUsageCount));
@@ -105,14 +122,10 @@ int queueIngress(ParallelTask *pt, ParallelTaskIngress *ingressData)
 
 		nanosleep(&req, NULL);
 
-		if(pt->config->doTickTock != NULL)
-			pt->config->doTickTock(pt);
+		considerTickTock(pt);
 
 		wakeIdleWorkers(pt);
 		}
-
-	if(pt->config->doTickTock != NULL)
-		pt->config->doTickTock(pt);
 
 	wakeIdleWorkers(pt);
 
@@ -125,6 +138,9 @@ int queueIngress(ParallelTask *pt, ParallelTaskIngress *ingressData)
 void queueShutdown(ParallelTask *pt)
 {
 	LOG(LOG_INFO,"Master: QueueShutdown");
+
+	if(pt->config->doTickTock != NULL)
+		pt->config->doTickTock(pt);
 
 	__atomic_store_n(&pt->reqShutdown, 1, __ATOMIC_SEQ_CST);
 	wakeIdleWorkers(pt);

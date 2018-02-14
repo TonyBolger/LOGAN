@@ -337,31 +337,6 @@ static int trDoIntermediate(ParallelTask *pt, int workerNo, void *wState, int fo
 	RoutingWorkerState *workerState=wState;
 	RoutingBuilder *rb=pt->dataPtr;
 
-
-
-
-
-
-//	sleep(1);
-
-//	RoutingWorkerState *workerState=wState;
-//	RoutingBuilder *rb=pt->dataPtr;
-
-/*
-	if(__atomic_load_n(&rb->pogoSuppressionFlag, __ATOMIC_RELAXED))
-		{
-		__atomic_store_n(&rb->pogoSuppressionFlag, 0, __ATOMIC_RELAXED);
-
-		int lookupReads=countLookupReadsRemaining(rb);
-		int dispatchReads=countDispatchReadsRemaining(rb);
-
-		int arlb=__atomic_load_n(&rb->allocatedReadLookupBlocks, __ATOMIC_SEQ_CST);
-		int ardb=__atomic_load_n(&rb->allocatedReadDispatchBlocks, __ATOMIC_SEQ_CST);
-
-		LOG(LOG_INFO,"Lookup %i (%i) Dispatch %i (%i) - force %i",lookupReads,arlb, dispatchReads, ardb, force);
-		}
-*/
-
 	/*
 	if(scanForCompleteReadDispatchBlocks(rb))
 		{
@@ -397,8 +372,9 @@ static int trDoIntermediate(ParallelTask *pt, int workerNo, void *wState, int fo
 	int arlb=0;
 	int ardb=0;
 
-	checkForWork(rb, &arlb, &ardb);
+	//checkForWork(rb, &arlb, &ardb);
 
+	/*
 	if((force)||(arlb>TR_READBLOCK_LOOKUPS_THRESHOLD))
 		{
 		if(scanForSmerLookups(rb, workerNo, workerState))
@@ -413,6 +389,14 @@ static int trDoIntermediate(ParallelTask *pt, int workerNo, void *wState, int fo
 		//LOG(LOG_INFO,"scanForDispatches 2");
 		return 1;
 		}
+*/
+
+	int work=scanForSmerLookups(rb, workerNo, workerState);
+
+	work+=scanForDispatches(rb, workerNo, workerState, force);
+
+	if(work)
+		return 1;
 
 	if(checkForWork(rb, &arlb, &ardb)) // If in force mode, and not finished, rally the minions
 		return force;
@@ -430,18 +414,9 @@ static int trDoTidy(ParallelTask *pt, int workerNo, void *wState, int tidyNo)
 
 static void trDoTickTock(ParallelTask *pt)
 {
-	static int counter=0;
-//	LOG(LOG_INFO,"Tick tock MF");
-
 	RoutingBuilder *rb=pt->dataPtr;
-	__atomic_store_n(&(rb->pogoDebugFlag), 1, __ATOMIC_RELAXED);
 
-	if(++counter>1000)
-		{
-		showWorkStatus(rb);
-		counter=0;
-		}
-
+	showWorkStatus(rb);
 }
 
 

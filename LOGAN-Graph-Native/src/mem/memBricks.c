@@ -106,12 +106,12 @@ void mbFreeDoubleBrickPile(MemDoubleBrickPile *pile)
 
 s32 mbGetFreeSingleBrickPile(MemSingleBrickPile *pile)
 {
-	return __atomic_load_n(&(pile->freeCount),__ATOMIC_RELAXED);
+	return __atomic_load_n(&(pile->freeCount),__ATOMIC_SEQ_CST);
 }
 
 s32 mbGetFreeSingleBrickChunk(MemSingleBrickChunk *chunk)
 {
-	s32 free=__atomic_load_n(&(chunk->header.freeCount),__ATOMIC_RELAXED);
+	s32 free=__atomic_load_n(&(chunk->header.freeCount),__ATOMIC_SEQ_CST);
 	//LOG(LOG_INFO,"Chunk Free %i",free);
 	return free;
 }
@@ -133,12 +133,12 @@ s32 mbGetSingleBrickPileCapacity(MemSingleBrickPile *pile)
 
 s32 mbGetFreeDoubleBrickPile(MemDoubleBrickPile *pile)
 {
-	return __atomic_load_n(&(pile->freeCount),__ATOMIC_RELAXED);
+	return __atomic_load_n(&(pile->freeCount),__ATOMIC_SEQ_CST);
 }
 
 s32 mbGetFreeDoubleBrickChunk(MemDoubleBrickChunk *chunk)
 {
-	s32 free=__atomic_load_n(&(chunk->header.freeCount),__ATOMIC_RELAXED);
+	s32 free=__atomic_load_n(&(chunk->header.freeCount),__ATOMIC_SEQ_CST);
 	//LOG(LOG_INFO,"Chunk Free %i",free);
 	return free;
 }
@@ -815,7 +815,10 @@ void mbSingleBrickFreeByIndex(MemSingleBrickPile *pile, u32 brickIndex)
 	if(!singleBlockUnallocateEntry(pile->chunks[chunkIndex], flagIndex, allocIndex))
 		LOG(LOG_CRITICAL,"Failed to free %i -> %i %i %i", brickIndex, chunkIndex, flagIndex, allocIndex);
 
-	__atomic_fetch_add(&pile->freeCount, 1, __ATOMIC_RELAXED);
+	LOG(LOG_INFO,"Free single");
+
+	//__atomic_fetch_add(&pile->freeCount, 1, __ATOMIC_RELAXED);
+	__atomic_fetch_add(&pile->freeCount, 1, __ATOMIC_SEQ_CST);
 }
 
 
@@ -945,9 +948,13 @@ void mbDoubleBrickFreeByIndex(MemDoubleBrickPile *pile, u32 brickIndex)
 	if(chunkIndex>pile->chunkCount)
 		LOG(LOG_CRITICAL,"Index beyond end of pile");
 
-	doubleBlockUnallocateEntry(pile->chunks[chunkIndex], flagIndex, allocIndex);
+	if(!doubleBlockUnallocateEntry(pile->chunks[chunkIndex], flagIndex, allocIndex))
+		LOG(LOG_CRITICAL,"Failed to free %i -> %i %i %i", brickIndex, chunkIndex, flagIndex, allocIndex);
 
-	__atomic_fetch_add(&pile->freeCount, 1, __ATOMIC_RELAXED);
+	LOG(LOG_INFO,"Free double");
+
+	//__atomic_fetch_add(&pile->freeCount, 1, __ATOMIC_RELAXED);
+	__atomic_fetch_add(&pile->freeCount, 1, __ATOMIC_SEQ_CST);
 }
 
 

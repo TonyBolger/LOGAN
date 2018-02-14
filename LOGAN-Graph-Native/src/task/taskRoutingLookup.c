@@ -825,6 +825,8 @@ int queueSmerLookupsForIngress(RoutingBuilder *rb, RoutingReadIngressBlock *ingr
 	for(int i=0;i<SMER_SLICES;i++)
 		lookupBlock->smerEntryLookups[i]=allocEntryLookupBlock(disp);
 
+	lookupBlock->blockType=LOOKUP_RECYCLE_BLOCK_PREDISPATCH;
+
 	MemDoubleBrickAllocator alloc;
 	mbInitDoubleBrickAllocator(&alloc, lookupPile, sequences);
 
@@ -953,8 +955,8 @@ static int transferFoundSmersToDispatch(DispatchLink *dispatchLink, MemDoubleBri
 
 			newDispatchLink->length=2; // Overlap of two from previous
 			newDispatchLink->position=0;
-			newDispatchLink->minEdgePosition=TR_INIT_MINEDGEPOSITION;
-			newDispatchLink->maxEdgePosition=TR_INIT_MINEDGEPOSITION; // Invalid to force later transfer from earlier dispatch link
+			newDispatchLink->minEdgePosition=TR_INIT_EDGEPOSITION_INVALID;
+			newDispatchLink->maxEdgePosition=TR_INIT_EDGEPOSITION_INVALID; // Invalid to force later transfer from earlier dispatch link
 
 			int smerOffset=(DISPATCH_LINK_SMERS-2);
 
@@ -1169,7 +1171,10 @@ static void processPredispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb,
 				{
 //				LOG(LOG_INFO,"Small dispatch scenario");
 
+				LOG(LOG_INFO,"Free double lookup");
 				mbDoubleBrickFreeByIndex(lookupPile, lookupLinkIndex);
+
+				LOG(LOG_INFO,"Assign");
 				assignToDispatchArrayEntry(dispArray, dispatchLinkIndex, dispatchLink);
 				}
 			}
@@ -1190,9 +1195,11 @@ static void processPredispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb,
 				{
 //				LOG(LOG_INFO,"Single dispatch scenario without lookup");
 
+				LOG(LOG_INFO,"Free double lookup");
 				mbDoubleBrickFreeByIndex(lookupPile, lookupLinkIndex);
 				}
 
+			LOG(LOG_INFO,"Assign");
 			assignToDispatchArrayEntry(dispArray, dispatchLinkIndex, dispatchLink);
 			}
 		else // Using multiple dispatch links
@@ -1218,9 +1225,11 @@ static void processPredispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb,
 				{
 //				LOG(LOG_INFO,"Multiple dispatch scenario without lookup - %p %p", dispatchLink, lastDispatchLink);
 
+				LOG(LOG_INFO,"Free double lookup");
 				mbDoubleBrickFreeByIndex(lookupPile, lookupLinkIndex);
 				}
 
+			LOG(LOG_INFO,"Assign");
 			assignToDispatchArrayEntry(dispArray, dispatchLinkIndex, dispatchLink);
 			}
 		}
@@ -1230,11 +1239,9 @@ static void processPredispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb,
 	flushRecycleBlock(rb, predispatchRecycleBlock);
 	flushRecycleBlock(rb, postdispatchRecycleBlock);
 
-//	LOG(LOG_INFO,"Dispatching");
-
 	queueDispatchArray(rb, dispArray);
 
-	LOG(LOG_INFO,"processPredispatchLookupCompleteReadLookupBlocks done");
+//	LOG(LOG_INFO,"processPredispatchLookupCompleteReadLookupBlocks done");
 }
 
 
@@ -1303,7 +1310,7 @@ static void processPostdispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb
 				indexedSmers, indexedRevComp,
 				extractFlag, lookupReadBlock->smerEntryLookupsPercolates);
 
-		LOG(LOG_INFO,"Found %i of %i (offset %i)", foundCount, smerCount, lookupPosition);
+		//LOG(LOG_INFO,"Found %i of %i (offset %i)", foundCount, smerCount, lookupPosition);
 
 		//LOG(LOG_INFO,"Adjust position by %i",lookupPosition);
 
@@ -1332,14 +1339,14 @@ static void processPostdispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb
 			__atomic_thread_fence(__ATOMIC_SEQ_CST);
 			__atomic_store_n(&(oldLookupLink->smerCount), smerCount, __ATOMIC_SEQ_CST);
 
-			LOG(LOG_INFO,"Kraken released");
+			//LOG(LOG_INFO,"Kraken released");
 			}
 		else
 			{
 			populateLookupLinkSmers(oldLookupLink, sequenceLink, sequencePile);
 			postdispatchRecycleBlock=recycleLookupLink(rb, postdispatchRecycleBlock, LOOKUP_RECYCLE_BLOCK_POSTDISPATCH, oldLookupLinkIndex);
 
-			LOG(LOG_INFO,"Kraken recycle");
+			//LOG(LOG_INFO,"Kraken recycle");
 			}
 
 		}
@@ -1398,8 +1405,11 @@ int scanForAndDispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb)
 
 	if(lookupReadBlock->blockType==LOOKUP_RECYCLE_BLOCK_PREDISPATCH)
 		processPredispatchLookupCompleteReadLookupBlocks(rb, &dispatchLinkAlloc, lookupReadBlock);
-	else
+	else if(lookupReadBlock->blockType==LOOKUP_RECYCLE_BLOCK_POSTDISPATCH)
 		processPostdispatchLookupCompleteReadLookupBlocks(rb, &dispatchLinkAlloc, &lookupLinkAlloc, lookupReadBlock);
+	else
+		LOG(LOG_CRITICAL,"Unknown lookup type %i", lookupReadBlock->blockType);
+
 
 	mbDoubleBrickAllocatorCleanup(&lookupLinkAlloc);
 	mbDoubleBrickAllocatorCleanup(&dispatchLinkAlloc);

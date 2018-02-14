@@ -1200,7 +1200,7 @@ void dumpRoutePatches(char *label, RoutePatch *patches, s32 patchCount)
 	LOG(LOG_INFO,"%s Patches: %i",label, patchCount);
 
 	for(int i=0;i<patchCount;i++)
-		LOG(LOG_INFO, "Patch %i: %i <-> %i [%i:%i]",i, patches[i].prefixIndex, patches[i].suffixIndex,
+		LOG(LOG_INFO, "Patch %i (%i): %i <-> %i [%i:%i]",i, patches[i].dispatchLinkIndex, patches[i].prefixIndex, patches[i].suffixIndex,
 				(*(patches[i].rdiPtr))->minEdgePosition, (*(patches[i].rdiPtr))->maxEdgePosition);
 
 }
@@ -1277,8 +1277,8 @@ static RoutePatch *reorderForwardPatches(RoutePatch *forwardPatches, s32 forward
 {
 	qsort(forwardPatches, forwardCount, sizeof(RoutePatch), forwardPrefixSorter);
 
-//	LOG(LOG_INFO,"Before reorder");
-//	dumpRoutePatches("Forward", forwardPatches, forwardCount);
+	//LOG(LOG_INFO,"Before reorder");
+	//dumpRoutePatches("Forward", forwardPatches, forwardCount);
 
 	int firstPrefix=forwardPatches[0].prefixIndex;
 	int firstPosition=0;
@@ -1298,8 +1298,8 @@ static RoutePatch *reorderForwardPatches(RoutePatch *forwardPatches, s32 forward
 	if(firstPosition<forwardCount-1)
 		reorderForwardPatchRange(forwardPatches, firstPosition, forwardCount);
 
-//	LOG(LOG_INFO,"After reorder");
-//	dumpRoutePatches("Forward", forwardPatches, forwardCount);
+	//LOG(LOG_INFO,"After reorder");
+	//dumpRoutePatches("Forward", forwardPatches, forwardCount);
 
 	return forwardPatches;
 }
@@ -1362,6 +1362,9 @@ static void reorderReversePatchRange(RoutePatch *reversePatches, int firstPositi
 
 static RoutePatch *reorderReversePatches(RoutePatch *reversePatches, s32 reverseCount, MemDispenser *disp)
 {
+	//LOG(LOG_INFO,"Before reorder");
+	//dumpRoutePatches("Reverse", reversePatches, reverseCount);
+
 	qsort(reversePatches, reverseCount, sizeof(RoutePatch), reverseSuffixSorter);
 
 	int firstSuffix=reversePatches[0].suffixIndex;
@@ -1381,6 +1384,9 @@ static RoutePatch *reorderReversePatches(RoutePatch *reversePatches, s32 reverse
 
 	if(firstPosition<reverseCount-1)
 		reorderReversePatchRange(reversePatches, firstPosition, reverseCount);
+
+	//LOG(LOG_INFO,"After reorder");
+	//dumpRoutePatches("Reverse", reversePatches, reverseCount);
 
 	return reversePatches;
 }
@@ -1425,20 +1431,23 @@ static void createRoutePatches(RoutingIndexedDispatchLinkIndexBlock *rdi, int en
 			*/
 		}
 
-		int smerRc=(rdd->revComp>>index)&0x1;
+
+		//int smerRc=(rdd->revComp>>index)&0x1;
+
+		int smerRc=(rdd->revComp>>(index-1))&0x7; // index+1 , index, index-1 (lsb)
 
 		//SmerId currRmer=rdd->indexedData[index].rsmer;
 
-		if(!smerRc) // Canonical Read Orientation
+		if(!(smerRc&0x2)) // Canonical Read Orientation
 			{
 //				smerId=currFmer;
 
 				//SmerId prefixSmer=rdd->indexedData[index+1].rsmer; // Previous smer in read, reversed
 				//SmerId suffixSmer=rdd->indexedData[index-1].fsmer; // Next smer in read
-				SmerId currSmer=rdd->smers[index].smer;
+				SmerId currSmer=rdd->smers[index].smer; // Canonical, matches read orientation
 
-				SmerId prefixSmer=complementSmerId(rdd->smers[index-1].smer);
-				SmerId suffixSmer=rdd->smers[index+1].smer;
+				SmerId prefixSmer=(smerRc&0x1)?(rdd->smers[index-1].smer):complementSmerId(rdd->smers[index-1].smer); // RevComp read orientation
+				SmerId suffixSmer=(smerRc&0x4)?complementSmerId(rdd->smers[index+1].smer):(rdd->smers[index+1].smer); // Read orientation
 
 				int prefixLength=rdd->smers[index].seqIndexOffset;
 				int suffixLength=rdd->smers[index+1].seqIndexOffset;
@@ -1460,21 +1469,21 @@ static void createRoutePatches(RoutingIndexedDispatchLinkIndexBlock *rdi, int en
 					unpackSmer(currSmer, bufferN);
 					unpackSmer(suffixSmer, bufferS);
 
-					LOG(LOG_INFO,"Node Orientation: %s (%i) @ %i %s %s (%i) @ %i",
+					LOG(LOG_INFO,"(F: %i) Node Orientation: %s (%2i) @ %i %s %s (%2i) @ %i", rdi->linkIndexEntries[i],
 							bufferP, prefixLength, forwardPatches[forwardCount].prefixIndex,  bufferN, bufferS, suffixLength, forwardPatches[forwardCount].suffixIndex);
 					}
 
 				forwardCount++;
 			}
-		else	// Reverse-complement Read Orientation
+		else	// (smerRc&0x2) - Reverse-complement Read Orientation
 			{
 				//SmerId prefixSmer=rdd->indexedData[index-1].fsmer; // Next smer in read
 				//SmerId suffixSmer=rdd->indexedData[index+1].rsmer; // Previous smer in read, reversed
 
-				SmerId currSmer=complementSmerId(rdd->smers[index].smer);
+				SmerId currSmer=rdd->smers[index].smer; // Node orientation, RevComp read orientation
 
-				SmerId prefixSmer=complementSmerId(rdd->smers[index+1].smer);
-				SmerId suffixSmer=rdd->smers[index-1].smer;
+				SmerId prefixSmer=(smerRc&0x4)?complementSmerId(rdd->smers[index+1].smer):(rdd->smers[index+1].smer); // Read orientation
+				SmerId suffixSmer=(smerRc&0x1)?(rdd->smers[index-1].smer):complementSmerId(rdd->smers[index-1].smer); // RevComp read orientation
 
 				int prefixLength=rdd->smers[index+1].seqIndexOffset;
 				int suffixLength=rdd->smers[index].seqIndexOffset;
@@ -1495,7 +1504,7 @@ static void createRoutePatches(RoutingIndexedDispatchLinkIndexBlock *rdi, int en
 					unpackSmer(currSmer, bufferN);
 					unpackSmer(suffixSmer, bufferS);
 
-					LOG(LOG_INFO,"Node Orientation: %s (%i) @ %i %s %s (%i) @ %i",
+					LOG(LOG_INFO,"(R: %i) Node Orientation: %s (%2i) @ %2i %s %s (%2i) @ %2i", rdi->linkIndexEntries[i],
 							bufferP, prefixLength, reversePatches[reverseCount].prefixIndex,  bufferN, bufferS, suffixLength, reversePatches[reverseCount].suffixIndex);
 					}
 
@@ -1528,7 +1537,7 @@ int rtRouteReadsForSmer(RoutingIndexedDispatchLinkIndexBlock *rdi, SmerArraySlic
 {
 	s32 sliceIndex=rdi->sliceIndex;
 
-	LOG(LOG_INFO,"SliceIndex is %i",sliceIndex);
+//	LOG(LOG_INFO,"SliceIndex is %i",sliceIndex);
 
 	u8 *smerDataOrig=slice->smerData[sliceIndex];
 	u8 *smerData=smerDataOrig;
@@ -1647,7 +1656,14 @@ int rtRouteReadsForSmer(RoutingIndexedDispatchLinkIndexBlock *rdi, SmerArraySlic
 			dumpRoutePatches("Reverse", reversePatches, reverseCount);
 */
 
+//		LOG(LOG_INFO,"Before merge route:");
+//		rtaDumpRoutingTableArray(routingBuilder.arrayBuilder);
+
 		rtaMergeRoutes(routingBuilder.arrayBuilder, forwardPatches, reversePatches, forwardCount, reverseCount, prefixCount, suffixCount, orderedDispatches, disp);
+
+//		LOG(LOG_INFO,"After merge route:");
+//		rtaDumpRoutingTableArray(routingBuilder.arrayBuilder);
+
 		writeBuildersAsDirectData(&routingBuilder, sliceTag, sliceIndex, circHeap);
 		}
 

@@ -685,7 +685,7 @@ static RouteTableEntry *rtaMergeRoutes_ordered_forwardSingle(//RouteTableArrayBu
 
 
 
-static RouteTableEntry *rtaMergeRoutes_ordered_forwardSingle(//RouteTableArrayBuilder *builder,
+static RouteTableEntry *rtaMergeRoutes_ordered_forwardSingle(RouteTableArrayBuilder *builder,
 		RouteTableEntry *oldEntryPtr, RouteTableEntry *oldEntryEnd, RouteTableEntry *newEntryPtr, RoutePatch *patch, int *maxWidth)
 {
 	int targetPrefix=patch->prefixIndex;
@@ -749,7 +749,7 @@ static RouteTableEntry *rtaMergeRoutes_ordered_forwardSingle(//RouteTableArrayBu
 
 		if(minMargin<0 || maxMargin<0)
 			{
-//			rtaDumpRoutingTableArray(builder);
+			rtaDumpRoutingTableArray(builder);
 
 			LOG(LOG_INFO,"Failed to add forward route for prefix %i suffix %i",targetPrefix,targetSuffix);
 			LOG(LOG_INFO,"Current edge offset %i minEdgePosition %i maxEdgePosition %i",upstreamEdgeOffset,minEdgePosition,maxEdgePosition);
@@ -848,7 +848,7 @@ RouteTableEntry *rtaMergeRoutes_ordered_forwardMulti(RouteTableArrayBuilder *bui
 
 	while(patchPtr<patchPtrEnd)
 		{
-		LOG(LOG_INFO,"rtaMergeRoutes_ordered_forwardMulti");
+		//LOG(LOG_INFO,"rtaMergeRoutes_ordered_forwardMulti");
 
 		int targetPrefix=patchPtr->prefixIndex;
 		int targetSuffix=patchPtr->suffixIndex;
@@ -1210,7 +1210,7 @@ static RouteTableEntry *rtaMergeRoutes_ordered_reverseSingle(RouteTableEntry *ol
 
 
 
-static RouteTableEntry *rtaMergeRoutes_ordered_reverseSingle(//RouteTableArrayBuilder *builder,
+static RouteTableEntry *rtaMergeRoutes_ordered_reverseSingle(RouteTableArrayBuilder *builder,
 		RouteTableEntry *oldEntryPtr, RouteTableEntry *oldEntryEnd, RouteTableEntry *newEntryPtr, RoutePatch *patch, int *maxWidth)
 {
 	int targetPrefix=patch->prefixIndex;
@@ -1221,7 +1221,7 @@ static RouteTableEntry *rtaMergeRoutes_ordered_reverseSingle(//RouteTableArrayBu
 	int upstreamEdgeOffset=0;
 	int downstreamEdgeOffset=0;
 
-//	LOG(LOG_INFO,"rtaMergeRoutes_ordered_forwardSingle %i %i with %i %i",targetPrefix, targetSuffix, minEdgePosition, maxEdgePosition);
+//	LOG(LOG_INFO,"rtaMergeRoutes_ordered_reverseSingle %i %i with %i %i",targetPrefix, targetSuffix, minEdgePosition, maxEdgePosition);
 
 	RouteTableArrayBuffer buf;
 	initArrayBuffer(&buf, oldEntryPtr, oldEntryEnd, newEntryPtr, *maxWidth);
@@ -1274,9 +1274,9 @@ static RouteTableEntry *rtaMergeRoutes_ordered_reverseSingle(//RouteTableArrayBu
 
 		if(minMargin<0 || maxMargin<0)
 			{
-//			rtaDumpRoutingTableArray(builder);
+			rtaDumpRoutingTableArray(builder);
 
-			LOG(LOG_INFO,"Failed to add forward route for prefix %i suffix %i",targetPrefix,targetSuffix);
+			LOG(LOG_INFO,"Failed to add reverse route for prefix %i suffix %i",targetPrefix,targetSuffix);
 			LOG(LOG_INFO,"Current edge offset %i minEdgePosition %i maxEdgePosition %i",upstreamEdgeOffset,minEdgePosition,maxEdgePosition);
 			LOG(LOG_CRITICAL,"Negative gap detected in route insert - Min: %i Max: %i",minMargin,maxMargin);
 			}
@@ -1366,7 +1366,7 @@ RouteTableEntry *rtaMergeRoutes_ordered_reverseMulti(RouteTableArrayBuilder *bui
 		RouteTableEntry *oldEntryPtr, RouteTableEntry *oldEntryEnd, RouteTableEntry *newEntryPtr, RoutePatch *patchPtr, RoutePatch *patchPtrEnd,
 		s32 *upstreamOffsets, s32 *downstreamOffsets, int *maxWidth)
 {
-	//LOG(LOG_INFO,"rtaMergeRoutes_ordered_forwardMulti - %i",(patchPtrEnd-patchPtr));
+	//LOG(LOG_INFO,"rtaMergeRoutes_ordered_reverseMulti - %i",(patchPtrEnd-patchPtr));
 
 	RouteTableArrayBuffer buf;
 	initArrayBuffer(&buf, oldEntryPtr, oldEntryEnd, newEntryPtr, *maxWidth);
@@ -1379,6 +1379,8 @@ RouteTableEntry *rtaMergeRoutes_ordered_reverseMulti(RouteTableArrayBuilder *bui
 		int targetSuffix=patchPtr->suffixIndex;
 		int minEdgePosition=(*(patchPtr->rdiPtr))->minEdgePosition;
 		int maxEdgePosition=(*(patchPtr->rdiPtr))->maxEdgePosition;
+
+//		LOG(LOG_INFO,"Reverse Route: P: %i S: %i [%i %i]", targetPrefix, targetSuffix, minEdgePosition, maxEdgePosition);
 
 		int expectedMaxEdgePosition=maxEdgePosition+1;
 
@@ -1400,6 +1402,8 @@ RouteTableEntry *rtaMergeRoutes_ordered_reverseMulti(RouteTableArrayBuilder *bui
 				patchGroupPtr++;
 			}
 
+//		LOG(LOG_INFO,"Group Size: %i", (patchGroupPtr-patchPtr));
+//		LOG(LOG_INFO,"Offsets now U: %i D: %i", upstreamOffsets[targetSuffix], downstreamOffsets[targetPrefix]);
 
 		while(buf.oldWidth && buf.oldSuffix<targetSuffix) // Skip lower upstream
 			{
@@ -1412,6 +1416,8 @@ RouteTableEntry *rtaMergeRoutes_ordered_reverseMulti(RouteTableArrayBuilder *bui
 
 		//s32 upstreamEdgeOffset=upstreamOffsets[oldEntryPtr->prefix];
 
+//		LOG(LOG_INFO,"Offsets now U: %i D: %i", upstreamOffsets[targetSuffix], downstreamOffsets[targetPrefix]);
+
 		while(buf.oldWidth && buf.oldSuffix==targetSuffix &&
 				((upstreamOffsets[buf.oldSuffix]+buf.oldWidth)<minEdgePosition ||
 				((upstreamOffsets[buf.oldSuffix]+buf.oldWidth)==minEdgePosition && buf.oldPrefix!=targetPrefix))) // Skip earlier upstream
@@ -1423,6 +1429,8 @@ RouteTableEntry *rtaMergeRoutes_ordered_reverseMulti(RouteTableArrayBuilder *bui
 			arrayBufferTransfer(&buf);
 			}
 
+//		LOG(LOG_INFO,"Offsets now U: %i D: %i", upstreamOffsets[targetSuffix], downstreamOffsets[targetPrefix]);
+
 		while(buf.oldWidth && buf.oldSuffix==targetSuffix &&
 			(upstreamOffsets[buf.oldSuffix]+buf.oldWidth)<=maxEdgePosition && buf.oldPrefix<targetPrefix) // Skip matching upstream with earlier downstream
 			{
@@ -1432,6 +1440,8 @@ RouteTableEntry *rtaMergeRoutes_ordered_reverseMulti(RouteTableArrayBuilder *bui
 
 			arrayBufferTransfer(&buf);
 			}
+
+//		LOG(LOG_INFO,"Offsets now U: %i D: %i", upstreamOffsets[targetSuffix], downstreamOffsets[targetPrefix]);
 
 		s32 upstreamEdgeOffset=upstreamOffsets[targetSuffix];
 		s32 downstreamEdgeOffset=downstreamOffsets[targetPrefix];
@@ -1445,12 +1455,12 @@ RouteTableEntry *rtaMergeRoutes_ordered_reverseMulti(RouteTableArrayBuilder *bui
 				{
 				rtaDumpRoutingTableArray(builder);
 
-				LOG(LOG_INFO,"Failed to add forward route for prefix %i suffix %i",targetPrefix,targetSuffix);
+				LOG(LOG_INFO,"Failed to add reverse route for prefix %i suffix %i",targetPrefix,targetSuffix);
 				LOG(LOG_INFO,"Current edge offset %i minEdgePosition %i maxEdgePosition %i",upstreamEdgeOffset,minEdgePosition,maxEdgePosition);
 				LOG(LOG_CRITICAL,"Negative gap detected in route insert - Min: %i Max: %i",minMargin,maxMargin);
 				}
 
-			// LOG(LOG_INFO,"Handoff %i %i",downstreamEdgeOffset,downstreamEdgeOffset);
+			//LOG(LOG_INFO,"Handoff %i %i",downstreamEdgeOffset,downstreamEdgeOffset);
 
 			// Map offsets to new entry
 			(*(patchPtr->rdiPtr))->minEdgePosition=downstreamEdgeOffset;
@@ -1736,11 +1746,11 @@ void rtaMergeRoutes(RouteTableArrayBuilder *builder, RoutePatch *forwardRoutePat
 
 			}
 		else
-			destBufferEnd=rtaMergeRoutes_ordered_forwardSingle(srcBuffer, srcBufferEnd, destBuffer, patchPtr, &maxWidth);
+			destBufferEnd=rtaMergeRoutes_ordered_forwardSingle(builder, srcBuffer, srcBufferEnd, destBuffer, patchPtr, &maxWidth);
 
 		for(int i=0;i<forwardRoutePatchCount;i++)
 			{
-			LOG(LOG_INFO,"OrderDispFwd: %i",patchPtr->dispatchLinkIndex);
+//			LOG(LOG_INFO,"OrderDispFwd: %i P: %i S: %i [%i %i]",patchPtr->dispatchLinkIndex, patchPtr->prefixIndex, patchPtr->suffixIndex, (*patchPtr->rdiPtr)->minEdgePosition, (*patchPtr->rdiPtr)->maxEdgePosition);
 			*(orderedDispatches++)=patchPtr->dispatchLinkIndex;
 			patchPtr++;
 			}
@@ -1859,11 +1869,11 @@ void rtaMergeRoutes(RouteTableArrayBuilder *builder, RoutePatch *forwardRoutePat
 
 			}
 		else
-			destBufferEnd=rtaMergeRoutes_ordered_reverseSingle(srcBuffer, srcBufferEnd, destBuffer, patchPtr, &maxWidth);
+			destBufferEnd=rtaMergeRoutes_ordered_reverseSingle(builder, srcBuffer, srcBufferEnd, destBuffer, patchPtr, &maxWidth);
 
 		for(int i=0;i<reverseRoutePatchCount;i++)
 			{
-			LOG(LOG_INFO,"OrderDispRev: %i",patchPtr->dispatchLinkIndex);
+//			LOG(LOG_INFO,"OrderDispRev: %i P: %i S: %i [%i %i]",patchPtr->dispatchLinkIndex, patchPtr->prefixIndex, patchPtr->suffixIndex, (*patchPtr->rdiPtr)->minEdgePosition, (*patchPtr->rdiPtr)->maxEdgePosition);
 			*(orderedDispatches++)=patchPtr->dispatchLinkIndex;
 			patchPtr++;
 			}

@@ -258,9 +258,8 @@ static void recycleDispatchLinkQueue(RoutingSliceAssignedDispatchLinkQueue *disp
 
 				nextIndex=iohGetNext(oldMap, nextIndex, &sliceIndex, (void **)&oldDispatchQueue);
 				}
-
-			dispatchLinkQueue->smerQueueMap[i]=newMap;
 			}
+		dispatchLinkQueue->smerQueueMap[i]=newMap;
 		}
 
 }
@@ -549,7 +548,7 @@ static int assignReversedInboundDispatchesToSlices(MemDoubleBrickPile *dispatchP
 {
 	RoutingDispatchLinkIndexBlock *smerInboundDispatches=dispatchGroupState->smerInboundDispatches;
 
-	LOG(LOG_INFO,"assignReversedInboundDispatchesToSlices");
+	//LOG(LOG_INFO,"assignReversedInboundDispatchesToSlices");
 
 	while(dispatches!=NULL)
 		{
@@ -577,7 +576,7 @@ static int assignReversedInboundDispatchesToSlices(MemDoubleBrickPile *dispatchP
 		dispatches=nextDispatches;
 		}
 
-	LOG(LOG_INFO,"assignReversedInboundDispatchesToSlices done");
+	//LOG(LOG_INFO,"assignReversedInboundDispatchesToSlices done");
 
 	return 0;
 }
@@ -851,8 +850,8 @@ static int transferFromCompletedLookup(RoutingBuilder *rb,
 
 	if(oldLookupLink->smerCount<0)
 		{
-		LOG(LOG_INFO,"Lookup not completed");
-		trDumpDispatchLink(oldDispatchLink, oldDispatchLinkIndex);
+		LOG(LOG_INFO,"Lookup not completed %i",oldDispatchLinkIndex);
+		//trDumpDispatchLink(oldDispatchLink, oldDispatchLinkIndex);
 		return 0;
 		}
 
@@ -864,21 +863,21 @@ static int transferFromCompletedLookup(RoutingBuilder *rb,
 		}
 	else				// Old Dispatch -> Old Lookup -> New Dispatch* -> New Lookup -> Seq* -> null
 		{
-		LOG(LOG_INFO,"Handle DispatchLink type");
+		//LOG(LOG_INFO,"Handle DispatchLink type");
 
 		u32 newDispatchLinkIndex=oldLookupLink->sourceIndex;
 		DispatchLink *newDispatchLink=mbDoubleBrickFindByIndex(dispatchPile, newDispatchLinkIndex);
 
-		LOG(LOG_INFO,"Pre merge old");
-		trDumpDispatchLink(oldDispatchLink, oldDispatchLinkIndex);
+		//LOG(LOG_INFO,"Pre merge old");
+		//trDumpDispatchLink(oldDispatchLink, oldDispatchLinkIndex);
 
-		LOG(LOG_INFO,"Pre merge new");
-		trDumpDispatchLink(newDispatchLink, newDispatchLinkIndex);
+		//LOG(LOG_INFO,"Pre merge new");
+		//trDumpDispatchLink(newDispatchLink, newDispatchLinkIndex);
 
 		mergeDispatchLinks(oldDispatchLink, newDispatchLink);
 
-		LOG(LOG_INFO,"Post merge new");
-		trDumpDispatchLink(newDispatchLink, newDispatchLinkIndex);
+		//LOG(LOG_INFO,"Post merge new");
+		//trDumpDispatchLink(newDispatchLink, newDispatchLinkIndex);
 
 		*dispatchLinkIndexPtr=newDispatchLinkIndex;
 		*dispatchLinkPtr=newDispatchLink;
@@ -890,13 +889,16 @@ static int transferFromCompletedLookup(RoutingBuilder *rb,
 		//else
 		//	LOG(LOG_CRITICAL,"Failed to find lookup link");
 
+		LOG(LOG_INFO,"Free double lookup");
 		mbDoubleBrickFreeByIndex(lookupPile, oldLookupLinkIndex);
+
+		LOG(LOG_INFO,"Free double disp");
 		mbDoubleBrickFreeByIndex(dispatchPile, oldDispatchLinkIndex);
 		}
 
-	LOG(LOG_INFO,"Lookup completed - handled");
+	//LOG(LOG_INFO,"Lookup completed - handled");
 
-	return 1; // Change me
+	return 1;
 }
 
 
@@ -912,7 +914,7 @@ static int processSlice(RoutingBuilder *rb, RoutingSliceAssignedDispatchLinkQueu
 	if(map==NULL)
 		LOG(LOG_CRITICAL,"Process slice - map is NULL");
 
-	LOG(LOG_INFO,"Process slice - %p %i", map, map->entryCount);
+	//LOG(LOG_INFO,"Process slice - %p %i", map, map->entryCount);
 
 	int sliceIndex=0;
 	int dispatchOffset=0;
@@ -944,20 +946,20 @@ static int processSlice(RoutingBuilder *rb, RoutingSliceAssignedDispatchLinkQueu
 					break;
 				}
 
-			LOG(LOG_INFO,"Adding %i", dispatchLinkIndex);
-			trDumpDispatchLink(dispatchLink, dispatchLinkIndex);
+			//LOG(LOG_INFO,"Adding %i", dispatchLinkIndex);
+			//trDumpDispatchLink(dispatchLink, dispatchLinkIndex);
 
 			assignReadDataToDispatchIndexedIntermediate(indexBlock, dispatchLinkIndex, dispatchLink, routingDisp);
 
-			LOG(LOG_INFO,"Added %i", dispatchLinkIndex);
+			//LOG(LOG_INFO,"Added %i", dispatchLinkIndex);
 			}
 
 		if(indexBlock->entryCount>0)
 			{
-			for(int i=0;i<indexBlock->entryCount;i++)
-				LOG(LOG_INFO,"Entry is %i", indexBlock->linkIndexEntries[i]);
+			//for(int i=0;i<indexBlock->entryCount;i++)
+			//	LOG(LOG_INFO,"Entry is %i", indexBlock->linkIndexEntries[i]);
 
-			LOG(LOG_INFO,"Routing %i from %i",indexBlock->entryCount, dispatchOffset);
+			//LOG(LOG_INFO,"Routing %i from %i",indexBlock->entryCount, dispatchOffset);
 
 			dispatchQueue->position+=indexBlock->entryCount;
 
@@ -965,15 +967,15 @@ static int processSlice(RoutingBuilder *rb, RoutingSliceAssignedDispatchLinkQueu
 
 			int entryCount=rtRouteReadsForSmer(indexBlock, slice, orderedDispatches+dispatchOffset, routingDisp, circHeap, sliceTag);
 
-			LOG(LOG_INFO,"Routed %i from %i",entryCount, dispatchOffset);
+			//LOG(LOG_INFO,"Routed %i from %i",entryCount, dispatchOffset);
 
 			dispatchOffset+=entryCount;
 			}
-		else
+/*		else
 			{
 			LOG(LOG_INFO,"Nothing dispatchable in slice");
 			}
-
+*/
 		nextIndex=iohGetNext(map, nextIndex, &sliceIndex, (void **)&dispatchQueue);
 		}
 
@@ -1059,6 +1061,8 @@ static void freeSequenceLinkChain(MemSingleBrickPile *sequencePile, u32 sequence
 		SequenceLink *sequenceLink=mbSingleBrickFindByIndex(sequencePile, sequenceLinkIndex);
 		u32 sequenceLinkNextIndex=sequenceLink->nextIndex;
 
+		LOG(LOG_INFO,"Free single seq");
+
 		mbSingleBrickFreeByIndex(sequencePile, sequenceLinkIndex);
 		sequenceLinkIndex=sequenceLinkNextIndex;
 		}
@@ -1090,20 +1094,13 @@ static int gatherSliceOutbound(MemSingleBrickPile *sequencePile, MemDoubleBrickP
 		{
 		u32 dispatchLinkIndex=orderedDispatches[i];
 
-		LOG(LOG_INFO,"HERE1 - %i", dispatchLinkIndex);
 		DispatchLink *dispatchLink=mbDoubleBrickFindByIndex(dispatchPile, dispatchLinkIndex);
-		LOG(LOG_INFO,"HERE2");
-
 		int nextIndexCount=__atomic_add_fetch(&(dispatchLink->position),1, __ATOMIC_SEQ_CST); // Needed?
-
-		LOG(LOG_INFO,"Outbound is %i, length %i", nextIndexCount, dispatchLink->length);
 
 		if(nextIndexCount<(dispatchLink->length-2))
 			assignToDispatchArrayEntry(dispatchArray, dispatchLinkIndex, dispatchLink);
 		else
 			{
-			LOG(LOG_INFO,"DispatchLink: %i %i", dispatchLink->nextOrSourceIndex, dispatchLink->indexType);
-
 			switch(dispatchLink->indexType)
 				{
 				case LINK_INDEXTYPE_SEQ: // Dispatch -> Seq* -> null - should be at end of sequence
@@ -1119,6 +1116,8 @@ static int gatherSliceOutbound(MemSingleBrickPile *sequencePile, MemDoubleBrickP
 						LOG(LOG_CRITICAL,"Invalid Sequence Position without lookup: %i %i",sequenceLink->position, sequenceLink->length);
 
 					freeSequenceLinkChain(sequencePile, sequenceLinkIndex); // Possibly more than one seqLink in chain
+
+					LOG(LOG_INFO,"Free double disp");
 					mbDoubleBrickFreeByIndex(dispatchPile, dispatchLinkIndex);
 					break;
 					}
@@ -1141,11 +1140,19 @@ static int gatherSliceOutbound(MemSingleBrickPile *sequencePile, MemDoubleBrickP
 					s32 offsetAdjust=calculateDispatchLinkChainOffsetAdjustment(dispatchLink);
 					nextDispatchLink->smers[0].seqIndexOffset+=offsetAdjust; // Should try to remove seqLinks here too
 
+					nextDispatchLink->minEdgePosition=dispatchLink->minEdgePosition;
+					nextDispatchLink->maxEdgePosition=dispatchLink->maxEdgePosition;
+
+					LOG(LOG_INFO,"Free double disp");
 					mbDoubleBrickFreeByIndex(dispatchPile, dispatchLinkIndex);
+
 					assignToDispatchArrayEntry(dispatchArray, nextDispatchLinkIndex, nextDispatchLink);
 
 					break;
 					}
+
+				default:
+					LOG(LOG_CRITICAL,"Unexpected type "+dispatchLink->indexType);
 				}
 
 			}
@@ -1181,7 +1188,7 @@ static int scanForDispatchesForGroups(RoutingBuilder *rb, int startGroup, int en
 	int work=0;
 	int i;
 
-	LOG(LOG_INFO,"scanForDispatchesForGroups");
+	//LOG(LOG_INFO,"scanForDispatchesForGroups");
 
 	MemSingleBrickPile *sequencePile=&(rb->sequenceLinkPile);
 	MemDoubleBrickPile *lookupPile=&(rb->lookupLinkPile);
@@ -1271,7 +1278,7 @@ static int scanForDispatchesForGroups(RoutingBuilder *rb, int startGroup, int en
 		dispenserFree(routingDisp);
 		}
 
-	LOG(LOG_INFO,"scanForDispatchesForGroups done");
+	//LOG(LOG_INFO,"scanForDispatchesForGroups done");
 
 	return work;
 }
@@ -1280,6 +1287,8 @@ static int scanForDispatchesForGroups(RoutingBuilder *rb, int startGroup, int en
 
 int scanForDispatches(RoutingBuilder *rb, int workerNo, RoutingWorkerState *wState, int force)
 {
+	LOG(LOG_INFO,"scanForDispatches");
+
 	//int position=wState->dispatchGroupCurrent;
 	int work=0;
 	int lastGroup=-1;

@@ -265,6 +265,8 @@ s32 processIngressedReads(RoutingBuilder *rb)
 {
 	s32 availableReads=getAvailableReadIngress(rb);
 
+	LOG(LOG_INFO, "processIngressedReads %i",availableReads);
+
 	if(!availableReads)
 		return 0;
 
@@ -274,8 +276,11 @@ s32 processIngressedReads(RoutingBuilder *rb)
 		{
 		RoutingReadIngressBlock *readBlock=rb->ingressBlocks+i;
 
+		LOG(LOG_INFO, "processIngressedReads");
+
 		if(lockIngressBlockForConsumption(readBlock))
 			{
+			LOG(LOG_INFO, "processIngressedReads");
 			work=queueSmerLookupsForIngress(rb, readBlock);
 
 			if(readBlock->sequencePosition==readBlock->sequenceCount)
