@@ -850,7 +850,7 @@ static int transferFromCompletedLookup(RoutingBuilder *rb,
 
 	if(oldLookupLink->smerCount<0)
 		{
-		LOG(LOG_INFO,"Lookup not completed %i",oldDispatchLinkIndex);
+		//LOG(LOG_INFO,"Lookup not completed %i",oldDispatchLinkIndex);
 		//trDumpDispatchLink(oldDispatchLink, oldDispatchLinkIndex);
 		return 0;
 		}
@@ -889,10 +889,10 @@ static int transferFromCompletedLookup(RoutingBuilder *rb,
 		//else
 		//	LOG(LOG_CRITICAL,"Failed to find lookup link");
 
-		LOG(LOG_INFO,"Free double lookup");
+		//LOG(LOG_INFO,"Free double lookup");
 		mbDoubleBrickFreeByIndex(lookupPile, oldLookupLinkIndex);
 
-		LOG(LOG_INFO,"Free double disp");
+		//LOG(LOG_INFO,"Free double disp");
 		mbDoubleBrickFreeByIndex(dispatchPile, oldDispatchLinkIndex);
 		}
 
@@ -975,7 +975,13 @@ static int processSlice(RoutingBuilder *rb, RoutingSliceAssignedDispatchLinkQueu
 			{
 			LOG(LOG_INFO,"Nothing dispatchable in slice");
 			}
+
+		if(dispatchQueue->position<dispatchQueue->entryCount)
+			{
+			LOG(LOG_INFO,"Recycling %i dispatchables", dispatchQueue->entryCount-dispatchQueue->position);
+			}
 */
+
 		nextIndex=iohGetNext(map, nextIndex, &sliceIndex, (void **)&dispatchQueue);
 		}
 
@@ -1061,8 +1067,6 @@ static void freeSequenceLinkChain(MemSingleBrickPile *sequencePile, u32 sequence
 		SequenceLink *sequenceLink=mbSingleBrickFindByIndex(sequencePile, sequenceLinkIndex);
 		u32 sequenceLinkNextIndex=sequenceLink->nextIndex;
 
-		LOG(LOG_INFO,"Free single seq");
-
 		mbSingleBrickFreeByIndex(sequencePile, sequenceLinkIndex);
 		sequenceLinkIndex=sequenceLinkNextIndex;
 		}
@@ -1117,7 +1121,6 @@ static int gatherSliceOutbound(MemSingleBrickPile *sequencePile, MemDoubleBrickP
 
 					freeSequenceLinkChain(sequencePile, sequenceLinkIndex); // Possibly more than one seqLink in chain
 
-					LOG(LOG_INFO,"Free double disp");
 					mbDoubleBrickFreeByIndex(dispatchPile, dispatchLinkIndex);
 					break;
 					}
@@ -1143,7 +1146,6 @@ static int gatherSliceOutbound(MemSingleBrickPile *sequencePile, MemDoubleBrickP
 					nextDispatchLink->minEdgePosition=dispatchLink->minEdgePosition;
 					nextDispatchLink->maxEdgePosition=dispatchLink->maxEdgePosition;
 
-					LOG(LOG_INFO,"Free double disp");
 					mbDoubleBrickFreeByIndex(dispatchPile, dispatchLinkIndex);
 
 					assignToDispatchArrayEntry(dispatchArray, nextDispatchLinkIndex, nextDispatchLink);
@@ -1256,7 +1258,7 @@ static int scanForDispatchesForGroups(RoutingBuilder *rb, int startGroup, int en
 						if(dispatched>0)
 							work++;
 
-						LOG(LOG_INFO,"Dispatched %i",dispatched);
+//						LOG(LOG_INFO,"Dispatched %i",dispatched);
 
 						dispenserReset(routingDisp);
 						gatherSliceOutbound(sequencePile, lookupPile, dispatchPile, groupState, j, orderedDispatches, dispatched);
@@ -1287,7 +1289,7 @@ static int scanForDispatchesForGroups(RoutingBuilder *rb, int startGroup, int en
 
 int scanForDispatches(RoutingBuilder *rb, int workerNo, RoutingWorkerState *wState, int force)
 {
-	LOG(LOG_INFO,"scanForDispatches");
+	//LOG(LOG_INFO,"scanForDispatches");
 
 	//int position=wState->dispatchGroupCurrent;
 	int work=0;

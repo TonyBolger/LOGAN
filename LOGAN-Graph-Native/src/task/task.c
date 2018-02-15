@@ -61,34 +61,6 @@ void waitForStartup(ParallelTask *pt)
 	LOG(LOG_INFO,"Master: Done Startup");
 }
 
-void waitForShutdown(ParallelTask *pt)
-{
-	LOG(LOG_INFO,"Master: Waiting for shutdown");
-
-	int state=__atomic_load_n(&(pt->state), __ATOMIC_SEQ_CST);
-
-	while(state!=PTSTATE_DEAD)
-		{
-		struct timespec req;
-
-		req.tv_sec=DEFAULT_SLEEP_SECS;
-		req.tv_nsec=DEFAULT_SLEEP_NANOS;
-
-		nanosleep(&req, NULL);
-
-		if(pt->config->doTickTock != NULL)
-			pt->config->doTickTock(pt);
-
-		//wakeIdleWorkers(pt);
-
-		state=__atomic_load_n(&(pt->state), __ATOMIC_SEQ_CST);
-		}
-
-	LOG(LOG_INFO,"Master: Done Shutdown %i %i",
-			__atomic_load_n(&(pt->accumulatedIngressArrived),__ATOMIC_SEQ_CST),
-			__atomic_load_n(&(pt->accumulatedIngressProcessed),__ATOMIC_SEQ_CST));
-}
-
 
 static void considerTickTock(ParallelTask *pt)
 {
@@ -104,6 +76,32 @@ static void considerTickTock(ParallelTask *pt)
 		}
 }
 
+
+void waitForShutdown(ParallelTask *pt)
+{
+	LOG(LOG_INFO,"Master: Waiting for shutdown");
+
+	int state=__atomic_load_n(&(pt->state), __ATOMIC_SEQ_CST);
+
+	while(state!=PTSTATE_DEAD)
+		{
+		struct timespec req;
+
+		req.tv_sec=DEFAULT_SLEEP_SECS;
+		req.tv_nsec=DEFAULT_SLEEP_NANOS;
+
+		nanosleep(&req, NULL);
+
+		considerTickTock(pt);
+		//wakeIdleWorkers(pt);
+
+		state=__atomic_load_n(&(pt->state), __ATOMIC_SEQ_CST);
+		}
+
+	LOG(LOG_INFO,"Master: Done Shutdown %i %i",
+			__atomic_load_n(&(pt->accumulatedIngressArrived),__ATOMIC_SEQ_CST),
+			__atomic_load_n(&(pt->accumulatedIngressProcessed),__ATOMIC_SEQ_CST));
+}
 
 
 

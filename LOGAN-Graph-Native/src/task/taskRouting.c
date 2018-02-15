@@ -500,9 +500,9 @@ void freeRoutingBuilder(RoutingBuilder *rb)
 	freeParallelTask(pt);
 	freeParallelTaskConfig(ptc);
 
-	mbFreeSingleBrickPile(&(rb->sequenceLinkPile));
-	mbFreeDoubleBrickPile(&(rb->lookupLinkPile));
-	mbFreeDoubleBrickPile(&(rb->dispatchLinkPile));
+	mbFreeSingleBrickPile(&(rb->sequenceLinkPile),"SequenceLink");
+	mbFreeDoubleBrickPile(&(rb->lookupLinkPile),"LookupLink");
+	mbFreeDoubleBrickPile(&(rb->dispatchLinkPile),"DispatchLink");
 
 	trRoutingBuilderFree(rb);
 }

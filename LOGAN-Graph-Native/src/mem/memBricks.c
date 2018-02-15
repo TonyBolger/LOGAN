@@ -44,10 +44,37 @@ void mbInitSingleBrickPile(MemSingleBrickPile *pile, s32 chunkCount, s32 chunkLi
 		initSingleBrickChunk(pile);
 }
 
-void mbFreeSingleBrickPile(MemSingleBrickPile *pile)
+void mbFreeSingleBrickPile(MemSingleBrickPile *pile, char *pileName)
 {
 	for(int i=0;i<pile->chunkCount;i++)
+		{
+		int alloc=SINGLEBRICK_BRICKS_PER_CHUNK-pile->chunks[i]->header.freeCount;
+
+		if(alloc>0)
+			{
+			LOG(LOG_INFO,"SingleBrickPile %s Chunk %i has %i still allocated",pileName, i, alloc);
+
+			u32 chunkBaseIndex=i<<16;
+
+			for(int j=SINGLEBRICK_SKIP_FLAGS_PER_CHUNK;j<SINGLEBRICK_ALLOC_FLAGS_PER_CHUNK;j++)
+				{
+				u64 flags=pile->chunks[i]->freeFlag[j];
+				if(flags!=0xFFFFFFFFFFFFFFFFl)
+					{
+					u32 flagBaseIndex=chunkBaseIndex+(j<<6);
+
+					for(int k=0;k<64;k++)
+						{
+						if(!(flags & 0x1))
+							LOG(LOG_INFO,"SingleBrick %s %u", pileName, (flagBaseIndex+k));
+						flags>>=1;
+						}
+					}
+				}
+			}
+
 		G_FREE(pile->chunks[i], sizeof(MemSingleBrickChunk), pile->memTrackId);
+		}
 
 	G_FREE(pile->chunks, sizeof(MemSingleBrickChunk *)*pile->chunkLimit, pile->memTrackId);
 }
@@ -95,10 +122,37 @@ void mbInitDoubleBrickPile(MemDoubleBrickPile *pile, s32 chunkCount, s32 chunkLi
 }
 
 
-void mbFreeDoubleBrickPile(MemDoubleBrickPile *pile)
+void mbFreeDoubleBrickPile(MemDoubleBrickPile *pile, char *pileName)
 {
 	for(int i=0;i<pile->chunkCount;i++)
+		{
+		int alloc=DOUBLEBRICK_BRICKS_PER_CHUNK-pile->chunks[i]->header.freeCount;
+
+		if(alloc>0)
+			{
+			LOG(LOG_INFO,"DoubleBrickPile %s Chunk %i has %i still allocated",pileName, i, alloc);
+
+			u32 chunkBaseIndex=i<<16;
+
+			for(int j=DOUBLEBRICK_SKIP_FLAGS_PER_CHUNK;j<DOUBLEBRICK_ALLOC_FLAGS_PER_CHUNK;j++)
+				{
+				u64 flags=pile->chunks[i]->freeFlag[j];
+				if(flags!=0xFFFFFFFFFFFFFFFFl)
+					{
+					u32 flagBaseIndex=chunkBaseIndex+(j<<6);
+
+					for(int k=0;k<64;k++)
+						{
+						if(!(flags & 0x1))
+							LOG(LOG_INFO,"DoubleBrick %s %u", pileName, (flagBaseIndex+k));
+						flags>>=1;
+						}
+					}
+				}
+			}
+
 		G_FREE(pile->chunks[i], sizeof(MemDoubleBrickChunk), pile->memTrackId);
+		}
 
 	G_FREE(pile->chunks, sizeof(MemDoubleBrickChunk *)*pile->chunkLimit, pile->memTrackId);
 }
@@ -815,8 +869,6 @@ void mbSingleBrickFreeByIndex(MemSingleBrickPile *pile, u32 brickIndex)
 	if(!singleBlockUnallocateEntry(pile->chunks[chunkIndex], flagIndex, allocIndex))
 		LOG(LOG_CRITICAL,"Failed to free %i -> %i %i %i", brickIndex, chunkIndex, flagIndex, allocIndex);
 
-	LOG(LOG_INFO,"Free single");
-
 	//__atomic_fetch_add(&pile->freeCount, 1, __ATOMIC_RELAXED);
 	__atomic_fetch_add(&pile->freeCount, 1, __ATOMIC_SEQ_CST);
 }
@@ -950,8 +1002,6 @@ void mbDoubleBrickFreeByIndex(MemDoubleBrickPile *pile, u32 brickIndex)
 
 	if(!doubleBlockUnallocateEntry(pile->chunks[chunkIndex], flagIndex, allocIndex))
 		LOG(LOG_CRITICAL,"Failed to free %i -> %i %i %i", brickIndex, chunkIndex, flagIndex, allocIndex);
-
-	LOG(LOG_INFO,"Free double");
 
 	//__atomic_fetch_add(&pile->freeCount, 1, __ATOMIC_RELAXED);
 	__atomic_fetch_add(&pile->freeCount, 1, __ATOMIC_SEQ_CST);

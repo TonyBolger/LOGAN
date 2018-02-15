@@ -139,10 +139,10 @@ typedef struct memDoubleBrickAllocatorStr {
 
 
 void mbInitSingleBrickPile(MemSingleBrickPile *pile, s32 chunkCount, s32 chunkLimit, s32 memTrackId);
-void mbFreeSingleBrickPile(MemSingleBrickPile *pile);
+void mbFreeSingleBrickPile(MemSingleBrickPile *pile, char *pileName);
 
 void mbInitDoubleBrickPile(MemDoubleBrickPile *pile, s32 chunkCount, s32 chunkLimit, s32 memTrackId);
-void mbFreeDoubleBrickPile(MemDoubleBrickPile *pile);
+void mbFreeDoubleBrickPile(MemDoubleBrickPile *pile, char *pileName);
 
 s32 mbGetFreeSingleBrickPile(MemSingleBrickPile *pile);
 s32 mbGetFreeSingleBrickChunk(MemSingleBrickChunk *chunk);

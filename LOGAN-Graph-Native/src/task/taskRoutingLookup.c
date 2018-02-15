@@ -1171,10 +1171,7 @@ static void processPredispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb,
 				{
 //				LOG(LOG_INFO,"Small dispatch scenario");
 
-				LOG(LOG_INFO,"Free double lookup");
 				mbDoubleBrickFreeByIndex(lookupPile, lookupLinkIndex);
-
-				LOG(LOG_INFO,"Assign");
 				assignToDispatchArrayEntry(dispArray, dispatchLinkIndex, dispatchLink);
 				}
 			}
@@ -1195,11 +1192,9 @@ static void processPredispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb,
 				{
 //				LOG(LOG_INFO,"Single dispatch scenario without lookup");
 
-				LOG(LOG_INFO,"Free double lookup");
 				mbDoubleBrickFreeByIndex(lookupPile, lookupLinkIndex);
 				}
 
-			LOG(LOG_INFO,"Assign");
 			assignToDispatchArrayEntry(dispArray, dispatchLinkIndex, dispatchLink);
 			}
 		else // Using multiple dispatch links
@@ -1225,11 +1220,9 @@ static void processPredispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb,
 				{
 //				LOG(LOG_INFO,"Multiple dispatch scenario without lookup - %p %p", dispatchLink, lastDispatchLink);
 
-				LOG(LOG_INFO,"Free double lookup");
 				mbDoubleBrickFreeByIndex(lookupPile, lookupLinkIndex);
 				}
 
-			LOG(LOG_INFO,"Assign");
 			assignToDispatchArrayEntry(dispArray, dispatchLinkIndex, dispatchLink);
 			}
 		}
@@ -1271,23 +1264,6 @@ static void processPostdispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb
 		else if(oldLookupLink->indexType==LINK_INDEXTYPE_LOOKUP)
 			LOG(LOG_CRITICAL,"Unable to handle lookup link with lookup sourceIndexType");
 
-		// Otherwise: Post-dispatch lookup scenario: (dispatch ->) Lookup -> Seq* -> null
-
-		u32 dispatchLinkIndex=LINK_INDEX_DUMMY;
-		DispatchLink *dispatchLink=mbDoubleBrickAllocate(dispatchLinkAlloc, &dispatchLinkIndex);
-
-		dispatchLink->nextOrSourceIndex=oldLookupLink->sourceIndex;
-		dispatchLink->indexType=LINK_INDEXTYPE_SEQ;
-		dispatchLink->length=2;
-		dispatchLink->position=0;
-		dispatchLink->revComp=0;
-		dispatchLink->minEdgePosition=TR_INIT_MINEDGEPOSITION;
-		dispatchLink->maxEdgePosition=TR_INIT_MINEDGEPOSITION;
-
-		// First two dispatchLink -> smers populated during transferFromCompletedLookup. Remaining dispatchLink->smers populated below.
-		dispatchLink->smers[0].smer=SMER_DUMMY;
-		dispatchLink->smers[1].smer=SMER_DUMMY;
-
 		//lookupLink->sourceIndex=dispatchLinkIndex;
 		//lookupLink->indexType=LINK_INDEXTYPE_DISPATCH;
 
@@ -1318,6 +1294,21 @@ static void processPostdispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb
 
 		if(foundCount>0)
 			{
+			u32 dispatchLinkIndex=LINK_INDEX_DUMMY;
+			DispatchLink *dispatchLink=mbDoubleBrickAllocate(dispatchLinkAlloc, &dispatchLinkIndex);
+
+			dispatchLink->nextOrSourceIndex=oldLookupLink->sourceIndex;
+			dispatchLink->indexType=LINK_INDEXTYPE_SEQ;
+			dispatchLink->length=2;
+			dispatchLink->position=0;
+			dispatchLink->revComp=0;
+			dispatchLink->minEdgePosition=TR_INIT_MINEDGEPOSITION;
+			dispatchLink->maxEdgePosition=TR_INIT_MINEDGEPOSITION;
+
+			// First two dispatchLink -> smers populated during transferFromCompletedLookup. Remaining dispatchLink->smers populated below.
+			dispatchLink->smers[0].smer=SMER_DUMMY;
+			dispatchLink->smers[1].smer=SMER_DUMMY;
+
 			DispatchLink *lastDispatchLink=NULL;
 			transferFoundSmersToDispatch(dispatchLink, dispatchLinkAlloc, foundCount, indexedSmers, indexedRevComp, &lastDispatchLink);
 
