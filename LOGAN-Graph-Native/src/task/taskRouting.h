@@ -105,6 +105,30 @@ typedef struct routingReadIngressBlockStr {
 } RoutingReadIngressBlock;
 
 
+// Extends a block of read references with queueing and reversing pointers
+typedef struct routingReadReferenceBlockDispatchStr {
+	struct routingReadReferenceBlockDispatchStr *nextPtr;
+	struct routingReadReferenceBlockDispatchStr *prevPtr; // Used to reverse ordering
+	s32 *completionCountPtr; // 8
+
+	RoutingDispatchLinkIndexBlock data;
+} RoutingReadReferenceBlockDispatch;
+
+
+// Represents an array of outbound read dispatch blocks, one per SMER_DISPATCH_GROUP, plus memory allocation tracking
+typedef struct routingDispatchArray {
+	struct routingDispatchArray *nextPtr;
+
+	MemDispenser *disp;
+	s32 completionCount;
+
+	RoutingReadReferenceBlockDispatch dispatches[SMER_DISPATCH_GROUPS];
+} RoutingReadReferenceBlockDispatchArray;
+
+
+
+
+
 typedef union
 {
 	u64 combined;
@@ -150,6 +174,8 @@ typedef struct routingReadLookupBlockStr {
 	MemDispenser *disp; // Used for percolate / entryLookups
 
 	RoutingBlockCompletionStatus compStat;
+
+	RoutingReadReferenceBlockDispatchArray *outboundDispatches;
 
 } RoutingReadLookupBlock;
 
@@ -246,26 +272,6 @@ typedef struct routingReadLookupBlockStr {
 
 
 */
-
-// Extends a block of read references with queueing and reversing pointers
-typedef struct routingReadReferenceBlockDispatchStr {
-	struct routingReadReferenceBlockDispatchStr *nextPtr;
-	struct routingReadReferenceBlockDispatchStr *prevPtr; // Used to reverse ordering
-	s32 *completionCountPtr; // 8
-
-	RoutingDispatchLinkIndexBlock data;
-} RoutingReadReferenceBlockDispatch;
-
-
-// Represents an array of outbound read dispatch blocks, one per SMER_DISPATCH_GROUP, plus memory allocation tracking
-typedef struct routingDispatchArray {
-	struct routingDispatchArray *nextPtr;
-
-	MemDispenser *disp;
-	s32 completionCount;
-
-	RoutingReadReferenceBlockDispatch dispatches[SMER_DISPATCH_GROUPS];
-} RoutingReadReferenceBlockDispatchArray;
 
 
 /*

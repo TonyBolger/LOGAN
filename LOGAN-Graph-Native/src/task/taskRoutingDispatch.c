@@ -200,7 +200,7 @@ void initRoutingDispatchGroupState(RoutingDispatchGroupState *dispatchGroupState
 
 
 
-static RoutingReadReferenceBlockDispatchArray *cleanupRoutingDispatchArrays(RoutingReadReferenceBlockDispatchArray *in)
+RoutingReadReferenceBlockDispatchArray *cleanupRoutingDispatchArrays(RoutingReadReferenceBlockDispatchArray *in)
 {
 	RoutingReadReferenceBlockDispatchArray **scan=&in;
 
@@ -216,7 +216,10 @@ static RoutingReadReferenceBlockDispatchArray *cleanupRoutingDispatchArrays(Rout
 			dispenserFree(current->disp);
 			}
 		else
+			{
+			//LOG(LOG_INFO,"DispatchArray %p has %i",current, compCount);
 			scan=&(current->nextPtr);
+			}
 		}
 
 	return in;
@@ -296,9 +299,11 @@ void recycleRoutingDispatchGroupState(RoutingDispatchGroupState *dispatchGroupSt
 void freeRoutingDispatchGroupState(RoutingDispatchGroupState *dispatchGroupState)
 {
 	if(dispatchGroupState->disp!=NULL)
-		{
 		dispenserFree(dispatchGroupState->disp);
-		}
+
+	if(dispatchGroupState->swapDisp!=NULL)
+		dispenserFree(dispatchGroupState->swapDisp);
+
 
 	dispatchGroupState->outboundDispatches=cleanupRoutingDispatchArrays(dispatchGroupState->outboundDispatches);
 
@@ -571,7 +576,7 @@ static int assignReversedInboundDispatchesToSlices(MemDoubleBrickPile *dispatchP
 			assignReadDataToDispatchIntermediate(smerInboundDispatches+inboundIndex, dispatchLinkIndex, dispatchGroupState->disp);
 			}
 
-		//__atomic_fetch_sub(dispatches->completionCountPtr,1, __ATOMIC_RELEASE);
+		__atomic_fetch_sub(dispatches->completionCountPtr,1, __ATOMIC_RELEASE);
 
 		dispatches=nextDispatches;
 		}
@@ -935,6 +940,8 @@ static int processSlice(RoutingBuilder *rb, RoutingSliceAssignedDispatchLinkQueu
 		RoutingIndexedDispatchLinkIndexBlock *indexBlock=allocDispatchIndexedIntermediateBlock(routingDisp);
 		indexBlock->sliceIndex=sliceIndex;
 
+		int threshold=dispatchQueue->entryCount-dispatchQueue->position;
+
 		for(int i=dispatchQueue->position;i<dispatchQueue->entryCount;i++)
 			{
 			u32 dispatchLinkIndex=dispatchQueue->dispatchLinkIndexEntries[i];
@@ -942,7 +949,11 @@ static int processSlice(RoutingBuilder *rb, RoutingSliceAssignedDispatchLinkQueu
 
 			if(dispatchLink->position==dispatchLink->length-2) // Not enough to work with
 				{
-				if(!transferFromCompletedLookup(rb, &dispatchLinkIndex, &dispatchLink, postDispatchRecycleBlockPtr))
+				if(transferFromCompletedLookup(rb, &dispatchLinkIndex, &dispatchLink, postDispatchRecycleBlockPtr))
+					{
+					dispatchQueue->dispatchLinkIndexEntries[i]=dispatchLinkIndex;
+					}
+				else
 					break;
 				}
 
@@ -954,7 +965,7 @@ static int processSlice(RoutingBuilder *rb, RoutingSliceAssignedDispatchLinkQueu
 			//LOG(LOG_INFO,"Added %i", dispatchLinkIndex);
 			}
 
-		if(indexBlock->entryCount>0)
+		if((indexBlock->entryCount*2)>threshold)
 			{
 			//for(int i=0;i<indexBlock->entryCount;i++)
 			//	LOG(LOG_INFO,"Entry is %i", indexBlock->linkIndexEntries[i]);
@@ -971,11 +982,15 @@ static int processSlice(RoutingBuilder *rb, RoutingSliceAssignedDispatchLinkQueu
 
 			dispatchOffset+=entryCount;
 			}
-/*		else
+		/*
+		else
 			{
-			LOG(LOG_INFO,"Nothing dispatchable in slice");
+			if(indexBlock->entryCount>1)
+				LOG(LOG_INFO,"Deferring with %i dispatchable",indexBlock->entryCount);
 			}
+*/
 
+		/*
 		if(dispatchQueue->position<dispatchQueue->entryCount)
 			{
 			LOG(LOG_INFO,"Recycling %i dispatchables", dispatchQueue->entryCount-dispatchQueue->position);

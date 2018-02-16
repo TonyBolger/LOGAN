@@ -792,7 +792,7 @@ int queueSmerLookupsForIngress(RoutingBuilder *rb, RoutingReadIngressBlock *ingr
 {
 	if(!reserveReadLookupBlock(rb, TR_LOOKUP_INGRESS_BLOCKMARGIN))
 		{
-		//LOG(LOG_INFO,"No lookup blocks");
+		//LOG(LOG_INFO,"ingress: No lookup blocks");
 		return 0;
 		}
 
@@ -805,7 +805,7 @@ int queueSmerLookupsForIngress(RoutingBuilder *rb, RoutingReadIngressBlock *ingr
 
 	if(!mbCheckDoubleBrickAvailability(lookupPile, sequences+TR_LOOKUP_INGRESS_PILEMARGIN))
 		{
-		//LOG(LOG_INFO,"No lookup bricks");
+		//LOG(LOG_INFO,"ingress No lookup bricks");
 		unreserveReadLookupBlock(rb);
 		return 0;
 		}
@@ -884,7 +884,7 @@ int queueSmerLookupsForIngress(RoutingBuilder *rb, RoutingReadIngressBlock *ingr
 
 //	LOG(LOG_INFO,"queueSmerLookupsForIngress DONE");
 
-	return 0;
+	return blockIndex;
 }
 
 
@@ -1062,7 +1062,9 @@ static void processPredispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb,
 
 	extractLookupPercolatesFromEntryLookups(lookupReadBlock->smerEntryLookups, lookupReadBlock->smerEntryLookupsPercolates);
 
-	RoutingReadReferenceBlockDispatchArray *dispArray=allocDispatchArray();
+	RoutingReadReferenceBlockDispatchArray *outboundDispatches=allocDispatchArray(lookupReadBlock->outboundDispatches);
+	lookupReadBlock->outboundDispatches=outboundDispatches;
+
 	RoutingReadLookupRecycleBlock *predispatchRecycleBlock=NULL;
 	RoutingReadLookupRecycleBlock *postdispatchRecycleBlock=NULL;
 
@@ -1172,7 +1174,7 @@ static void processPredispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb,
 //				LOG(LOG_INFO,"Small dispatch scenario");
 
 				mbDoubleBrickFreeByIndex(lookupPile, lookupLinkIndex);
-				assignToDispatchArrayEntry(dispArray, dispatchLinkIndex, dispatchLink);
+				assignToDispatchArrayEntry(outboundDispatches, dispatchLinkIndex, dispatchLink);
 				}
 			}
 		else if(dispatchCount <= DISPATCH_LINK_SMERS) // Can fit in one dispatch link, copy and dispatch
@@ -1195,7 +1197,7 @@ static void processPredispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb,
 				mbDoubleBrickFreeByIndex(lookupPile, lookupLinkIndex);
 				}
 
-			assignToDispatchArrayEntry(dispArray, dispatchLinkIndex, dispatchLink);
+			assignToDispatchArrayEntry(outboundDispatches, dispatchLinkIndex, dispatchLink);
 			}
 		else // Using multiple dispatch links
 			{
@@ -1223,7 +1225,7 @@ static void processPredispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb,
 				mbDoubleBrickFreeByIndex(lookupPile, lookupLinkIndex);
 				}
 
-			assignToDispatchArrayEntry(dispArray, dispatchLinkIndex, dispatchLink);
+			assignToDispatchArrayEntry(outboundDispatches, dispatchLinkIndex, dispatchLink);
 			}
 		}
 
@@ -1232,7 +1234,7 @@ static void processPredispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb,
 	flushRecycleBlock(rb, predispatchRecycleBlock);
 	flushRecycleBlock(rb, postdispatchRecycleBlock);
 
-	queueDispatchArray(rb, dispArray);
+	queueDispatchArray(rb, outboundDispatches);
 
 //	LOG(LOG_INFO,"processPredispatchLookupCompleteReadLookupBlocks done");
 }
@@ -1404,6 +1406,8 @@ int scanForAndDispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb)
 
 	mbDoubleBrickAllocatorCleanup(&lookupLinkAlloc);
 	mbDoubleBrickAllocatorCleanup(&dispatchLinkAlloc);
+
+	lookupReadBlock->outboundDispatches=cleanupRoutingDispatchArrays(lookupReadBlock->outboundDispatches);
 
 	dispenserReset(lookupReadBlock->disp);
 

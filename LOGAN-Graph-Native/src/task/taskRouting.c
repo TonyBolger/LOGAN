@@ -320,7 +320,10 @@ static int checkForWork(RoutingBuilder *rb, int *lookupBlocksPtr, int *dispatchB
 	int arlb=__atomic_load_n(&rb->allocatedReadLookupBlocks, __ATOMIC_SEQ_CST);
 	int lrr=(__atomic_load_n(&rb->lookupPredispatchRecyclePtr, __ATOMIC_SEQ_CST)!=NULL) + (__atomic_load_n(&rb->lookupPostdispatchRecyclePtr, __ATOMIC_SEQ_CST)!=NULL);
 
-	int ardb=0;//__atomic_load_n(&rb->allocatedReadDispatchBlocks, __ATOMIC_SEQ_CST);
+	MemSingleBrickPile *seqPile=&(rb->sequenceLinkPile);
+
+	int ardb=mbGetSingleBrickPileCapacity(seqPile)-mbGetFreeSingleBrickPile(seqPile);
+
 
 	//*ingressBlocksPtr=arib;
 	*lookupBlocksPtr=arlb;
@@ -391,12 +394,15 @@ static int trDoIntermediate(ParallelTask *pt, int workerNo, void *wState, int fo
 		}
 */
 
-	int work=scanForSmerLookups(rb, workerNo, workerState);
+	if(force)
+		{
+		int work=scanForSmerLookups(rb, workerNo, workerState);
 
-	work+=scanForDispatches(rb, workerNo, workerState, force);
+		work+=scanForDispatches(rb, workerNo, workerState, force);
 
-	if(work)
-		return 1;
+		if(work)
+			return 1;
+		}
 
 	if(checkForWork(rb, &arlb, &ardb)) // If in force mode, and not finished, rally the minions
 		return force;
@@ -448,6 +454,7 @@ RoutingBuilder *allocRoutingBuilder(Graph *graph, int threads)
 		{
 		rb->readLookupBlocks[i].disp=dispenserAlloc(MEMTRACKID_DISPENSER_ROUTING_LOOKUP, DISPENSER_BLOCKSIZE_SMALL, DISPENSER_BLOCKSIZE_MEDIUM);
 		rb->readLookupBlocks[i].compStat.split.status=BLOCK_STATUS_IDLE;
+		rb->readLookupBlocks[i].outboundDispatches=NULL;
 		}
 	rb->allocatedReadLookupBlocks=0;
 
@@ -485,7 +492,10 @@ void freeRoutingBuilder(RoutingBuilder *rb)
 	dumpUnclean(rb);
 
 	for(int i=0;i<TR_READBLOCK_LOOKUPS_INFLIGHT;i++)
+		{
+		cleanupRoutingDispatchArrays(rb->readLookupBlocks[i].outboundDispatches);
 		dispenserFree(rb->readLookupBlocks[i].disp);
+		}
 /*
 	for(int i=0;i<TR_READBLOCK_DISPATCHES_INFLIGHT;i++)
 		dispenserFree(rb->readDispatchBlocks[i].disp);
@@ -505,6 +515,8 @@ void freeRoutingBuilder(RoutingBuilder *rb)
 	mbFreeDoubleBrickPile(&(rb->dispatchLinkPile),"DispatchLink");
 
 	trRoutingBuilderFree(rb);
+
+	LOG(LOG_INFO,"Freed RoutingBuilder");
 }
 
 

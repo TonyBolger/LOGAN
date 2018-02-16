@@ -2,10 +2,11 @@
 #define __TASKROUTINGDISPATCH_H
 
 
-RoutingReadReferenceBlockDispatchArray *allocDispatchArray();
+RoutingReadReferenceBlockDispatchArray *allocDispatchArray(RoutingReadReferenceBlockDispatchArray *nextPtr);
 
 
 void assignToDispatchArrayEntry(RoutingReadReferenceBlockDispatchArray *array, u32 dispatchLinkIndex, DispatchLink *readData);
+RoutingReadReferenceBlockDispatchArray *cleanupRoutingDispatchArrays(RoutingReadReferenceBlockDispatchArray *in);
 
 void initRoutingDispatchGroupState(RoutingDispatchGroupState *dispatchGroupState);
 void freeRoutingDispatchGroupState(RoutingDispatchGroupState *dispatchGroupState);

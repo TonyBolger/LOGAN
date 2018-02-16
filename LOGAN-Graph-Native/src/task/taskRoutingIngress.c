@@ -149,6 +149,12 @@ s32 getAvailableReadIngress(RoutingBuilder *rb)
 
 			total+=(count-position);
 			}
+		/*
+		else
+			{
+			LOG(LOG_INFO,"ingress: Block not active - %i",__atomic_load_n(&(readBlock->status), __ATOMIC_SEQ_CST));
+			}
+			*/
 		}
 
 	return total;
@@ -268,7 +274,10 @@ s32 processIngressedReads(RoutingBuilder *rb)
 	//LOG(LOG_INFO, "processIngressedReads %i",availableReads);
 
 	if(!availableReads)
+		{
+		//LOG(LOG_INFO, "processIngressedReads: no reads available");
 		return 0;
+		}
 
 	int work=0;
 
@@ -292,6 +301,8 @@ s32 processIngressedReads(RoutingBuilder *rb)
 			else
 				unlockIngressBlockIncomplete(readBlock);
 			}
+		//else
+//			LOG(LOG_INFO, "processIngressedReads: lock fail");
 		}
 
 	return work;
