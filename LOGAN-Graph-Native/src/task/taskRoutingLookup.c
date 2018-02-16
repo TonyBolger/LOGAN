@@ -389,6 +389,8 @@ static RoutingReadLookupBlock *allocateReadLookupBlock(RoutingBuilder *rb)
 
 static void queueReadLookupBlock(RoutingReadLookupBlock *readBlock)
 {
+	LOG(LOG_INFO,"ReadBlock type %i contains %i",readBlock->blockType, readBlock->readCount);
+
 	u32 current=BLOCK_STATUS_ALLOCATED;
 	if(!__atomic_compare_exchange_n(&(readBlock->compStat.split.status), &current, BLOCK_STATUS_ACTIVE, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST))
 		{

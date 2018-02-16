@@ -139,18 +139,19 @@ void assignToDispatchArrayEntry(RoutingReadReferenceBlockDispatchArray *array, u
 
 
 
-static void initDispatchLinkQueue(RoutingSmerAssignedDispatchLinkQueue *queue, s32 sliceIndex, MemDispenser *disp)
+static void initDispatchLinkQueue(RoutingSmerAssignedDispatchLinkQueue *queue, s32 sliceIndex, u32 boost, MemDispenser *disp)
 {
 	queue->sliceIndex=sliceIndex;
 	queue->entryCount=0;
 	queue->position=0;
+	queue->boost=1;
 	queue->dispatchLinkIndexEntries=dAllocCacheAligned(disp, TR_DISPATCH_READS_PER_QUEUE_BLOCK*sizeof(u32));
 }
 
-RoutingSmerAssignedDispatchLinkQueue *allocDispatchLinkQueue(MemDispenser *disp,  s32 sliceIndex)
+RoutingSmerAssignedDispatchLinkQueue *allocDispatchLinkQueue(MemDispenser *disp,  s32 sliceIndex, u32 boost)
 {
 	RoutingSmerAssignedDispatchLinkQueue *queue=dAlloc(disp, sizeof(RoutingSmerAssignedDispatchLinkQueue));
-	initDispatchLinkQueue(queue, sliceIndex, disp);
+	initDispatchLinkQueue(queue, sliceIndex, boost, disp);
 	return queue;
 }
 
@@ -248,13 +249,13 @@ static void recycleDispatchLinkQueue(RoutingSliceAssignedDispatchLinkQueue *disp
 
 				if(position<entryCount)
 					{
-					RoutingSmerAssignedDispatchLinkQueue *newDispatchQueue=allocDispatchLinkQueue(disp, oldDispatchQueue->sliceIndex);
+					RoutingSmerAssignedDispatchLinkQueue *newDispatchQueue=allocDispatchLinkQueue(disp, oldDispatchQueue->sliceIndex, oldDispatchQueue->boost);
 
 					for(int j=position;j<entryCount;j++)
 						assignDispatchLinkToQueue(newDispatchQueue, oldDispatchQueue->dispatchLinkIndexEntries[j], disp);
 
 					if(newMap==NULL)
-						newMap=iohInitMap(disp, 8);
+						newMap=iohInitMap(disp, 10);
 
 					iohPut(newMap, newDispatchQueue->sliceIndex, newDispatchQueue);
 					}
@@ -746,7 +747,7 @@ static void assignInboundDispatchesToLinkQueue(MemDoubleBrickPile *dispatchPile,
 
 		if(map==NULL)
 			{
-			map=iohInitMap(disp, 8);
+			map=iohInitMap(disp, 10);
 			dispatchLinkQueue->smerQueueMap[sliceWithinGroupIndex]=map;
 			}
 
@@ -754,7 +755,7 @@ static void assignInboundDispatchesToLinkQueue(MemDoubleBrickPile *dispatchPile,
 
 		if(dispatchQueue==NULL)
 			{
-			dispatchQueue=allocDispatchLinkQueue(disp, sliceIndex);
+			dispatchQueue=allocDispatchLinkQueue(disp, sliceIndex, 1);
 			iohPut(map, sliceIndex, dispatchQueue);
 			}
 
@@ -965,13 +966,14 @@ static int processSlice(RoutingBuilder *rb, RoutingSliceAssignedDispatchLinkQueu
 			//LOG(LOG_INFO,"Added %i", dispatchLinkIndex);
 			}
 
-		if((indexBlock->entryCount*2)>threshold)
+		if((indexBlock->entryCount*dispatchQueue->boost)>=threshold)
 			{
 			//for(int i=0;i<indexBlock->entryCount;i++)
 			//	LOG(LOG_INFO,"Entry is %i", indexBlock->linkIndexEntries[i]);
 
 			//LOG(LOG_INFO,"Routing %i from %i",indexBlock->entryCount, dispatchOffset);
 
+			dispatchQueue->boost=1;
 			dispatchQueue->position+=indexBlock->entryCount;
 
 			u8 sliceTag=(u8)sliceWithinGroupIndex;
@@ -982,6 +984,8 @@ static int processSlice(RoutingBuilder *rb, RoutingSliceAssignedDispatchLinkQueu
 
 			dispatchOffset+=entryCount;
 			}
+		else
+			dispatchQueue->boost++;
 		/*
 		else
 			{
@@ -1213,6 +1217,8 @@ static int scanForDispatchesForGroups(RoutingBuilder *rb, int startGroup, int en
 
 	MemDispenser *routingDisp=NULL;
 
+	RoutingReadLookupRecycleBlock *postdispatchRecycleBlock=NULL;
+
 	for(i=startGroup;i<endGroup;i++)
 		{
 		RoutingReadReferenceBlockDispatch *tmpPtr=__atomic_load_n(rb->dispatchPtr+i, __ATOMIC_SEQ_CST);
@@ -1221,8 +1227,6 @@ static int scanForDispatchesForGroups(RoutingBuilder *rb, int startGroup, int en
 			{
 			if(lockRoutingDispatchGroupState(rb, i))
 				{
-				RoutingReadLookupRecycleBlock *postdispatchRecycleBlock=NULL;
-
 				RoutingDispatchGroupState *groupState=rb->dispatchGroupState+i;
 
 				RoutingReadReferenceBlockDispatch *dispatchEntry=dequeueDispatchForGroupList(rb, i);
@@ -1282,13 +1286,13 @@ static int scanForDispatchesForGroups(RoutingBuilder *rb, int startGroup, int en
 					}
 
 				queueDispatchArray(rb, groupState->outboundDispatches);
-				flushRecycleBlock(rb, postdispatchRecycleBlock);
-
 				recycleRoutingDispatchGroupState(groupState);
 				unlockRoutingDispatchGroupState(rb,i);
 				}
 			}
 		}
+
+	flushRecycleBlock(rb, postdispatchRecycleBlock);
 
 	if(routingDisp!=NULL)
 		{
@@ -1311,13 +1315,13 @@ int scanForDispatches(RoutingBuilder *rb, int workerNo, RoutingWorkerState *wSta
 	int lastGroup=-1;
 
 //	LOG(LOG_INFO,"Dispatch %i %i",wState->dispatchGroupStart, wState->dispatchGroupEnd);
-
+/*
 	if(force)
 		{
 		work=scanForDispatchesForGroups(rb,wState->dispatchGroupStart, SMER_DISPATCH_GROUPS, force, workerNo, &lastGroup);
 		work+=scanForDispatchesForGroups(rb, 0, wState->dispatchGroupEnd, force, workerNo, &lastGroup);
 		}
-	else
+	else*/
 		work=scanForDispatchesForGroups(rb,wState->dispatchGroupStart, wState->dispatchGroupEnd, force, workerNo, &lastGroup);
 
 	//if(work<TR_DISPATCH_MAX_WORK)

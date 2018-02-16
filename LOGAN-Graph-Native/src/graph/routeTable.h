@@ -81,13 +81,13 @@ typedef struct routingSmerAssignedDispatchLinkQueueStr {
 	s32 sliceIndex; // 4
 	u32 entryCount; // 4
 	u32 position; // 4
+	u32 boost; // 4
 	u32 *dispatchLinkIndexEntries; // 8
 } RoutingSmerAssignedDispatchLinkQueue;
 
 typedef struct routingSliceAssignedDispatchLinkQueueStr {
 
 	IohHash *smerQueueMap[SMER_DISPATCH_GROUP_SLICES]; // Map of sliceIndex -> RoutingSmerAssignedDispatchLink
-
 } RoutingSliceAssignedDispatchLinkQueue;
 
 

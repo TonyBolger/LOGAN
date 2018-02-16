@@ -275,9 +275,9 @@ static void showWorkStatus(RoutingBuilder *rb)
 {
 	int arib=__atomic_load_n(&rb->allocatedIngressBlocks, __ATOMIC_SEQ_CST);
 	int arlb=__atomic_load_n(&rb->allocatedReadLookupBlocks, __ATOMIC_SEQ_CST);
-	int lrr=(__atomic_load_n(&rb->lookupPredispatchRecyclePtr, __ATOMIC_SEQ_CST)!=NULL) + (__atomic_load_n(&rb->lookupPostdispatchRecyclePtr, __ATOMIC_SEQ_CST)!=NULL);
+	int lrpre=__atomic_load_n(&rb->lookupPredispatchRecycleCount, __ATOMIC_SEQ_CST);
+	int lrpost=__atomic_load_n(&rb->lookupPostdispatchRecycleCount, __ATOMIC_SEQ_CST);
 
-	int ardb=0;//__atomic_load_n(&rb->allocatedReadDispatchBlocks, __ATOMIC_SEQ_CST);
 
 	MemSingleBrickPile *seqPile=&(rb->sequenceLinkPile);
 	MemDoubleBrickPile *lookupPile=&(rb->lookupLinkPile);
@@ -295,7 +295,7 @@ static void showWorkStatus(RoutingBuilder *rb)
 	int dispatchFree=mbGetFreeDoubleBrickPile(dispatchPile);
 	int dispatchUsed=dispatchTotal-dispatchFree;
 
-	LOG(LOG_INFO,"TickTock: RB - IB: %i LB: %i LR: %i DB: %i", arib, arlb, lrr, ardb);
+	LOG(LOG_INFO,"TickTock: RB - IB: %i LB: %i LR_pre: %i LR_post: %i", arib, arlb, lrpre, lrpost);
 	LOG(LOG_INFO,"TickTock: BricksUFT - Seq %i %i %i Lookup %i %i %i Dispatch %i %i %i",
 			seqUsed,seqFree,seqTotal, lookupUsed,lookupFree,lookupTotal, dispatchUsed,dispatchFree,dispatchTotal);
 
@@ -375,7 +375,7 @@ static int trDoIntermediate(ParallelTask *pt, int workerNo, void *wState, int fo
 	int arlb=0;
 	int ardb=0;
 
-	//checkForWork(rb, &arlb, &ardb);
+	checkForWork(rb, &arlb, &ardb);
 
 	/*
 	if((force)||(arlb>TR_READBLOCK_LOOKUPS_THRESHOLD))
@@ -394,13 +394,15 @@ static int trDoIntermediate(ParallelTask *pt, int workerNo, void *wState, int fo
 		}
 */
 
+	if((force)||(arlb>TR_READBLOCK_LOOKUPS_THRESHOLD))
+		{
+		if(scanForSmerLookups(rb, workerNo, workerState))
+			return 1;
+		}
+
 	if(force)
 		{
-		int work=scanForSmerLookups(rb, workerNo, workerState);
-
-		work+=scanForDispatches(rb, workerNo, workerState, force);
-
-		if(work)
+		if(scanForDispatches(rb, workerNo, workerState, force))
 			return 1;
 		}
 
