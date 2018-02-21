@@ -49,9 +49,9 @@ static RoutingReadIngressBlock *allocateReadIngressBlock(RoutingBuilder *rb)
 			{
 			u32 current=__atomic_load_n(&rb->ingressBlocks[i].status, __ATOMIC_SEQ_CST);
 
-			if(current==BLOCK_STATUS_IDLE)
+			if(current==INGRESS_BLOCK_STATUS_IDLE)
 				{
-				if(__atomic_compare_exchange_n(&(rb->ingressBlocks[i].status), &current, BLOCK_STATUS_ALLOCATED, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST))
+				if(__atomic_compare_exchange_n(&(rb->ingressBlocks[i].status), &current, INGRESS_BLOCK_STATUS_ALLOCATED, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST))
 					return rb->ingressBlocks+i;
 				}
 			}
@@ -64,8 +64,8 @@ static RoutingReadIngressBlock *allocateReadIngressBlock(RoutingBuilder *rb)
 
 static void queueReadIngressBlock(RoutingReadIngressBlock *ingressBlock)
 {
-	u32 current=BLOCK_STATUS_ALLOCATED;
-	if(!__atomic_compare_exchange_n(&(ingressBlock->status), &current, BLOCK_STATUS_ACTIVE, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST))
+	u32 current=INGRESS_BLOCK_STATUS_ALLOCATED;
+	if(!__atomic_compare_exchange_n(&(ingressBlock->status), &current, INGRESS_BLOCK_STATUS_ACTIVE, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST))
 		LOG(LOG_CRITICAL,"Tried to queue lookup readblock in wrong state, should never happen");
 }
 
@@ -74,10 +74,10 @@ static s32 lockIngressBlockForConsumption(RoutingReadIngressBlock *ingressBlock)
 {
 	s32 current=__atomic_load_n(&(ingressBlock->status), __ATOMIC_SEQ_CST);
 
-	if(current!=BLOCK_STATUS_ACTIVE)
+	if(current!=INGRESS_BLOCK_STATUS_ACTIVE)
 		return 0;
 
-	if(!__atomic_compare_exchange_n(&(ingressBlock->status), &current, BLOCK_STATUS_LOCKED, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST))
+	if(!__atomic_compare_exchange_n(&(ingressBlock->status), &current, INGRESS_BLOCK_STATUS_LOCKED, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST))
 		return 0;
 
 	return 1;
@@ -86,18 +86,18 @@ static s32 lockIngressBlockForConsumption(RoutingReadIngressBlock *ingressBlock)
 
 static void unlockIngressBlockIncomplete(RoutingReadIngressBlock *ingressBlock)
 {
-	u32 current=BLOCK_STATUS_LOCKED;
+	u32 current=INGRESS_BLOCK_STATUS_LOCKED;
 
-	if(!__atomic_compare_exchange_n(&(ingressBlock->status), &current, BLOCK_STATUS_ACTIVE, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST))
+	if(!__atomic_compare_exchange_n(&(ingressBlock->status), &current, INGRESS_BLOCK_STATUS_ACTIVE, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST))
 		LOG(LOG_CRITICAL,"Failed to unlock ingress block for consumption, should never happen");
 }
 
 
 static void unlockIngressBlockComplete(RoutingReadIngressBlock *ingressBlock)
 {
-	u32 current=BLOCK_STATUS_LOCKED;
+	u32 current=INGRESS_BLOCK_STATUS_LOCKED;
 
-	if(!__atomic_compare_exchange_n(&(ingressBlock->status), &current, BLOCK_STATUS_COMPLETE, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST))
+	if(!__atomic_compare_exchange_n(&(ingressBlock->status), &current, INGRESS_BLOCK_STATUS_COMPLETE, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST))
 		LOG(LOG_CRITICAL,"Failed to unlock ingress block for consumption, should never happen");
 }
 
@@ -124,8 +124,8 @@ static int scanForCompleteReadIngressBlock(RoutingBuilder *rb)
 
 static void unallocateReadIngressBlock(RoutingReadIngressBlock *readBlock)
 {
-	u32 current=BLOCK_STATUS_COMPLETE;
-	if(!__atomic_compare_exchange_n(&(readBlock->status), &current, BLOCK_STATUS_IDLE, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST))
+	u32 current=INGRESS_BLOCK_STATUS_COMPLETE;
+	if(!__atomic_compare_exchange_n(&(readBlock->status), &current, INGRESS_BLOCK_STATUS_IDLE, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST))
 		{
 		LOG(LOG_CRITICAL,"Tried to unreserve lookup readblock in wrong state, should never happen");
 		}
@@ -142,7 +142,7 @@ s32 getAvailableReadIngress(RoutingBuilder *rb)
 		{
 		readBlock=rb->ingressBlocks+i;
 
-		if(__atomic_load_n(&(readBlock->status), __ATOMIC_RELAXED) == BLOCK_STATUS_ACTIVE)
+		if(__atomic_load_n(&(readBlock->status), __ATOMIC_RELAXED) == INGRESS_BLOCK_STATUS_ACTIVE)
 			{
 			u32 count=__atomic_load_n(&(readBlock->sequenceCount), __ATOMIC_RELAXED);
 			u32 position=__atomic_load_n(&(readBlock->sequencePosition), __ATOMIC_RELAXED);

@@ -132,11 +132,19 @@ static void *trDoRegister(ParallelTask *pt, int workerNo, int totalWorkers)
 {
 	RoutingWorkerState *workerState=G_ALLOC(sizeof(RoutingWorkerState), MEMTRACKID_ROUTING_WORKERSTATE);
 
+	int workerGroups=(totalWorkers+3)/4;
+	int workerGroupNo=workerNo%workerGroups;
+
 	workerState->lookupSliceStart=(SMER_SLICES*workerNo)/totalWorkers;
 	workerState->lookupSliceEnd=(SMER_SLICES*(workerNo+1))/totalWorkers;
 
-	workerState->dispatchGroupStart=(SMER_DISPATCH_GROUPS*workerNo)/totalWorkers;
-	workerState->dispatchGroupEnd=(SMER_DISPATCH_GROUPS*(workerNo+1))/totalWorkers;
+//	workerState->dispatchGroupStart=(SMER_DISPATCH_GROUPS*workerNo)/workerGroups;
+//	workerState->dispatchGroupEnd=(SMER_DISPATCH_GROUPS*(workerNo+1))/workerGroups;
+
+	workerState->dispatchGroupStart=(SMER_DISPATCH_GROUPS*workerGroupNo)/workerGroups;
+	workerState->dispatchGroupEnd=(SMER_DISPATCH_GROUPS*(workerGroupNo+1))/workerGroups;
+
+	workerState->dispatchGroupCurrent=workerState->dispatchGroupStart;
 
 	LOG(LOG_INFO,"Worker %i of %i - Lookup Range %i %i DispatchGroup Range %i %i",
 			workerNo,totalWorkers,
@@ -396,7 +404,7 @@ static int trDoIntermediate(ParallelTask *pt, int workerNo, void *wState, int fo
 
 	if((force)||(arlb>TR_READBLOCK_LOOKUPS_THRESHOLD))
 		{
-		if(scanForSmerLookups(rb, workerNo, workerState))
+		if(scanForSmerLookups(rb, workerNo, workerState, force))
 			return 1;
 		}
 
@@ -447,7 +455,10 @@ RoutingBuilder *allocRoutingBuilder(Graph *graph, int threads)
 	mbInitSingleBrickPile(&(rb->sequenceLinkPile), TR_BRICKCHUNKS_SEQUENCE_MIN, TR_BRICKCHUNKS_SEQUENCE_MAX, MEMTRACKID_BRICK_SEQ);
 
 	for(int i=0;i<TR_READBLOCK_INGRESS_INFLIGHT;i++)
-		rb->ingressBlocks[i].status=BLOCK_STATUS_IDLE;
+		{
+		rb->ingressBlocks[i].status=INGRESS_BLOCK_STATUS_IDLE;
+		}
+
 	rb->allocatedIngressBlocks=0;
 
 	mbInitDoubleBrickPile(&(rb->lookupLinkPile), TR_BRICKCHUNKS_LOOKUP_MIN, TR_BRICKCHUNKS_LOOKUP_MAX, MEMTRACKID_BRICK_LOOKUP);
@@ -455,7 +466,7 @@ RoutingBuilder *allocRoutingBuilder(Graph *graph, int threads)
 	for(int i=0;i<TR_READBLOCK_LOOKUPS_INFLIGHT;i++)
 		{
 		rb->readLookupBlocks[i].disp=dispenserAlloc(MEMTRACKID_DISPENSER_ROUTING_LOOKUP, DISPENSER_BLOCKSIZE_SMALL, DISPENSER_BLOCKSIZE_MEDIUM);
-		rb->readLookupBlocks[i].compStat.split.status=BLOCK_STATUS_IDLE;
+		rb->readLookupBlocks[i].compStat=LOOKUP_BLOCK_STATUS_IDLE;
 		rb->readLookupBlocks[i].outboundDispatches=NULL;
 		}
 	rb->allocatedReadLookupBlocks=0;

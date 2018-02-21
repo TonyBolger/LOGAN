@@ -68,11 +68,25 @@ typedef struct dispatchLinkStr {
 
 // 0 = idle, 1 = allocated,2 = active,3 = locked, 4 = complete
 
-#define BLOCK_STATUS_IDLE 0
-#define BLOCK_STATUS_ALLOCATED 1
-#define BLOCK_STATUS_ACTIVE 2
-#define BLOCK_STATUS_LOCKED 3
-#define BLOCK_STATUS_COMPLETE 4
+// Ingress uses a simple integer status
+
+#define INGRESS_BLOCK_STATUS_IDLE 0x00000
+#define INGRESS_BLOCK_STATUS_ALLOCATED 0x10000
+#define INGRESS_BLOCK_STATUS_ACTIVE 0x20000
+#define INGRESS_BLOCK_STATUS_LOCKED 0x30000
+#define INGRESS_BLOCK_STATUS_COMPLETE 0x40000
+
+
+// Lookup use a shifted status combined with completion count
+
+#define LOOKUP_BLOCK_STATUS_MASK 0xFFFF0000
+#define LOOKUP_BLOCK_COUNT_MASK 0x0000FFFF
+
+#define LOOKUP_BLOCK_STATUS_IDLE 0x00000
+#define LOOKUP_BLOCK_STATUS_ALLOCATED 0x10000
+#define LOOKUP_BLOCK_STATUS_ACTIVE 0x20000
+#define LOOKUP_BLOCK_STATUS_LOCKED 0x30000
+#define LOOKUP_BLOCK_STATUS_COMPLETE 0x40000
 
 /*
 typedef struct routingReadIngressSequenceStr {
@@ -129,15 +143,6 @@ typedef struct routingDispatchArray {
 
 
 
-typedef union
-{
-	u64 combined;
-	struct {
-		u32 status;				// 0 = idle, 1 = allocated,2 = active,3 = locked, 4 = complete
-		s32 completionCount;	// Work still to be done
-		} split;
-} RoutingBlockCompletionStatus;
-
 
 // RoutingSmerEntryLookup has 24 bytes core
 // Each SmerEntry is 4
@@ -149,7 +154,7 @@ typedef union
 
 typedef struct routingSmerEntryLookupStr {
 	struct routingSmerEntryLookupStr *nextPtr; //
-	s32 *completionCountPtr; // 8
+	u64 *completionCountPtr; // 8
 	u64 entryCount; // 8
 	SmerEntry *entries; // 8
 
@@ -173,7 +178,7 @@ typedef struct routingReadLookupBlockStr {
 
 	MemDispenser *disp; // Used for percolate / entryLookups
 
-	RoutingBlockCompletionStatus compStat;
+	u64 compStat; // Low half is completion count, high half is status
 
 	RoutingReadReferenceBlockDispatchArray *outboundDispatches;
 
@@ -314,6 +319,8 @@ typedef struct routingWorkerStateStr {
 
 	int dispatchGroupStart;
 	int dispatchGroupEnd;
+
+	int dispatchGroupCurrent;
 
 } RoutingWorkerState;
 

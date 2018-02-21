@@ -144,7 +144,7 @@ static void initDispatchLinkQueue(RoutingSmerAssignedDispatchLinkQueue *queue, s
 	queue->sliceIndex=sliceIndex;
 	queue->entryCount=0;
 	queue->position=0;
-	queue->boost=1;
+	queue->boost=DISPATCH_LINK_QUEUE_DEFAULT_BOOST;
 	queue->dispatchLinkIndexEntries=dAllocCacheAligned(disp, TR_DISPATCH_READS_PER_QUEUE_BLOCK*sizeof(u32));
 }
 
@@ -941,7 +941,7 @@ static int processSlice(RoutingBuilder *rb, RoutingSliceAssignedDispatchLinkQueu
 		RoutingIndexedDispatchLinkIndexBlock *indexBlock=allocDispatchIndexedIntermediateBlock(routingDisp);
 		indexBlock->sliceIndex=sliceIndex;
 
-		int threshold=dispatchQueue->entryCount-dispatchQueue->position;
+		int threshold=MIN(dispatchQueue->entryCount-dispatchQueue->position, DISPATCH_LINK_QUEUE_FORCE_THRESHOLD);
 
 		for(int i=dispatchQueue->position;i<dispatchQueue->entryCount;i++)
 			{
@@ -971,21 +971,34 @@ static int processSlice(RoutingBuilder *rb, RoutingSliceAssignedDispatchLinkQueu
 			//for(int i=0;i<indexBlock->entryCount;i++)
 			//	LOG(LOG_INFO,"Entry is %i", indexBlock->linkIndexEntries[i]);
 
-			//LOG(LOG_INFO,"Routing %i from %i",indexBlock->entryCount, dispatchOffset);
+			if(indexBlock->entryCount>10000)
+				LOG(LOG_INFO,"Dispatching %i of %i",indexBlock->entryCount, dispatchQueue->entryCount);
 
-			dispatchQueue->boost=1;
+			dispatchQueue->boost=DISPATCH_LINK_QUEUE_DEFAULT_BOOST;
 			dispatchQueue->position+=indexBlock->entryCount;
 
 			u8 sliceTag=(u8)sliceWithinGroupIndex;
 
-			int entryCount=rtRouteReadsForSmer(indexBlock, slice, orderedDispatches+dispatchOffset, routingDisp, circHeap, sliceTag);
+			u32 entriesRemaining=indexBlock->entryCount;
+			u32 indexBlockOffset=0;
 
-			//LOG(LOG_INFO,"Routed %i from %i",entryCount, dispatchOffset);
+			while(entriesRemaining>0)
+				{
+				u32 entriesToRoute=MIN(entriesRemaining, 1000);
 
-			dispatchOffset+=entryCount;
+				rtRouteReadsForSmer(indexBlock, indexBlockOffset, entriesToRoute, slice, orderedDispatches+dispatchOffset, routingDisp, circHeap, sliceTag);
+
+				indexBlockOffset+=entriesToRoute;
+				entriesRemaining-=entriesToRoute;
+				dispatchOffset+=entriesToRoute;
+				}
 			}
 		else
+			{
+//			if(indexBlock->entryCount>0)
+//				LOG(LOG_INFO,"Deferring with %i dispatchable (%i boost) below threshold %i",indexBlock->entryCount, dispatchQueue->boost, threshold);
 			dispatchQueue->boost++;
+			}
 		/*
 		else
 			{
@@ -1173,7 +1186,7 @@ static int gatherSliceOutbound(MemSingleBrickPile *sequencePile, MemDoubleBrickP
 					}
 
 				default:
-					LOG(LOG_CRITICAL,"Unexpected type "+dispatchLink->indexType);
+					LOG(LOG_CRITICAL,"Unexpected type %i", dispatchLink->indexType);
 				}
 
 			}
@@ -1308,7 +1321,7 @@ static int scanForDispatchesForGroups(RoutingBuilder *rb, int startGroup, int en
 
 int scanForDispatches(RoutingBuilder *rb, int workerNo, RoutingWorkerState *wState, int force)
 {
-	//LOG(LOG_INFO,"scanForDispatches");
+//	LOG(LOG_INFO,"scanForDispatches enter %i",workerNo);
 
 	//int position=wState->dispatchGroupCurrent;
 	int work=0;
@@ -1322,12 +1335,22 @@ int scanForDispatches(RoutingBuilder *rb, int workerNo, RoutingWorkerState *wSta
 		work+=scanForDispatchesForGroups(rb, 0, wState->dispatchGroupEnd, force, workerNo, &lastGroup);
 		}
 	else*/
-		work=scanForDispatchesForGroups(rb,wState->dispatchGroupStart, wState->dispatchGroupEnd, force, workerNo, &lastGroup);
+
+	work=scanForDispatchesForGroups(rb, wState->dispatchGroupStart, wState->dispatchGroupEnd, force, workerNo, &lastGroup);
+
+
+	//int dispatchGroupStart=wState->dispatchGroupCurrent;
+	//int dispatchGroupEnd=dispatchGroupStart+1;
+	//wState->dispatchGroupCurrent=(dispatchGroupEnd<wState->dispatchGroupEnd)?dispatchGroupEnd:wState->dispatchGroupStart;
+	//work=scanForDispatchesForGroups(rb,dispatchGroupStart, dispatchGroupEnd, force, workerNo, &lastGroup);
+
 
 	//if(work<TR_DISPATCH_MAX_WORK)
 //		work+=scanForDispatchesForGroups(rb, 0, position, force, workerNo, &lastGroup);
 
 //	wState->dispatchGroupCurrent=lastGroup;
+
+//	LOG(LOG_INFO,"scanForDispatches exit %i",workerNo);
 
 	return work;
 

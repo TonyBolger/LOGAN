@@ -371,11 +371,11 @@ static RoutingReadLookupBlock *allocateReadLookupBlock(RoutingBuilder *rb)
 
 		for(i=0;i<TR_READBLOCK_LOOKUPS_INFLIGHT;i++)
 			{
-			u32 current=__atomic_load_n(&rb->readLookupBlocks[i].compStat.split.status, __ATOMIC_SEQ_CST);
+			u64 current=__atomic_load_n(&rb->readLookupBlocks[i].compStat, __ATOMIC_SEQ_CST);
 
-			if(current==BLOCK_STATUS_IDLE)
+			if(current==LOOKUP_BLOCK_STATUS_IDLE)
 				{
-				if(__atomic_compare_exchange_n(&(rb->readLookupBlocks[i].compStat.split.status), &current, BLOCK_STATUS_ALLOCATED, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST))
+				if(__atomic_compare_exchange_n(&(rb->readLookupBlocks[i].compStat), &current, LOOKUP_BLOCK_STATUS_ALLOCATED, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST))
 					return rb->readLookupBlocks+i;
 				}
 			}
@@ -387,15 +387,29 @@ static RoutingReadLookupBlock *allocateReadLookupBlock(RoutingBuilder *rb)
 
 
 
-static void queueReadLookupBlock(RoutingReadLookupBlock *readBlock)
+static void queueReadLookupBlock(RoutingReadLookupBlock *readBlock, u64 usedSlices)
 {
-	LOG(LOG_INFO,"ReadBlock type %i contains %i",readBlock->blockType, readBlock->readCount);
+	//LOG(LOG_INFO,"ReadBlock type %i contains %i",readBlock->blockType, readBlock->readCount);
 
-	u32 current=BLOCK_STATUS_ALLOCATED;
-	if(!__atomic_compare_exchange_n(&(readBlock->compStat.split.status), &current, BLOCK_STATUS_ACTIVE, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST))
+	int loopCount=0;
+	u64 current, compStat;
+
+	do
 		{
-		LOG(LOG_CRITICAL,"Tried to queue lookup readblock in wrong state, should never happen");
+		if(loopCount++>1000000)
+			{
+			LOG(LOG_CRITICAL,"Loop Stuck");
+			}
+
+		current=__atomic_load_n(&(readBlock->compStat), __ATOMIC_SEQ_CST);
+
+		if(current!=LOOKUP_BLOCK_STATUS_ALLOCATED)
+			LOG(LOG_CRITICAL,"Tried to queue lookup readblock in wrong state %08x, should never happen", current);
+
+		compStat=LOOKUP_BLOCK_STATUS_ACTIVE | usedSlices;
 		}
+	while(!__atomic_compare_exchange_n(&(readBlock->compStat), &current, compStat, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST));
+
 }
 
 static int scanForCompleteReadLookupBlock(RoutingBuilder *rb)
@@ -406,8 +420,13 @@ static int scanForCompleteReadLookupBlock(RoutingBuilder *rb)
 	for(i=0;i<TR_READBLOCK_LOOKUPS_INFLIGHT;i++)
 		{
 		readBlock=rb->readLookupBlocks+i;
-		if(readBlock->compStat.split.status == BLOCK_STATUS_ACTIVE && readBlock->compStat.split.completionCount==0)
+		u64 current=__atomic_load_n(&readBlock->compStat, __ATOMIC_SEQ_CST); // Combined access checks both count and status
+
+		if(current == LOOKUP_BLOCK_STATUS_ACTIVE) // Also ensures zero completion count
 			return i;
+
+		if((current & LOOKUP_BLOCK_STATUS_MASK) > LOOKUP_BLOCK_STATUS_COMPLETE)
+			LOG(LOG_CRITICAL,"LookupBlock %i has invalid status %8x", i, current);
 		}
 	return -1;
 }
@@ -418,11 +437,11 @@ static RoutingReadLookupBlock *dequeueCompleteReadLookupBlock(RoutingBuilder *rb
 
 	RoutingReadLookupBlock *readBlock=rb->readLookupBlocks+index;
 
-	u64 current=__atomic_load_n(&readBlock->compStat.combined, __ATOMIC_SEQ_CST); // Combined access checks both count and status
+	u64 current=__atomic_load_n(&readBlock->compStat, __ATOMIC_SEQ_CST); // Combined access checks both count and status
 
-	if(current == BLOCK_STATUS_ACTIVE)
+	if(current == LOOKUP_BLOCK_STATUS_ACTIVE) // Also ensures zero completion count
 		{
-		if(__atomic_compare_exchange_n(&(readBlock->compStat.combined), &current, BLOCK_STATUS_COMPLETE, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST))
+		if(__atomic_compare_exchange_n(&(readBlock->compStat), &current, LOOKUP_BLOCK_STATUS_COMPLETE, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST))
 			return readBlock;
 		}
 
@@ -432,11 +451,23 @@ static RoutingReadLookupBlock *dequeueCompleteReadLookupBlock(RoutingBuilder *rb
 
 static void unallocateReadLookupBlock(RoutingReadLookupBlock *readBlock)
 {
-	u32 current=BLOCK_STATUS_COMPLETE;
-	if(!__atomic_compare_exchange_n(&(readBlock->compStat.split.status), &current, BLOCK_STATUS_IDLE, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST))
+	int loopCount=0;
+	u64 current;
+
+	do
 		{
-		LOG(LOG_CRITICAL,"Tried to unreserve lookup readblock in wrong state, should never happen");
+		if(loopCount++>1000000)
+			{
+			LOG(LOG_CRITICAL,"Loop Stuck");
+			}
+
+		current=__atomic_load_n(&(readBlock->compStat), __ATOMIC_SEQ_CST);
+
+		if(current!=LOOKUP_BLOCK_STATUS_COMPLETE)
+			LOG(LOG_CRITICAL,"Tried to unreserve lookup readblock in wrong state %08x, should never happen", current);
 		}
+	while(!__atomic_compare_exchange_n(&(readBlock->compStat), &current, LOOKUP_BLOCK_STATUS_IDLE, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST));
+
 }
 
 
@@ -446,10 +477,10 @@ int countLookupReadsRemaining(RoutingBuilder *rb)
 
 	for(int i=0;i<TR_READBLOCK_LOOKUPS_INFLIGHT;i++)
 	{
-		int status=__atomic_load_n(&(rb->readLookupBlocks[i].compStat.split.status), __ATOMIC_RELAXED);
+		u64 compStat=__atomic_load_n(&(rb->readLookupBlocks[i].compStat), __ATOMIC_RELAXED);
 
-		if(status==BLOCK_STATUS_ACTIVE)
-			readsRemaining+=__atomic_load_n(&(rb->readLookupBlocks[i].compStat.split.completionCount), __ATOMIC_RELAXED);
+		if((compStat & LOOKUP_BLOCK_STATUS_MASK) == LOOKUP_BLOCK_STATUS_ACTIVE)
+			readsRemaining+=compStat & LOOKUP_BLOCK_COUNT_MASK;
 	}
 
 	return readsRemaining;
@@ -859,21 +890,23 @@ int queueSmerLookupsForIngress(RoutingBuilder *rb, RoutingReadIngressBlock *ingr
 
 	assignPercolatesToEntryLookups(lookupBlock->smerEntryLookupsPercolates, lookupBlock->smerEntryLookups, disp);
 
-	int usedSlices=0;
+	u64 usedSlices=0;
 	for(int i=0;i<SMER_SLICES;i++)
 		{
 		RoutingSmerEntryLookup *lookupForSlice=lookupBlock->smerEntryLookups[i];
 
 		if(lookupForSlice->entryCount>0)
 			{
-			lookupForSlice->completionCountPtr=&(lookupBlock->compStat.split.completionCount);
+			lookupForSlice->completionCountPtr=&(lookupBlock->compStat);
 			usedSlices++;
 			}
 		else
 			lookupForSlice->completionCountPtr=NULL;
 		}
 
-	__atomic_store_n(&(lookupBlock->compStat.split.completionCount), usedSlices, __ATOMIC_SEQ_CST);
+	__atomic_thread_fence(__ATOMIC_SEQ_CST);
+
+	queueReadLookupBlock(lookupBlock, usedSlices);
 
 	for(int i=0;i<SMER_SLICES;i++)
 		{
@@ -882,7 +915,7 @@ int queueSmerLookupsForIngress(RoutingBuilder *rb, RoutingReadIngressBlock *ingr
 			queueLookupForSlice(rb, lookupForSlice, i);
 		}
 
-	queueReadLookupBlock(lookupBlock);
+	__atomic_thread_fence(__ATOMIC_SEQ_CST);
 
 //	LOG(LOG_INFO,"queueSmerLookupsForIngress DONE");
 
@@ -1362,27 +1395,38 @@ int scanForAndDispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb)
 	int lookupReadBlockIndex=scanForCompleteReadLookupBlock(rb);
 
 	if(lookupReadBlockIndex<0)
+		{
+//		LOG(LOG_INFO,"none complete");
 		return 0;
+		}
 
 	MemDoubleBrickPile *dispatchPile=&(rb->dispatchLinkPile);
 
 	if(!mbCheckDoubleBrickAvailability(dispatchPile, TR_ROUTING_DISPATCHES_PER_LOOKUP*TR_ROUTING_BLOCKSIZE))
+		{
+		LOG(LOG_INFO,"dispatch bricks");
 		return 0;
+		}
 
 	MemDoubleBrickPile *lookupPile=&(rb->lookupLinkPile);
 
-	if(!mbCheckDoubleBrickAvailability(lookupPile, TR_ROUTING_DISPATCHES_PER_LOOKUP*TR_ROUTING_BLOCKSIZE))
+	if(!mbCheckDoubleBrickAvailability(lookupPile, TR_ROUTING_BLOCKSIZE))
+		{
+		LOG(LOG_INFO,"lookup bricks");
 		return 0;
+		}
 
 	MemDoubleBrickAllocator dispatchLinkAlloc;
 	if(!mbInitDoubleBrickAllocator(&dispatchLinkAlloc, dispatchPile, TR_ROUTING_DISPATCHES_PER_LOOKUP*TR_ROUTING_BLOCKSIZE))
 		{
+		LOG(LOG_INFO,"dispatch bricks");
 		return 0;
 		}
 
 	MemDoubleBrickAllocator lookupLinkAlloc;
 	if(!mbInitDoubleBrickAllocator(&lookupLinkAlloc, lookupPile, TR_ROUTING_BLOCKSIZE))
 		{
+		LOG(LOG_INFO,"lookup bricks");
 		mbDoubleBrickAllocatorCleanup(&dispatchLinkAlloc);
 		return 0;
 		}
@@ -1391,6 +1435,7 @@ int scanForAndDispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb)
 
 	if(lookupReadBlock==NULL)
 		{
+//		LOG(LOG_INFO,"none complete");
 		mbDoubleBrickAllocatorCleanup(&lookupLinkAlloc);
 		mbDoubleBrickAllocatorCleanup(&dispatchLinkAlloc);
 		return 0;
@@ -1474,30 +1519,39 @@ static RoutingReadLookupRecycleBlock *queueLookupBlockFromRecycleList(RoutingBui
 
 	assignPercolatesToEntryLookups(lookupBlock->smerEntryLookupsPercolates, lookupBlock->smerEntryLookups, disp);
 
-	int usedSlices=0;
+	u64 usedSlices=0;
 	for(int i=0;i<SMER_SLICES;i++)
 		{
 		RoutingSmerEntryLookup *lookupForSlice=lookupBlock->smerEntryLookups[i];
 
 		if(lookupForSlice->entryCount>0)
 			{
-			lookupForSlice->completionCountPtr=&(lookupBlock->compStat.split.completionCount);
+			lookupForSlice->completionCountPtr=&(lookupBlock->compStat);
 			usedSlices++;
 			}
 		else
 			lookupForSlice->completionCountPtr=NULL;
 		}
 
-	__atomic_store_n(&(lookupBlock->compStat.split.completionCount), usedSlices, __ATOMIC_SEQ_CST);
+	__atomic_thread_fence(__ATOMIC_SEQ_CST);
 
+	queueReadLookupBlock(lookupBlock, usedSlices);
+
+	u64 usedSlices2=0;
 	for(int i=0;i<SMER_SLICES;i++)
 		{
 		RoutingSmerEntryLookup *lookupForSlice=lookupBlock->smerEntryLookups[i];
 		if(lookupForSlice->entryCount>0)
+			{
 			queueLookupForSlice(rb, lookupForSlice, i);
+			usedSlices2++;
+			}
 		}
 
-	queueReadLookupBlock(lookupBlock);
+	__atomic_thread_fence(__ATOMIC_SEQ_CST);
+
+	if(usedSlices!=usedSlices2)
+		LOG(LOG_CRITICAL,"Count mismatch %lu vs %lu",usedSlices,usedSlices2);
 
 	return recycleList;
 }
@@ -1510,10 +1564,13 @@ static int scanForAndProcessLookupRecyclesByType(RoutingBuilder *rb, int force, 
 
 	int recycleCount=getLookupRecycleCount(rb, blockType);
 
-	if(!force && recycleCount < TR_LOOKUP_RECYCLE_BLOCK_THRESHOLD)
+	if(!force && recycleCount < TR_LOOKUP_RECYCLE_BLOCK_THRESHOLD_FORCE)
 		return 0;
 
 	u64 allocedRLB=__atomic_load_n(&(rb->allocatedReadLookupBlocks), __ATOMIC_SEQ_CST);
+
+	if(allocedRLB>TR_LOOKUP_RECYCLE_TIGHT_THRESHOLD && recycleCount<TR_LOOKUP_RECYCLE_BLOCK_THRESHOLD_TIGHT)
+		return 0;
 
 	if(!reserveReadLookupBlock(rb,TR_LOOKUP_RECYCLE_BLOCKMARGIN))
 		return 0;
@@ -1567,7 +1624,9 @@ static int scanForSmerLookupsForSlices(RoutingBuilder *rb, int startSlice, int e
 
 	for(i=startSlice;i<endSlice;i++)
 		{
+		__atomic_thread_fence(__ATOMIC_SEQ_CST);
 		RoutingSmerEntryLookup *lookupEntry=dequeueLookupForSliceList(rb, i);
+		__atomic_thread_fence(__ATOMIC_SEQ_CST);
 
 		if(lookupEntry!=NULL)
 			{
@@ -1591,12 +1650,23 @@ static int scanForSmerLookupsForSlices(RoutingBuilder *rb, int startSlice, int e
 					lookupEntryScan->entries[j]=index;
 					}
 
-				__atomic_fetch_sub(lookupEntryScan->completionCountPtr,1,__ATOMIC_SEQ_CST);
+
+				u64 *completionCountPtr=__atomic_load_n(&(lookupEntryScan->completionCountPtr), __ATOMIC_SEQ_CST);
+				lookupEntryScan=__atomic_load_n(&(lookupEntryScan->nextPtr), __ATOMIC_SEQ_CST);
+
+//				u64 *completionCountPtr=lookupEntryScan->completionCountPtr;
+				//lookupEntryScan=lookupEntryScan->nextPtr;
+
+				__atomic_thread_fence(__ATOMIC_SEQ_CST);
+				u64 compStat=__atomic_fetch_sub(completionCountPtr,1,__ATOMIC_SEQ_CST);
+
+				if(compStat < INGRESS_BLOCK_STATUS_ACTIVE || compStat > INGRESS_BLOCK_STATUS_LOCKED)
+					LOG(LOG_CRITICAL,"Unexpected status %8x", compStat);
+
+				__atomic_thread_fence(__ATOMIC_SEQ_CST);
 
 //				if(__atomic_sub_fetch(lookupEntryScan->completionCountPtr,1,__ATOMIC_SEQ_CST)==0)
 //					completionCount++;
-
-				lookupEntryScan=lookupEntryScan->nextPtr;
 				}
 			}
 		}
@@ -1611,7 +1681,7 @@ static int scanForSmerLookupsForSlices(RoutingBuilder *rb, int startSlice, int e
 
 
 
-int scanForSmerLookups(RoutingBuilder *rb, int workerNo, RoutingWorkerState *wState)
+int scanForSmerLookups(RoutingBuilder *rb, int workerNo, RoutingWorkerState *wState, int force)
 {
 	//int startPos=(workerNo*SMER_SLICE_PRIME)&SMER_SLICE_MASK;
 
@@ -1620,6 +1690,10 @@ int scanForSmerLookups(RoutingBuilder *rb, int workerNo, RoutingWorkerState *wSt
 	//int completionCount=0;
 
 	work=scanForSmerLookupsForSlices(rb,wState->lookupSliceStart,wState->lookupSliceEnd);
+
+	//if(force && (work==0))
+	//	work=scanForSmerLookupsForSlices(rb,0,SMER_SLICES);
+
 	//if(work<TR_LOOKUP_MAX_WORK)
 		//work+=scanForSmerLookupsForSlices(rb, 0, position,  &lastSlice);
 

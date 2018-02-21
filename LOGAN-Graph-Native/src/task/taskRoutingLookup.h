@@ -14,6 +14,6 @@ int scanForAndDispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb);
 
 int scanForAndProcessLookupRecycles(RoutingBuilder *rb, int force);
 
-int scanForSmerLookups(RoutingBuilder *rb, int workerNo, RoutingWorkerState *wState);
+int scanForSmerLookups(RoutingBuilder *rb, int workerNo, RoutingWorkerState *wState, int force);
 
 #endif

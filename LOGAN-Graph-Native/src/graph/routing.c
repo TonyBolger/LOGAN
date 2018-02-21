@@ -1394,7 +1394,7 @@ static RoutePatch *reorderReversePatches(RoutePatch *reversePatches, s32 reverse
 
 
 
-static void createRoutePatches(RoutingIndexedDispatchLinkIndexBlock *rdi, int entryCount,
+static void createRoutePatches(RoutingIndexedDispatchLinkIndexBlock *rdi, int entryOffset, int entryCount,
 		SeqTailBuilder *prefixBuilder, SeqTailBuilder *suffixBuilder,
 		RoutePatch **forwardPatchesPtr, RoutePatch **reversePatchesPtr,
 		int *forwardCountPtr, int *reverseCountPtr, MemDispenser *disp)
@@ -1404,7 +1404,8 @@ static void createRoutePatches(RoutingIndexedDispatchLinkIndexBlock *rdi, int en
 	RoutePatch *forwardPatches=dAlloc(disp,sizeof(RoutePatch)*entryCount);
 	RoutePatch *reversePatches=dAlloc(disp,sizeof(RoutePatch)*entryCount);
 
-	for(int i=0;i<entryCount;i++)
+	int last=entryOffset+entryCount;
+	for(int i=entryOffset;i<last;i++)
 	{
 		DispatchLink *rdd=rdi->linkEntries[i];
 
@@ -1532,7 +1533,7 @@ static void createRoutePatches(RoutingIndexedDispatchLinkIndexBlock *rdi, int en
 
 
 
-int rtRouteReadsForSmer(RoutingIndexedDispatchLinkIndexBlock *rdi, SmerArraySlice *slice,
+int rtRouteReadsForSmer(RoutingIndexedDispatchLinkIndexBlock *rdi, u32 entryOffset, u32 entryCount, SmerArraySlice *slice,
 		u32 *orderedDispatches, MemDispenser *disp, MemCircHeap *circHeap, u8 sliceTag)
 {
 	s32 sliceIndex=rdi->sliceIndex;
@@ -1581,15 +1582,13 @@ int rtRouteReadsForSmer(RoutingIndexedDispatchLinkIndexBlock *rdi, SmerArraySlic
 		createBuildersFromNullData(&routingBuilder);
 		}
 
-	int entryCount=rdi->entryCount;
-
 	RoutePatch *forwardPatches=NULL;
 	RoutePatch *reversePatches=NULL;
 
 	int forwardCount=0;
 	int reverseCount=0;
 
-	createRoutePatches(rdi, entryCount, &(routingBuilder.prefixBuilder), &(routingBuilder.suffixBuilder),
+	createRoutePatches(rdi, entryOffset, entryCount, &(routingBuilder.prefixBuilder), &(routingBuilder.suffixBuilder),
 			&forwardPatches, &reversePatches, &forwardCount, &reverseCount, disp);
 
 	s32 prefixCount=stGetSeqTailTotalTailCount(&(routingBuilder.prefixBuilder))+1;
@@ -1607,8 +1606,8 @@ int rtRouteReadsForSmer(RoutingIndexedDispatchLinkIndexBlock *rdi, SmerArraySlic
 
 	if(routingBuilder.treeBuilder!=NULL)
 		{
-
-		if(rdi->entryCount>0)
+/*
+		if(entryCount>0)
 			{
 			DispatchLink *rdd=rdi->linkEntries[0];
 			int index=rdd->position+1;
@@ -1621,7 +1620,7 @@ int rtRouteReadsForSmer(RoutingIndexedDispatchLinkIndexBlock *rdi, SmerArraySlic
 			//LOG(LOG_INFO,"ROUTEMERGE\t%s\tTREE\tFORWARD\t%i",buffer,forwardCount);
 			//LOG(LOG_INFO,"ROUTEMERGE\t%s\tTREE\tREVERSE\t%i",buffer,reverseCount);
 			}
-
+*/
 		rttMergeRoutes(routingBuilder.treeBuilder, forwardPatches, reversePatches, forwardCount, reverseCount, prefixCount, suffixCount, orderedDispatches, disp);
 
 		//LOG(LOG_INFO,"writeBuildersIndirect");
@@ -1633,7 +1632,7 @@ int rtRouteReadsForSmer(RoutingIndexedDispatchLinkIndexBlock *rdi, SmerArraySlic
 	else
 		{
 /*
-		if(rdi->entryCount>0)
+		if(entryCount>0)
 			{
 			RoutingReadData *rdd=rdi->entries[0];
 			int index=rdd->indexCount;

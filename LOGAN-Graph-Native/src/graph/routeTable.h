@@ -77,6 +77,9 @@ typedef struct routePatchStr
 // RoutingSmerAssignedDispatchLink - indexes of all the dispatchLinks queued for a single smer
 // RoutingSliceAssignedDispatchLinkQueue - all dispatchLinks queued for a single SliceGroup
 
+#define DISPATCH_LINK_QUEUE_DEFAULT_BOOST 2
+#define DISPATCH_LINK_QUEUE_FORCE_THRESHOLD 100
+
 typedef struct routingSmerAssignedDispatchLinkQueueStr {
 	s32 sliceIndex; // 4
 	u32 entryCount; // 4
