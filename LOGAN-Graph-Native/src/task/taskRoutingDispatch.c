@@ -979,12 +979,16 @@ static int processSlice(RoutingBuilder *rb, RoutingSliceAssignedDispatchLinkQueu
 
 			u8 sliceTag=(u8)sliceWithinGroupIndex;
 
+			rtRouteReadsForSmer(indexBlock, 0, indexBlock->entryCount, slice, orderedDispatches+dispatchOffset, routingDisp, circHeap, sliceTag);
+			dispatchOffset+=indexBlock->entryCount;
+
+			/*
 			u32 entriesRemaining=indexBlock->entryCount;
 			u32 indexBlockOffset=0;
 
 			while(entriesRemaining>0)
 				{
-				u32 entriesToRoute=MIN(entriesRemaining, 1000);
+				//u32 entriesToRoute=MIN(entriesRemaining, 1000);
 
 				rtRouteReadsForSmer(indexBlock, indexBlockOffset, entriesToRoute, slice, orderedDispatches+dispatchOffset, routingDisp, circHeap, sliceTag);
 
@@ -992,6 +996,7 @@ static int processSlice(RoutingBuilder *rb, RoutingSliceAssignedDispatchLinkQueu
 				entriesRemaining-=entriesToRoute;
 				dispatchOffset+=entriesToRoute;
 				}
+				*/
 			}
 		else
 			{
