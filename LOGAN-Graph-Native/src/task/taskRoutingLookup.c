@@ -1569,7 +1569,7 @@ static int scanForAndProcessLookupRecyclesByType(RoutingBuilder *rb, int force, 
 
 	u64 allocedRLB=__atomic_load_n(&(rb->allocatedReadLookupBlocks), __ATOMIC_SEQ_CST);
 
-	if(allocedRLB>TR_LOOKUP_RECYCLE_TIGHT_THRESHOLD && recycleCount<TR_LOOKUP_RECYCLE_BLOCK_THRESHOLD_TIGHT)
+	if(allocedRLB>(TR_READBLOCK_LOOKUPS_INFLIGHT-TR_LOOKUP_RECYCLE_TIGHT_BLOCKMARGIN) && recycleCount<TR_LOOKUP_RECYCLE_BLOCK_THRESHOLD_TIGHT)
 		return 0;
 
 	if(!reserveReadLookupBlock(rb,TR_LOOKUP_RECYCLE_BLOCKMARGIN))
@@ -1679,9 +1679,7 @@ static int scanForSmerLookupsForSlices(RoutingBuilder *rb, int startSlice, int e
 
 
 
-
-
-int scanForSmerLookups(RoutingBuilder *rb, int workerNo, RoutingWorkerState *wState, int force)
+int scanForSmerLookups(RoutingBuilder *rb, u64 workToken, int workerNo, RoutingWorkerState *wState, int force)
 {
 	//int startPos=(workerNo*SMER_SLICE_PRIME)&SMER_SLICE_MASK;
 
@@ -1689,7 +1687,13 @@ int scanForSmerLookups(RoutingBuilder *rb, int workerNo, RoutingWorkerState *wSt
 	int work=0;
 	//int completionCount=0;
 
-	work=scanForSmerLookupsForSlices(rb,wState->lookupSliceStart,wState->lookupSliceEnd);
+	// SMER_SLICES 16384
+	workToken<<=10; // Multiply by 1024
+	int startSlice=workToken&SMER_SLICE_MASK;
+	int endSlice=startSlice+1024;
+
+	//LOG(LOG_INFO,"Worker %i SmerLookups %i %i",workerNo, startSlice, endSlice);
+	work=scanForSmerLookupsForSlices(rb,startSlice,endSlice);
 
 	//if(force && (work==0))
 	//	work=scanForSmerLookupsForSlices(rb,0,SMER_SLICES);

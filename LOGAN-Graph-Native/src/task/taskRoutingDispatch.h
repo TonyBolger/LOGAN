@@ -19,7 +19,7 @@ int countDispatchReadsRemaining(RoutingBuilder *rb);
 
 // Entry points for trDoIntermediate
 
-int scanForDispatches(RoutingBuilder *rb, int workerNo, RoutingWorkerState *wState, int force);
+int scanForDispatches(RoutingBuilder *rb, u64 workerToken, int workerNo, RoutingWorkerState *wState, int force);
 
 void queueDispatchArray(RoutingBuilder *rb, RoutingReadReferenceBlockDispatchArray *dispArray);
 

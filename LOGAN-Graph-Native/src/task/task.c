@@ -64,6 +64,7 @@ void waitForStartup(ParallelTask *pt)
 
 static void considerTickTock(ParallelTask *pt)
 {
+#ifdef FEATURE_ENABLE_TICKTOCK
 	static int counter=0;
 //	LOG(LOG_INFO,"Tick tock MF");
 
@@ -74,6 +75,7 @@ static void considerTickTock(ParallelTask *pt)
 
 		counter=0;
 		}
+#endif
 }
 
 
@@ -137,8 +139,10 @@ void queueShutdown(ParallelTask *pt)
 {
 	LOG(LOG_INFO,"Master: QueueShutdown");
 
+#ifdef FEATURE_ENABLE_TICKTOCK
 	if(pt->config->doTickTock != NULL)
 		pt->config->doTickTock(pt);
+#endif
 
 	__atomic_store_n(&pt->reqShutdown, 1, __ATOMIC_SEQ_CST);
 	wakeIdleWorkers(pt);

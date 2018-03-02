@@ -314,13 +314,15 @@ typedef struct routingDispatchGroupStateStr {
 
 
 typedef struct routingWorkerStateStr {
-	int lookupSliceStart;
-	int lookupSliceEnd;
+	int dummy;
 
-	int dispatchGroupStart;
-	int dispatchGroupEnd;
+	//int lookupSliceStart;
+	//int lookupSliceEnd;
 
-	int dispatchGroupCurrent;
+	//int dispatchGroupStart;
+	//int dispatchGroupEnd;
+
+	//int dispatchGroupCurrent;
 
 } RoutingWorkerState;
 
@@ -328,7 +330,7 @@ typedef struct routingBuilderStr {
 	ParallelTask *pt;
 	Graph *graph;
 
-	u64 pogoDebugFlag;
+	u64 routingWorkToken;
 
 	RoutingReadIngressBlock ingressBlocks[TR_READBLOCK_INGRESS_INFLIGHT]; // Batches of sequences in Ingress stage (currently only one)
 	u64 allocatedIngressBlocks;

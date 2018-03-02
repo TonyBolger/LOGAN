@@ -971,7 +971,7 @@ static int processSlice(RoutingBuilder *rb, RoutingSliceAssignedDispatchLinkQueu
 			//for(int i=0;i<indexBlock->entryCount;i++)
 			//	LOG(LOG_INFO,"Entry is %i", indexBlock->linkIndexEntries[i]);
 
-			if(indexBlock->entryCount>10000)
+			if(indexBlock->entryCount>50000)
 				LOG(LOG_INFO,"Dispatching %i of %i",indexBlock->entryCount, dispatchQueue->entryCount);
 
 			dispatchQueue->boost=DISPATCH_LINK_QUEUE_DEFAULT_BOOST;
@@ -1324,7 +1324,7 @@ static int scanForDispatchesForGroups(RoutingBuilder *rb, int startGroup, int en
 
 
 
-int scanForDispatches(RoutingBuilder *rb, int workerNo, RoutingWorkerState *wState, int force)
+int scanForDispatches(RoutingBuilder *rb, u64 workToken, int workerNo, RoutingWorkerState *wState, int force)
 {
 //	LOG(LOG_INFO,"scanForDispatches enter %i",workerNo);
 
@@ -1341,7 +1341,13 @@ int scanForDispatches(RoutingBuilder *rb, int workerNo, RoutingWorkerState *wSta
 		}
 	else*/
 
-	work=scanForDispatchesForGroups(rb, wState->dispatchGroupStart, wState->dispatchGroupEnd, force, workerNo, &lastGroup);
+	// SMER_DISPATCH_GROUPS
+
+	int startGroup=workToken&SMER_DISPATCH_GROUP_MASK;
+	int endGroup=startGroup+1;
+
+	//LOG(LOG_INFO,"Worker %i Dispatch %i %i",workerNo, startGroup, endGroup);
+	work=scanForDispatchesForGroups(rb, startGroup, endGroup, force, workerNo, &lastGroup);
 
 
 	//int dispatchGroupStart=wState->dispatchGroupCurrent;

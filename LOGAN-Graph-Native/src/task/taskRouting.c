@@ -128,29 +128,35 @@ void trDumpDispatchLinkChain(MemDoubleBrickPile *dispatchPile, DispatchLink *lin
 }
 
 
+
+
+
+
+
 static void *trDoRegister(ParallelTask *pt, int workerNo, int totalWorkers)
 {
 	RoutingWorkerState *workerState=G_ALLOC(sizeof(RoutingWorkerState), MEMTRACKID_ROUTING_WORKERSTATE);
 
-	int workerGroups=(totalWorkers+3)/4;
-	int workerGroupNo=workerNo%workerGroups;
+	//int workerGroups=(totalWorkers+3)/4;
+	//int workerGroupNo=workerNo%workerGroups;
 
-	workerState->lookupSliceStart=(SMER_SLICES*workerNo)/totalWorkers;
-	workerState->lookupSliceEnd=(SMER_SLICES*(workerNo+1))/totalWorkers;
+	//workerState->lookupSliceStart=(SMER_SLICES*workerNo)/totalWorkers;
+	//workerState->lookupSliceEnd=(SMER_SLICES*(workerNo+1))/totalWorkers;
 
 //	workerState->dispatchGroupStart=(SMER_DISPATCH_GROUPS*workerNo)/workerGroups;
 //	workerState->dispatchGroupEnd=(SMER_DISPATCH_GROUPS*(workerNo+1))/workerGroups;
 
-	workerState->dispatchGroupStart=(SMER_DISPATCH_GROUPS*workerGroupNo)/workerGroups;
-	workerState->dispatchGroupEnd=(SMER_DISPATCH_GROUPS*(workerGroupNo+1))/workerGroups;
+	//workerState->dispatchGroupStart=(SMER_DISPATCH_GROUPS*workerGroupNo)/workerGroups;
+	//workerState->dispatchGroupEnd=(SMER_DISPATCH_GROUPS*(workerGroupNo+1))/workerGroups;
 
-	workerState->dispatchGroupCurrent=workerState->dispatchGroupStart;
+	//workerState->dispatchGroupCurrent=workerState->dispatchGroupStart;
 
+	/*
 	LOG(LOG_INFO,"Worker %i of %i - Lookup Range %i %i DispatchGroup Range %i %i",
 			workerNo,totalWorkers,
 			workerState->lookupSliceStart, workerState->lookupSliceEnd,
 			workerState->dispatchGroupStart, workerState->dispatchGroupEnd);
-
+*/
 
 	//workerState->lookupSliceDefault=workerState->lookupSliceCurrent=(workerNo*SMER_SLICE_PRIME)&SMER_SLICE_MASK;
 	//workerState->dispatchGroupDefault=workerState->dispatchGroupCurrent=(workerNo*SMER_DISPATCH_GROUP_PRIME)&SMER_DISPATCH_GROUP_MASK;
@@ -322,22 +328,23 @@ static void showWorkStatus(RoutingBuilder *rb)
 }
 
 
-static int checkForWork(RoutingBuilder *rb, int *lookupBlocksPtr, int *dispatchBlocksPtr)
+static int checkForWork(RoutingBuilder *rb)
 {
-	int arib=__atomic_load_n(&rb->allocatedIngressBlocks, __ATOMIC_SEQ_CST);
-	int arlb=__atomic_load_n(&rb->allocatedReadLookupBlocks, __ATOMIC_SEQ_CST);
-	int lrr=(__atomic_load_n(&rb->lookupPredispatchRecyclePtr, __ATOMIC_SEQ_CST)!=NULL) + (__atomic_load_n(&rb->lookupPostdispatchRecyclePtr, __ATOMIC_SEQ_CST)!=NULL);
+	//int arib=__atomic_load_n(&rb->allocatedIngressBlocks, __ATOMIC_SEQ_CST);
+	//int arlb=__atomic_load_n(&rb->allocatedReadLookupBlocks, __ATOMIC_SEQ_CST);
+	//int lrr=(__atomic_load_n(&rb->lookupPredispatchRecyclePtr, __ATOMIC_SEQ_CST)!=NULL) + (__atomic_load_n(&rb->lookupPostdispatchRecyclePtr, __ATOMIC_SEQ_CST)!=NULL);
 
 	MemSingleBrickPile *seqPile=&(rb->sequenceLinkPile);
 
 	int ardb=mbGetSingleBrickPileCapacity(seqPile)-mbGetFreeSingleBrickPile(seqPile);
 
+	return ardb;
+}
 
-	//*ingressBlocksPtr=arib;
-	*lookupBlocksPtr=arlb;
-	*dispatchBlocksPtr=ardb;
 
-	return arib || arlb || lrr || ardb;
+static u64 getNextRoutingWorkToken(RoutingBuilder *rb, int workerNo)
+{
+	return __atomic_fetch_add(&(rb->routingWorkToken) ,1, __ATOMIC_SEQ_CST);
 }
 
 
@@ -375,15 +382,9 @@ static int trDoIntermediate(ParallelTask *pt, int workerNo, void *wState, int fo
 //	processIngressedReads(rb);
 
 	if(processIngressedReads(rb))
-		{
-		if(!force)
-			return 1;
-		}
+		return 1;
 
-	int arlb=0;
-	int ardb=0;
-
-	checkForWork(rb, &arlb, &ardb);
+	int sequencesActive=checkForWork(rb);
 
 	/*
 	if((force)||(arlb>TR_READBLOCK_LOOKUPS_THRESHOLD))
@@ -402,19 +403,19 @@ static int trDoIntermediate(ParallelTask *pt, int workerNo, void *wState, int fo
 		}
 */
 
-	if((force)||(arlb>TR_READBLOCK_LOOKUPS_THRESHOLD))
+
+	if((force)||(sequencesActive>TR_SEQUENCE_THRESHOLD))
 		{
-		if(scanForSmerLookups(rb, workerNo, workerState, force))
+		u64 workToken=getNextRoutingWorkToken(rb, workerNo);
+
+		int work=scanForSmerLookups(rb, workToken, workerNo, workerState, force);
+		work+=scanForDispatches(rb, workToken, workerNo, workerState, force);
+
+		if(work)
 			return 1;
 		}
 
-	if(force)
-		{
-		if(scanForDispatches(rb, workerNo, workerState, force))
-			return 1;
-		}
-
-	if(checkForWork(rb, &arlb, &ardb)) // If in force mode, and not finished, rally the minions
+	if(checkForWork(rb)) // If in force mode, and not finished, rally the minions
 		return force;
 
 	//LOG(LOG_INFO,"Worker did nothing");
@@ -436,6 +437,7 @@ static void trDoTickTock(ParallelTask *pt)
 }
 
 
+
 RoutingBuilder *allocRoutingBuilder(Graph *graph, int threads)
 {
 	RoutingBuilder *rb=trRoutingBuilderAlloc();
@@ -447,7 +449,7 @@ RoutingBuilder *allocRoutingBuilder(Graph *graph, int threads)
 	rb->pt=allocParallelTask(ptc,rb);
 	rb->graph=graph;
 
-	rb->pogoDebugFlag=1;
+	rb->routingWorkToken=0;
 
 	if(sizeof(SequenceLink)!=SINGLEBRICK_BRICKSIZE)
 		LOG(LOG_CRITICAL,"SequenceLink size %i doesn't match expected %i", sizeof(SequenceLink), SINGLEBRICK_BRICKSIZE);
