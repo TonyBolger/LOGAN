@@ -22,8 +22,9 @@
 //#define FASTQ_RECORDS_PER_BATCH 10000
 //#define FASTQ_BASES_PER_BATCH 1000000
 
+// Record count can be larger than ingress blocksize, but base limit must match
 #define FASTQ_RECORDS_PER_BATCH 100000
-#define FASTQ_BASES_PER_BATCH 10000000
+#define FASTQ_BASES_PER_BATCH TASK_INGRESS_BASESTOTAL
 
 // RECYCLE_BUFFER should be at least FASTQ_MAX_READ_LENGTH * 4
 
@@ -39,7 +40,7 @@ void indexingBuilderDataHandler(SwqBuffer *swqBuffer, ParallelTaskIngress *ingre
 void routingBuilderDataHandler(SwqBuffer *swqBuffer, ParallelTaskIngress *ingressBuffer, void *context);
 
 
-int parseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 recordsToUse,
+s64 parseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 recordsToUse,
 		u8 *ioBuffer, int ioBufferRecycleSize, int ioBufferPrimarySize,
 		SwqBuffer *swqBuffers, ParallelTaskIngress *ingressBuffers, int bufferCount,
 		void *handlerContext, void (*handler)(SwqBuffer *swqBuffer, ParallelTaskIngress *ingressBuffer, void *handlerContext),

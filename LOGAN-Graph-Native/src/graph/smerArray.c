@@ -25,6 +25,9 @@ s32 saInitSmerArray(SmerArray *smerArray, SmerMap *smerMap) {
 		SmerEntry *smerTmp=smSmerEntryArrayAlloc(count);
 		smGetSortedSliceSmerEntries(mapSlices+i,smerTmp);
 
+//		for(int j=0;j<count;j++)
+//			LOG(LOG_INFO,"Smer: %lx in %i",smerTmp[j], i);
+
 		arraySlices[i].smerIT=siitInitImplicitTree(smerTmp,count);
 		arraySlices[i].smerData=smSmerDataArrayAlloc(count);
 

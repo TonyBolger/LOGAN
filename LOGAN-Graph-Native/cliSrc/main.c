@@ -21,7 +21,7 @@ void runIptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 
 	void (*monitor)() = NULL;
 
-#ifdef FEATURE_ENABLE_MEMTRACK
+#ifdef FEATURE_ENABLE_MEMTRACK_CONTINUOUS
 	monitor=mtDump;
 #endif
 
@@ -32,7 +32,7 @@ void runIptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 
 		LOG(LOG_INFO,"Indexing: Parsing %s",path);
 
-		int reads=parseAndProcess(path, FASTQ_MIN_READ_LENGTH, 0, LONG_MAX,
+		s64 reads=parseAndProcess(path, FASTQ_MIN_READ_LENGTH, 0, LONG_MAX,
 				ioBuffer, FASTQ_IO_RECYCLE_BUFFER, FASTQ_IO_PRIMARY_BUFFER,
 				swqBuffers, ingressBuffers, PT_INGRESS_BUFFERS,
 				ib, indexingBuilderDataHandler, monitor);
@@ -69,8 +69,6 @@ void runRptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 {
 	RoutingBuilder *rb=allocRoutingBuilder(graph, threadCount);
 
-	LOG(LOG_INFO,"Configuration: Blocksize: %i LookupBlocks: %i DispatchBlocks: %i",TR_INGRESS_BLOCKSIZE, TR_READBLOCK_LOOKUPS_INFLIGHT, TR_READBLOCK_DISPATCHES_INFLIGHT);
-
 	createRoutingBuilderWorkers(rb);
 
 	waitForStartup(rb->pt);
@@ -89,7 +87,7 @@ void runRptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 
 	void (*monitor)() = NULL;
 
-#ifdef FEATURE_ENABLE_MEMTRACK
+#ifdef FEATURE_ENABLE_MEMTRACK_CONTINUOUS
 	monitor=mtDump;
 #endif
 
@@ -100,7 +98,7 @@ void runRptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 
 		LOG(LOG_INFO,"Routing: Parsing %s",path);
 
-		int reads=parseAndProcess(path, FASTQ_MIN_READ_LENGTH, 0, LONG_MAX,
+		s64 reads=parseAndProcess(path, FASTQ_MIN_READ_LENGTH, 0, LONG_MAX,
 				ioBuffer, FASTQ_IO_RECYCLE_BUFFER, FASTQ_IO_PRIMARY_BUFFER,
 				swqBuffers, ingressBuffers, PT_INGRESS_BUFFERS,
 				rb, routingBuilderDataHandler, monitor);
@@ -171,8 +169,14 @@ int main(int argc, char **argv)
 		return 1;
 		}
 
-	LOG(LOG_INFO,"RoutingReadLookupData: %i (20) RoutingReadData: %i (20) RoutingReadIndexedDataEntry: %i (28)",
-			sizeof(RoutingReadLookupData), sizeof(RoutingReadData), sizeof(RoutingReadIndexedDataEntry));
+//	LOG(LOG_INFO,"RoutingReadLookupData: %i (20) RoutingReadData: %i (20) RoutingReadIndexedDataEntry: %i (28)",
+//			sizeof(RoutingReadLookupData), sizeof(RoutingReadData), sizeof(RoutingReadIndexedDataEntry));
+
+	LOG(LOG_INFO,"SequenceLink: %i (64) LookupLink: %i (128) DispatchLink: %i (128)",
+			sizeof(SequenceLink), sizeof(LookupLink), sizeof(DispatchLink));
+
+	LOG(LOG_INFO,"MemSingleBrickChunk: %i (4194304) MemDoubleBrickChunk %i (8388608)", sizeof(MemSingleBrickChunk), sizeof(MemDoubleBrickChunk));
+
 
 #ifdef FEATURE_ENABLE_MEMTRACK
 	mtInit();

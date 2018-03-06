@@ -56,8 +56,8 @@ void ptParallelTaskFree(ParallelTask *pt);
 IndexingBuilder *tiIndexingBuilderAlloc();
 void tiIndexingBuilderFree(IndexingBuilder *ib);
 
-RoutingBuilder *tiRoutingBuilderAlloc();
-void tiRoutingBuilderFree(RoutingBuilder *rb);
+RoutingBuilder *trRoutingBuilderAlloc();
+void trRoutingBuilderFree(RoutingBuilder *rb);
 
 // Graph
 

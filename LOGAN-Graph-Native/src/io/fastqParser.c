@@ -48,7 +48,7 @@ void freeSequenceBuffer(SwqBuffer *swqBuffer)
 
 static void waitForIdle(int *usageCount)
 {
-//	LOG(LOG_INFO,"WaitForIdle");
+	//LOG(LOG_INFO,"WaitForIdle");
 
 	while(__atomic_load_n(usageCount,__ATOMIC_SEQ_CST)>0)
 		{
@@ -63,7 +63,7 @@ static void waitForIdle(int *usageCount)
 	if(__atomic_load_n(usageCount,__ATOMIC_SEQ_CST)<0)
 		LOG(LOG_CRITICAL,"Negative usage");
 
-//	LOG(LOG_INFO,"WaitForIdle Done");
+	//LOG(LOG_INFO,"WaitForIdle Done");
 }
 
 
@@ -405,7 +405,7 @@ void routingBuilderDataHandler(SwqBuffer *swqBuffer, ParallelTaskIngress *ingres
 
 
 
-int parseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 recordsToUse,
+s64 parseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 recordsToUse,
 		u8 *ioBuffer, int ioBufferRecycleSize, int ioBufferPrimarySize,
 		SwqBuffer *swqBuffers, ParallelTaskIngress *ingressBuffers, int bufferCount,
 		void *handlerContext, void (*handler)(SwqBuffer *swqBuffer, ParallelTaskIngress *ingressBuffer, void *handlerContext),
@@ -424,7 +424,7 @@ int parseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 records
 	s64 batchBaseCount=0;
 
 	s64 allRecordCount=0,validRecordCount=0,usedRecords=0;
-
+	s32 progressCounter=0;
 	s64 lastRecord=recordsToSkip+recordsToUse;
 
 	waitForIdle(&swqBuffers[currentBuffer].usageCount);
@@ -446,7 +446,7 @@ int parseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 records
 	int len = readBufferedFastqRecord(ioBuffer, &ioOffset, swqBuffers[currentBuffer].rec, maxBasesPerRead);
 	swqBuffers[currentBuffer].rec[batchReadCount].length=len;
 
-	int totalBatch=0;
+	s64 totalBatch=0;
 
 	while(len>0 && validRecordCount<lastRecord)
 		{
@@ -480,14 +480,17 @@ int parseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 records
 //						LOG(LOG_INFO, "New buffer usage count is now %i",buffers[currentBuffer].usageCount);
 					}
 
+				progressCounter++;
 				usedRecords++;
 
-				if(usedRecords % 1000000 ==0)
+				if(progressCounter >= 1000000)
 					{
-					LOG(LOG_INFO,"Reads: %i", usedRecords);
+					LOG(LOG_INFO,"Reads: %li", usedRecords);
 
-					if(monitor!=NULL && (usedRecords % 10000000 ==0))
+					if(monitor!=NULL)
 						(*monitor)();
+
+					progressCounter=0;
 					}
 				}
 
@@ -523,7 +526,7 @@ int parseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 records
 		totalBatch+=batchReadCount;
 		}
 
-	LOG(LOG_INFO,"Used %i %i",usedRecords,totalBatch);
+	LOG(LOG_INFO,"Used %li %li",usedRecords,totalBatch);
 
 	if(len<0)
 		{

@@ -109,7 +109,7 @@ SmerEntry *siitInitImplicitTree(SmerEntry *sortedSmers, u32 smerCount)
 
 	while(i<paddedSmerCount)
 	{
-		putEntry(levels, lastLevel, smerEntries, SMER_DUMMY);
+		putEntry(levels, lastLevel, smerEntries, SMER_SLICE_DUMMY);
 		i++;
 	}
 

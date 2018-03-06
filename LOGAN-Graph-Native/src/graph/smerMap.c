@@ -1,7 +1,7 @@
 
 #include "../common.h"
 
-static const float MAX_LOAD_FACTOR = 0.40; // 0.68 -> 0.65 -> 0.60 -> 0.45 -> 0.40: Reduced to eliminate large scan counts
+static const float MAX_LOAD_FACTOR = 0.35; // 0.68 -> 0.65 -> 0.60 -> 0.45 -> 0.40: Reduced to eliminate large scan counts
 
 static const u32 INIT_SHIFT=10;
 
@@ -22,7 +22,7 @@ void smInitSmerMap(SmerMap *smerMap) {
 		smerMap->slice[i].smers = smSmerEntryArrayAlloc(size);
 
 		for(j=0;j<size;j++)
-			smerMap->slice[i].smers[j]=SMER_DUMMY;
+			smerMap->slice[i].smers[j]=SMER_SLICE_DUMMY;
 	}
 
 	LOG(LOG_INFO, "Allocated SmerMap with %i slices of %i entries",SMER_SLICES,size);
@@ -64,7 +64,6 @@ static int scanForSmer_HS(SmerMapSlice *smerMapSlice, SmerEntry entry, u32 hash,
 
 			if (scanCount > 200) {
 				LOG(LOG_CRITICAL,"Filled hashmap: count %i from %i in %i for %i",scanCount,(hash & mask), sliceNum, entry);
-				exit(1);
 			}
 		}
 	}
@@ -85,7 +84,7 @@ static int scanForSmer_HS(SmerMapSlice *smerMapSlice, SmerEntry entry, u32 hash,
 
 	SmerEntry tmp=__atomic_load_n((smerMapSlice->smers + position), __ATOMIC_SEQ_CST);
 
-	while (tmp != SMER_DUMMY)
+	while (tmp != SMER_SLICE_DUMMY)
 		{
 		if (tmp == entry)
 			return position;
@@ -105,7 +104,7 @@ static int scanForSmer_HS(SmerMapSlice *smerMapSlice, SmerEntry entry, u32 hash,
 		}
 
 	if (scanCount > 60) {
-		LOG(LOG_INFO,"Scan count %i from %i in %i for %i",scanCount,(hash & mask), sliceNum, entry);
+		LOG(LOG_INFO,"Scan count %i from %i in %i for %u",scanCount,(hash & mask), sliceNum, entry);
 	}
 
 	return position;
@@ -139,7 +138,7 @@ static void findOrCreateSmer_HS(SmerMapSlice *smerMapSlice, SmerEntry entry, u32
 		if (__atomic_load_n(smerMapSlice->smers+index, __ATOMIC_SEQ_CST)==entry)
 			return;
 
-		SmerEntry current=SMER_DUMMY;
+		SmerEntry current=SMER_SLICE_DUMMY;
 
 		if(__atomic_compare_exchange_n(smerMapSlice->smers+index, &current, entry, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST))
 			return;
@@ -254,7 +253,7 @@ static u32 smGetSmerCount_S(SmerMapSlice *smerMapSlice)
 
 	for(i=0;i<=size;i++)
 		{
-		if(smerMapSlice->smers[i]!=SMER_DUMMY)
+		if(smerMapSlice->smers[i]!=SMER_SLICE_DUMMY)
 			count++;
 		}
 
@@ -284,13 +283,13 @@ static void resize_S(SmerMapSlice *smerMapSlice, u32 sliceNo) {
 	int i=0;
 
 	for(i=0;i<size;i++)
-		smerMapSlice->smers[i]=SMER_DUMMY;
+		smerMapSlice->smers[i]=SMER_SLICE_DUMMY;
 
 	for(i=0;i<=oldMask;i++)
 		{
 		SmerEntry entry=oldEntries[i];
 
-		if(entry!=SMER_DUMMY)
+		if(entry!=SMER_SLICE_DUMMY)
 			{
 			u64 hash = hashForSmer(entry);
 
@@ -328,7 +327,7 @@ static void smDumpSmerMapSlice(SmerMapSlice *smerMapSlice, int sliceNum)
 		{
 		SmerEntry entry=smerMapSlice->smers[i];
 
-		if(entry!=SMER_DUMMY)
+		if(entry!=SMER_SLICE_DUMMY)
 			{
 			char buffer[SMER_BASES+1];
 
@@ -366,7 +365,7 @@ u32 smGetSmerSliceCount(SmerMapSlice *smerMapSlice)
 		{
 		SmerEntry entry=smerMapSlice->smers[i];
 
-		if(entry!=SMER_DUMMY)
+		if(entry!=SMER_SLICE_DUMMY)
 			count++;
 		}
 
@@ -381,7 +380,7 @@ static int smGetSliceSmerEntries(SmerMapSlice *smerMapSlice, SmerEntry *entryArr
 	for(int i=0;i<=smerMapSlice->mask;i++)
 		{
 		SmerEntry entry=smerMapSlice->smers[i];
-		if(entry!=SMER_DUMMY)
+		if(entry!=SMER_SLICE_DUMMY)
 			{
 			//SmerId id=recoverSmerId(i, entry);
 			*(ptr++)=entry;
@@ -406,7 +405,7 @@ static int smGetSliceSmerIds(SmerMapSlice *smerMapSlice, int sliceNum, SmerId *s
 	for(int i=0;i<=smerMapSlice->mask;i++)
 		{
 		SmerEntry entry=smerMapSlice->smers[i];
-		if(entry!=SMER_DUMMY)
+		if(entry!=SMER_SLICE_DUMMY)
 			{
 			SmerId id=recoverSmerId(sliceNum, entry);
 			*(ptr++)=id;
@@ -444,7 +443,7 @@ void smGetSmerIds(SmerMap *smerMap, SmerId *smerIds)
 
 }
 
-
+/*
 static int checkStealthIndexing(s32 *indexes, u32 indexCount, SmerId *smerIds, SmerId smerId)
 {
 	int i=0;
@@ -457,7 +456,7 @@ static int checkStealthIndexing(s32 *indexes, u32 indexCount, SmerId *smerIds, S
 
 	return 0;
 }
-
+*/
 
 
 
@@ -482,7 +481,7 @@ void smAddPathSmers(SmerMap *smerMap, u32 dataLength, u8 *data, s32 nodeSize, s3
 	//LOG(LOG_INFO, "Existing Indexes: ");
 	//LogIndexes(oldIndexes, oldIndexCount, smerIds);
 
-	s32 prevIndex=-1; // TODO: Consider -1 vs 0 here (length of first edge)
+	s32 prevIndex=0; // TODO: Consider -1 vs 0 here (length of first edge)
 
 	int i,j;
 	s32 distance;
@@ -496,15 +495,16 @@ void smAddPathSmers(SmerMap *smerMap, u32 dataLength, u8 *data, s32 nodeSize, s3
 			{
 			for(j=prevIndex+1;j<index;j++)
 				{
-				SmerId smerId=smerIds[j];
+//				SmerId smerId=smerIds[j];
 
 				distance=j-prevIndex;
-
+/*
 				if(checkStealthIndexing(newIndexes, newIndexCount, smerIds, smerId))
 					{
 					prevIndex=j;
 					}
-				else if (distance>=indexMaxDistance)
+				else */
+				if (distance>=indexMaxDistance)
 					{
 					newIndexes[newIndexCount++]=j;
 					prevIndex=j;
@@ -516,15 +516,16 @@ void smAddPathSmers(SmerMap *smerMap, u32 dataLength, u8 *data, s32 nodeSize, s3
 
 	for(j=prevIndex+1;j<=maxValidIndex;j++)
 		{
-		SmerId smerId=smerIds[j];
+//		SmerId smerId=smerIds[j];
 
 		distance=j-prevIndex;
-
+/*
 		if(checkStealthIndexing(newIndexes, newIndexCount, smerIds, smerId))
 			{
 			prevIndex=j;
 			}
-		else if (distance>=indexMaxDistance)
+		else */
+		if (distance>=indexMaxDistance)
 			{
 			newIndexes[newIndexCount++]=j;
 			prevIndex=j;

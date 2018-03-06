@@ -7,6 +7,129 @@
 
 #include "common.h"
 
+static char *decodeLinkIndexType(u8 indexType)
+{
+	switch(indexType)
+		{
+		case LINK_INDEXTYPE_SEQ:
+			return "SEQ";
+		case LINK_INDEXTYPE_LOOKUP:
+			return "LOOKUP";
+		case LINK_INDEXTYPE_DISPATCH:
+			return "DISPATCH";
+		default:
+			LOG(LOG_INFO,"Unknown link index type %u",(u32)(indexType));
+			return "UNKNOWN";
+		}
+
+}
+
+void trDumpSequenceLink(SequenceLink *link, u32 linkIndex)
+{
+//	u32 nextIndex;			// Index of next SequenceLink in chain (or LINK_DUMMY at end)
+//	u8 length;				// Length of packed sequence (in bp)
+//	u8 position;			// Position of first unprocessed base (in bp)
+//	u8 packedSequence[SEQUENCE_LINK_BYTES];
+
+	LOG(LOG_INFO,"SequenceLink Dump: Idx %i (%p)",linkIndex, link);
+
+	LOG(LOG_INFO,"  NextIdx: %u", link->nextIndex);
+	LOG(LOG_INFO,"  Len: %u",(u32)(link->length));
+	LOG(LOG_INFO,"  Pos: %u",(u32)(link->position));
+
+	char buffer[SEQUENCE_LINK_BASES+1];
+	unpackSequence(link->packedSequence, (u32)link->length, buffer);
+
+	LOG(LOG_INFO,"  Seq: %s",buffer);
+}
+
+void trDumpLookupLink(LookupLink *link, u32 linkIndex)
+{
+//	u32 sourceIndex;		// Index of SeqLink or Dispatch
+//	u8 indexType;			// Indicates meaning of previous (SeqLink or Dispatch)
+//	u8 smerCount;			// Number of smers to lookup
+//	u16 revComp;			// Indicates if the original smer was rc (lsb = first smer)
+//	SmerId smers[LOOKUP_LINK_SMERS];		// Specific smers to lookup
+
+	LOG(LOG_INFO,"LookupLink Dump: Idx %i (%p)",linkIndex, link);
+
+	LOG(LOG_INFO,"  SrcIdx: %u (%s)", link->sourceIndex, decodeLinkIndexType(link->indexType));
+	LOG(LOG_INFO,"  SmerCount: %i", link->smerCount);
+
+	char buffer[SMER_BASES+1];
+
+	u16 revComp=link->revComp;
+
+	int smerCount=link->smerCount;
+	smerCount=(smerCount<0)?-smerCount:smerCount;
+
+	for(int i=0;i<smerCount;i++)
+		{
+		unpackSmer(link->smers[i], buffer);
+
+		if(revComp&1)
+			LOG(LOG_INFO, "  Smer: %s (rc)", buffer);
+		else
+			LOG(LOG_INFO, "  Smer: %s", buffer);
+
+		revComp>>=1;
+		}
+}
+
+void trDumpDispatchLink(DispatchLink *link, u32 linkIndex)
+{
+	//	u32 nextOrOriginIndex;		// Index of Next Dispatch or Origin SeqLink
+	//	u8 indexType;				// Indicates meaning of previous
+	//	u8 length;					// How many valid indexedSmers are there
+	//	u8 position;				// The current indexed smer
+	//	u8 revComp;					// Indicate if each original smer was rc
+	//	s32 minEdgePosition;
+	//	s32 maxEdgePosition;
+	//	DispatchLinkSmer smers[DISPATCH_LINK_SMERS];
+
+	LOG(LOG_INFO,"DispatchLink Dump: Idx %i (%p)",linkIndex, link);
+
+	LOG(LOG_INFO,"  NosIdx: %u (%s)", link->nextOrSourceIndex, decodeLinkIndexType(link->indexType));
+	LOG(LOG_INFO,"  Len: %u",(u32)(link->length));
+	LOG(LOG_INFO,"  Pos: %u",(u32)(link->position));
+
+	LOG(LOG_INFO,"  EdgePos: [%i %i]", link->minEdgePosition, link->maxEdgePosition);
+
+	char buffer[SMER_BASES+1];
+
+	u16 revComp=link->revComp;
+	for(int i=0;i<link->length;i++)
+		{
+		DispatchLinkSmer *dls=link->smers+i;
+		unpackSmer(dls->smer, buffer);
+
+		if(revComp&1)
+			LOG(LOG_INFO, "  Smer: %s (rc) Offset: %u Slice: %u SliceIndex: %u", buffer, (u32)dls->seqIndexOffset, (u32)dls->slice, dls->sliceIndex);
+		else
+			LOG(LOG_INFO, "  Smer: %s      Offset: %u Slice: %u SliceIndex: %u", buffer, (u32)dls->seqIndexOffset, (u32)dls->slice, dls->sliceIndex);
+
+		revComp>>=1;
+		}
+
+}
+
+
+void trDumpDispatchLinkChain(MemDoubleBrickPile *dispatchPile, DispatchLink *link, u32 linkIndex)
+{
+	trDumpDispatchLink(link, linkIndex);
+
+	while(link->indexType==LINK_INDEXTYPE_DISPATCH)
+		{
+		linkIndex=link->nextOrSourceIndex;
+		link=mbDoubleBrickFindByIndex(dispatchPile, linkIndex);
+
+		trDumpDispatchLink(link, linkIndex);
+		}
+}
+
+
+
+
 
 
 
@@ -14,17 +137,26 @@ static void *trDoRegister(ParallelTask *pt, int workerNo, int totalWorkers)
 {
 	RoutingWorkerState *workerState=G_ALLOC(sizeof(RoutingWorkerState), MEMTRACKID_ROUTING_WORKERSTATE);
 
-	workerState->lookupSliceStart=(SMER_SLICES*workerNo)/totalWorkers;
-	workerState->lookupSliceEnd=(SMER_SLICES*(workerNo+1))/totalWorkers;
+	//int workerGroups=(totalWorkers+3)/4;
+	//int workerGroupNo=workerNo%workerGroups;
 
-	workerState->dispatchGroupStart=(SMER_DISPATCH_GROUPS*workerNo)/totalWorkers;
-	workerState->dispatchGroupEnd=(SMER_DISPATCH_GROUPS*(workerNo+1))/totalWorkers;
+	//workerState->lookupSliceStart=(SMER_SLICES*workerNo)/totalWorkers;
+	//workerState->lookupSliceEnd=(SMER_SLICES*(workerNo+1))/totalWorkers;
 
+//	workerState->dispatchGroupStart=(SMER_DISPATCH_GROUPS*workerNo)/workerGroups;
+//	workerState->dispatchGroupEnd=(SMER_DISPATCH_GROUPS*(workerNo+1))/workerGroups;
+
+	//workerState->dispatchGroupStart=(SMER_DISPATCH_GROUPS*workerGroupNo)/workerGroups;
+	//workerState->dispatchGroupEnd=(SMER_DISPATCH_GROUPS*(workerGroupNo+1))/workerGroups;
+
+	//workerState->dispatchGroupCurrent=workerState->dispatchGroupStart;
+
+	/*
 	LOG(LOG_INFO,"Worker %i of %i - Lookup Range %i %i DispatchGroup Range %i %i",
 			workerNo,totalWorkers,
 			workerState->lookupSliceStart, workerState->lookupSliceEnd,
 			workerState->dispatchGroupStart, workerState->dispatchGroupEnd);
-
+*/
 
 	//workerState->lookupSliceDefault=workerState->lookupSliceCurrent=(workerNo*SMER_SLICE_PRIME)&SMER_SLICE_MASK;
 	//workerState->dispatchGroupDefault=workerState->dispatchGroupCurrent=(workerNo*SMER_DISPATCH_GROUP_PRIME)&SMER_DISPATCH_GROUP_MASK;
@@ -41,7 +173,9 @@ static int trAllocateIngressSlot(ParallelTask *pt, int workerNo)
 {
 	RoutingBuilder *rb=pt->dataPtr;
 
-	return reserveReadLookupBlock(rb);
+	int res=reserveReadIngressBlock(rb);
+
+	return res;
 }
 
 
@@ -52,11 +186,15 @@ static int trDoIngress(ParallelTask *pt, int workerNo,void *wState, void *ingres
 	Graph *graph=rb->graph;
 	s32 nodeSize=graph->config.nodeSize;
 
-	queueReadsForSmerLookup(rec,ingressPosition,ingressSize,nodeSize,rb);
+	populateReadIngressBlock(rec,ingressPosition,ingressSize,nodeSize,rb);
 
 	return 1;
 }
 
+
+
+
+/*
 static void dumpUncleanDispatchReadBlocks(int blockNum, RoutingReadDispatchBlock *readDispatchBlock)
 {
 	if(readDispatchBlock->completionCount>0)
@@ -102,14 +240,18 @@ static void dumpUncleanDispatchGroup(int groupNum, RoutingReadReferenceBlockDisp
 		}
 
 }
+*/
 
 static void dumpUnclean(RoutingBuilder *rb)
 {
+	LOG(LOG_INFO,"TODO: Dump unclean??");
+	/*
 	for(int i=0;i<TR_READBLOCK_DISPATCHES_INFLIGHT;i++)
 		dumpUncleanDispatchReadBlocks(i, rb->readDispatchBlocks+i);
 
 	for(int i=0;i<SMER_DISPATCH_GROUPS;i++)
 		dumpUncleanDispatchGroup(i, rb->dispatchPtr[i], rb->dispatchGroupState+i);
+		*/
 
 }
 
@@ -143,26 +285,77 @@ static void dumpUnclean(RoutingBuilder *rb)
 */
 
 
+static void showWorkStatus(RoutingBuilder *rb)
+{
+	int arib=__atomic_load_n(&rb->allocatedIngressBlocks, __ATOMIC_SEQ_CST);
+	int arlb=__atomic_load_n(&rb->allocatedReadLookupBlocks, __ATOMIC_SEQ_CST);
+	int lrpre=__atomic_load_n(&rb->lookupPredispatchRecycleCount, __ATOMIC_SEQ_CST);
+	int lrpost=__atomic_load_n(&rb->lookupPostdispatchRecycleCount, __ATOMIC_SEQ_CST);
+
+
+	MemSingleBrickPile *seqPile=&(rb->sequenceLinkPile);
+	MemDoubleBrickPile *lookupPile=&(rb->lookupLinkPile);
+	MemDoubleBrickPile *dispatchPile=&(rb->dispatchLinkPile);
+
+	int seqTotal=mbGetSingleBrickPileCapacity(seqPile);
+	int seqFree=mbGetFreeSingleBrickPile(seqPile);
+	int seqUsed=seqTotal-seqFree;
+
+	int lookupTotal=mbGetDoubleBrickPileCapacity(lookupPile);
+	int lookupFree=mbGetFreeDoubleBrickPile(lookupPile);
+	int lookupUsed=lookupTotal-lookupFree;
+
+	int dispatchTotal=mbGetDoubleBrickPileCapacity(dispatchPile);
+	int dispatchFree=mbGetFreeDoubleBrickPile(dispatchPile);
+	int dispatchUsed=dispatchTotal-dispatchFree;
+
+	LOG(LOG_INFO,"TickTock: RB - IB: %i LB: %i LR_pre: %i LR_post: %i", arib, arlb, lrpre, lrpost);
+	LOG(LOG_INFO,"TickTock: BricksUFT - Seq %i %i %i Lookup %i %i %i Dispatch %i %i %i",
+			seqUsed,seqFree,seqTotal, lookupUsed,lookupFree,lookupTotal, dispatchUsed,dispatchFree,dispatchTotal);
+
+	ParallelTask *pt=rb->pt;
+
+	int iat=__atomic_load_n(&pt->ingressAcceptToken, __ATOMIC_SEQ_CST);
+	int ict=__atomic_load_n(&pt->ingressConsumeToken, __ATOMIC_SEQ_CST);
+	ParallelTaskIngress *aiptr=__atomic_load_n(&pt->activeIngressPtr, __ATOMIC_SEQ_CST);
+	int aip=__atomic_load_n(&pt->activeIngressPosition, __ATOMIC_SEQ_CST);
+
+	int iTotal=0;
+	if(aiptr!=NULL)
+		iTotal=__atomic_load_n(&aiptr->ingressTotal, __ATOMIC_SEQ_CST);
+
+	LOG(LOG_INFO,"TickTock: Ingress: IAT: %i ICT: %i IPtr: %p IPos: %i ITot: %i",iat,ict,aiptr,aip, iTotal);
+}
+
+
+static int checkForWork(RoutingBuilder *rb)
+{
+	//int arib=__atomic_load_n(&rb->allocatedIngressBlocks, __ATOMIC_SEQ_CST);
+	//int arlb=__atomic_load_n(&rb->allocatedReadLookupBlocks, __ATOMIC_SEQ_CST);
+	//int lrr=(__atomic_load_n(&rb->lookupPredispatchRecyclePtr, __ATOMIC_SEQ_CST)!=NULL) + (__atomic_load_n(&rb->lookupPostdispatchRecyclePtr, __ATOMIC_SEQ_CST)!=NULL);
+
+	MemSingleBrickPile *seqPile=&(rb->sequenceLinkPile);
+
+	int ardb=mbGetSingleBrickPileCapacity(seqPile)-mbGetFreeSingleBrickPile(seqPile);
+
+	return ardb;
+}
+
+
+static u64 getNextRoutingWorkToken(RoutingBuilder *rb, int workerNo)
+{
+	return __atomic_fetch_add(&(rb->routingWorkToken) ,1, __ATOMIC_SEQ_CST);
+}
+
+
 static int trDoIntermediate(ParallelTask *pt, int workerNo, void *wState, int force)
 {
+	//LOG(LOG_INFO,"trDoIntermediate");
+
 	RoutingWorkerState *workerState=wState;
 	RoutingBuilder *rb=pt->dataPtr;
 
-/*
-	if(__atomic_load_n(&rb->pogoSuppressionFlag, __ATOMIC_RELAXED))
-		{
-		__atomic_store_n(&rb->pogoSuppressionFlag, 0, __ATOMIC_RELAXED);
-
-		int lookupReads=countLookupReadsRemaining(rb);
-		int dispatchReads=countDispatchReadsRemaining(rb);
-
-		int arlb=__atomic_load_n(&rb->allocatedReadLookupBlocks, __ATOMIC_SEQ_CST);
-		int ardb=__atomic_load_n(&rb->allocatedReadDispatchBlocks, __ATOMIC_SEQ_CST);
-
-		LOG(LOG_INFO,"Lookup %i (%i) Dispatch %i (%i) - force %i",lookupReads,arlb, dispatchReads, ardb, force);
-		}
-*/
-
+	/*
 	if(scanForCompleteReadDispatchBlocks(rb))
 		{
 		//LOG(LOG_INFO,"scanForCompleteReadDispatchBlocks OK");
@@ -170,107 +363,31 @@ static int trDoIntermediate(ParallelTask *pt, int workerNo, void *wState, int fo
 		if(!force)
 			return 1;
 		}
+*/
 
 	if(scanForAndDispatchLookupCompleteReadLookupBlocks(rb))
 		{
-		//LOG(LOG_INFO,"scanForAndDispatchLookupCompleteReadLookupBlocks OK");
 		if(!force)
 			return 1;
 		}
 
-	int arlb=__atomic_load_n(&rb->allocatedReadLookupBlocks, __ATOMIC_SEQ_CST);
-	int ardb=__atomic_load_n(&rb->allocatedReadDispatchBlocks, __ATOMIC_SEQ_CST);
+//	scanForAndProcessLookupRecycles(rb, force);
 
-	if(ardb==TR_READBLOCK_DISPATCHES_INFLIGHT)
+	if(scanForAndProcessLookupRecycles(rb, force))
 		{
-		if(scanForDispatches(rb, workerNo, workerState, force))
-			{
-			//LOG(LOG_INFO,"scanForDispatches 1");
+		if(!force)
 			return 1;
-			}
 		}
 
+//	processIngressedReads(rb);
 
-	//if((force)||(rb->allocatedReadLookupBlocks==TR_READBLOCK_LOOKUPS_INFLIGHT))
-	if((force)||(arlb==TR_READBLOCK_LOOKUPS_INFLIGHT))
-		{
-		if(scanForSmerLookups(rb, workerNo, workerState))
-			{
-			//LOG(LOG_INFO,"scanForSmerLookups");
-			return 1;
-			}
-		}
+	if(processIngressedReads(rb))
+		return 1;
 
-	if(force)
-		{
-		if(scanForDispatches(rb, workerNo, workerState, force))
-			{
-			//LOG(LOG_INFO,"scanForDispatches 2");
-			return 1;
-			}
-		}
+	int sequencesActive=checkForWork(rb);
 
-	arlb=__atomic_load_n(&rb->allocatedReadLookupBlocks, __ATOMIC_SEQ_CST);
-	ardb=__atomic_load_n(&rb->allocatedReadDispatchBlocks, __ATOMIC_SEQ_CST);
-
-//	LOG(LOG_INFO,"trDoIntermediate: %i %i %i %i",workerNo, force, arlb, ardb);
-
-	if(arlb>0 || ardb>0) // If in force mode, and not finished, rally the minions
-		return force;
-
-	return 0;
-}
-
-/*
-int trDoIntermediate_bork(ParallelTask *pt, int workerNo, void *wState, int force)
-{
-	RoutingWorkerState *workerState=wState;
-	RoutingBuilder *rb=pt->dataPtr;
-
-	if(__atomic_load_n(&rb->pogoSuppressionFlag, __ATOMIC_RELAXED))
-		{
-		int ret=scanForCompleteReadDispatchBlocks(rb);
-		while(ret)
-			ret=scanForCompleteReadDispatchBlocks(rb);
-
-		if(ret)
-			return 1;
-
-//		int lookupReads=countLookupReadsRemaining(rb);
-		int dispatchReads=countDispatchReadsRemaining(rb);
-
-//		int arlb=__atomic_load_n(&rb->allocatedReadLookupBlocks, __ATOMIC_RELAXED);
-		int ardb=__atomic_load_n(&rb->allocatedReadDispatchBlocks, __ATOMIC_RELAXED);
-
-//		LOG(LOG_INFO,"Lookup %i (%i) Dispatch %i (%i) Limit %i %i",lookupReads,arlb, dispatchReads, ardb,
-//				TR_POGOSUPRESSION_LOOKUP_TO_DISPATCH_READ_LIMIT, TR_POGOSUPRESSION_DISPATCH_PRIORITY_READ_LIMIT);
-
-		if(dispatchReads<TR_POGOSUPRESSION_LOOKUP_TO_DISPATCH_READ_LIMIT && ardb<TR_READBLOCK_DISPATCHES_INFLIGHT)
-			{
-			ret=scanForAndDispatchLookupCompleteReadLookupBlocks(rb);
-
-			while(ret)
-				ret=scanForAndDispatchLookupCompleteReadLookupBlocks(rb);
-
-			if(ret)
-				return 1;
-
-			//lookupReads=countLookupReadsRemaining(rb);
-			dispatchReads=countDispatchReadsRemaining(rb);
-			ardb=__atomic_load_n(&rb->allocatedReadDispatchBlocks, __ATOMIC_RELAXED);
-			}
-
-		if(dispatchReads>TR_POGOSUPRESSION_DISPATCH_PRIORITY_READ_LIMIT || ardb==TR_READBLOCK_DISPATCHES_INFLIGHT)
-			__atomic_store_n(&rb->pogoPriorityFlag, 1, __ATOMIC_RELAXED);
-		else
-			__atomic_store_n(&rb->pogoPriorityFlag, 0, __ATOMIC_RELAXED);
-
-		__atomic_store_n(&rb->pogoSuppressionFlag, 0, __ATOMIC_RELAXED);
-		}
-
-	int priority=__atomic_load_n(&rb->pogoPriorityFlag, __ATOMIC_RELAXED);
-
-	if((force)||(priority==0))
+	/*
+	if((force)||(arlb>TR_READBLOCK_LOOKUPS_THRESHOLD))
 		{
 		if(scanForSmerLookups(rb, workerNo, workerState))
 			{
@@ -279,27 +396,33 @@ int trDoIntermediate_bork(ParallelTask *pt, int workerNo, void *wState, int forc
 			}
 		}
 
-	if((force) || (priority == 1))
+	if(scanForDispatches(rb, workerNo, workerState, force))
 		{
-		if(scanForDispatches(rb, workerNo, workerState, force))
-			{
-			//LOG(LOG_INFO,"scanForDispatches 2");
-			return 1;
-			}
+		//LOG(LOG_INFO,"scanForDispatches 2");
+		return 1;
 		}
-
-
-	int arlb=__atomic_load_n(&rb->allocatedReadLookupBlocks, __ATOMIC_RELAXED);
-	int ardb=__atomic_load_n(&rb->allocatedReadDispatchBlocks, __ATOMIC_RELAXED);
-
-//	LOG(LOG_INFO,"trDoIntermediate: %i %i %i %i",workerNo, force, arlb, ardb);
-
-	if(arlb>0 || ardb>0) // If in force mode, and not finished, rally the minions
-		return force;
-
-	return 0;
-}
 */
+
+
+	if((force)||(sequencesActive>TR_SEQUENCE_THRESHOLD))
+		{
+		u64 workToken=getNextRoutingWorkToken(rb, workerNo);
+
+		int work=scanForSmerLookups(rb, workToken, workerNo, workerState, force);
+		work+=scanForDispatches(rb, workToken, workerNo, workerState, force);
+
+		if(work)
+			return 1;
+		}
+
+	if(checkForWork(rb)) // If in force mode, and not finished, rally the minions
+		return force;
+
+	//LOG(LOG_INFO,"Worker did nothing");
+	return 0;
+}
+
+
 
 static int trDoTidy(ParallelTask *pt, int workerNo, void *wState, int tidyNo)
 {
@@ -308,17 +431,16 @@ static int trDoTidy(ParallelTask *pt, int workerNo, void *wState, int tidyNo)
 
 static void trDoTickTock(ParallelTask *pt)
 {
-//	LOG(LOG_INFO,"Tick tock MF");
-
 	RoutingBuilder *rb=pt->dataPtr;
 
-	__atomic_store_n(&(rb->pogoDebugFlag), 1, __ATOMIC_RELAXED);
+	showWorkStatus(rb);
 }
+
 
 
 RoutingBuilder *allocRoutingBuilder(Graph *graph, int threads)
 {
-	RoutingBuilder *rb=tiRoutingBuilderAlloc();
+	RoutingBuilder *rb=trRoutingBuilderAlloc();
 
 	ParallelTaskConfig *ptc=allocParallelTaskConfig(trDoRegister,trDoDeregister,trAllocateIngressSlot,trDoIngress,trDoIntermediate,trDoTidy,trDoTickTock,
 			threads,
@@ -331,18 +453,48 @@ RoutingBuilder *allocRoutingBuilder(Graph *graph, int threads)
 	rb->threadData=NULL;
 
 	rb->pogoDebugFlag=1;
+	rb->routingWorkToken=0;
 
-	rb->allocatedReadLookupBlocks=0;
+	if(sizeof(SequenceLink)!=SINGLEBRICK_BRICKSIZE)
+		LOG(LOG_CRITICAL,"SequenceLink size %i doesn't match expected %i", sizeof(SequenceLink), SINGLEBRICK_BRICKSIZE);
+
+	mbInitSingleBrickPile(&(rb->sequenceLinkPile), TR_BRICKCHUNKS_SEQUENCE_MIN, TR_BRICKCHUNKS_SEQUENCE_MAX, MEMTRACKID_BRICK_SEQ);
+
+	for(int i=0;i<TR_READBLOCK_INGRESS_INFLIGHT;i++)
+		{
+		rb->ingressBlocks[i].status=INGRESS_BLOCK_STATUS_IDLE;
+		}
+
+	rb->allocatedIngressBlocks=0;
+
+	mbInitDoubleBrickPile(&(rb->lookupLinkPile), TR_BRICKCHUNKS_LOOKUP_MIN, TR_BRICKCHUNKS_LOOKUP_MAX, MEMTRACKID_BRICK_LOOKUP);
+
 	for(int i=0;i<TR_READBLOCK_LOOKUPS_INFLIGHT;i++)
-		rb->readLookupBlocks[i].disp=dispenserAlloc(MEMTRACKID_DISPENSER_ROUTING_LOOKUP, DISPENSER_BLOCKSIZE_MEDIUM, DISPENSER_BLOCKSIZE_HUGE);
+		{
+		rb->readLookupBlocks[i].disp=dispenserAlloc(MEMTRACKID_DISPENSER_ROUTING_LOOKUP, DISPENSER_BLOCKSIZE_SMALL, DISPENSER_BLOCKSIZE_MEDIUM);
+		rb->readLookupBlocks[i].compStat=LOOKUP_BLOCK_STATUS_IDLE;
+		rb->readLookupBlocks[i].outboundDispatches=NULL;
+		}
+	rb->allocatedReadLookupBlocks=0;
 
 	for(int i=0;i<SMER_SLICES;i++)
 		rb->smerEntryLookupPtr[i]=NULL;
 
+	rb->lookupPredispatchRecyclePtr=NULL;
+	rb->lookupPredispatchRecycleCount=0;
+
+	rb->lookupPostdispatchRecyclePtr=NULL;
+	rb->lookupPostdispatchRecycleCount=0;
+
+	mbInitDoubleBrickPile(&(rb->dispatchLinkPile), TR_BRICKCHUNKS_DISPATCH_MIN, TR_BRICKCHUNKS_DISPATCH_MAX, MEMTRACKID_BRICK_DISPATCH);
+
+
+
+/*
 	rb->allocatedReadDispatchBlocks=0;
 	for(int i=0;i<TR_READBLOCK_DISPATCHES_INFLIGHT;i++)
 		rb->readDispatchBlocks[i].disp=dispenserAlloc(MEMTRACKID_DISPENSER_ROUTING_DISPATCH, DISPENSER_BLOCKSIZE_MEDIUM, DISPENSER_BLOCKSIZE_HUGE);
-
+*/
 	for(int i=0;i<SMER_DISPATCH_GROUPS;i++)
 		{
 		initRoutingDispatchGroupState(rb->dispatchGroupState+i);
@@ -403,10 +555,14 @@ void freeRoutingBuilder(RoutingBuilder *rb)
 	dumpUnclean(rb);
 
 	for(int i=0;i<TR_READBLOCK_LOOKUPS_INFLIGHT;i++)
+		{
+		cleanupRoutingDispatchArrays(rb->readLookupBlocks[i].outboundDispatches);
 		dispenserFree(rb->readLookupBlocks[i].disp);
-
+		}
+/*
 	for(int i=0;i<TR_READBLOCK_DISPATCHES_INFLIGHT;i++)
 		dispenserFree(rb->readDispatchBlocks[i].disp);
+*/
 
 	for(int i=0;i<SMER_DISPATCH_GROUPS;i++)
 		freeRoutingDispatchGroupState(rb->dispatchGroupState+i);
@@ -432,7 +588,13 @@ void freeRoutingBuilder(RoutingBuilder *rb)
 	freeParallelTask(pt);
 	freeParallelTaskConfig(ptc);
 
-	tiRoutingBuilderFree(rb);
+	mbFreeSingleBrickPile(&(rb->sequenceLinkPile),"SequenceLink");
+	mbFreeDoubleBrickPile(&(rb->lookupLinkPile),"LookupLink");
+	mbFreeDoubleBrickPile(&(rb->dispatchLinkPile),"DispatchLink");
+
+	trRoutingBuilderFree(rb);
+
+	LOG(LOG_INFO,"Freed RoutingBuilder");
 }
 
 

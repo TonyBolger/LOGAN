@@ -1619,11 +1619,12 @@ void rtInitHeapDataBlock(HeapDataBlock *block, s32 sliceIndex)
 	block->sliceIndex=sliceIndex;
 }
 
+/*
 RoutePatch *rtCloneRoutePatches(MemDispenser *disp, RoutePatch *inPatches, s32 inPatchCount)
 {
 	RoutePatch *outPatches=dAlloc(disp, sizeof(RoutePatch)*inPatchCount);
-	RoutingReadData *outRdi=dAlloc(disp, sizeof(RoutingReadData)*inPatchCount);
-	RoutingReadData **outRdiPtr=dAlloc(disp, sizeof(RoutingReadData *)*inPatchCount);
+	DispatchLink *outRdi=dAlloc(disp, sizeof(DispatchLink)*inPatchCount);
+	DispatchLink **outRdiPtr=dAlloc(disp, sizeof(DispatchLink *)*inPatchCount);
 
 	for(int i=0;i<inPatchCount;i++)
 		{
@@ -1633,7 +1634,7 @@ RoutePatch *rtCloneRoutePatches(MemDispenser *disp, RoutePatch *inPatches, s32 i
 
 		outRdiPtr[i]=outRdi+i;
 
-		RoutingReadData *rdi=*(inPatches[i].rdiPtr);
+		DispatchLink *rdi=*(inPatches[i].rdiPtr);
 
 		outRdi[i].completionCountPtr=NULL;
 		outRdi[i].indexCount=0;
@@ -1643,7 +1644,7 @@ RoutePatch *rtCloneRoutePatches(MemDispenser *disp, RoutePatch *inPatches, s32 i
 
 	return outPatches;
 }
-
+*/
 
 
 

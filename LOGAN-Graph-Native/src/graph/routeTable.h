@@ -3,7 +3,7 @@
 
 
 
-
+/*
 typedef struct routingReadDataEntryStr {
 	u32 readIndex; // 4
 	SmerId fsmer; // 8
@@ -35,28 +35,77 @@ typedef struct routingReadDataStr {
 	//u32 *sliceIndexes; // 8
 
 } __attribute__((aligned (32))) RoutingReadData;
+*/
+
+
+
+
+#define DISPATCH_LINK_SMERS 7
+#define DISPATCH_LINK_SMER_THRESHOLD 5
+
+typedef struct dispatchLinkSmerStr {
+	SmerId smer;		// The actual smer ID
+	u16 seqIndexOffset; // Offset from previous smer, or from start of first seqLink (if first)
+	u16 slice;			// Ranges (0-16383)
+	u32 sliceIndex;		// Index within slice
+} DispatchLinkSmer;
+
+typedef struct dispatchLinkStr {
+	u32 nextOrSourceIndex;		// Index of Next Dispatch or Source SeqLink
+	u8 indexType;				// Indicates meaning of previous
+	u8 length;					// How many valid indexedSmers are there
+	u8 position;				// The current indexed smer
+	u8 revComp;					// Indicate if each original smer was rc (lsb = first smer)
+	s32 minEdgePosition;
+	s32 maxEdgePosition;
+	DispatchLinkSmer smers[DISPATCH_LINK_SMERS];
+} DispatchLink;
+
+
 
 
 typedef struct routePatchStr
 {
-	//struct routePatchStr *next;
-	RoutingReadData **rdiPtr; // Needs double ptr to enable sorting by inbound position
+	DispatchLink **rdiPtr; // Needs double ptr to enable sorting by inbound position
+	u32 dispatchLinkIndex;
 
 	s32 prefixIndex;
 	s32 suffixIndex;
 } RoutePatch;
 
+// Need new more flexible dispatchLink queue options here
+// RoutingSmerAssignedDispatchLink - indexes of all the dispatchLinks queued for a single smer
+// RoutingSliceAssignedDispatchLinkQueue - all dispatchLinks queued for a single SliceGroup
 
-typedef struct routingReadReferenceBlockStr {
-	u64 entryCount; // 8
-	RoutingReadData **entries; // 8
-} __attribute__((aligned (16))) RoutingReadReferenceBlock;
+#define DISPATCH_LINK_QUEUE_DEFAULT_BOOST 2
+#define DISPATCH_LINK_QUEUE_FORCE_THRESHOLD 100
 
-typedef struct routingIndexedReadReferenceBlockStr {
+typedef struct routingSmerAssignedDispatchLinkQueueStr {
 	s32 sliceIndex; // 4
 	u32 entryCount; // 4
-	RoutingReadData **entries; // 8
-} __attribute__((aligned (16))) RoutingIndexedReadReferenceBlock;
+	u32 position; // 4
+	u32 boost; // 4
+	u32 *dispatchLinkIndexEntries; // 8
+} RoutingSmerAssignedDispatchLinkQueue;
+
+typedef struct routingSliceAssignedDispatchLinkQueueStr {
+
+	IohHash *smerQueueMap[SMER_DISPATCH_GROUP_SLICES]; // Map of sliceIndex -> RoutingSmerAssignedDispatchLink
+} RoutingSliceAssignedDispatchLinkQueue;
+
+
+typedef struct routingIndexedDispatchLinkIndexBlockStr {
+	s32 sliceIndex; // 4
+	u32 entryCount; // 4
+	u32 *linkIndexEntries; // 8
+	DispatchLink **linkEntries; // 8
+} __attribute__((aligned (16))) RoutingIndexedDispatchLinkIndexBlock;
+
+
+typedef struct routingDispatchLinkIndexBlockStr {
+	u64 entryCount; // 8
+	u32 *entries; // 4
+} __attribute__((aligned (16))) RoutingDispatchLinkIndexBlock;
 
 
 typedef union s32floatUnion {
@@ -68,30 +117,6 @@ typedef union s32floatUnion {
 
 #define ROUTING_TABLE_FORWARD 0
 #define ROUTING_TABLE_REVERSE 1
-
-
-
-typedef struct routePatchMergeWideReadsetStr // Represents a set of reads with same upstream, flexible positions, but potentially varied downstream
-{
-	struct routePatchMergeWideReadsetStr *next;
-
-	RoutePatch *firstRoutePatch;
-
-	s32 minEdgeOffset;
-	s32 maxEdgeOffset; // Closed interval, includes both max and min
-
-} RoutePatchMergeWideReadset;
-
-
-typedef struct routePatchMergePositionOrderedReadtreeStr // Represents sets of reads with same upstream and defined, consecutive, relative order.
-{
-	struct routePatchMergePositionOrderedReadtreeStr *next;
-
-	RoutePatchMergeWideReadset *firstWideReadset;
-
-	s32 minEdgePosition;
-	s32 maxEdgePosition; // Closed interval, includes both max and min
-} RoutePatchMergePositionOrderedReadtree;
 
 
 typedef struct heapDataBlockStr
@@ -192,7 +217,7 @@ void rtRelocater(MemCircHeapChunkIndex *index, u8 tag, u8 **tagData, s32 tagData
 
 void rtInitHeapDataBlock(HeapDataBlock *block, s32 sliceIndex);
 
-RoutePatch *rtCloneRoutePatches(MemDispenser *disp, RoutePatch *inPatches, s32 inPatchCount);
+//RoutePatch *rtCloneRoutePatches(MemDispenser *disp, RoutePatch *inPatches, s32 inPatchCount);
 
 
 #endif

@@ -19,6 +19,8 @@ IohHash *iohInitMap(MemDispenser *disp, int capacityOrder);
 void *iohGet(IohHash *map, s32 key);
 void **iohGetAllValues(IohHash *map);
 
+int iohGetNext(IohHash *map, int startIndex, int *keyPtr, void **valuePtr);
+
 void iohPut(IohHash *map, s32 key, void *value);
 
 #endif
