@@ -836,23 +836,29 @@ void populateLookupLinkForDispatch(LookupLink *lookupLink, u32 lookupLinkIndex, 
 
 int queueSmerLookupsForIngress(RoutingBuilder *rb, RoutingReadIngressBlock *ingressBlock)
 {
-	if(!reserveReadLookupBlock(rb, TR_LOOKUP_INGRESS_BLOCKMARGIN))
-		{
-		//LOG(LOG_INFO,"ingress: No lookup blocks");
-		return 0;
-		}
-
 	u32 sequences=ingressBlock->sequenceCount-ingressBlock->sequencePosition;
 	if(sequences>TR_ROUTING_BLOCKSIZE)
 		sequences=TR_ROUTING_BLOCKSIZE;
 
 	MemSingleBrickPile *sequencePile=&(rb->sequenceLinkPile);
 	MemDoubleBrickPile *lookupPile=&(rb->lookupLinkPile);
+	MemDoubleBrickPile *dispatchPile=&(rb->dispatchLinkPile);
 
-	if(!mbCheckDoubleBrickAvailability(lookupPile, sequences+TR_LOOKUP_INGRESS_PILEMARGIN))
+	if(!mbCheckDoubleBrickAvailability(lookupPile, sequences+TR_INGRESS_LOOKUP_PILEMARGIN))
 		{
 		//LOG(LOG_INFO,"ingress No lookup bricks");
-		unreserveReadLookupBlock(rb);
+		return 0;
+		}
+
+	if(!mbCheckDoubleBrickAvailability(dispatchPile, sequences+TR_INGRESS_DISPATCH_PILEMARGIN))
+		{
+		//LOG(LOG_INFO,"ingress No dispatch bricks");
+		return 0;
+		}
+
+	if(!reserveReadLookupBlock(rb, TR_INGRESS_LOOKUP_BLOCKMARGIN))
+		{
+		//LOG(LOG_INFO,"ingress: No lookup blocks");
 		return 0;
 		}
 
