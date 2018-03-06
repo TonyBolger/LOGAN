@@ -43,6 +43,8 @@ void waitForStartup(ParallelTask *pt)
 {
 	LOG(LOG_INFO,"Master: Waiting for startup");
 
+	__atomic_thread_fence(__ATOMIC_SEQ_CST);
+
 	int state=__atomic_load_n(&(pt->state), __ATOMIC_SEQ_CST);
 
 	while(state==PTSTATE_STARTUP)
@@ -57,6 +59,8 @@ void waitForStartup(ParallelTask *pt)
 		nanosleep(&req, NULL);
 		state=__atomic_load_n(&(pt->state), __ATOMIC_SEQ_CST);
 		}
+
+	__atomic_thread_fence(__ATOMIC_SEQ_CST);
 
 	LOG(LOG_INFO,"Master: Done Startup");
 }
@@ -83,6 +87,8 @@ void waitForShutdown(ParallelTask *pt)
 {
 	LOG(LOG_INFO,"Master: Waiting for shutdown");
 
+	__atomic_thread_fence(__ATOMIC_SEQ_CST);
+
 	int state=__atomic_load_n(&(pt->state), __ATOMIC_SEQ_CST);
 
 	while(state!=PTSTATE_DEAD)
@@ -100,6 +106,8 @@ void waitForShutdown(ParallelTask *pt)
 		state=__atomic_load_n(&(pt->state), __ATOMIC_SEQ_CST);
 		}
 
+	__atomic_thread_fence(__ATOMIC_SEQ_CST);
+
 	LOG(LOG_INFO,"Master: Done Shutdown %i %i",
 			__atomic_load_n(&(pt->accumulatedIngressArrived),__ATOMIC_SEQ_CST),
 			__atomic_load_n(&(pt->accumulatedIngressProcessed),__ATOMIC_SEQ_CST));
@@ -110,6 +118,8 @@ void waitForShutdown(ParallelTask *pt)
 int queueIngress(ParallelTask *pt, ParallelTaskIngress *ingressData)
 {
 	//LOG(LOG_INFO,"Master: Queue Ingress %p %i - Usage %i", ingressData->ingressPtr, ingressData->ingressTotal, *(ingressData->ingressUsageCount));
+
+	__atomic_thread_fence(__ATOMIC_SEQ_CST);
 
 	__atomic_store_n(ingressData->ingressUsageCount,1,__ATOMIC_SEQ_CST); // Allow for 'queued usage'
 
@@ -129,6 +139,8 @@ int queueIngress(ParallelTask *pt, ParallelTaskIngress *ingressData)
 
 	wakeIdleWorkers(pt);
 
+	__atomic_thread_fence(__ATOMIC_SEQ_CST);
+
 	//LOG(LOG_INFO,"Master: Queue Ingress Done");
 
 	return 0;
@@ -139,6 +151,8 @@ void queueShutdown(ParallelTask *pt)
 {
 	LOG(LOG_INFO,"Master: QueueShutdown");
 
+	__atomic_thread_fence(__ATOMIC_SEQ_CST);
+
 #ifdef FEATURE_ENABLE_TICKTOCK
 	if(pt->config->doTickTock != NULL)
 		pt->config->doTickTock(pt);
@@ -146,6 +160,8 @@ void queueShutdown(ParallelTask *pt)
 
 	__atomic_store_n(&pt->reqShutdown, 1, __ATOMIC_SEQ_CST);
 	wakeIdleWorkers(pt);
+
+	__atomic_thread_fence(__ATOMIC_SEQ_CST);
 
 	LOG(LOG_INFO,"Master: QueueShutdown Complete");
 }

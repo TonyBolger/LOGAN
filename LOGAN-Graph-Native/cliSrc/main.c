@@ -11,13 +11,18 @@ void runIptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 
 	// Parse stuff here
 
-	static SwqBuffer swqBuffers[PT_INGRESS_BUFFERS];
-	static ParallelTaskIngress ingressBuffers[PT_INGRESS_BUFFERS];
+	SwqBuffer swqBuffers[PT_INGRESS_BUFFERS];
+	ParallelTaskIngress ingressBuffers[PT_INGRESS_BUFFERS];
 
 	for(int i=0;i<PT_INGRESS_BUFFERS;i++)
-		initSequenceBuffer(swqBuffers+i, FASTQ_BASES_PER_BATCH, FASTQ_RECORDS_PER_BATCH, FASTQ_MAX_READ_LENGTH);
+		{
+		ingressBuffers[i].ingressPtr=NULL;
+		ingressBuffers[i].ingressTotal=0;
+		ingressBuffers[i].ingressUsageCount=NULL;
+		prInitSequenceBuffer(swqBuffers+i, PARSER_BASES_PER_BATCH, PARSER_SEQ_PER_BATCH, PARSER_MAX_SEQ_LENGTH);
+		}
 
-	u8 *ioBuffer=G_ALLOC(FASTQ_IO_RECYCLE_BUFFER+FASTQ_IO_PRIMARY_BUFFER, MEMTRACKID_IOBUF);
+	u8 *ioBuffer=G_ALLOC(PARSER_IO_RECYCLE_BUFFER+PARSER_IO_PRIMARY_BUFFER, MEMTRACKID_IOBUF);
 
 	void (*monitor)() = NULL;
 
@@ -32,10 +37,10 @@ void runIptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 
 		LOG(LOG_INFO,"Indexing: Parsing %s",path);
 
-		s64 reads=parseAndProcess(path, FASTQ_MIN_READ_LENGTH, 0, LONG_MAX,
-				ioBuffer, FASTQ_IO_RECYCLE_BUFFER, FASTQ_IO_PRIMARY_BUFFER,
+		s64 reads=parseAndProcess(path, PARSER_MIN_SEQ_LENGTH, 0, LONG_MAX,
+				ioBuffer, PARSER_IO_RECYCLE_BUFFER, PARSER_IO_PRIMARY_BUFFER,
 				swqBuffers, ingressBuffers, PT_INGRESS_BUFFERS,
-				ib, indexingBuilderDataHandler, monitor);
+				ib, prIndexingBuilderDataHandler, monitor);
 
 		LOG(LOG_INFO,"Indexing: Parsed %i reads from %s",reads,path);
 		}
@@ -51,7 +56,7 @@ void runIptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 
 	for(int i=0;i<PT_INGRESS_BUFFERS;i++)
 		{
-		freeSequenceBuffer(swqBuffers+i);
+		prFreeSequenceBuffer(swqBuffers+i);
 		if(ingressBuffers[i].ingressUsageCount!=NULL && *(ingressBuffers[i].ingressUsageCount)>0)
 			LOG(LOG_INFO,"Buffer still in use");
 		}
@@ -77,13 +82,18 @@ void runRptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 
 	// Parse stuff here
 
-	static SwqBuffer swqBuffers[PT_INGRESS_BUFFERS];
-	static ParallelTaskIngress ingressBuffers[PT_INGRESS_BUFFERS];
+	SwqBuffer swqBuffers[PT_INGRESS_BUFFERS];
+	ParallelTaskIngress ingressBuffers[PT_INGRESS_BUFFERS];
 
 	for(int i=0;i<PT_INGRESS_BUFFERS;i++)
-		initSequenceBuffer(swqBuffers+i, FASTQ_BASES_PER_BATCH, FASTQ_RECORDS_PER_BATCH, FASTQ_MAX_READ_LENGTH);
+		{
+		ingressBuffers[i].ingressPtr=NULL;
+		ingressBuffers[i].ingressTotal=0;
+		ingressBuffers[i].ingressUsageCount=NULL;
+		prInitSequenceBuffer(swqBuffers+i, PARSER_BASES_PER_BATCH, PARSER_SEQ_PER_BATCH, PARSER_MAX_SEQ_LENGTH);
+		}
 
-	u8 *ioBuffer=G_ALLOC(FASTQ_IO_RECYCLE_BUFFER+FASTQ_IO_PRIMARY_BUFFER, MEMTRACKID_IOBUF);
+	u8 *ioBuffer=G_ALLOC(PARSER_IO_RECYCLE_BUFFER+PARSER_IO_PRIMARY_BUFFER, MEMTRACKID_IOBUF);
 
 	void (*monitor)() = NULL;
 
@@ -98,10 +108,10 @@ void runRptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 
 		LOG(LOG_INFO,"Routing: Parsing %s",path);
 
-		s64 reads=parseAndProcess(path, FASTQ_MIN_READ_LENGTH, 0, LONG_MAX,
-				ioBuffer, FASTQ_IO_RECYCLE_BUFFER, FASTQ_IO_PRIMARY_BUFFER,
+		s64 reads=parseAndProcess(path, PARSER_MIN_SEQ_LENGTH, 0, LONG_MAX,
+				ioBuffer, PARSER_IO_RECYCLE_BUFFER, PARSER_IO_PRIMARY_BUFFER,
 				swqBuffers, ingressBuffers, PT_INGRESS_BUFFERS,
-				rb, routingBuilderDataHandler, monitor);
+				rb, prRoutingBuilderDataHandler, monitor);
 
 		LOG(LOG_INFO,"Routing: Parsed %i reads from %s",reads,path);
 		}
@@ -117,7 +127,7 @@ void runRptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 
 	for(int i=0;i<PT_INGRESS_BUFFERS;i++)
 		{
-		freeSequenceBuffer(swqBuffers+i);
+		prFreeSequenceBuffer(swqBuffers+i);
 
 		if(ingressBuffers[i].ingressUsageCount!=NULL && *(ingressBuffers[i].ingressUsageCount)>0)
 			LOG(LOG_INFO,"Buffer still in use");

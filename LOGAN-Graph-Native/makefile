@@ -43,6 +43,7 @@ CLI_OBJS += \
 ./bin/cli/common/graph/smerArray.o \
 ./bin/cli/common/graph/smerMap.o \
 ./bin/cli/common/io/fastqParser.o \
+./bin/cli/common/io/parser.o \
 ./bin/cli/common/mem/mem.o \
 ./bin/cli/common/mem/memBricks.o \
 ./bin/cli/common/mem/memCircHeap.o \
@@ -89,6 +90,7 @@ JNI_OBJS += \
 ./bin/jni/common/graph/smerArray.o \
 ./bin/jni/common/graph/smerMap.o \
 ./bin/jni/common/io/fastqParser.o \
+./bin/jni/common/io/parser.o \
 ./bin/jni/common/mem/mem.o \
 ./bin/jni/common/mem/memBricks.o \
 ./bin/jni/common/mem/memCircHeap.o \

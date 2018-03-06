@@ -293,6 +293,7 @@ typedef struct swqBufferStr {
 #include "task/taskRoutingLookup.h"
 #include "task/taskRoutingDispatch.h"
 
+#include "io/parser.h"
 #include "io/fastqParser.h"
 
 // Leave mem.h to end (it needs all struct/typedefs defined)

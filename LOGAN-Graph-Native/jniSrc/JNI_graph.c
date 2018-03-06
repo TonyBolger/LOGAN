@@ -105,9 +105,9 @@ static void processReadFiles(JNIEnv *env, jobjectArray jFilePaths, void *handler
 	ParallelTaskIngress ingressBuffers[PT_INGRESS_BUFFERS];
 
 	for(int i=0;i<PT_INGRESS_BUFFERS;i++)
-		initSequenceBuffer(swqBuffer+i, FASTQ_BASES_PER_BATCH, FASTQ_RECORDS_PER_BATCH, FASTQ_MAX_READ_LENGTH);
+		prInitSequenceBuffer(swqBuffer+i, PARSER_BASES_PER_BATCH, PARSER_SEQ_PER_BATCH, PARSER_MAX_SEQ_LENGTH);
 
-	u8 *ioBuffer=G_ALLOC(FASTQ_IO_RECYCLE_BUFFER+FASTQ_IO_PRIMARY_BUFFER, MEMTRACKID_IOBUF);
+	u8 *ioBuffer=G_ALLOC(PARSER_IO_RECYCLE_BUFFER+PARSER_IO_PRIMARY_BUFFER, MEMTRACKID_IOBUF);
 
 	int fileCount=(*env)->GetArrayLength(env, jFilePaths);
 
@@ -123,8 +123,8 @@ static void processReadFiles(JNIEnv *env, jobjectArray jFilePaths, void *handler
 
 		LOG(LOG_INFO,"Parse %s",filePath);
 
-		int reads=parseAndProcess(filePath, FASTQ_MIN_READ_LENGTH, 0, 2000000000,
-			ioBuffer, FASTQ_IO_RECYCLE_BUFFER, FASTQ_IO_PRIMARY_BUFFER,
+		int reads=parseAndProcess(filePath, PARSER_MIN_SEQ_LENGTH, 0, 2000000000,
+			ioBuffer, PARSER_IO_RECYCLE_BUFFER, PARSER_IO_PRIMARY_BUFFER,
 			swqBuffer, ingressBuffers, PT_INGRESS_BUFFERS,
 			handlerContext, handler, NULL);
 
@@ -136,7 +136,7 @@ static void processReadFiles(JNIEnv *env, jobjectArray jFilePaths, void *handler
 	for(int i=0;i<PT_INGRESS_BUFFERS;i++)
 		{
 		waitForIdle(&swqBuffer[i].usageCount);
-		freeSequenceBuffer(swqBuffer+i);
+		prFreeSequenceBuffer(swqBuffer+i);
 		}
 
 	G_FREE(ioBuffer, FASTQ_IO_RECYCLE_BUFFER+FASTQ_IO_PRIMARY_BUFFER, MEMTRACKID_IOBUF);
@@ -228,7 +228,7 @@ JNIEXPORT void JNICALL Java_logan_graph_Graph_00024IndexBuilder_processReadFiles
 {
 	IndexingBuilder *ib = (IndexingBuilder *) handle;
 
-	processReadFiles(env, jFilePaths, ib, indexingBuilderDataHandler);
+	processReadFiles(env, jFilePaths, ib, prIndexingBuilderDataHandler);
 }
 
 /*
@@ -315,7 +315,7 @@ JNIEXPORT void JNICALL Java_logan_graph_Graph_00024RouteBuilder_processReadFiles
 {
 	RoutingBuilder *rb = (RoutingBuilder *) handle;
 
-	processReadFiles(env, jFilePaths, rb, routingBuilderDataHandler);
+	processReadFiles(env, jFilePaths, rb, prRoutingBuilderDataHandler);
 }
 
 JNIEXPORT void JNICALL Java_logan_graph_Graph_00024RouteBuilder_shutdown_1Native
