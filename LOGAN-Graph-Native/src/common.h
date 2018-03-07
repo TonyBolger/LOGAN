@@ -232,6 +232,7 @@ typedef u32 SmerId;
 __asm__(".symver memcpy,memcpy@GLIBC_2.2.5");
 
 
+// Doesn't really belong here, but nowhere obviously better to put it
 
 typedef struct sequenceWithQualityStr {
 	char *seq;
@@ -296,6 +297,7 @@ typedef struct swqBufferStr {
 
 #include "io/parser.h"
 #include "io/fastqParser.h"
+#include "io/fastaParser.h"
 
 // Leave mem.h to end (it needs all struct/typedefs defined)
 #include "mem/mem.h"

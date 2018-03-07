@@ -7,6 +7,7 @@
 
 #include "common.h"
 
+
 static void waitForBufferIdle(int *usageCount)
 {
 	//LOG(LOG_INFO,"WaitForIdle");
@@ -28,8 +29,7 @@ static void waitForBufferIdle(int *usageCount)
 }
 
 
-
-static int readBufferedFastqLine(u8 *ioBuffer, int *offset, char *outPtr, int maxLength)
+static int readBufferedFastaLine(u8 *ioBuffer, int *offset, char *outPtr, int maxLength)
 {
 	u8 ch;
 	u8 *inPtr=ioBuffer+*offset;
@@ -50,7 +50,7 @@ static int readBufferedFastqLine(u8 *ioBuffer, int *offset, char *outPtr, int ma
 	outPtr[length]=0;
 
 	if(length==maxLength)
-		return FASTQ_PARSER_ERROR_OVERLONG_LINE_LENGTH;
+		return -1;
 
 	if(ch==13)	// Handle stupid newlines
 		{
@@ -64,6 +64,107 @@ static int readBufferedFastqLine(u8 *ioBuffer, int *offset, char *outPtr, int ma
 	return length;
 }
 
+#define PARSER_STATE_HEADER 1
+#define PARSER_STATE_TRIM 2
+#define PARSER_STATE_SEQUENCE 3
+#define PARSER_STATE_EOF 4
+
+int readBufferedFastaRecordHeader(u8 *ioBuffer, int *offset, FastaParserState *fastaRec)
+{
+	memset(fastaRec, 0, sizeof(FastaParserState));
+
+	char *headerBuf=alloca(FASTQ_SEQUENCE_HEADER_MAX_LENGTH+1);
+	headerBuf[0]=0;
+
+	int headerLength=readBufferedFastaLine(ioBuffer, offset, headerBuf, FASTQ_SEQUENCE_HEADER_MAX_LENGTH);
+	headerBuf[headerLength]=0;
+
+	LOG(LOG_INFO,"Header: '%s'",headerBuf);
+
+	if(headerBuf[0]!='>')
+		return -1;
+
+	char *startOfName=headerBuf+1; // Start after '>'
+	char *endOfName=strchr(headerBuf,' ');
+
+	if(endOfName==NULL)
+		endOfName=headerBuf+headerLength;
+
+	int nameLength=endOfName-startOfName;
+
+	strncpy(fastaRec->sequenceName, startOfName, nameLength);
+	fastaRec->sequenceName[nameLength]=0;
+
+	LOG(LOG_INFO,"Name: '%s'",fastaRec->sequenceName);
+
+	fastaRec->parserState=PARSER_STATE_TRIM;
+
+	return 0;
+}
+
+
+
+//static
+int readBufferedFastaTrimSequence(u8 *ioBuffer, int *offset, int maxLength)
+{
+	u8 ch;
+
+	u8 *inPtr=ioBuffer+*offset;
+	int length=0;
+
+	ch=*(inPtr++);
+	if(ch==0)
+		return 0; // EOF -> Early out without updating offset
+
+	int done=0;
+
+	while(!done && maxLength>0)
+		{
+		switch(ch)
+			{
+			case '>':
+				done=PARSER_STATE_HEADER;
+				inPtr--;
+				break;
+
+			case 10:	// LineFeed
+			case 13:	// CarriageReturn
+				done=PARSER_STATE_TRIM;
+				if(ch==13)	// Handle stupid newlines
+					{
+					ch=*(inPtr++);
+					if(ch!=10 && ch!=0)
+						inPtr--;
+					}
+				break;
+
+			case 'A':
+			case 'C':
+			case 'G':
+			case 'T':
+				done=PARSER_STATE_SEQUENCE;
+				inPtr--;
+				break;
+
+			case 0:		// EOF
+				done=PARSER_STATE_EOF;
+				break;
+
+			default:
+				ch=*(inPtr++);
+				maxLength--;
+			}
+		}
+
+	*offset=inPtr-ioBuffer;
+
+	return length;
+}
+
+
+
+
+/*
 static int skipBufferedFastqLine(u8 *ioBuffer, int *offset)
 {
 	u8 ch;
@@ -91,9 +192,9 @@ static int skipBufferedFastqLine(u8 *ioBuffer, int *offset)
 
 	return length;
 }
+*/
 
-
-
+/*
 int readBufferedFastqRecord(u8 *ioBuffer, int *offset, SequenceWithQuality *rec, int maxLength)
 {
 	int len1,len2;
@@ -108,7 +209,7 @@ int readBufferedFastqRecord(u8 *ioBuffer, int *offset, SequenceWithQuality *rec,
 		return len1;
 
 	if(skipBufferedFastqLine(ioBuffer, offset)==0)
-		return FASTQ_PARSER_ERROR_UNEXPECTED_EOF; // Read Comment
+		return -2; // Read Comment
 
 	len2=readBufferedFastqLine(ioBuffer, offset,rec->qual,maxLength);
 
@@ -118,7 +219,7 @@ int readBufferedFastqRecord(u8 *ioBuffer, int *offset, SequenceWithQuality *rec,
 	if(len1!=len2)
 		{
 		LOG(LOG_INFO,"%i vs %i  %s vs %s",len1,len2, rec->seq, rec->qual);
-		return FASTQ_PARSER_ERROR_LENGTH_MISMATCH;
+		return -3;
 		}
 
 	rec->length=len1;
@@ -126,12 +227,13 @@ int readBufferedFastqRecord(u8 *ioBuffer, int *offset, SequenceWithQuality *rec,
 	return len1;
 }
 
+*/
 
 
 
 
 
-s64 fqParseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 recordsToUse,
+s64 faParseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 recordsToUse,
 		u8 *ioBuffer, int ioBufferRecycleSize, int ioBufferPrimarySize,
 		SwqBuffer *swqBuffers, ParallelTaskIngress *ingressBuffers, int bufferCount,
 		void *handlerContext, void (*handler)(SwqBuffer *swqBuffer, ParallelTaskIngress *ingressBuffer, void *handlerContext),
@@ -141,23 +243,26 @@ s64 fqParseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 recor
 
 	if(file==NULL)
 		{
-		LOG(LOG_CRITICAL,"Failed to open input file: '%s'",path);
+		LOG(LOG_INFO,"Failed to open input file: '%s'",path);
 		return 0;
 		}
 
 	s64 currentBuffer=0;
 	s64 batchReadCount=0;
+	/*
 	s64 batchBaseCount=0;
 
 	s64 allRecordCount=0,validRecordCount=0,usedRecords=0;
 	s32 progressCounter=0;
 	s64 lastRecord=recordsToSkip+recordsToUse;
-
+*/
 	waitForBufferIdle(&swqBuffers[currentBuffer].usageCount);
 
+	/*
 	int maxReads=swqBuffers[currentBuffer].maxSequences;
 	int maxBases=swqBuffers[currentBuffer].maxSequenceTotalLength;
 	int maxBasesPerRead=swqBuffers[currentBuffer].maxSequenceLength;
+*/
 
 	swqBuffers[currentBuffer].rec[batchReadCount].seq=swqBuffers[currentBuffer].seqBuffer;
 	swqBuffers[currentBuffer].rec[batchReadCount].qual=swqBuffers[currentBuffer].qualBuffer;
@@ -169,9 +274,42 @@ s64 fqParseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 recor
 	if(ioBufferValid<ioBufferEnd)
 		ioBuffer[ioBufferValid]=0;
 
-	s64 totalBatch=0;
+	//s64 totalBatch=0;
+	//int len=0;
 
-	int len = readBufferedFastqRecord(ioBuffer, &ioOffset, swqBuffers[currentBuffer].rec, maxBasesPerRead);
+
+	FastaParserState fastaRec;
+	fastaRec.parserState=PARSER_STATE_HEADER;
+
+	while(fastaRec.parserState!=PARSER_STATE_EOF)
+		{
+
+		switch(fastaRec.parserState)
+			{
+			case PARSER_STATE_HEADER:
+				break;
+
+			case PARSER_STATE_TRIM:
+				break;
+
+			case PARSER_STATE_SEQUENCE:
+				break;
+			}
+
+		}
+
+	//int headerLen=
+
+
+
+
+	readBufferedFastaRecordHeader(ioBuffer, &ioOffset, &fastaRec);
+
+
+
+	/*
+
+	int len = readBufferedFastaRecord(ioBuffer, &ioOffset, swqBuffers[currentBuffer].rec, maxBasesPerRead);
 	swqBuffers[currentBuffer].rec[batchReadCount].length=len;
 
 	while(len>0 && validRecordCount<lastRecord)
@@ -194,16 +332,7 @@ s64 fqParseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 recor
 					batchBaseCount=0;
 
 					currentBuffer=(currentBuffer+1)%PT_INGRESS_BUFFERS;
-
-
-//					int usage=buffers[currentBuffer].usageCount;
-//					if(usage>0)
-//						LOG(LOG_INFO, "New buffer usage count was %i",usage);
-
 					waitForBufferIdle(&swqBuffers[currentBuffer].usageCount);
-
-//					if(usage>0)
-//						LOG(LOG_INFO, "New buffer usage count is now %i",buffers[currentBuffer].usageCount);
 					}
 
 				progressCounter++;
@@ -239,7 +368,7 @@ s64 fqParseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 recor
 				ioBuffer[ioBufferValid]=0;
 			}
 
-		len=readBufferedFastqRecord(ioBuffer, &ioOffset, swqBuffers[currentBuffer].rec+batchReadCount, maxBasesPerRead);
+		len=readBufferedFastaRecord(ioBuffer, &ioOffset, swqBuffers[currentBuffer].rec+batchReadCount, maxBasesPerRead);
 
 		swqBuffers[currentBuffer].rec[batchReadCount].length=len;
 		}
@@ -252,30 +381,37 @@ s64 fqParseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 recor
 		totalBatch+=batchReadCount;
 		}
 
+*/
+
+	/*
 	LOG(LOG_INFO,"Used %li %li",usedRecords,totalBatch);
 
 	if(len<0)
 		{
 		switch (len)
 			{
-			case FASTQ_PARSER_ERROR_OVERLONG_LINE_LENGTH:
+			case -1:
 				LOG(LOG_INFO,"Over-long Seq/Qual in Fastq record");
 				break;
 
-			case FASTQ_PARSER_ERROR_UNEXPECTED_EOF:
+			case -2:
 				LOG(LOG_INFO,"Unexpected EOF in Fastq record");
 				break;
 
-			case FASTQ_PARSER_ERROR_LENGTH_MISMATCH:
+			case -3:
 				LOG(LOG_INFO,"Seq/Qual length mismatch in Fastq record");
 				break;
 
 			}
 		}
-
+*/
 	fclose(file);
 
-	return usedRecords;
+	//return usedRecords;
 
+
+	return 0;
 }
+
+
 

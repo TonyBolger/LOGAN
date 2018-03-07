@@ -15,15 +15,37 @@
 #define PARSER_IO_RECYCLE_BUFFER (4*1024*1024)
 #define PARSER_IO_PRIMARY_BUFFER (10*1024*1024)
 
+// File Content and compression can be combined
+#define PARSE_FILE_CONTENT_MASK 0xFF
+
+#define PARSE_FILE_CONTENT_UNKNOWN 0
+#define PARSE_FILE_CONTENT_FASTQ 1
+#define PARSE_FILE_CONTENT_FASTA 2
+
+
+#define PARSE_FILE_COMPRESSION_MASK 0xFF00
+
+#define PARSE_FILE_COMPRESSION_NONE 0
+#define PARSE_FILE_COMPRESSION_GZIP 256
 
 
 
 
 
-void prInitSequenceBuffer(SwqBuffer *swqBuffer, int bufSize, int recordsPerBatch, int maxReadLength);
-void prFreeSequenceBuffer(SwqBuffer *swqBuffer);
+typedef struct parseBufferStr {
+	u8 *ioBuffer;
 
-void prWaitForBufferIdle(int *usageCount);
+	SwqBuffer swqBuffers[PT_INGRESS_BUFFERS];
+	ParallelTaskIngress ingressBuffers[PT_INGRESS_BUFFERS];
+} ParseBuffer;
+
+
+void prInitParseBuffer(ParseBuffer *parseBuffer);
+void prFreeParseBuffer(ParseBuffer *parseBuffer);
+
+s64 prParseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 recordsToUse, ParseBuffer *parseBuffer,
+		void *handlerContext, void (*handler)(SwqBuffer *swqBuffer, ParallelTaskIngress *ingressBuffer, void *handlerContext),
+		void (*monitor)());
 
 void prIndexingBuilderDataHandler(SwqBuffer *swqBuffer, ParallelTaskIngress *ingressBuffer, void *context);
 void prRoutingBuilderDataHandler(SwqBuffer *swqBuffer, ParallelTaskIngress *ingressBuffer, void *context);

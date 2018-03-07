@@ -86,28 +86,12 @@ static jlongArray toLongArray(JNIEnv *env, s64 *data, u32 size)
 
 */
 
-static void waitForIdle(int *usageCount)
-{
-	while(__atomic_load_n(usageCount,__ATOMIC_SEQ_CST))
-		{
-		struct timespec req;
 
-		req.tv_sec=DEFAULT_SLEEP_SECS;
-		req.tv_nsec=DEFAULT_SLEEP_NANOS;
-
-		nanosleep(&req, NULL);
-		}
-}
 
 static void processReadFiles(JNIEnv *env, jobjectArray jFilePaths, void *handlerContext, void (*handler)(SwqBuffer *swqBuffer, ParallelTaskIngress *ingressBuffer, void *handlerContext))
 {
-	SwqBuffer swqBuffer[PT_INGRESS_BUFFERS];
-	ParallelTaskIngress ingressBuffers[PT_INGRESS_BUFFERS];
-
-	for(int i=0;i<PT_INGRESS_BUFFERS;i++)
-		prInitSequenceBuffer(swqBuffer+i, PARSER_BASES_PER_BATCH, PARSER_SEQ_PER_BATCH, PARSER_MAX_SEQ_LENGTH);
-
-	u8 *ioBuffer=G_ALLOC(PARSER_IO_RECYCLE_BUFFER+PARSER_IO_PRIMARY_BUFFER, MEMTRACKID_IOBUF);
+	ParseBuffer parseBuffer;
+	prInitParseBuffer(&parseBuffer);
 
 	int fileCount=(*env)->GetArrayLength(env, jFilePaths);
 
@@ -123,23 +107,15 @@ static void processReadFiles(JNIEnv *env, jobjectArray jFilePaths, void *handler
 
 		LOG(LOG_INFO,"Parse %s",filePath);
 
-		int reads=parseAndProcess(filePath, PARSER_MIN_SEQ_LENGTH, 0, 2000000000,
-			ioBuffer, PARSER_IO_RECYCLE_BUFFER, PARSER_IO_PRIMARY_BUFFER,
-			swqBuffer, ingressBuffers, PT_INGRESS_BUFFERS,
-			handlerContext, handler, NULL);
+		int reads=prParseAndProcess(filePath, PARSER_MIN_SEQ_LENGTH, 0, LONG_MAX, &parseBuffer,
+				handlerContext, handler, NULL);
 
 		LOG(LOG_INFO,"Parsed %i reads from %s",reads,filePath);
 
 		(*env)->DeleteLocalRef(env, jFilePath);
 		}
 
-	for(int i=0;i<PT_INGRESS_BUFFERS;i++)
-		{
-		waitForIdle(&swqBuffer[i].usageCount);
-		prFreeSequenceBuffer(swqBuffer+i);
-		}
-
-	G_FREE(ioBuffer, FASTQ_IO_RECYCLE_BUFFER+FASTQ_IO_PRIMARY_BUFFER, MEMTRACKID_IOBUF);
+	prFreeParseBuffer(&parseBuffer);
 }
 
 

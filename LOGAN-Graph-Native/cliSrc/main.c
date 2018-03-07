@@ -9,20 +9,8 @@ void runIptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 
 	LOG(LOG_INFO,"Indexing: Ready to parse");
 
-	// Parse stuff here
-
-	SwqBuffer swqBuffers[PT_INGRESS_BUFFERS];
-	ParallelTaskIngress ingressBuffers[PT_INGRESS_BUFFERS];
-
-	for(int i=0;i<PT_INGRESS_BUFFERS;i++)
-		{
-		ingressBuffers[i].ingressPtr=NULL;
-		ingressBuffers[i].ingressTotal=0;
-		ingressBuffers[i].ingressUsageCount=NULL;
-		prInitSequenceBuffer(swqBuffers+i, PARSER_BASES_PER_BATCH, PARSER_SEQ_PER_BATCH, PARSER_MAX_SEQ_LENGTH);
-		}
-
-	u8 *ioBuffer=G_ALLOC(PARSER_IO_RECYCLE_BUFFER+PARSER_IO_PRIMARY_BUFFER, MEMTRACKID_IOBUF);
+	ParseBuffer parseBuffer;
+	prInitParseBuffer(&parseBuffer);
 
 	void (*monitor)() = NULL;
 
@@ -37,14 +25,11 @@ void runIptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 
 		LOG(LOG_INFO,"Indexing: Parsing %s",path);
 
-		s64 reads=parseAndProcess(path, PARSER_MIN_SEQ_LENGTH, 0, LONG_MAX,
-				ioBuffer, PARSER_IO_RECYCLE_BUFFER, PARSER_IO_PRIMARY_BUFFER,
-				swqBuffers, ingressBuffers, PT_INGRESS_BUFFERS,
+		s64 reads=prParseAndProcess(path, PARSER_MIN_SEQ_LENGTH, 0, LONG_MAX, &parseBuffer,
 				ib, prIndexingBuilderDataHandler, monitor);
 
 		LOG(LOG_INFO,"Indexing: Parsed %i reads from %s",reads,path);
 		}
-
 
 	#ifdef FEATURE_ENABLE_MEMTRACK
 		mtDump();
@@ -54,20 +39,9 @@ void runIptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 
 	waitForShutdown(ib->pt);
 
-	for(int i=0;i<PT_INGRESS_BUFFERS;i++)
-		{
-		prFreeSequenceBuffer(swqBuffers+i);
-		if(ingressBuffers[i].ingressUsageCount!=NULL && *(ingressBuffers[i].ingressUsageCount)>0)
-			LOG(LOG_INFO,"Buffer still in use");
-		}
-
+	prFreeParseBuffer(&parseBuffer);
 	freeIndexingBuilder(ib);
-
-	G_FREE(ioBuffer, FASTQ_IO_RECYCLE_BUFFER+FASTQ_IO_PRIMARY_BUFFER, MEMTRACKID_IOBUF);
-
 }
-
-
 
 
 void runRptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *graph)
@@ -80,20 +54,8 @@ void runRptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 
 	LOG(LOG_INFO,"Routing: Ready to parse");
 
-	// Parse stuff here
-
-	SwqBuffer swqBuffers[PT_INGRESS_BUFFERS];
-	ParallelTaskIngress ingressBuffers[PT_INGRESS_BUFFERS];
-
-	for(int i=0;i<PT_INGRESS_BUFFERS;i++)
-		{
-		ingressBuffers[i].ingressPtr=NULL;
-		ingressBuffers[i].ingressTotal=0;
-		ingressBuffers[i].ingressUsageCount=NULL;
-		prInitSequenceBuffer(swqBuffers+i, PARSER_BASES_PER_BATCH, PARSER_SEQ_PER_BATCH, PARSER_MAX_SEQ_LENGTH);
-		}
-
-	u8 *ioBuffer=G_ALLOC(PARSER_IO_RECYCLE_BUFFER+PARSER_IO_PRIMARY_BUFFER, MEMTRACKID_IOBUF);
+	ParseBuffer parseBuffer;
+	prInitParseBuffer(&parseBuffer);
 
 	void (*monitor)() = NULL;
 
@@ -108,9 +70,7 @@ void runRptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 
 		LOG(LOG_INFO,"Routing: Parsing %s",path);
 
-		s64 reads=parseAndProcess(path, PARSER_MIN_SEQ_LENGTH, 0, LONG_MAX,
-				ioBuffer, PARSER_IO_RECYCLE_BUFFER, PARSER_IO_PRIMARY_BUFFER,
-				swqBuffers, ingressBuffers, PT_INGRESS_BUFFERS,
+		s64 reads=prParseAndProcess(path, PARSER_MIN_SEQ_LENGTH, 0, LONG_MAX, &parseBuffer,
 				rb, prRoutingBuilderDataHandler, monitor);
 
 		LOG(LOG_INFO,"Routing: Parsed %i reads from %s",reads,path);
@@ -125,24 +85,9 @@ void runRptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 
 	waitForShutdown(rb->pt);
 
-	for(int i=0;i<PT_INGRESS_BUFFERS;i++)
-		{
-		prFreeSequenceBuffer(swqBuffers+i);
-
-		if(ingressBuffers[i].ingressUsageCount!=NULL && *(ingressBuffers[i].ingressUsageCount)>0)
-			LOG(LOG_INFO,"Buffer still in use");
-		}
-
-	G_FREE(ioBuffer, FASTQ_IO_RECYCLE_BUFFER+FASTQ_IO_PRIMARY_BUFFER, MEMTRACKID_IOBUF);
-
+	prFreeParseBuffer(&parseBuffer);
 	freeRoutingBuilder(rb);
 }
-
-
-
-
-
-
 
 
 
