@@ -35,7 +35,7 @@ static int readBufferedFastaLine(u8 *ioBuffer, int *offset, char *outPtr, int ma
 	u8 *inPtr=ioBuffer+*offset;
 	int length=0;
 
-	maxLength--; // Allow for null byte for N check
+	maxLength--; // Allow for null byte
 
 	ch=*(inPtr++);
 	if(ch==0)
@@ -47,17 +47,17 @@ static int readBufferedFastaLine(u8 *ioBuffer, int *offset, char *outPtr, int ma
 		ch=*(inPtr++);
 		}
 
+	if(ch==13)	// Handle stupid newlines
+		{
+		ch=*inPtr;
+		if(ch==10)
+			inPtr++;
+		}
+
 	outPtr[length]=0;
 
 	if(length==maxLength)
 		return -1;
-
-	if(ch==13)	// Handle stupid newlines
-		{
-		ch=*(inPtr++);
-		if(ch!=10 && ch!=0)
-			inPtr--;
-		}
 
 	*offset=inPtr-ioBuffer;
 
@@ -71,13 +71,14 @@ static int readBufferedFastaLine(u8 *ioBuffer, int *offset, char *outPtr, int ma
 
 int readBufferedFastaRecordHeader(u8 *ioBuffer, int *offset, FastaParserState *fastaRec)
 {
-	memset(fastaRec, 0, sizeof(FastaParserState));
+	//LOG(LOG_INFO,"Read Header");
 
-	char *headerBuf=alloca(FASTQ_SEQUENCE_HEADER_MAX_LENGTH+1);
+	memset(fastaRec->sequenceName, 0, FASTA_SEQUENCE_NAME_MAX_LENGTH);
+
+	char *headerBuf=alloca(FASTA_SEQUENCE_HEADER_MAX_LENGTH);
 	headerBuf[0]=0;
 
-	int headerLength=readBufferedFastaLine(ioBuffer, offset, headerBuf, FASTQ_SEQUENCE_HEADER_MAX_LENGTH);
-	headerBuf[headerLength]=0;
+	int headerLength=readBufferedFastaLine(ioBuffer, offset, headerBuf, FASTA_SEQUENCE_HEADER_MAX_LENGTH);
 
 	LOG(LOG_INFO,"Header: '%s'",headerBuf);
 
@@ -104,62 +105,145 @@ int readBufferedFastaRecordHeader(u8 *ioBuffer, int *offset, FastaParserState *f
 
 
 
-//static
-int readBufferedFastaTrimSequence(u8 *ioBuffer, int *offset, int maxLength)
+static int readBufferedFastaTrimSequence(u8 *ioBuffer, int *offset, FastaParserState *fastaRec)
 {
+	//LOG(LOG_INFO,"Read Trim");
+
 	u8 ch;
-
 	u8 *inPtr=ioBuffer+*offset;
-	int length=0;
+	ch=*inPtr;
 
-	ch=*(inPtr++);
 	if(ch==0)
+		{
+		fastaRec->parserState=PARSER_STATE_EOF;
 		return 0; // EOF -> Early out without updating offset
+		}
 
-	int done=0;
+	int newState=0;
+	int lengthToRead=FASTA_SEQUENCE_TRIM_MAX_LENGTH;
 
-	while(!done && maxLength>0)
+	while(!newState && lengthToRead>0)
 		{
 		switch(ch)
 			{
 			case '>':
-				done=PARSER_STATE_HEADER;
-				inPtr--;
+				newState=PARSER_STATE_HEADER;
 				break;
 
 			case 10:	// LineFeed
+				newState=PARSER_STATE_SEQUENCE;
+				inPtr++;
+				break;
+
 			case 13:	// CarriageReturn
-				done=PARSER_STATE_TRIM;
-				if(ch==13)	// Handle stupid newlines
-					{
-					ch=*(inPtr++);
-					if(ch!=10 && ch!=0)
-						inPtr--;
-					}
+				newState=PARSER_STATE_SEQUENCE;
+				inPtr++;
+				ch=*inPtr;	// Handle stupid newlines
+				if(ch==10)
+					inPtr++;
 				break;
 
 			case 'A':
 			case 'C':
 			case 'G':
 			case 'T':
-				done=PARSER_STATE_SEQUENCE;
-				inPtr--;
+				newState=PARSER_STATE_SEQUENCE;
 				break;
 
 			case 0:		// EOF
-				done=PARSER_STATE_EOF;
+				newState=PARSER_STATE_EOF;
 				break;
 
 			default:
-				ch=*(inPtr++);
-				maxLength--;
+				//LOG(LOG_INFO,"TRIM %c",ch);
+				inPtr++;
+				ch=*inPtr;
+				lengthToRead--;
 			}
 		}
 
-	*offset=inPtr-ioBuffer;
+	if(lengthToRead>0)
+		fastaRec->parserState=newState;
 
-	return length;
+	*offset=inPtr-ioBuffer;
+	return 0;
 }
+
+
+
+static int readBufferedFastaValidSequence(u8 *ioBuffer, int *offset, FastaParserState *fastaRec)
+{
+	//LOG(LOG_INFO,"Read Valid");
+
+	u8 ch;
+	u8 *inPtr=ioBuffer+*offset;
+
+	SequenceWithQuality *swq=fastaRec->currentRecord;
+	int outLength=swq->length;
+	u8 *outPtr=swq->seq+outLength;
+
+	ch=*inPtr;
+	if(ch==0)
+		{
+		fastaRec->parserState=PARSER_STATE_EOF;
+		return 0; // EOF -> Early out without updating offset
+		}
+
+	int newState=0;
+
+	int lengthToRead=FASTA_SEQUENCE_VALID_MAX_LENGTH-outLength;
+
+	while(!newState && lengthToRead>0)
+		{
+		switch(ch)
+			{
+			case '>':
+				newState=PARSER_STATE_HEADER;
+				break;
+
+			case 10:	// LineFeed
+				newState=PARSER_STATE_SEQUENCE;
+				inPtr++;
+				break;
+
+			case 13:	// CarriageReturn
+				newState=PARSER_STATE_SEQUENCE;
+				inPtr++;
+				ch=*inPtr;	// Handle stupid newlines
+				if(ch==10)
+					inPtr++;
+				break;
+
+			case 'A':
+			case 'C':
+			case 'G':
+			case 'T':
+				*(outPtr++)=ch;
+				outLength++;
+
+				inPtr++;
+				ch=*inPtr;
+				lengthToRead--;
+				break;
+
+			case 0:		// EOF
+				newState=PARSER_STATE_EOF;
+				break;
+
+			default:
+				newState=PARSER_STATE_TRIM;
+			}
+		}
+
+	if(lengthToRead>0)
+		fastaRec->parserState=newState;
+
+	*offset=inPtr-ioBuffer;
+	swq->length=outLength;
+
+	return 0;
+}
+
 
 
 
@@ -249,23 +333,28 @@ s64 faParseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 recor
 
 	s64 currentBuffer=0;
 	s64 batchReadCount=0;
-	/*
+
 	s64 batchBaseCount=0;
 
-	s64 allRecordCount=0,validRecordCount=0,usedRecords=0;
-	s32 progressCounter=0;
-	s64 lastRecord=recordsToSkip+recordsToUse;
-*/
+//	s64 allRecordCount=0,validRecordCount=0,usedRecords=0;
+//	s32 progressCounter=0;
+//	s64 lastRecord=recordsToSkip+recordsToUse;
+
 	waitForBufferIdle(&swqBuffers[currentBuffer].usageCount);
 
-	/*
 	int maxReads=swqBuffers[currentBuffer].maxSequences;
 	int maxBases=swqBuffers[currentBuffer].maxSequenceTotalLength;
 	int maxBasesPerRead=swqBuffers[currentBuffer].maxSequenceLength;
-*/
 
 	swqBuffers[currentBuffer].rec[batchReadCount].seq=swqBuffers[currentBuffer].seqBuffer;
-	swqBuffers[currentBuffer].rec[batchReadCount].qual=swqBuffers[currentBuffer].qualBuffer;
+	swqBuffers[currentBuffer].rec[batchReadCount].qual=NULL;
+
+	FastaParserState fastaParser;
+	fastaParser.parserState=PARSER_STATE_HEADER;
+
+	fastaParser.currentRecord=swqBuffers[currentBuffer].rec+batchReadCount;
+	fastaParser.currentRecord->length=0;
+	fastaParser.sequenceName[0]=0;
 
 	int ioOffset=0;
 	int ioBufferEnd=ioBufferRecycleSize+ioBufferPrimarySize;
@@ -274,36 +363,92 @@ s64 faParseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 recor
 	if(ioBufferValid<ioBufferEnd)
 		ioBuffer[ioBufferValid]=0;
 
-	//s64 totalBatch=0;
-	//int len=0;
+	s64 totalBatch=0;
+	int len=0;
 
-
-	FastaParserState fastaRec;
-	fastaRec.parserState=PARSER_STATE_HEADER;
-
-	while(fastaRec.parserState!=PARSER_STATE_EOF)
+	int ret=0;
+	while(fastaParser.parserState!=PARSER_STATE_EOF && ret >= 0)
 		{
+//		LOG(LOG_INFO,"Offset %li - Parser State is %i",ioOffset, fastaParser.parserState);
 
-		switch(fastaRec.parserState)
+		switch(fastaParser.parserState)
 			{
 			case PARSER_STATE_HEADER:
+				ret=readBufferedFastaRecordHeader(ioBuffer, &ioOffset, &fastaParser);
 				break;
 
 			case PARSER_STATE_TRIM:
+				ret=readBufferedFastaTrimSequence(ioBuffer, &ioOffset, &fastaParser);
 				break;
 
 			case PARSER_STATE_SEQUENCE:
+				ret=readBufferedFastaValidSequence(ioBuffer, &ioOffset, &fastaParser);
 				break;
+
 			}
 
+		len=fastaParser.currentRecord->length;
+		//LOG(LOG_INFO,"Frag length: %i", fastaParser.currentRecord->length);
+		if((len>=FASTA_SEQUENCE_VALID_MAX_LENGTH) || (fastaParser.parserState!=PARSER_STATE_SEQUENCE && len>0))
+			{
+			if(fastaParser.currentRecord->length >= PARSER_MIN_SEQ_LENGTH)
+				{
+				//LOG(LOG_INFO,"Accepting: Sequence %s Fragment %i", fastaParser.sequenceName, fastaParser.currentRecord->length);
+
+				batchReadCount++;
+				batchBaseCount+=((len+3)&0xFFFFFFFC); // Round up to Dword
+
+				if((batchReadCount>=maxReads) || batchBaseCount>=(maxBases-maxBasesPerRead))
+					{
+					swqBuffers[currentBuffer].numSequences=batchReadCount;
+
+					(*handler)(swqBuffers+currentBuffer, ingressBuffers+currentBuffer, handlerContext);
+					totalBatch+=batchReadCount;
+					batchReadCount=0;
+					batchBaseCount=0;
+
+					currentBuffer=(currentBuffer+1)%PT_INGRESS_BUFFERS;
+					waitForBufferIdle(&swqBuffers[currentBuffer].usageCount);
+					}
+
+				fastaParser.currentRecord=swqBuffers[currentBuffer].rec+batchReadCount;
+				fastaParser.currentRecord->length=0;
+				}
+
+			swqBuffers[currentBuffer].rec[batchReadCount].seq=swqBuffers[currentBuffer].seqBuffer+batchBaseCount;
+			swqBuffers[currentBuffer].rec[batchReadCount].qual=NULL;
+
+			fastaParser.currentRecord->length=0; //
+			}
+
+		if(ioOffset>ioBufferPrimarySize)
+			{
+			int remaining=ioBufferValid-ioOffset;
+			memcpy(ioBuffer,ioBuffer+ioOffset,remaining);
+			ioOffset=0;
+
+			ioBufferValid=remaining+fread(ioBuffer+remaining,1,ioBufferRecycleSize+ioBufferPrimarySize-remaining,file);
+			if(ioBufferValid<ioBufferEnd)
+				ioBuffer[ioBufferValid]=0;
+
+			LOG(LOG_INFO,"Reading");
+			}
+
+		//LOG(LOG_INFO,"Offset %li - Ret %i - State is now %i", ioOffset, ret, fastaParser.parserState);
+		}
+
+	if(batchReadCount>0)
+		{
+		swqBuffers[currentBuffer].numSequences=batchReadCount;
+
+		(*handler)(swqBuffers+currentBuffer, ingressBuffers+currentBuffer, handlerContext);
+		totalBatch+=batchReadCount;
 		}
 
 	//int headerLen=
 
 
 
-
-	readBufferedFastaRecordHeader(ioBuffer, &ioOffset, &fastaRec);
 
 
 

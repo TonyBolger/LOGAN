@@ -26,10 +26,10 @@
 
 
 u32 packChar(u8 ch);
-void packSequence(char *seq, u8 *packedSeq, int length);
-void unpackSequence(u8 *packedSeq, int length, char *seq);
+void packSequence(u8 *seq, u8 *packedSeq, int length);
+void unpackSequence(u8 *packedSeq, int length, u8 *seq);
 
-void unpackSmer(SmerId smer, char *out);
+void unpackSmer(SmerId smer, u8 *out);
 
 
 #endif

@@ -235,20 +235,20 @@ __asm__(".symver memcpy,memcpy@GLIBC_2.2.5");
 // Doesn't really belong here, but nowhere obviously better to put it
 
 typedef struct sequenceWithQualityStr {
-	char *seq;
-	char *qual;
-	int length;
+	u8 *seq;
+	u8 *qual;
+	s32 length;
 } SequenceWithQuality;
 
 typedef struct swqBufferStr {
-	char *seqBuffer;
-	char *qualBuffer;
+	u8 *seqBuffer;
+	u8 *qualBuffer;
 	SequenceWithQuality *rec;
-	int maxSequenceTotalLength;
-	int maxSequences;
-	int maxSequenceLength;
-	int numSequences;
-	int usageCount;
+	s32 maxSequenceTotalLength;
+	s32 maxSequences;
+	s32 maxSequenceLength;
+	s32 numSequences;
+	s32 usageCount;
 } SwqBuffer;
 
 

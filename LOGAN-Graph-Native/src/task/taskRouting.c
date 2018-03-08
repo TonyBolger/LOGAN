@@ -37,7 +37,7 @@ void trDumpSequenceLink(SequenceLink *link, u32 linkIndex)
 	LOG(LOG_INFO,"  Len: %u",(u32)(link->length));
 	LOG(LOG_INFO,"  Pos: %u",(u32)(link->position));
 
-	char buffer[SEQUENCE_LINK_BASES+1];
+	u8 buffer[SEQUENCE_LINK_BASES+1];
 	unpackSequence(link->packedSequence, (u32)link->length, buffer);
 
 	LOG(LOG_INFO,"  Seq: %s",buffer);
@@ -56,7 +56,7 @@ void trDumpLookupLink(LookupLink *link, u32 linkIndex)
 	LOG(LOG_INFO,"  SrcIdx: %u (%s)", link->sourceIndex, decodeLinkIndexType(link->indexType));
 	LOG(LOG_INFO,"  SmerCount: %i", link->smerCount);
 
-	char buffer[SMER_BASES+1];
+	u8 buffer[SMER_BASES+1];
 
 	u16 revComp=link->revComp;
 
@@ -95,7 +95,7 @@ void trDumpDispatchLink(DispatchLink *link, u32 linkIndex)
 
 	LOG(LOG_INFO,"  EdgePos: [%i %i]", link->minEdgePosition, link->maxEdgePosition);
 
-	char buffer[SMER_BASES+1];
+	u8 buffer[SMER_BASES+1];
 
 	u16 revComp=link->revComp;
 	for(int i=0;i<link->length;i++)

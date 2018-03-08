@@ -2268,9 +2268,9 @@ static void createRoutePatches(RoutingIndexedDispatchLinkIndexBlock *rdi, int en
 
 				if(0)
 					{
-					char bufferP[SMER_BASES+1]={0};
-					char bufferN[SMER_BASES+1]={0};
-					char bufferS[SMER_BASES+1]={0};
+					u8 bufferP[SMER_BASES+1]={0};
+					u8 bufferN[SMER_BASES+1]={0};
+					u8 bufferS[SMER_BASES+1]={0};
 
 					unpackSmer(prefixSmer, bufferP);
 					unpackSmer(currSmer, bufferN);
@@ -2303,9 +2303,9 @@ static void createRoutePatches(RoutingIndexedDispatchLinkIndexBlock *rdi, int en
 
 				if(0)
 					{
-					char bufferP[SMER_BASES+1]={0};
-					char bufferN[SMER_BASES+1]={0};
-					char bufferS[SMER_BASES+1]={0};
+					u8 bufferP[SMER_BASES+1]={0};
+					u8 bufferN[SMER_BASES+1]={0};
+					u8 bufferS[SMER_BASES+1]={0};
 
 					unpackSmer(prefixSmer, bufferP);
 					unpackSmer(currSmer, bufferN);

@@ -8,14 +8,17 @@
 #ifndef __FASTA_PARSER_H
 #define __FASTA_PARSER_H
 
-#define FASTQ_SEQUENCE_HEADER_MAX_LENGTH 250
-#define FASTQ_SEQUENCE_NAME_MAX_LENGTH 250
+#define FASTA_SEQUENCE_HEADER_MAX_LENGTH 250
+#define FASTA_SEQUENCE_NAME_MAX_LENGTH 250
+
+#define FASTA_SEQUENCE_TRIM_MAX_LENGTH 10000
+#define FASTA_SEQUENCE_VALID_MAX_LENGTH 10000
 
 typedef struct fastaParserStateStr {
 	int parserState;
-	char sequenceName[FASTQ_SEQUENCE_NAME_MAX_LENGTH];
+	char sequenceName[FASTA_SEQUENCE_NAME_MAX_LENGTH];
 
-
+	SequenceWithQuality *currentRecord;
 } FastaParserState;
 
 

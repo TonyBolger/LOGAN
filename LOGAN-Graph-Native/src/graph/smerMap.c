@@ -329,7 +329,7 @@ static void smDumpSmerMapSlice(SmerMapSlice *smerMapSlice, int sliceNum)
 
 		if(entry!=SMER_SLICE_DUMMY)
 			{
-			char buffer[SMER_BASES+1];
+			u8 buffer[SMER_BASES+1];
 
 			SmerId smer=recoverSmerId(sliceNum, entry);
 

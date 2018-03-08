@@ -29,7 +29,7 @@ static void waitForBufferIdle(int *usageCount)
 
 
 
-static int readBufferedFastqLine(u8 *ioBuffer, int *offset, char *outPtr, int maxLength)
+static int readBufferedFastqLine(u8 *ioBuffer, int *offset, u8 *outPtr, int maxLength)
 {
 	u8 ch;
 	u8 *inPtr=ioBuffer+*offset;
@@ -54,9 +54,9 @@ static int readBufferedFastqLine(u8 *ioBuffer, int *offset, char *outPtr, int ma
 
 	if(ch==13)	// Handle stupid newlines
 		{
-		ch=*(inPtr++);
-		if(ch!=10 && ch!=0)
-			inPtr--;
+		ch=*inPtr;
+		if(ch==10)
+			inPtr++;
 		}
 
 	*offset=inPtr-ioBuffer;
@@ -82,9 +82,9 @@ static int skipBufferedFastqLine(u8 *ioBuffer, int *offset)
 
 	if(ch==13)	// Handle stupid newlines
 		{
-		ch=*(inPtr++);
-		if(ch!=10 && ch!=0)
-			inPtr--;
+		ch=*inPtr;
+		if(ch==10)
+			inPtr++;
 		}
 
 	*offset=inPtr-ioBuffer;
@@ -176,8 +176,8 @@ s64 fqParseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 recor
 
 	while(len>0 && validRecordCount<lastRecord)
 		{
-		char *seq=swqBuffers[currentBuffer].rec[batchReadCount].seq;
-		if((len>=minSeqLength) && (strchr(seq,'N')==NULL))
+		u8 *seq=swqBuffers[currentBuffer].rec[batchReadCount].seq;
+		if((len>=minSeqLength) && (strchr((char *)seq,'N')==NULL))
 			{
 			if(validRecordCount>=recordsToSkip)
 				{

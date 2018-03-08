@@ -307,7 +307,7 @@ void dumpExtractedIndexedSmers(DispatchLinkSmer *indexedData, u8 *revCompFlag, s
 
 	for(int i=0;i<smerCount;i++)
 		{
-		char smerBuffer[SMER_BASES+1];
+		u8 smerBuffer[SMER_BASES+1];
 		unpackSmer(indexedData[i].smer, smerBuffer);
 
 		if(revCompFlag[i])

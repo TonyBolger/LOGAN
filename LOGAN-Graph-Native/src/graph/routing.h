@@ -7,7 +7,7 @@
 typedef struct smerRoutingStatsStr
 {
 	SmerId smerId;
-	char smerStr[SMER_BASES+1];
+	u8 smerStr[SMER_BASES+1];
 
 	s32 prefixTails;
 	s32 prefixBytes;

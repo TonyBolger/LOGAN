@@ -39,7 +39,7 @@ void packSequence(char *seq, u8 *packedSeq, int length)
 }
 */
 
-void packSequence(char *seq, u8 *packedSeq, int length)
+void packSequence(u8 *seq, u8 *packedSeq, int length)
 {
 	u8 data=0;
 
@@ -201,7 +201,7 @@ void packSequence(char *seq, u8 *packedSeq, int length)
 
 
 
-char unpackChar(u32 pack)
+u8 unpackChar(u32 pack)
 {
 	switch(pack)
 	{
@@ -217,7 +217,7 @@ char unpackChar(u32 pack)
 	return 0;
 }
 
-void unpackSequence(u8 *packedSeq, int length, char *seq)
+void unpackSequence(u8 *packedSeq, int length, u8 *seq)
 {
 	int packedIndex=0;
 
@@ -245,7 +245,7 @@ void unpackSequence(u8 *packedSeq, int length, char *seq)
 		}
 }
 
-void unpackSmer(SmerId smer, char *out)
+void unpackSmer(SmerId smer, u8 *out)
 {
 	int pos=SMER_BASES-1;
 
