@@ -714,10 +714,33 @@ void queueReadsForSmerLookup(SwqBuffer *rec, int ingressPosition, int ingressSiz
 
 */
 
-static void populateLookupLinkSmers(LookupLink *lookupLink, SequenceLink *sequenceLink, MemSingleBrickPile *sequencePile)
+static SequenceLink *skipConsumedSequenceLinks(SequenceLink *sequenceLink, MemSingleBrickPile *sequencePile)
 {
 	int sequencePos=sequenceLink->position;
 	int sequenceLen=sequenceLink->length;
+	u32 nextIndex=sequenceLink->nextIndex;
+
+	while(sequencePos==sequenceLen && nextIndex!=LINK_INDEX_DUMMY)
+		{
+		//LOG(LOG_INFO,"skipConsumedSequenceLinks: Skipping to %i", nextIndex);
+		sequenceLink=mbSingleBrickFindByIndex(sequencePile, nextIndex);
+
+		sequencePos=sequenceLink->position;
+		sequenceLen=sequenceLink->length;
+		nextIndex=sequenceLink->nextIndex;
+		}
+
+	return sequenceLink;
+}
+
+
+static void populateLookupLinkSmers(LookupLink *lookupLink, SequenceLink *sequenceLink, MemSingleBrickPile *sequencePile)
+{
+	sequenceLink=skipConsumedSequenceLinks(sequenceLink, sequencePile);
+	int sequencePos=sequenceLink->position;
+	int sequenceLen=sequenceLink->length;
+
+	//LOG(LOG_INFO,"Populate from position %i of %i", sequencePos, sequenceLen);
 
 	SequenceLink *nextSequenceLink=NULL;
 	u8 *nextPackedSequence=NULL;
@@ -741,25 +764,29 @@ static void populateLookupLinkSmers(LookupLink *lookupLink, SequenceLink *sequen
 
 		if(nextIndex==LINK_INDEX_DUMMY)
 			eosFlag=1;
+
 		else if(smerCount < LOOKUP_LINK_SMERS)
 			{
-			LOG(LOG_INFO,"Moving to next seqlink - %u", nextIndex);
+			//LOG(LOG_INFO,"Moving to next seqlink - %u", nextIndex);
 			nextSequenceLink=mbSingleBrickFindByIndex(sequencePile, nextIndex);
 
 			//trDumpSequenceLink(nextSequenceLink, nextIndex);
 
 			if(nextSequenceLink->position!=0)
-				LOG(LOG_CRITICAL,"Next sequence link not at position 0");
+				LOG(LOG_CRITICAL,"Next sequence link at position %i",nextSequenceLink->position);
 
 			sequenceLenNext=nextSequenceLink->length;
 			smerCount+=sequenceLenNext;
 
-			if(smerCount>LOOKUP_LINK_SMERS)
-				smerCount=LOOKUP_LINK_SMERS;
-			else
+			if((smerCount<=LOOKUP_LINK_SMERS)&&(nextSequenceLink->nextIndex==LINK_INDEX_DUMMY))
 				eosFlag=1;
 
-//			LOG(LOG_INFO,"Adjusted smer count %i",smerCount);
+			if(smerCount>LOOKUP_LINK_SMERS)
+				smerCount=LOOKUP_LINK_SMERS;
+
+
+
+			//LOG(LOG_INFO,"Adjusted smer count %i",smerCount);
 
 			nextPackedSequence=nextSequenceLink->packedSequence;
 			nextSequencePackAvailable=(sequenceLenNext+3)>>2;
@@ -793,6 +820,7 @@ static void populateLookupLinkFromIngress(LookupLink *lookupLink, u32 sequenceLi
 	if(sequenceLink==NULL)
 		LOG(LOG_CRITICAL,"Failed to find sequence link with ID %i",sequenceLinkIndex);
 
+	//LOG(LOG_INFO,"populateLookupLinkFromIngress");
 	populateLookupLinkSmers(lookupLink, sequenceLink, sequencePile);
 
 	lookupLink->sourceIndex=sequenceLinkIndex;
@@ -805,6 +833,7 @@ static void populateLookupLinkFromIngress(LookupLink *lookupLink, u32 sequenceLi
 
 void populateLookupLinkForNonDispatchRecycle(LookupLink *lookupLink, u32 dispatchLinkIndex, SequenceLink *sequenceLink, MemSingleBrickPile *sequencePile)
 {
+	//LOG(LOG_INFO,"populateLookupLinkForNonDispatchRecycle");
 	populateLookupLinkSmers(lookupLink, sequenceLink, sequencePile);
 
 	// Ensures: Lookup -> Dispatch -> Seq* -> null
@@ -819,6 +848,7 @@ void populateLookupLinkForNonDispatchRecycle(LookupLink *lookupLink, u32 dispatc
 void populateLookupLinkForDispatch(LookupLink *lookupLink, u32 lookupLinkIndex, DispatchLink *dispatchLink,
 		SequenceLink *sequenceLink, u32 sequenceLinkIndex, MemSingleBrickPile *sequencePile)
 {
+	//LOG(LOG_INFO,"populateLookupLinkForDispatch");
 	populateLookupLinkSmers(lookupLink, sequenceLink, sequencePile);
 
 	// Ensures: Dispatch -> Lookup -> Seq* -> null
@@ -1045,6 +1075,8 @@ static int transferFoundSmersToDispatch(DispatchLink *dispatchLink, MemDoubleBri
 
 static s32 getAndUpdateSequenceLinkPosition(SequenceLink *sequenceLink, MemSingleBrickPile *sequencePile, int smerCount, SequenceLink **seqLinkUnfinished)
 {
+//	LOG(LOG_INFO,"Update SeqLinkPos: %i",smerCount);
+
 	s32 lookupPosition=0;
 
 	int sequenceLen=sequenceLink->length;
@@ -1068,12 +1100,15 @@ static s32 getAndUpdateSequenceLinkPosition(SequenceLink *sequenceLink, MemSingl
 		}
 
 	lookupPosition+=sequencePos; // Add partial
-
 	sequencePos+=smerCount; // Possible onto next seqLink
+
+//	LOG(LOG_INFO,"UpdatingMulti %i of %i",sequencePos, sequenceLen);
 
 	while(sequencePos>=sequenceLen)
 		{
 		sequenceLink->position=sequenceLen;
+//		LOG(LOG_INFO,"UpdateA to %i of %i",sequenceLink->position, sequenceLink->length);
+
 		sequencePos-=sequenceLen;
 
 		u32 seqLinkIndex=sequenceLink->nextIndex;
@@ -1089,10 +1124,14 @@ static s32 getAndUpdateSequenceLinkPosition(SequenceLink *sequenceLink, MemSingl
 
 		sequenceLink=mbSingleBrickFindByIndex(sequencePile, seqLinkIndex);
 		sequenceLen=sequenceLink->length;
-		sequencePos=sequenceLink->position;
+//		if(sequenceLink->position>0)
+//			LOG(LOG_CRITICAL,"Consuming into pre-consumed seqLink");
 		}
 
 	sequenceLink->position=sequencePos;
+
+//	LOG(LOG_INFO,"UpdateB to %i of %i",sequenceLink->position, sequenceLink->length);
+
 	*seqLinkUnfinished=sequenceLink;
 
 	return lookupPosition;
@@ -1373,6 +1412,7 @@ static void processPostdispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb
 				u32 newLookupLinkIndex=LINK_INDEX_DUMMY;
 				LookupLink *newLookupLink=mbDoubleBrickAllocate(lookupLinkAlloc, &newLookupLinkIndex);
 
+				//LOG(LOG_INFO,"processPostdispatchLookupCompleteReadLookupBlocks - A");
 				populateLookupLinkForDispatch(newLookupLink, newLookupLinkIndex, lastDispatchLink, 	sequenceLink, sequenceLinkIndex, sequencePile);
 				}
 
@@ -1390,10 +1430,10 @@ static void processPostdispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb
 			}
 		else
 			{
+			//LOG(LOG_INFO,"processPostdispatchLookupCompleteReadLookupBlocks - B");
+
 			populateLookupLinkSmers(oldLookupLink, sequenceLink, sequencePile);
 			postdispatchRecycleBlock=recycleLookupLink(rb, postdispatchRecycleBlock, LOOKUP_RECYCLE_BLOCK_POSTDISPATCH, oldLookupLinkIndex);
-
-			//LOG(LOG_INFO,"Kraken recycle");
 			}
 
 		}

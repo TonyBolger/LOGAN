@@ -186,6 +186,7 @@ void populateReadIngressBlock(SwqBuffer *rec, int ingressPosition, int ingressSi
 		if(length>1000000)
 			LOG(LOG_CRITICAL,"Length is %i",length);
 
+
 		while(offset<length)
 			{
 			SequenceLink *sequenceLink=mbSingleBrickAllocate(&alloc, brickIndexPtr);
@@ -195,6 +196,7 @@ void populateReadIngressBlock(SwqBuffer *rec, int ingressPosition, int ingressSi
 
 			sequenceLink->position=0;
 			sequenceLink->length=lengthToPack;
+
 			brickIndexPtr=&(sequenceLink->nextIndex);
 			offset+=lengthToPack;
 			}

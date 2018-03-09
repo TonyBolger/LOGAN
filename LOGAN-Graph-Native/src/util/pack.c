@@ -81,7 +81,7 @@ void packSequence(u8 *seq, u8 *packedSeq, int length)
 				break;
 			}
 
-		data=((ch1&0x6)<<5) || ((ch2&0x6)<<3) || ((ch3&0x6)<<1);
+		data=((ch1&0x6)<<5) | ((ch2&0x6)<<3) | ((ch3&0x6)<<1);
 		*(packedSeq++)=data^((data&0xAA)>>1);
 		}
 

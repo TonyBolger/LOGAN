@@ -124,7 +124,7 @@ s64 prParseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 recor
 	switch(format)
 		{
 		case PARSE_FILE_CONTENT_FASTQ:
-			LOG(LOG_INFO,"%s:- Content: FastQ Compression: None", path);
+			LOG(LOG_INFO,"Path: '%s' Content: 'FastQ' Compression: 'None'", path);
 			sequences=fqParseAndProcess(path, PARSER_MIN_SEQ_LENGTH, 0, LONG_MAX,
 					parseBuffer->ioBuffer, PARSER_IO_RECYCLE_BUFFER, PARSER_IO_PRIMARY_BUFFER,
 					parseBuffer->swqBuffers, parseBuffer->ingressBuffers, PT_INGRESS_BUFFERS,
@@ -132,12 +132,12 @@ s64 prParseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 recor
 			break;
 
 		case PARSE_FILE_CONTENT_FASTQ | PARSE_FILE_COMPRESSION_GZIP:
-		LOG(LOG_INFO,"%s:- Content: FastQ Compression: GZip", path);
-			LOG(LOG_INFO,"Handle GZIP'ed Fastq - TODO");
+		LOG(LOG_INFO,"Path: '%s' Content: 'FastQ' Compression: 'GZip'", path);
+			LOG(LOG_INFO,"Handle GZip'ed Fastq - TODO");
 			break;
 
 		case PARSE_FILE_CONTENT_FASTA:
-			LOG(LOG_INFO,"%s:- Content: FastA Compression: None", path);
+			LOG(LOG_INFO,"Path: '%s' Content: 'FastA' Compression: 'None'", path);
 			sequences=faParseAndProcess(path, PARSER_MIN_SEQ_LENGTH, 0, LONG_MAX,
 					parseBuffer->ioBuffer, PARSER_IO_RECYCLE_BUFFER, PARSER_IO_PRIMARY_BUFFER,
 					parseBuffer->swqBuffers, parseBuffer->ingressBuffers, PT_INGRESS_BUFFERS,
@@ -145,12 +145,12 @@ s64 prParseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 recor
 			break;
 
 		case PARSE_FILE_CONTENT_FASTA | PARSE_FILE_COMPRESSION_GZIP:
-			LOG(LOG_INFO,"%s:- Content: FastA Compression: GZip", path);
+			LOG(LOG_INFO,"Path: '%s' Content: 'FastQ' Compression: 'GZip'", path);
 			LOG(LOG_INFO,"Handle GZIP'ed Fasta - TODO");
 			break;
 
 		default:
-			LOG(LOG_CRITICAL,"%s:- Unknown File Format", path);
+			LOG(LOG_CRITICAL,"Path: '%s' Unknown File Format", path);
 
 		}
 

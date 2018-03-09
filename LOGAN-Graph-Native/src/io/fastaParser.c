@@ -391,10 +391,9 @@ s64 faParseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 recor
 		//LOG(LOG_INFO,"Frag length: %i", fastaParser.currentRecord->length);
 		if((len>=FASTA_SEQUENCE_VALID_MAX_LENGTH) || (fastaParser.parserState!=PARSER_STATE_SEQUENCE && len>0))
 			{
-			if(fastaParser.currentRecord->length >= PARSER_MIN_SEQ_LENGTH)
+			if((len >= PARSER_MIN_SEQ_LENGTH))// && (len>1800) && (len<2000))
 				{
 				//LOG(LOG_INFO,"Accepting: Sequence %s Fragment %i", fastaParser.sequenceName, fastaParser.currentRecord->length);
-
 				batchReadCount++;
 				batchBaseCount+=((len+3)&0xFFFFFFFC); // Round up to Dword
 

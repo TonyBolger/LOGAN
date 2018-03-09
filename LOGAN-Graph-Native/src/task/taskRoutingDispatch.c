@@ -1121,6 +1121,31 @@ static s32 calculateDispatchLinkChainOffsetAdjustment(DispatchLink *dispatchLink
 	return total;
 }
 
+static int validateSequenceLinkConsumed(SequenceLink *sequenceLink, u32 sequenceLinkIndex, MemSingleBrickPile *sequencePile)
+{
+	int diff=sequenceLink->length-sequenceLink->position;
+	u32 nextIndex=sequenceLink->nextIndex;
+
+	while(nextIndex!=LINK_INDEX_DUMMY)
+		{
+		sequenceLinkIndex=nextIndex;
+		sequenceLink=mbSingleBrickFindByIndex(sequencePile, nextIndex);
+
+		diff+=sequenceLink->length-sequenceLink->position;
+		nextIndex=sequenceLink->nextIndex;
+		}
+
+	if(diff!=SMER_BASES-1)
+		{
+		LOG(LOG_INFO,"Sequence not fully consumed: %i",diff);
+		LOG(LOG_INFO,"SeqLink: %i Position %i of %i", sequenceLinkIndex, sequenceLink->position, sequenceLink->length);
+		return 0;
+		}
+
+
+	return 1;
+}
+
 
 static int gatherSliceOutbound(MemSingleBrickPile *sequencePile, MemDoubleBrickPile *lookupPile, MemDoubleBrickPile *dispatchPile,
 		RoutingDispatchGroupState *groupState, int sliceNum, u32 *orderedDispatches, int sliceDispatches)
@@ -1150,11 +1175,8 @@ static int gatherSliceOutbound(MemSingleBrickPile *sequencePile, MemDoubleBrickP
 
 					SequenceLink *sequenceLink=mbSingleBrickFindByIndex(sequencePile, dispatchLink->nextOrSourceIndex);
 
-					if(sequenceLink->nextIndex!=LINK_INDEX_DUMMY)
-						LOG(LOG_CRITICAL,"Invalid Sequence NextIndex without lookup: %i",sequenceLink->nextIndex);
-
-					if(sequenceLink->position+SMER_BASES-1!=sequenceLink->length)
-						LOG(LOG_CRITICAL,"Invalid Sequence Position without lookup: %i %i",sequenceLink->position, sequenceLink->length);
+					if(!validateSequenceLinkConsumed(sequenceLink, dispatchLink->nextOrSourceIndex, sequencePile))
+						LOG(LOG_CRITICAL,"Sequence not fully consumed");
 
 					freeSequenceLinkChain(sequencePile, sequenceLinkIndex); // Possibly more than one seqLink in chain
 
