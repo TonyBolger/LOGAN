@@ -53,7 +53,7 @@ static void freeSequenceBuffer(SwqBuffer *swqBuffer)
 
 void prFreeParseBuffer(ParseBuffer *parseBuffer)
 {
-	G_FREE(parseBuffer->ioBuffer, FASTQ_IO_RECYCLE_BUFFER+FASTQ_IO_PRIMARY_BUFFER, MEMTRACKID_IOBUF);
+	G_FREE(parseBuffer->ioBuffer, PARSER_IO_RECYCLE_BUFFER+PARSER_IO_PRIMARY_BUFFER, MEMTRACKID_IOBUF);
 
 	for(int i=0;i<PT_INGRESS_BUFFERS;i++)
 		{
