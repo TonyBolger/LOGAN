@@ -82,7 +82,7 @@ static int scanForSmer_HS(SmerMapSlice *smerMapSlice, SmerEntry entry, u32 hash,
 	u32 position = hash & mask;
 	int scanCount = 0;
 
-	SmerEntry tmp=__atomic_load_n((smerMapSlice->smers + position), __ATOMIC_SEQ_CST);
+	SmerEntry tmp=__atomic_load_n((smerMapSlice->smers + position), __ATOMIC_SEQ_CST); // Standalone atomic - no barrier
 
 	while (tmp != SMER_SLICE_DUMMY)
 		{
@@ -100,7 +100,7 @@ static int scanForSmer_HS(SmerMapSlice *smerMapSlice, SmerEntry entry, u32 hash,
 				LOG(LOG_CRITICAL,"Filled hashmap: count %i from %i in %i for %x (got %x)",scanCount,(hash & mask), sliceNum, entry, tmp);
 			}
 
-		tmp=__atomic_load_n((smerMapSlice->smers + position), __ATOMIC_SEQ_CST);
+		tmp=__atomic_load_n((smerMapSlice->smers + position), __ATOMIC_SEQ_CST); // Standalone atomic - no barrier
 		}
 
 	if (scanCount > 60) {
@@ -131,16 +131,22 @@ static int findSmer_HS(SmerMapSlice *smerMapSlice, SmerEntry entry, u32 hash, u3
 
 static void findOrCreateSmer_HS(SmerMapSlice *smerMapSlice, SmerEntry entry, u32 hash, u32 sliceNo)
 {
+	int loopCount=0;
 	while(1)
 		{
+		if(loopCount++>1000000)
+			{
+			LOG(LOG_CRITICAL,"Loop Stuck");
+			}
+
 		int index=scanForSmer_HS(smerMapSlice, entry, hash, sliceNo);
 
-		if (__atomic_load_n(smerMapSlice->smers+index, __ATOMIC_SEQ_CST)==entry)
+		if (__atomic_load_n(smerMapSlice->smers+index, __ATOMIC_SEQ_CST)==entry) // Standalone atomic - no barrier
 			return;
 
 		SmerEntry current=SMER_SLICE_DUMMY;
 
-		if(__atomic_compare_exchange_n(smerMapSlice->smers+index, &current, entry, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST))
+		if(__atomic_compare_exchange_n(smerMapSlice->smers+index, &current, entry, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST)) // Standalone atomic - no barrier
 			return;
 		}
 }

@@ -323,6 +323,8 @@ static void queueLookupForSlice(RoutingBuilder *rb, RoutingSmerEntryLookup *look
 	RoutingSmerEntryLookup *current=NULL;
 	int loopCount=0;
 
+	__atomic_thread_fence(__ATOMIC_SEQ_CST); // Queue is release, fence first
+
 	do
 		{
 		if(loopCount++>1000000)
@@ -356,6 +358,8 @@ static RoutingSmerEntryLookup *dequeueLookupForSliceList(RoutingBuilder *rb, int
 			return NULL;
 		}
 	while(!__atomic_compare_exchange_n(rb->smerEntryLookupPtr+sliceNum, &current, NULL, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST));
+
+	__atomic_thread_fence(__ATOMIC_SEQ_CST);
 
 	return current;
 }
@@ -396,6 +400,8 @@ static void queueReadLookupBlock(RoutingReadLookupBlock *readBlock, u64 usedSlic
 		LOG(LOG_CRITICAL,"queueReadLookupBlock empty block");
 
 	//LOG(LOG_INFO,"ReadBlock type %i contains %i",readBlock->blockType, readBlock->readCount);
+
+	__atomic_thread_fence(__ATOMIC_SEQ_CST); // Queue is release, fence first
 
 	int loopCount=0;
 	u64 current, compStat;
@@ -940,6 +946,8 @@ int queueSmerLookupsForIngress(RoutingBuilder *rb, RoutingReadIngressBlock *ingr
 	assignPercolatesToEntryLookups(lookupBlock->smerEntryLookupsPercolates, lookupBlock->smerEntryLookups, disp);
 
 	u64 usedSlices=0;
+	int highestSlice=-1;
+
 	for(int i=0;i<SMER_SLICES;i++)
 		{
 		RoutingSmerEntryLookup *lookupForSlice=lookupBlock->smerEntryLookups[i];
@@ -948,25 +956,28 @@ int queueSmerLookupsForIngress(RoutingBuilder *rb, RoutingReadIngressBlock *ingr
 			{
 			lookupForSlice->completionCountPtr=&(lookupBlock->compStat);
 			usedSlices++;
+			highestSlice=i;
 			}
 		else
 			lookupForSlice->completionCountPtr=NULL;
 		}
 
-	__atomic_thread_fence(__ATOMIC_SEQ_CST);
-
 	queueReadLookupBlock(lookupBlock, usedSlices);
 
-	for(int i=0;i<SMER_SLICES;i++)
+	u64 usedSlices2=0;
+	for(int i=0;i<=highestSlice;i++) // Careful now
 		{
 		RoutingSmerEntryLookup *lookupForSlice=lookupBlock->smerEntryLookups[i];
 		if(lookupForSlice->entryCount>0)
+			{
 			queueLookupForSlice(rb, lookupForSlice, i);
+			usedSlices2++;
+			}
 		}
 
-	__atomic_thread_fence(__ATOMIC_SEQ_CST);
+	if(usedSlices!=usedSlices2)
+		LOG(LOG_CRITICAL,"Count 1v2 %p mismatch %lu vs %lu",lookupBlock, usedSlices,usedSlices2);
 
-//	LOG(LOG_INFO,"queueSmerLookupsForIngress DONE");
 
 	return blockIndex;
 }

@@ -24,6 +24,8 @@ static void waitForBufferIdle(int *usageCount)
 	if(__atomic_load_n(usageCount,__ATOMIC_SEQ_CST)<0)
 		LOG(LOG_CRITICAL,"Negative usage");
 
+	__atomic_thread_fence(__ATOMIC_SEQ_CST);
+
 	//LOG(LOG_INFO,"WaitForIdle Done");
 }
 
