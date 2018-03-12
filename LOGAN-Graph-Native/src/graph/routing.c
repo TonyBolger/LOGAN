@@ -154,7 +154,7 @@ void createBuildersFromIndirectData(RoutingComboBuilder *builder)
 }
 
 
-static void writeBuildersAsDirectData(RoutingComboBuilder *builder, s8 sliceTag, s32 sliceIndex, MemCircHeap *circHeap)
+static void writeBuildersAsDirectData(RoutingComboBuilder *builder, s8 sliceTag, s32 sliceIndex, MemHeap *heap)
 {
 	if(!(stGetSeqTailBuilderDirty(&(builder->prefixBuilder)) ||
 		 stGetSeqTailBuilderDirty(&(builder->suffixBuilder)) ||
@@ -188,14 +188,14 @@ static void writeBuildersAsDirectData(RoutingComboBuilder *builder, s8 sliceTag,
 	u8 *newData;
 
 	// Mark old block as dead
-	rtHeaderMarkDead(oldData);
+	mhFree(heap, oldData, oldTotalSize);
 
 	s32 oldTagOffset=0;
 
 	if(totalSize>1000000)
 		LOG(LOG_INFO,"writeDirect: CircAlloc %i",totalSize);
 
-	newData=circAlloc(circHeap, totalSize, sliceTag, sliceIndex, &oldTagOffset);
+	newData=mhAlloc(heap, totalSize, sliceTag, sliceIndex, &oldTagOffset);
 
 	//LOG(LOG_INFO,"Offset Diff: %i for %i",offsetDiff,sliceIndex);
 
@@ -252,7 +252,7 @@ static void upgradeToTree(RoutingComboBuilder *builder, s32 prefixCount, s32 suf
 
 
 
-static RouteTableTreeTopBlock *writeBuildersAsIndirectData_writeTop(RoutingComboBuilder *routingBuilder, s8 sliceTag, s32 sliceIndex, MemCircHeap *circHeap)
+static RouteTableTreeTopBlock *writeBuildersAsIndirectData_writeTop(RoutingComboBuilder *routingBuilder, s8 sliceTag, s32 sliceIndex, MemHeap *heap)
 {
 	if(routingBuilder->topDataPtr==NULL)
 		{
@@ -266,7 +266,7 @@ static RouteTableTreeTopBlock *writeBuildersAsIndirectData_writeTop(RoutingCombo
 		if(totalSize>1000000)
 			LOG(LOG_INFO,"writeIndirectTop: CircAlloc %i",totalSize);
 
-		u8 *newTopData=circAlloc(circHeap, totalSize, sliceTag, sliceIndex, &oldTagOffset);
+		u8 *newTopData=mhAlloc(heap, totalSize, sliceTag, sliceIndex, &oldTagOffset);
 		s32 diff=sliceIndex-oldTagOffset;
 
 		rtEncodeGapTopBlockHeader(diff, newTopData);
@@ -395,7 +395,7 @@ static int writeBuildersAsIndirectData_calcTailAndArraySpace(RoutingComboBuilder
 }
 
 static u8 *writeBuildersAsIndirectData_bindTails(RouteTableTreeBuilder *treeBuilder, s32 sliceIndex, s16 indexSize,
-		HeapDataBlock *neededBlocks, RouteTableTreeTopBlock *topPtr, u8 *newArrayData)
+		HeapDataBlock *neededBlocks, RouteTableTreeTopBlock *topPtr, u8 *newArrayData, MemHeap *heap)
 {
 	s32 existingSize=0;
 	s32 neededSize=0;
@@ -415,7 +415,7 @@ static u8 *writeBuildersAsIndirectData_bindTails(RouteTableTreeBuilder *treeBuil
 //			LOG(LOG_INFO,"Prefix Move/Expand %p to %p",oldData,newArrayData);
 		newArrayData+=neededBlocks[ROUTE_TOPINDEX_PREFIX].headerSize+neededBlocks[ROUTE_TOPINDEX_PREFIX].dataSize;
 
-		rtHeaderMarkDead(oldData);
+		mhFree(heap, oldData, existingSize);
 		}
 	else
 		{
@@ -439,7 +439,7 @@ static u8 *writeBuildersAsIndirectData_bindTails(RouteTableTreeBuilder *treeBuil
 		topPtr->data[ROUTE_TOPINDEX_SUFFIX]=newArrayData;
 		newArrayData+=neededBlocks[ROUTE_TOPINDEX_SUFFIX].headerSize+neededBlocks[ROUTE_TOPINDEX_SUFFIX].dataSize;
 
-		rtHeaderMarkDead(oldData);
+		mhFree(heap, oldData, existingSize);
 		}
 	else
 		{
@@ -455,7 +455,7 @@ static u8 *writeBuildersAsIndirectData_bindTails(RouteTableTreeBuilder *treeBuil
 
 
 static RouteTableTreeArrayBlock *writeBuildersAsIndirectData_createOrExpandLeafArray0(u8 **heapData, s32 totalEntries,
-		s32 topIndex, s32 indexSize, s32 sliceIndex, u8 *oldArrayDataRaw)
+		s32 topIndex, s32 indexSize, s32 sliceIndex, u8 *oldArrayDataRaw, MemHeap *heap)
 {
 	u8 *newArrayData=*heapData;
 
@@ -468,12 +468,13 @@ static RouteTableTreeArrayBlock *writeBuildersAsIndirectData_createOrExpandLeafA
 	int oldEntriesToCopy=0;
 	if(oldArrayDataRaw!=NULL)
 		{
-		RouteTableTreeArrayBlock *oldArrayDataBlock=(RouteTableTreeArrayBlock *)(oldArrayDataRaw+rtGetIndexedBlockHeaderSize_0(indexSize));
+		RouteTableTreeArrayBlock *oldArrayDataBlock=(RouteTableTreeArrayBlock *)(oldArrayDataRaw+headerSize);
 		oldEntriesToCopy=oldArrayDataBlock->dataAlloc;
 
 		memcpy(arrayDataBlock->data, oldArrayDataBlock->data, oldEntriesToCopy*sizeof(u8 *));
 
-		rtHeaderMarkDead(oldArrayDataRaw);
+
+		mhFree(heap, oldArrayDataRaw, headerSize+oldEntriesToCopy);
 		}
 
 	int newEntries=(totalEntries-oldEntriesToCopy);
@@ -518,7 +519,7 @@ static s32 writeBuildersAsIndirectData_createAndCopyPartialDirectLeafArray(u8 **
 
 
 static void writeBuildersAsIndirectData_expandAndCopyLeafArray1(u8 **heapData, s32 totalEntries,
-		s32 topIndex, s32 indexSize, s32 sliceIndex, s32 subIndex, u8 *oldArrayDataRaw)
+		s32 topIndex, s32 indexSize, s32 sliceIndex, s32 subIndex, u8 *oldArrayDataRaw, MemHeap *heap)
 {
 	u8 *newArrayData=*heapData;
 
@@ -529,7 +530,8 @@ static void writeBuildersAsIndirectData_expandAndCopyLeafArray1(u8 **heapData, s
 	int oldEntriesToCopy=0;
 	if(oldArrayDataRaw!=NULL)
 		{
-		RouteTableTreeArrayBlock *oldArrayDataBlock=(RouteTableTreeArrayBlock *)(oldArrayDataRaw+rtGetIndexedBlockHeaderSize_1(indexSize));
+		int headerSize=rtGetIndexedBlockHeaderSize_1(indexSize);
+		RouteTableTreeArrayBlock *oldArrayDataBlock=(RouteTableTreeArrayBlock *)(oldArrayDataRaw+headerSize);
 		oldEntriesToCopy=oldArrayDataBlock->dataAlloc;
 
 		if(oldEntriesToCopy>totalEntries)
@@ -537,7 +539,7 @@ static void writeBuildersAsIndirectData_expandAndCopyLeafArray1(u8 **heapData, s
 
 		memcpy(arrayDataBlock->data, oldArrayDataBlock->data, oldEntriesToCopy*sizeof(u8 *));
 
-		rtHeaderMarkDead(oldArrayDataRaw);
+		mhFree(heap, oldArrayDataRaw, headerSize+oldEntriesToCopy);
 		}
 
 	int newEntries=(totalEntries-oldEntriesToCopy);
@@ -555,7 +557,7 @@ static void writeBuildersAsIndirectData_expandAndCopyLeafArray1(u8 **heapData, s
 
 
 static u8 *writeBuildersAsIndirectData_bindArrays(RouteTableTreeBuilder *treeBuilder, s32 sliceIndex, s16 indexSize,
-		HeapDataBlock *neededBlocks, RouteTableTreeTopBlock *topPtr, u8 *newArrayData)
+		HeapDataBlock *neededBlocks, RouteTableTreeTopBlock *topPtr, u8 *newArrayData, MemHeap *heap)
 {
 	s32 existingSize=0;
 	s32 neededSize=0;
@@ -585,7 +587,7 @@ static u8 *writeBuildersAsIndirectData_bindArrays(RouteTableTreeBuilder *treeBui
 				topPtr->data[i]=newArrayData;
 
 				RouteTableTreeArrayBlock *shallowPtrBlock=writeBuildersAsIndirectData_createOrExpandLeafArray0(&newArrayData, totalEntries,
-						i, indexSize, sliceIndex, NULL);
+						i, indexSize, sliceIndex, NULL, heap);
 
 				int oldDataOffset=0;
 
@@ -619,7 +621,7 @@ static u8 *writeBuildersAsIndirectData_bindArrays(RouteTableTreeBuilder *treeBui
 				arrayProxy->oldDataAlloc=arrayProxy->newDataAlloc;
 
 				if(oldData!=NULL)
-					rtHeaderMarkDead(oldData);
+					mhFree(heap, oldData, treeBuilder->dataBlocks[i].headerSize+treeBuilder->dataBlocks[i].dataSize);
 				//LOG(LOG_CRITICAL,"Upgradey - has %i", arrayProxy->dataAlloc);
 
 //				LOG(LOG_INFO,"After Upgrade: START");
@@ -649,7 +651,7 @@ static u8 *writeBuildersAsIndirectData_bindArrays(RouteTableTreeBuilder *treeBui
 					topPtr->data[i]=newArrayData;
 
 					RouteTableTreeArrayBlock *shallowPtrBlock=writeBuildersAsIndirectData_createOrExpandLeafArray0(&newArrayData, totalEntries,
-							i, indexSize, sliceIndex, oldDataRaw);
+							i, indexSize, sliceIndex, oldDataRaw, heap);
 
 					shallowPtrBlock->dataAlloc=totalEntries;
 
@@ -678,7 +680,7 @@ static u8 *writeBuildersAsIndirectData_bindArrays(RouteTableTreeBuilder *treeBui
 						shallowPtrBlock->data[incompleteIndex]=newArrayData;
 
 						writeBuildersAsIndirectData_expandAndCopyLeafArray1(&newArrayData, ROUTE_TABLE_TREE_DEEP_DATA_ARRAY_ENTRIES,
-								i, indexSize, sliceIndex, incompleteIndex, oldArrayDataRaw);
+								i, indexSize, sliceIndex, incompleteIndex, oldArrayDataRaw, heap);
 
 						incompleteIndex++;
 
@@ -691,7 +693,7 @@ static u8 *writeBuildersAsIndirectData_bindArrays(RouteTableTreeBuilder *treeBui
 						shallowPtrBlock->data[incompleteIndex]=newArrayData;
 
 						writeBuildersAsIndirectData_expandAndCopyLeafArray1(&newArrayData, ROUTE_TABLE_TREE_DEEP_DATA_ARRAY_ENTRIES,
-								i, indexSize, sliceIndex, incompleteIndex, NULL);
+								i, indexSize, sliceIndex, incompleteIndex, NULL, heap);
 
 						incompleteIndex++;
 						}
@@ -705,7 +707,7 @@ static u8 *writeBuildersAsIndirectData_bindArrays(RouteTableTreeBuilder *treeBui
 
 						shallowPtrBlock->data[incompleteIndex]=newArrayData;
 						writeBuildersAsIndirectData_expandAndCopyLeafArray1(&newArrayData, partialEntries,
-								i, indexSize, sliceIndex, incompleteIndex, NULL);
+								i, indexSize, sliceIndex, incompleteIndex, NULL, heap);
 
 						}
 
@@ -732,7 +734,7 @@ static u8 *writeBuildersAsIndirectData_bindArrays(RouteTableTreeBuilder *treeBui
 
 					shallowPtrBlock->data[incompleteIndex]=newArrayData;
 					writeBuildersAsIndirectData_expandAndCopyLeafArray1(&newArrayData, partialEntries,
-							i, indexSize, sliceIndex, incompleteIndex, oldArrayDataRaw);
+							i, indexSize, sliceIndex, incompleteIndex, oldArrayDataRaw, heap);
 
 //					LOG(LOG_INFO,"Updating alloc from %i to %i", arrayProxy->oldDataAlloc, arrayProxy->newDataAlloc);
 					arrayProxy->oldDataAlloc=arrayProxy->newDataAlloc;
@@ -787,7 +789,7 @@ static u8 *writeBuildersAsIndirectData_bindArrays(RouteTableTreeBuilder *treeBui
 					memcpy(newArrayData, oldData+treeBuilder->dataBlocks[i].headerSize, treeBuilder->dataBlocks[i].dataSize);
 					memset(newArrayData+treeBuilder->dataBlocks[i].dataSize, 0, neededBlocks[i].dataSize-treeBuilder->dataBlocks[i].dataSize);
 
-					rtHeaderMarkDead(oldData);
+					mhFree(heap, oldData, treeBuilder->dataBlocks[i].headerSize+treeBuilder->dataBlocks[i].dataSize);
 					}
 				else // Clear full region
 					{
@@ -853,7 +855,8 @@ s32 writeBuildersAsIndirectData_mergeTopArrayUpdates_branch_accumulateSize(Route
 }
 
 
-void writeBuildersAsIndirectData_mergeTopArrayUpdates_branch(RouteTableTreeArrayProxy *branchArrayProxy, int arrayNum, int indexSize, int sliceIndex, u8 *newData, s32 newDataSize)
+void writeBuildersAsIndirectData_mergeTopArrayUpdates_branch(RouteTableTreeArrayProxy *branchArrayProxy, int arrayNum, int indexSize, int sliceIndex,
+		u8 *newData, s32 newDataSize, MemHeap *heap)
 {
 	if(branchArrayProxy->newEntries==NULL)
 		return ;
@@ -905,7 +908,7 @@ void writeBuildersAsIndirectData_mergeTopArrayUpdates_branch(RouteTableTreeArray
 
 			newData+=dataSize;
 
-			rtHeaderMarkDead(oldBranchRawData);
+			mhFree(heap, oldBranchRawData, headerSize+dataSize);
 			}
 		else
 			{
@@ -955,7 +958,8 @@ s32 writeBuildersAsIndirectData_mergeTopArrayUpdates_leaf_accumulateSize(RouteTa
 }
 
 
-void writeBuildersAsIndirectData_mergeTopArrayUpdates_leaf(RouteTableTreeArrayProxy *leafArrayProxy, int arrayNum, int indexSize, int sliceIndex, u8 *newData, s32 newDataSize)
+void writeBuildersAsIndirectData_mergeTopArrayUpdates_leaf(RouteTableTreeArrayProxy *leafArrayProxy, int arrayNum, int indexSize, int sliceIndex,
+		u8 *newData, s32 newDataSize, MemHeap *heap)
 {
 
 	if(leafArrayProxy->newEntries==NULL)
@@ -1017,7 +1021,7 @@ void writeBuildersAsIndirectData_mergeTopArrayUpdates_leaf(RouteTableTreeArrayPr
 
 			newData+=sizeof(RouteTableTreeLeafBlock)+packingInfo->packedSize;
 
-			rtHeaderMarkDead(oldLeafRawData);
+			mhFree(heap, oldLeafRawData, oldBlockSize);
 			}
 		else
 			{
@@ -1038,7 +1042,7 @@ void writeBuildersAsIndirectData_mergeTopArrayUpdates_leaf(RouteTableTreeArrayPr
 
 
 
-static void writeBuildersAsIndirectData(RoutingComboBuilder *routingBuilder, u8 sliceTag, s32 sliceIndex, MemCircHeap *circHeap)
+static void writeBuildersAsIndirectData(RoutingComboBuilder *routingBuilder, u8 sliceTag, s32 sliceIndex, MemHeap *heap)
 {
 	// May need to create:
 	//		top level block
@@ -1056,14 +1060,15 @@ static void writeBuildersAsIndirectData(RoutingComboBuilder *routingBuilder, u8 
 	if(routingBuilder->upgradedToTree)
 		{
 		u8 *oldData=*(routingBuilder->rootPtr);
+		int oldTotalSize=routingBuilder->combinedDataBlock.headerSize+routingBuilder->combinedDataBlock.dataSize;
 
-		rtHeaderMarkDead(oldData);
+		mhFree(heap, oldData, oldTotalSize);
 		}
 
 	s16 indexSize=vpExtCalcLength(sliceIndex);
 	RouteTableTreeBuilder *treeBuilder=routingBuilder->treeBuilder;
 
-	RouteTableTreeTopBlock *topPtr=writeBuildersAsIndirectData_writeTop(routingBuilder, sliceTag, sliceIndex, circHeap);
+	RouteTableTreeTopBlock *topPtr=writeBuildersAsIndirectData_writeTop(routingBuilder, sliceTag, sliceIndex, heap);
 
 	HeapDataBlock neededBlocks[ROUTE_TOPINDEX_MAX];
 	for(int i=0;i<ROUTE_TOPINDEX_MAX;i++)
@@ -1076,7 +1081,7 @@ static void writeBuildersAsIndirectData(RoutingComboBuilder *routingBuilder, u8 
 		if(totalNeededSize>1000000)
 			LOG(LOG_INFO,"writeIndirectTailAndArray: CircAlloc %i",totalNeededSize);
 
-		u8 *newArrayData=circAlloc(circHeap, totalNeededSize, sliceTag, INT_MAX, NULL);
+		u8 *newArrayData=mhAlloc(heap, totalNeededSize, sliceTag, INT_MAX, NULL);
 
 		memset(newArrayData,0,totalNeededSize); // Really needed?
 		u8 *endArrayData=newArrayData+totalNeededSize;
@@ -1084,10 +1089,10 @@ static void writeBuildersAsIndirectData(RoutingComboBuilder *routingBuilder, u8 
 		topPtr=(RouteTableTreeTopBlock *)((*(routingBuilder->rootPtr))+routingBuilder->topDataBlock.headerSize); // Rebind root after alloc
 
 		// Bind tails to newly allocated blocks
-		newArrayData=writeBuildersAsIndirectData_bindTails(treeBuilder, sliceIndex, indexSize, neededBlocks, topPtr, newArrayData);
+		newArrayData=writeBuildersAsIndirectData_bindTails(treeBuilder, sliceIndex, indexSize, neededBlocks, topPtr, newArrayData, heap);
 
 		// Bind direct/indirect arrays to newly allocated blocks
-		newArrayData=writeBuildersAsIndirectData_bindArrays(treeBuilder, sliceIndex, indexSize, neededBlocks, topPtr, newArrayData);
+		newArrayData=writeBuildersAsIndirectData_bindArrays(treeBuilder, sliceIndex, indexSize, neededBlocks, topPtr, newArrayData, heap);
 
 		if(endArrayData!=newArrayData)
 			LOG(LOG_CRITICAL,"Array end did not match expected: Found: %p vs Expected: %p",newArrayData, endArrayData);
@@ -1128,12 +1133,12 @@ static void writeBuildersAsIndirectData(RoutingComboBuilder *routingBuilder, u8 
 			if(size>1000000)
 				LOG(LOG_INFO,"writeIndirect Leaf: CircAlloc %i",size);
 
-			u8 *newLeafData=circAlloc(circHeap, size, sliceTag, INT_MAX, NULL);
+			u8 *newLeafData=mhAlloc(heap, size, sliceTag, INT_MAX, NULL);
 
 			topPtr=(RouteTableTreeTopBlock *)((*(routingBuilder->rootPtr))+routingBuilder->topDataBlock.headerSize); // Rebind root & array after alloc
 			rttaBindBlockArrayProxy(arrayProxy, topPtr->data[i], neededBlocks[i].headerSize, neededBlocks[i].variant);
 
-			writeBuildersAsIndirectData_mergeTopArrayUpdates_leaf(arrayProxy, i, indexSize, sliceIndex, newLeafData, size);
+			writeBuildersAsIndirectData_mergeTopArrayUpdates_leaf(arrayProxy, i, indexSize, sliceIndex, newLeafData, size, heap);
 			}
 		}
 
@@ -1153,12 +1158,12 @@ static void writeBuildersAsIndirectData(RoutingComboBuilder *routingBuilder, u8 
 			if(size>1000000)
 				LOG(LOG_INFO,"writeIndirect Branch: CircAlloc %i",size);
 
-			u8 *newBranchData=circAlloc(circHeap, size, sliceTag, INT_MAX, NULL);
+			u8 *newBranchData=mhAlloc(heap, size, sliceTag, INT_MAX, NULL);
 
 			topPtr=(RouteTableTreeTopBlock *)((*(routingBuilder->rootPtr))+routingBuilder->topDataBlock.headerSize); // Rebind root & array after alloc
 			rttaBindBlockArrayProxy(arrayProxy, topPtr->data[i], neededBlocks[i].headerSize, neededBlocks[i].variant);
 
-			writeBuildersAsIndirectData_mergeTopArrayUpdates_branch(arrayProxy, i, indexSize, sliceIndex, newBranchData, size);
+			writeBuildersAsIndirectData_mergeTopArrayUpdates_branch(arrayProxy, i, indexSize, sliceIndex, newBranchData, size, heap);
 			}
 		}
 
@@ -2340,7 +2345,7 @@ static void createRoutePatches(RoutingIndexedDispatchLinkIndexBlock *rdi, int en
 
 
 int rtRouteReadsForSmer(RoutingIndexedDispatchLinkIndexBlock *rdi, u32 entryOffset, u32 entryCount, SmerArraySlice *slice,
-		u32 *orderedDispatches, MemDispenser *disp, MemCircHeap *circHeap, u8 sliceTag)
+		u32 *orderedDispatches, MemDispenser *disp, MemHeap *heap, u8 sliceTag)
 {
 	s32 sliceIndex=rdi->sliceIndex;
 
@@ -2431,7 +2436,7 @@ int rtRouteReadsForSmer(RoutingIndexedDispatchLinkIndexBlock *rdi, u32 entryOffs
 
 		//LOG(LOG_INFO,"writeBuildersIndirect");
 
-		writeBuildersAsIndirectData(&routingBuilder, sliceTag, sliceIndex,circHeap);
+		writeBuildersAsIndirectData(&routingBuilder, sliceTag, sliceIndex,heap);
 
 		//LOG(LOG_INFO,"writeBuildersIndirect Done");
 		}
@@ -2469,7 +2474,7 @@ int rtRouteReadsForSmer(RoutingIndexedDispatchLinkIndexBlock *rdi, u32 entryOffs
 //		LOG(LOG_INFO,"After merge route:");
 //		rtaDumpRoutingTableArray(routingBuilder.arrayBuilder);
 
-		writeBuildersAsDirectData(&routingBuilder, sliceTag, sliceIndex, circHeap);
+		writeBuildersAsDirectData(&routingBuilder, sliceTag, sliceIndex, heap);
 		}
 
 	return entryCount;

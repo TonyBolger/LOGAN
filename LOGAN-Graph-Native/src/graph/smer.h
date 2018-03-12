@@ -52,7 +52,7 @@ typedef struct smerArraySliceStr
 typedef struct smerArrayStr
 {
 	SmerArraySlice slice[SMER_SLICES];
-	MemCircHeap *heaps[SMER_DISPATCH_GROUPS];
+	MemHeap *heaps[SMER_DISPATCH_GROUPS];
 } SmerArray;
 
 

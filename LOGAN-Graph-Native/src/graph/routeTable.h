@@ -1,6 +1,8 @@
 #ifndef __ROUTE_TABLE_H
 #define __ROUTE_TABLE_H
 
+#define ALLOC_HEADER_LIVE_MASK 0x80
+
 
 
 /*

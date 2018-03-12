@@ -49,11 +49,11 @@
 #define TR_BRICKCHUNKS_SEQUENCE_MIN 120
 #define TR_BRICKCHUNKS_SEQUENCE_MAX 120
 
-#define TR_BRICKCHUNKS_LOOKUP_MIN 200
-#define TR_BRICKCHUNKS_LOOKUP_MAX 200
+#define TR_BRICKCHUNKS_LOOKUP_MIN 240
+#define TR_BRICKCHUNKS_LOOKUP_MAX 240
 
-#define TR_BRICKCHUNKS_DISPATCH_MIN 270
-#define TR_BRICKCHUNKS_DISPATCH_MAX 270
+#define TR_BRICKCHUNKS_DISPATCH_MIN 360
+#define TR_BRICKCHUNKS_DISPATCH_MAX 360
 
 
 #define TR_INGRESS_LOOKUP_BLOCKMARGIN 20
@@ -258,7 +258,9 @@ typedef struct swqBufferStr {
 #include "mem/memBricks.h"
 #include "mem/memDispenser.h"
 #include "mem/memPackStack.h"
-#include "mem/memCircHeap.h"
+#include "mem/memHeap_Circ.h"
+#include "mem/memHeap_Fixed.h"
+#include "mem/memHeap.h"
 
 #include "util/arrayPacking.h"
 #include "util/bitMap.h"

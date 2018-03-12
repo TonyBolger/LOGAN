@@ -1,7 +1,5 @@
-#ifndef __MEM_CIRCHEAP_H
-#define __MEM_CIRCHEAP_H
-
-#include "../common.h"
+#ifndef __MEM_HEAP_CIRC_H
+#define __MEM_HEAP_CIRC_H
 
 #define CIRCHEAP_MAX_ALLOC_WARN (1024*1024*2)
 #define CIRCHEAP_MAX_ALLOC (1024*1024*32)
@@ -181,11 +179,12 @@ typedef struct memCricHeapStr
 
 
 
-MemCircHeap *circHeapAlloc(MemCircHeapChunkIndex *(*reclaimIndexer)(u8 *heapDataPtr, s64 targetAmount, u8 tag, u8 **tagData, s32 tagDataLength, s32 tagSearchOffset, MemDispenser *disp),
+void mhcHeapAlloc(MemCircHeap *circHeap,
+		MemCircHeapChunkIndex *(*reclaimIndexer)(u8 *heapDataPtr, s64 targetAmount, u8 tag, u8 **tagData, s32 tagDataLength, s32 tagSearchOffset, MemDispenser *disp),
 		void (*relocater)(MemCircHeapChunkIndex *reclaimIndex, u8 tag, u8 **tagData, s32 tagDataLength));
-void circHeapFree(MemCircHeap *circHeap);
-void circHeapRegisterTagData(MemCircHeap *circHeap, u8 tag, u8 **data, s32 dataLength);
+void mhcHeapFree(MemCircHeap *circHeap);
+void mhcHeapRegisterTagData(MemCircHeap *circHeap, u8 tag, u8 **data, s32 dataLength);
 
-void *circAlloc(MemCircHeap *circHeap, size_t size, u8 tag, s32 newTagOffset, s32 *oldTagOffset);
+void *mhcAlloc(MemCircHeap *circHeap, size_t size, u8 tag, s32 newTagOffset, s32 *oldTagOffset);
 
 #endif

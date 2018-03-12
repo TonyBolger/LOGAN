@@ -56,7 +56,7 @@ typedef struct smerRoutingStatsStr
 
 //#define ROUTING_TREE_THRESHOLD 1000000000
 
-int rtRouteReadsForSmer(RoutingIndexedDispatchLinkIndexBlock *rdi, u32 entryOffset, u32 entryCount, SmerArraySlice *slice, u32 *orderedDispatches, MemDispenser *disp, MemCircHeap *circHeap, u8 sliceTag);
+int rtRouteReadsForSmer(RoutingIndexedDispatchLinkIndexBlock *rdi, u32 entryOffset, u32 entryCount, SmerArraySlice *slice, u32 *orderedDispatches, MemDispenser *disp, MemHeap *heap, u8 sliceTag);
 
 SmerLinked *rtGetLinkedSmer(SmerArray *smerArray, SmerId rootSmerId, MemDispenser *disp);
 

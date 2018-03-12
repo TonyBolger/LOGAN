@@ -168,7 +168,7 @@ Alloc Header:
 // Gap 002 -> 2-
 
 // Check Live
-#define ALLOC_HEADER_LIVE_MASK 0x80							// ? - - -  - - - -
+//#define ALLOC_HEADER_LIVE_MASK 0x80							// ? - - -  - - - -
 
 // No Offset version:
 // x 0 0 0 -> Gap: 0ggg / 1ggg
@@ -394,11 +394,6 @@ s32 rtHeaderIsLiveTop(u8 data)
 	return (data&ALLOC_HEADER_LIVE_GAP_ROOT_MASK)==ALLOC_HEADER_LIVE_GAP_ROOT_TOP_VALUE;
 }
 
-void rtHeaderMarkDead(u8 *data)
-{
-	if(data!=NULL)
-		*data&=~ALLOC_HEADER_LIVE_MASK;
-}
 
 
 static void dumpTagData(u8 **tagData, s32 tagDataLength)

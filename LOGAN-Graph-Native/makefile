@@ -47,7 +47,9 @@ CLI_OBJS += \
 ./bin/cli/common/io/parser.o \
 ./bin/cli/common/mem/mem.o \
 ./bin/cli/common/mem/memBricks.o \
-./bin/cli/common/mem/memCircHeap.o \
+./bin/cli/common/mem/memHeap.o \
+./bin/cli/common/mem/memHeap_Circ.o \
+./bin/cli/common/mem/memHeap_Fixed.o \
 ./bin/cli/common/mem/memDispenser.o \
 ./bin/cli/common/mem/memPackStack.o \
 ./bin/cli/common/mem/memSlab.o \
@@ -95,7 +97,9 @@ JNI_OBJS += \
 ./bin/jni/common/io/parser.o \
 ./bin/jni/common/mem/mem.o \
 ./bin/jni/common/mem/memBricks.o \
-./bin/jni/common/mem/memCircHeap.o \
+./bin/jni/common/mem/memHeap.o \
+./bin/jni/common/mem/memHeap_Circ.o \
+./bin/jni/common/mem/memHeap_Fixed.o \
 ./bin/jni/common/mem/memDispenser.o \
 ./bin/jni/common/mem/memPackStack.o \
 ./bin/jni/common/mem/memSlab.o \

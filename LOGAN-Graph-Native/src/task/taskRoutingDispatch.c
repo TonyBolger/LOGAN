@@ -909,7 +909,7 @@ static int transferFromCompletedLookup(RoutingBuilder *rb,
 
 
 static int processSlice(RoutingBuilder *rb, RoutingSliceAssignedDispatchLinkQueue *dispatchLinkQueue,  SmerArraySlice *slice, u32 sliceWithinGroupIndex,
-		u32 *orderedDispatches, RoutingReadLookupRecycleBlock **postDispatchRecycleBlockPtr, MemDispenser *stateDisp, MemDispenser *routingDisp, MemCircHeap *circHeap)
+		u32 *orderedDispatches, RoutingReadLookupRecycleBlock **postDispatchRecycleBlockPtr, MemDispenser *stateDisp, MemDispenser *routingDisp, MemHeap *heap)
 {
 	//MemSingleBrickPile *sequencePile=&(rb->sequenceLinkPile);
 	//MemDoubleBrickPile *lookupPile=&(rb->lookupLinkPile);
@@ -979,7 +979,7 @@ static int processSlice(RoutingBuilder *rb, RoutingSliceAssignedDispatchLinkQueu
 
 			u8 sliceTag=(u8)sliceWithinGroupIndex;
 
-			rtRouteReadsForSmer(indexBlock, 0, indexBlock->entryCount, slice, orderedDispatches+dispatchOffset, routingDisp, circHeap, sliceTag);
+			rtRouteReadsForSmer(indexBlock, 0, indexBlock->entryCount, slice, orderedDispatches+dispatchOffset, routingDisp, heap, sliceTag);
 			dispatchOffset+=indexBlock->entryCount;
 
 			/*
@@ -1287,7 +1287,7 @@ static int scanForDispatchesForGroups(RoutingBuilder *rb, int startGroup, int en
 
 				prepareGroupOutbound(groupState);
 
-				MemCircHeap *circHeap=rb->graph->smerArray.heaps[i];
+				MemHeap *heap=rb->graph->smerArray.heaps[i];
 
 				SmerArraySlice *baseSlice=rb->graph->smerArray.slice+(i << SMER_DISPATCH_GROUP_SHIFT);
 				for(int j=0;j<SMER_DISPATCH_GROUP_SLICES;j++)
@@ -1312,7 +1312,7 @@ static int scanForDispatchesForGroups(RoutingBuilder *rb, int startGroup, int en
 						{
 						u32 *orderedDispatches=dAlloc(groupState->disp, sizeof(u32)*sliceDispatches);
 						int dispatched=processSlice(rb, &(groupState->dispatchLinkQueue), slice, j, orderedDispatches, &postdispatchRecycleBlock,
-								groupState->disp, routingDisp, circHeap);
+								groupState->disp, routingDisp, heap);
 
 						if(dispatched>0)
 							work++;

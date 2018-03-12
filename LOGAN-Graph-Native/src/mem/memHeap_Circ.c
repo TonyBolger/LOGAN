@@ -261,13 +261,10 @@ void dumpCircHeap(MemCircHeap *circHeap)
 
 
 
-MemCircHeap *circHeapAlloc(MemCircHeapChunkIndex *(*reclaimIndexer)(u8 *data, s64 targetAmount, u8 tag, u8 **tagData, s32 tagDataLength, s32 tagSearchOffset, MemDispenser *disp),
+void mhcHeapAlloc(MemCircHeap *circHeap,
+		MemCircHeapChunkIndex *(*reclaimIndexer)(u8 *data, s64 targetAmount, u8 tag, u8 **tagData, s32 tagDataLength, s32 tagSearchOffset, MemDispenser *disp),
 		void (*relocater)(MemCircHeapChunkIndex *reclaimIndex, u8 tag, u8 **tagData, s32 tagDataLength))
 {
-	MemCircHeap *circHeap=NULL;
-
-	circHeap=G_ALLOC_ALIGNED(sizeof(MemCircHeap), CACHE_ALIGNMENT_SIZE, MEMTRACKID_HEAP);
-
 	for(int i=0;i<CIRCHEAP_MAX_GENERATIONS;i++)
 		{
 		MemCircHeapBlock *block=allocBlock(0, MIN_BLOCKSIZEINDEX[i]);
@@ -294,10 +291,9 @@ MemCircHeap *circHeapAlloc(MemCircHeapChunkIndex *(*reclaimIndexer)(u8 *data, s6
 
 	circHeap->gcDisp=dispenserAlloc(MEMTRACKID_DISPENSER_GARBAGE_COLLECTOR, DISPENSER_BLOCKSIZE_SMALL, DISPENSER_BLOCKSIZE_HUGE);
 
-	return circHeap;
 }
 
-void circHeapFree(MemCircHeap *circHeap)
+void mhcHeapFree(MemCircHeap *circHeap)
 {
 #ifdef FEATURE_ENABLE_HEAP_STATS
 	dumpCircHeap(circHeap);
@@ -317,11 +313,10 @@ void circHeapFree(MemCircHeap *circHeap)
 
 	dispenserFree(circHeap->gcDisp);
 
-	G_FREE(circHeap, sizeof(MemCircHeap), MEMTRACKID_HEAP);
 }
 
 
-void circHeapRegisterTagData(MemCircHeap *circHeap, u8 tag, u8 **data, s32 dataLength)
+void mhcHeapRegisterTagData(MemCircHeap *circHeap, u8 tag, u8 **data, s32 dataLength)
 {
 	circHeap->tagData[tag]=data;
 	circHeap->tagDataLength[tag]=dataLength;
@@ -890,7 +885,7 @@ void *circAlloc_nobumper(MemCircHeap *circHeap, size_t size, u8 tag, s32 newTagO
 }
 
 
-void *circAlloc(MemCircHeap *circHeap, size_t size, u8 tag, s32 newTagOffset, s32 *oldTagOffset)
+void *mhcAlloc(MemCircHeap *circHeap, size_t size, u8 tag, s32 newTagOffset, s32 *oldTagOffset)
 {
 	void *ptr=circAlloc_nobumper(circHeap, size, tag, newTagOffset, oldTagOffset);
 	return ptr;
