@@ -32,15 +32,25 @@ void *mhAlloc(MemHeap *heap, size_t size, u8 tag, s32 newTagOffset, s32 *oldTagO
 	if(size==0)
 		return NULL;
 
-	return mhcAlloc(&(heap->circ), size, tag, newTagOffset, oldTagOffset);
+	if(size>MEMFIXED_MAX_SIZE)
+		return mhcAlloc(&(heap->circ), size, tag, newTagOffset, oldTagOffset);
+	else
+		return mhfAlloc(&(heap->fixed), size);
 }
 
 void mhFree(MemHeap *heap, void *oldData, size_t size)
 {
 	if(oldData!=NULL)
 		{
-		//LOG(LOG_INFO, "mhFree: %i at %p", size, oldData);
-		u8 *data=oldData;
-		*data&=~ALLOC_HEADER_LIVE_MASK;
+
+		if(size>MEMFIXED_MAX_SIZE)
+			{
+			//LOG(LOG_INFO, "mhFree: %i at %p", size, oldData);
+			u8 *data=oldData;
+			*data&=~ALLOC_HEADER_LIVE_MASK;
+			}
+		else
+			mhfFree(&(heap->fixed), oldData, size);
 		}
+
 }

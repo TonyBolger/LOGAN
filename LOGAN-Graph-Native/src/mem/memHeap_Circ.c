@@ -891,6 +891,16 @@ void *mhcAlloc(MemCircHeap *circHeap, size_t size, u8 tag, s32 newTagOffset, s32
 	return ptr;
 }
 
+
+void mhcFree(MemCircHeap *circHeap, void *oldData, size_t size)
+{
+	if(oldData!=NULL)
+		{
+		u8 *data=oldData;
+		*data&=~ALLOC_HEADER_LIVE_MASK;
+		}
+}
+
 /*
  * Later: Need a way to add bumpers to multiple allocations
  *

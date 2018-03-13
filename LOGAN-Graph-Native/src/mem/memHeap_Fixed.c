@@ -22,6 +22,7 @@ static const u16 MEMFIXED_COUNTS[MEMFIXED_SIZES]={
 };
 
 
+#define MEMFIXED_PAD_MAGIC 0x4242
 
 static MemFixedHeapBlock *allocateBlock(u16 size)
 {
@@ -34,6 +35,7 @@ static MemFixedHeapBlock *allocateBlock(u16 size)
 	block->itemSize=size;
 	block->totalCount=itemCount;
 	block->freeCount=itemCount;
+	block->pad1=MEMFIXED_PAD_MAGIC;
 
 	int freeCount=itemCount;
 	for(int i=0;i<MEMFIXED_FLAGS_PER_BLOCK;i++)
@@ -115,14 +117,16 @@ void *mhfAlloc(MemFixedHeap *fixedHeap, size_t size)
 			{
 			s32 index=i*64+__builtin_ctzl(flags);
 			currentBlock->freeFlags[i]=flags & (flags-1); // Clear lowest bit
+			currentBlock->freeCount--;
 
-			return currentBlock->data+index*size;
+			void *ptr=currentBlock->data+index*size;
+			LOG(LOG_INFO,"Allocated %i at %p",size,ptr);
+			return ptr;
 			}
 		}
 
 
-	LOG(LOG_CRITICAL,"mhfAlloc %i",size);
-
+	LOG(LOG_CRITICAL,"mhfAlloc Failed for %i",size);
 	return NULL;
 }
 
@@ -130,6 +134,9 @@ void mhfFree(MemFixedHeap *fixedHeap, void *oldData, size_t size)
 {
 	uintptr_t dataAddr = (uintptr_t)oldData;
 	MemFixedHeapBlock *block=(MemFixedHeapBlock *)(dataAddr&~((u64)PAGE_ALIGNMENT_MASK));
+
+	if(block->pad1!=MEMFIXED_PAD_MAGIC)
+		LOG(LOG_CRITICAL,"Invalid magic number in block containing %p (size %i)",oldData, size);
 
 	LOG(LOG_INFO,"Block size is %i vs expected %i",block->itemSize, size);
 

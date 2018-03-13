@@ -186,5 +186,6 @@ void mhcHeapFree(MemCircHeap *circHeap);
 void mhcHeapRegisterTagData(MemCircHeap *circHeap, u8 tag, u8 **data, s32 dataLength);
 
 void *mhcAlloc(MemCircHeap *circHeap, size_t size, u8 tag, s32 newTagOffset, s32 *oldTagOffset);
+void mhcFree(MemCircHeap *circHeap, void *oldData, size_t size);
 
 #endif

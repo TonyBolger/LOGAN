@@ -266,7 +266,7 @@ static RouteTableTreeTopBlock *writeBuildersAsIndirectData_writeTop(RoutingCombo
 		if(totalSize>1000000)
 			LOG(LOG_INFO,"writeIndirectTop: CircAlloc %i",totalSize);
 
-		u8 *newTopData=mhAlloc(heap, totalSize, sliceTag, sliceIndex, &oldTagOffset);
+		u8 *newTopData=mhcAlloc(&(heap->circ), totalSize, sliceTag, sliceIndex, &oldTagOffset);
 		s32 diff=sliceIndex-oldTagOffset;
 
 		rtEncodeGapTopBlockHeader(diff, newTopData);
@@ -415,7 +415,7 @@ static u8 *writeBuildersAsIndirectData_bindTails(RouteTableTreeBuilder *treeBuil
 //			LOG(LOG_INFO,"Prefix Move/Expand %p to %p",oldData,newArrayData);
 		newArrayData+=neededBlocks[ROUTE_TOPINDEX_PREFIX].headerSize+neededBlocks[ROUTE_TOPINDEX_PREFIX].dataSize;
 
-		mhFree(heap, oldData, existingSize);
+		mhcFree(&(heap->circ), oldData, existingSize);
 		}
 	else
 		{
@@ -439,7 +439,7 @@ static u8 *writeBuildersAsIndirectData_bindTails(RouteTableTreeBuilder *treeBuil
 		topPtr->data[ROUTE_TOPINDEX_SUFFIX]=newArrayData;
 		newArrayData+=neededBlocks[ROUTE_TOPINDEX_SUFFIX].headerSize+neededBlocks[ROUTE_TOPINDEX_SUFFIX].dataSize;
 
-		mhFree(heap, oldData, existingSize);
+		mhcFree(&(heap->circ), oldData, existingSize);
 		}
 	else
 		{
@@ -473,8 +473,7 @@ static RouteTableTreeArrayBlock *writeBuildersAsIndirectData_createOrExpandLeafA
 
 		memcpy(arrayDataBlock->data, oldArrayDataBlock->data, oldEntriesToCopy*sizeof(u8 *));
 
-
-		mhFree(heap, oldArrayDataRaw, headerSize+oldEntriesToCopy);
+		mhcFree(&(heap->circ), oldArrayDataRaw, headerSize+oldEntriesToCopy);
 		}
 
 	int newEntries=(totalEntries-oldEntriesToCopy);
@@ -539,7 +538,7 @@ static void writeBuildersAsIndirectData_expandAndCopyLeafArray1(u8 **heapData, s
 
 		memcpy(arrayDataBlock->data, oldArrayDataBlock->data, oldEntriesToCopy*sizeof(u8 *));
 
-		mhFree(heap, oldArrayDataRaw, headerSize+oldEntriesToCopy);
+		mhcFree(&(heap->circ), oldArrayDataRaw, headerSize+oldEntriesToCopy);
 		}
 
 	int newEntries=(totalEntries-oldEntriesToCopy);
@@ -621,7 +620,7 @@ static u8 *writeBuildersAsIndirectData_bindArrays(RouteTableTreeBuilder *treeBui
 				arrayProxy->oldDataAlloc=arrayProxy->newDataAlloc;
 
 				if(oldData!=NULL)
-					mhFree(heap, oldData, treeBuilder->dataBlocks[i].headerSize+treeBuilder->dataBlocks[i].dataSize);
+					mhcFree(&(heap->circ), oldData, treeBuilder->dataBlocks[i].headerSize+treeBuilder->dataBlocks[i].dataSize);
 				//LOG(LOG_CRITICAL,"Upgradey - has %i", arrayProxy->dataAlloc);
 
 //				LOG(LOG_INFO,"After Upgrade: START");
@@ -789,7 +788,7 @@ static u8 *writeBuildersAsIndirectData_bindArrays(RouteTableTreeBuilder *treeBui
 					memcpy(newArrayData, oldData+treeBuilder->dataBlocks[i].headerSize, treeBuilder->dataBlocks[i].dataSize);
 					memset(newArrayData+treeBuilder->dataBlocks[i].dataSize, 0, neededBlocks[i].dataSize-treeBuilder->dataBlocks[i].dataSize);
 
-					mhFree(heap, oldData, treeBuilder->dataBlocks[i].headerSize+treeBuilder->dataBlocks[i].dataSize);
+					mhcFree(&(heap->circ), oldData, treeBuilder->dataBlocks[i].headerSize+treeBuilder->dataBlocks[i].dataSize);
 					}
 				else // Clear full region
 					{
@@ -908,7 +907,7 @@ void writeBuildersAsIndirectData_mergeTopArrayUpdates_branch(RouteTableTreeArray
 
 			newData+=dataSize;
 
-			mhFree(heap, oldBranchRawData, headerSize+dataSize);
+			mhcFree(&(heap->circ), oldBranchRawData, headerSize+dataSize);
 			}
 		else
 			{
@@ -1021,7 +1020,7 @@ void writeBuildersAsIndirectData_mergeTopArrayUpdates_leaf(RouteTableTreeArrayPr
 
 			newData+=sizeof(RouteTableTreeLeafBlock)+packingInfo->packedSize;
 
-			mhFree(heap, oldLeafRawData, oldBlockSize);
+			mhcFree(&(heap->circ), oldLeafRawData, oldBlockSize);
 			}
 		else
 			{
