@@ -8,6 +8,14 @@ s32 reserveReadIngressBlock(RoutingBuilder *rb)
 	if(current>=TR_READBLOCK_INGRESS_INFLIGHT)
 		return 0;
 
+	u64 sif=__atomic_load_n(&(rb->sequencesInFlight), __ATOMIC_SEQ_CST);
+
+	if(sif+TR_INGRESS_BLOCKSIZE > TR_MAX_SEQUENCES_IN_FLIGHT)
+		{
+		LOG(LOG_INFO,"SIF limited");
+		return 0;
+		}
+
 	// FIXME: Should do this a better way
 	// Also need to ensure space for sequences 10M/224 per link, plus 10K partially filled, plus 10K margin: 44,643 + 20,000 -> ~65K free bricks
 	// In practice, less will be needed. This hack only works if there's a single ingressBlock which can consume the bricks.
@@ -209,6 +217,8 @@ void populateReadIngressBlock(SwqBuffer *rec, int ingressPosition, int ingressSi
 
 	ingressBlock->sequenceCount=ingressSize;
 	ingressBlock->sequencePosition=0;
+
+	__atomic_fetch_add(&rb->sequencesInFlight, ingressSize, __ATOMIC_SEQ_CST);
 
 	queueReadIngressBlock(ingressBlock);
 

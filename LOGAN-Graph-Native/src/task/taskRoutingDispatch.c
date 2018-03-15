@@ -1150,8 +1150,7 @@ static int validateSequenceLinkConsumed(SequenceLink *sequenceLink, u32 sequence
 static int gatherSliceOutbound(MemSingleBrickPile *sequencePile, MemDoubleBrickPile *lookupPile, MemDoubleBrickPile *dispatchPile,
 		RoutingDispatchGroupState *groupState, int sliceNum, u32 *orderedDispatches, int sliceDispatches)
 {
-	int work=0;
-
+	int completedCount=0;
 
 	RoutingReadReferenceBlockDispatchArray *dispatchArray=groupState->outboundDispatches;
 	RoutingDispatchLinkIndexBlock *smerInboundDispatches=groupState->smerInboundDispatches+sliceNum;
@@ -1181,6 +1180,7 @@ static int gatherSliceOutbound(MemSingleBrickPile *sequencePile, MemDoubleBrickP
 					freeSequenceLinkChain(sequencePile, sequenceLinkIndex); // Possibly more than one seqLink in chain
 
 					mbDoubleBrickFreeByIndex(dispatchPile, dispatchLinkIndex);
+					completedCount++;
 					break;
 					}
 
@@ -1234,12 +1234,10 @@ static int gatherSliceOutbound(MemSingleBrickPile *sequencePile, MemDoubleBrickP
 		*/
 		}
 
-	if(smerInboundDispatches->entryCount)
-		work=1;
 
 	smerInboundDispatches->entryCount=0;
 
-	return work;
+	return completedCount;
 }
 
 
@@ -1267,6 +1265,8 @@ static int scanForDispatchesForGroups(RoutingBuilder *rb, int startGroup, int en
 			{
 			if(lockRoutingDispatchGroupState(rb, i))
 				{
+				int completedCount=0;
+
 				RoutingDispatchGroupState *groupState=rb->dispatchGroupState+i;
 
 				RoutingReadReferenceBlockDispatch *dispatchEntry=dequeueDispatchForGroupList(rb, i);
@@ -1320,7 +1320,7 @@ static int scanForDispatchesForGroups(RoutingBuilder *rb, int startGroup, int en
 //						LOG(LOG_INFO,"Dispatched %i",dispatched);
 
 						dispenserReset(routingDisp);
-						gatherSliceOutbound(sequencePile, lookupPile, dispatchPile, groupState, j, orderedDispatches, dispatched);
+						completedCount+=gatherSliceOutbound(sequencePile, lookupPile, dispatchPile, groupState, j, orderedDispatches, dispatched);
 						}
 
 					}
@@ -1328,6 +1328,8 @@ static int scanForDispatchesForGroups(RoutingBuilder *rb, int startGroup, int en
 				queueDispatchArray(rb, groupState->outboundDispatches);
 				recycleRoutingDispatchGroupState(groupState);
 				unlockRoutingDispatchGroupState(rb,i);
+
+				__atomic_fetch_sub(&rb->sequencesInFlight, completedCount, __ATOMIC_SEQ_CST);
 				}
 			}
 		}

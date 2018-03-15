@@ -287,11 +287,14 @@ static void dumpUnclean(RoutingBuilder *rb)
 
 static void showWorkStatus(RoutingBuilder *rb)
 {
+	u64 sif=__atomic_load_n(&rb->sequencesInFlight, __ATOMIC_SEQ_CST);
+
 	int arib=__atomic_load_n(&rb->allocatedIngressBlocks, __ATOMIC_SEQ_CST);
 	int arlb=__atomic_load_n(&rb->allocatedReadLookupBlocks, __ATOMIC_SEQ_CST);
 	int lrpre=__atomic_load_n(&rb->lookupPredispatchRecycleCount, __ATOMIC_SEQ_CST);
 	int lrpost=__atomic_load_n(&rb->lookupPostdispatchRecycleCount, __ATOMIC_SEQ_CST);
 
+	LOG(LOG_INFO,"TickTock: SiF %li: IB: %i LB: %i LR_pre: %i LR_post: %i", sif, arib, arlb, lrpre, lrpost);
 
 	MemSingleBrickPile *seqPile=&(rb->sequenceLinkPile);
 	MemDoubleBrickPile *lookupPile=&(rb->lookupLinkPile);
@@ -309,7 +312,6 @@ static void showWorkStatus(RoutingBuilder *rb)
 	int dispatchFree=mbGetFreeDoubleBrickPile(dispatchPile);
 	int dispatchUsed=dispatchTotal-dispatchFree;
 
-	LOG(LOG_INFO,"TickTock: RB - IB: %i LB: %i LR_pre: %i LR_post: %i", arib, arlb, lrpre, lrpost);
 	LOG(LOG_INFO,"TickTock: BricksUFT - Seq %i %i %i Lookup %i %i %i Dispatch %i %i %i",
 			seqUsed,seqFree,seqTotal, lookupUsed,lookupFree,lookupTotal, dispatchUsed,dispatchFree,dispatchTotal);
 
@@ -328,17 +330,10 @@ static void showWorkStatus(RoutingBuilder *rb)
 }
 
 
-static int checkForWork(RoutingBuilder *rb)
+static u64 checkForWork(RoutingBuilder *rb)
 {
-	//int arib=__atomic_load_n(&rb->allocatedIngressBlocks, __ATOMIC_SEQ_CST);
-	//int arlb=__atomic_load_n(&rb->allocatedReadLookupBlocks, __ATOMIC_SEQ_CST);
-	//int lrr=(__atomic_load_n(&rb->lookupPredispatchRecyclePtr, __ATOMIC_SEQ_CST)!=NULL) + (__atomic_load_n(&rb->lookupPostdispatchRecyclePtr, __ATOMIC_SEQ_CST)!=NULL);
-
-	MemSingleBrickPile *seqPile=&(rb->sequenceLinkPile);
-
-	int ardb=mbGetSingleBrickPileCapacity(seqPile)-mbGetFreeSingleBrickPile(seqPile);
-
-	return ardb;
+	u64 sif=__atomic_load_n(&rb->sequencesInFlight, __ATOMIC_SEQ_CST);
+	return sif;
 }
 
 
@@ -404,8 +399,14 @@ static int trDoIntermediate(ParallelTask *pt, int workerNo, void *wState, int fo
 */
 
 
-	if((force)||(sequencesActive>TR_SEQUENCE_THRESHOLD))
+//	if(sequencesActive>TR_SEQUENCE_IN_FLIGHT_ROUTING_THRESHOLD)
+//		LOG(LOG_INFO,"Above thresh %lu %lu", sequencesActive, TR_SEQUENCE_IN_FLIGHT_ROUTING_THRESHOLD);
+
+
+	if((force)||(sequencesActive>TR_SEQUENCE_IN_FLIGHT_ROUTING_THRESHOLD))
 		{
+
+
 		u64 workToken=getNextRoutingWorkToken(rb, workerNo);
 
 		int work=scanForSmerLookups(rb, workToken, workerNo, workerState, force);
@@ -454,6 +455,8 @@ RoutingBuilder *allocRoutingBuilder(Graph *graph, int threads)
 
 	rb->pogoDebugFlag=1;
 	rb->routingWorkToken=0;
+
+	rb->sequencesInFlight=0;
 
 	if(sizeof(SequenceLink)!=SINGLEBRICK_BRICKSIZE)
 		LOG(LOG_CRITICAL,"SequenceLink size %i doesn't match expected %i", sizeof(SequenceLink), SINGLEBRICK_BRICKSIZE);

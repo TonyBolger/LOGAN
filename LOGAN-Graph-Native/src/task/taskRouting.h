@@ -346,6 +346,8 @@ struct routingBuilderStr {
 	u64 pogoDebugFlag;
 	u64 routingWorkToken;
 
+	u64 sequencesInFlight;
+
 	RoutingReadIngressBlock ingressBlocks[TR_READBLOCK_INGRESS_INFLIGHT]; // Batches of sequences in Ingress stage (currently only one)
 	u64 allocatedIngressBlocks;
 

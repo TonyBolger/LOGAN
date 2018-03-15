@@ -77,7 +77,9 @@
  * Block must be at least minSize and at least the index, if not NULL
  */
 
-const double MAX_SURVIVOR[CIRCHEAP_MAX_GENERATIONS]={0.70, 0.75, 0.75, 0.80, 0.80, 0.85, 0.85, 0.90};
+//const double MAX_SURVIVOR[CIRCHEAP_MAX_GENERATIONS]={0.70, 0.75, 0.75, 0.80, 0.80, 0.85, 0.85, 0.90};
+
+const double MAX_SURVIVOR[CIRCHEAP_MAX_GENERATIONS]={0.70, 0.80, 0.90};
 
 //const double MAX_SURVIVOR[CIRCHEAP_MAX_GENERATIONS]={0.50, 0.60, 0.70, 0.70, 0.70, 0.70, 0.70, 0.90};
 //const double MAX_SURVIVOR[CIRCHEAP_MAX_GENERATIONS]={0.50, 0.80, 0.90, 0.90, 0.90, 0.90, 0.90, 0.95};
@@ -87,7 +89,8 @@ const double MAX_SURVIVOR[CIRCHEAP_MAX_GENERATIONS]={0.70, 0.75, 0.75, 0.80, 0.8
 
 //const int MIN_BLOCKSIZEINDEX[CIRCHEAP_MAX_GENERATIONS]={64, 32, 16, 8 ,4, 2, 1 ,0};
 
-const int MIN_BLOCKSIZEINDEX[CIRCHEAP_MAX_GENERATIONS]={0,0,0,0,0,0,0,0};
+//const int MIN_BLOCKSIZEINDEX[CIRCHEAP_MAX_GENERATIONS]={0,0,0,0,0,0,0,0};
+const int MIN_BLOCKSIZEINDEX[CIRCHEAP_MAX_GENERATIONS]={0,0,0};
 
 static s64 getRequiredBlocksize(s64 minSize, s32 *blockSizeIndexPtr)
 {
@@ -153,7 +156,7 @@ static MemCircHeapBlock *allocBlock(s32 minSize, int minblockSizeIndex)
 	u8 *dataPtr=NULL;
 
 	blockPtr=G_ALLOC_ALIGNED(sizeof(MemCircHeapBlock), CACHE_ALIGNMENT_SIZE, MEMTRACKID_HEAP_BLOCK);
-	dataPtr=G_ALLOC_ALIGNED(size, PAGE_ALIGNMENT_SIZE*16, MEMTRACKID_HEAP_BLOCKDATA);
+	dataPtr=G_ALLOC_ALIGNED(size, PAGE_ALIGNMENT_SIZE*16, MEMTRACKID_HEAP_BLOCKDATA_CIRC);
 
 	blockPtr->next=NULL;
 
@@ -178,7 +181,7 @@ static void freeBlock(MemCircHeapBlock *block)
 //	LOG(LOG_INFO,"Alloc block %p : freed",block->ptr);
 
 	if(block->ptr!=NULL)
-		G_FREE(block->ptr, block->size, MEMTRACKID_HEAP_BLOCKDATA);
+		G_FREE(block->ptr, block->size, MEMTRACKID_HEAP_BLOCKDATA_CIRC);
 
 	G_FREE(block, sizeof(MemCircHeapBlock), MEMTRACKID_HEAP_BLOCK);
 }
@@ -228,7 +231,7 @@ static s64 estimateSpaceInGeneration(MemCircGeneration *generation)
 //static
 void dumpCircHeap(MemCircHeap *circHeap)
 {
-	LOG(LOG_INFO,"Heap dump:");
+	LOG(LOG_INFO,"CircHeap dump:");
 
 	s64 totalSize=0, totalLive=0, totalDead=0;
 	for(int i=0;i<CIRCHEAP_MAX_GENERATIONS;i++)
@@ -444,8 +447,8 @@ static MemCircHeapChunkIndex *createReclaimIndex_single(MemCircHeap *circHeap, M
 
 			if(survivorRatio>MAX_SURVIVOR[generationNum])
 				{
-				//LOG(LOG_INFO,"Generation %i Survivor Ratio %lf exceeds threshold, marked for expansion",
-//						generation-circHeap->generations, survivorRatio);
+				//LOG(LOG_INFO,"Generation %i - Live: %li from %li. Survivor Ratio %lf exceeds threshold, marked for expansion",
+						//generation-circHeap->generations, generation->reclaimBlock->reclaimSizeLive, totalReclaim, survivorRatio);
 
 				reclaimBlock->needsExpanding=1;
 				}

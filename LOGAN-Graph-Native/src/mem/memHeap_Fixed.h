@@ -4,9 +4,9 @@
 #define MEMFIXED_FLAGS_PER_BLOCK 8
 #define MEMFIXED_DATABYTES_PER_BLOCK 4016
 
-typedef struct memFixedHeapBlockStr
+typedef struct memFixedHeapSizeBlockStr
 {
-	struct memFixedHeapBlockStr *nextPtr;
+	struct memFixedHeapSizeBlockStr *nextPtr;
 	u16 itemSize;
 	u16 totalCount;
 	u16 freeCount;
@@ -14,17 +14,27 @@ typedef struct memFixedHeapBlockStr
 
 	u64 freeFlags[MEMFIXED_FLAGS_PER_BLOCK];
 	u8 data[MEMFIXED_DATABYTES_PER_BLOCK];
-} MemFixedHeapBlock;
+} MemFixedHeapSizeBlock;
+
+typedef struct memFixedHeapSizerStr
+{
+	MemFixedHeapSizeBlock *current;
+	MemFixedHeapSizeBlock *full;
+	u32 recycleCount;
+	u32 padding;
+} MemFixedHeapSizer;
+
+//#define MEMFIXED_FREE_MIN 2
 
 #define MEMFIXED_MIN_SIZE 8
 #define MEMFIXED_MAX_SIZE 127
 #define MEMFIXED_SIZES (MEMFIXED_MAX_SIZE-MEMFIXED_MIN_SIZE+1)
 
+#define MEMFIXED_RECYCLE_THRESHOLD 4
 
 typedef struct memFixedHeapStr
 {
-	MemFixedHeapBlock *current[MEMFIXED_SIZES];
-	MemFixedHeapBlock *full[MEMFIXED_SIZES];
+	MemFixedHeapSizer sizer[MEMFIXED_SIZES];
 
 } MemFixedHeap;
 
