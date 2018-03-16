@@ -156,7 +156,7 @@ static MemCircHeapBlock *allocBlock(s32 minSize, int minblockSizeIndex)
 	u8 *dataPtr=NULL;
 
 	blockPtr=G_ALLOC_ALIGNED(sizeof(MemCircHeapBlock), CACHE_ALIGNMENT_SIZE, MEMTRACKID_HEAP_BLOCK);
-	dataPtr=G_ALLOC_ALIGNED(size, PAGE_ALIGNMENT_SIZE*16, MEMTRACKID_HEAP_BLOCKDATA_CIRC);
+	dataPtr=G_ALLOC_ALIGNED(size, PAGE_ALIGNMENT_SIZE, MEMTRACKID_HEAP_BLOCKDATA_CIRC);
 
 	blockPtr->next=NULL;
 

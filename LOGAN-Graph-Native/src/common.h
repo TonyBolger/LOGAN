@@ -26,7 +26,7 @@
 
 //#define FEATURE_ENABLE_SMER_STATS
 //#define FEATURE_ENABLE_HEAP_STATS
-//#define FEATURE_ENABLE_MEMTRACK
+#define FEATURE_ENABLE_MEMTRACK
 //#define FEATURE_ENABLE_MEMTRACK_CONTINUOUS
 //#define FEATURE_ENABLE_MEMKIND
 #define FEATURE_ENABLE_TICKTOCK
@@ -51,10 +51,10 @@
 // ~60K usable bricks per chunk, so one chunk per 6 blocks: 7.5M -> 125 x per-seq ratio
 //
 // Short read - Approximate: 1 : 1.5-2 : 2 - 3
-// Long read - Approximate: 4 : 1.5-2 : 2 - 3
+// Long read - Approximate: 5 : 1.5-2 : 2 - 3
 
 #define TR_BRICKCHUNKS_SEQUENCE_MIN 50
-#define TR_BRICKCHUNKS_SEQUENCE_MAX 500
+#define TR_BRICKCHUNKS_SEQUENCE_MAX 625
 
 #define TR_BRICKCHUNKS_LOOKUP_MIN 50
 #define TR_BRICKCHUNKS_LOOKUP_MAX 250
@@ -262,10 +262,12 @@ typedef struct swqBufferStr {
 #include "mem/memSlab.h"
 
 #include "mem/memBricks.h"
+#include "mem/memBricksDouble.h"
+#include "mem/memBricksSingle.h"
 #include "mem/memDispenser.h"
 #include "mem/memPackStack.h"
-#include "mem/memHeap_Circ.h"
-#include "mem/memHeap_Fixed.h"
+#include "mem/memHeapCirc.h"
+#include "mem/memHeapFixed.h"
 #include "mem/memHeap.h"
 
 #include "util/arrayPacking.h"
