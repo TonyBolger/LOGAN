@@ -1,7 +1,7 @@
 
 #include "cliCommon.h"
 
-void runIptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *graph)
+void runIptMaster(char **filePaths, int fileCount, int threadCount, Graph *graph)
 {
 	IndexingBuilder *ib=allocIndexingBuilder(graph, threadCount);
 	createIndexingBuilderWorkers(ib);
@@ -20,8 +20,7 @@ void runIptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 
 	for(int i=0;i<fileCount;i++)
 		{
-		char path[1024];
-		sprintf(path,pathTemplate,fileCount,i);
+		char *path=filePaths[i];
 
 		LOG(LOG_INFO,"Indexing: Parsing %s",path);
 
@@ -44,7 +43,7 @@ void runIptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 }
 
 
-void runRptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *graph)
+void runRptMaster(char **filePaths, int fileCount, int threadCount, Graph *graph)
 {
 	RoutingBuilder *rb=allocRoutingBuilder(graph, threadCount);
 
@@ -65,8 +64,7 @@ void runRptMaster(char *pathTemplate, int fileCount, int threadCount, Graph *gra
 
 	for(int i=0;i<fileCount;i++)
 		{
-		char path[1024];
-		sprintf(path,pathTemplate,fileCount,i);
+		char *path=filePaths[i];
 
 		LOG(LOG_INFO,"Routing: Parsing %s",path);
 
@@ -95,34 +93,21 @@ int main(int argc, char **argv)
 {
 	logInit();
 
-	char *fileTemplate=NULL;
-	int fileCount=0;
-	int threadCountIndexing=0,threadCountRouting=0;
+	// argv[1] = IndexingThreads
+	// argv[2] = RoutingThreads
+	// argv[3..] = Files
 
-	if(argc==3)
+	if(argc<3)
 		{
-		fileTemplate=argv[1];
-		fileCount=atoi(argv[2]);
-		threadCountIndexing=threadCountRouting=fileCount;
-		}
-	else if(argc==4)
-		{
-		fileTemplate=argv[1];
-		fileCount=atoi(argv[2]);
-		threadCountIndexing=threadCountRouting=atoi(argv[3]);
-		}
-	else if(argc==5)
-		{
-		fileTemplate=argv[1];
-		fileCount=atoi(argv[2]);
-		threadCountIndexing=atoi(argv[3]);
-		threadCountRouting=atoi(argv[4]);
-		}
-	else
-		{
-		LOG(LOG_CRITICAL,"Expected arguments: template files");
+		LOG(LOG_CRITICAL,"Expected arguments: indexingThreads routingThreads files...");
 		return 1;
 		}
+
+	int threadCountIndexing=atoi(argv[1]);
+	int threadCountRouting=atoi(argv[2]);
+
+	char **filePaths=argv+3;
+	int fileCount=argc-3;
 
 //	LOG(LOG_INFO,"RoutingReadLookupData: %i (20) RoutingReadData: %i (20) RoutingReadIndexedDataEntry: %i (28)",
 //			sizeof(RoutingReadLookupData), sizeof(RoutingReadData), sizeof(RoutingReadIndexedDataEntry));
@@ -146,7 +131,7 @@ int main(int argc, char **argv)
 	mtDump();
 #endif
 
-	runIptMaster(fileTemplate, fileCount, threadCountIndexing, graph);
+	runIptMaster(filePaths, fileCount, threadCountIndexing, graph);
 
 #ifdef FEATURE_ENABLE_MEMTRACK
 	mtDump();
@@ -162,7 +147,7 @@ int main(int argc, char **argv)
 	mtDump();
 #endif
 
-	runRptMaster(fileTemplate, fileCount, threadCountRouting, graph);
+	runRptMaster(filePaths, fileCount, threadCountRouting, graph);
 
 #ifdef FEATURE_ENABLE_MEMTRACK
 	mtDump();
