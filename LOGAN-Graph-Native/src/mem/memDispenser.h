@@ -39,6 +39,8 @@ typedef struct memDispenserStr
 	int allocated;
 } MemDispenser;
 
+void dumpBigDispenser(MemDispenser *disp);
+void dumpDispenser(MemDispenser *disp);
 
 MemDispenser *dispenserAlloc(int memTrackerId, u32 blocksize, u32 maxBlocksize);
 void dispenserFree(MemDispenser *dispenser);

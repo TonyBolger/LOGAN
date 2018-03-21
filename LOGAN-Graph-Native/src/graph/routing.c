@@ -1177,7 +1177,7 @@ void dumpRoutePatches(char *label, RoutePatch *patches, s32 patchCount)
 
 	for(int i=0;i<patchCount;i++)
 		LOG(LOG_INFO, "Patch %i (%i): %i <-> %i [%i:%i]",i, patches[i].dispatchLinkIndex, patches[i].prefixIndex, patches[i].suffixIndex,
-				(*(patches[i].rdiPtr))->minEdgePosition, (*(patches[i].rdiPtr))->maxEdgePosition);
+				patches[i].rdiPtr->minEdgePosition, patches[i].rdiPtr->maxEdgePosition);
 
 }
 
@@ -1402,14 +1402,14 @@ static int reorderForwardPatchRange_byOffset(RoutePatch **patchBuffers, s32 patc
 
 			while(src1<src1End && src2<src2End)
 				{
-				int offset1=(*(srcBuf[src1].rdiPtr))->minEdgePosition+positionShift;
-				int offset2=(*(srcBuf[src2].rdiPtr))->maxEdgePosition;
+				int offset1=srcBuf[src1].rdiPtr->minEdgePosition+positionShift;
+				int offset2=srcBuf[src2].rdiPtr->maxEdgePosition;
 
 				if(offset1<offset2) // Existing order is ok
 					{
 					*dest=srcBuf[src1++];
-					(*(dest->rdiPtr))->minEdgePosition+=positionShift;
-					(*(dest->rdiPtr))->maxEdgePosition+=positionShift;
+					dest->rdiPtr->minEdgePosition+=positionShift;
+					dest->rdiPtr->maxEdgePosition+=positionShift;
 					dest++;
 					}
 				else
@@ -1422,8 +1422,8 @@ static int reorderForwardPatchRange_byOffset(RoutePatch **patchBuffers, s32 patc
 			while(src1<src1End)
 				{
 				*dest=srcBuf[src1++];
-				(*(dest->rdiPtr))->minEdgePosition+=positionShift;
-				(*(dest->rdiPtr))->maxEdgePosition+=positionShift;
+				dest->rdiPtr->minEdgePosition+=positionShift;
+				dest->rdiPtr->maxEdgePosition+=positionShift;
 				dest++;
 				}
 
@@ -1501,7 +1501,7 @@ static void reorderForwardPatchRange_byDownstream_routed(RoutePatch **patchBuffe
 	//	LOG(LOG_INFO,"Downstream routed sorting %i to %i",patchStart, patchEnd);
 //	dumpRoutePatches("forward", patchBuffers[pingPong]+patchStart, patchCount);
 
-	int maxPosition=(*(patchBuffers[pingPong][patchStart].rdiPtr))->maxEdgePosition;
+	int maxPosition=patchBuffers[pingPong][patchStart].rdiPtr->maxEdgePosition;
 
 	while(inGroupSize<patchCount)
 		{
@@ -1578,7 +1578,7 @@ static void reorderForwardPatchRange_byDownstream_routed(RoutePatch **patchBuffe
 
 	for(int i=patchStart;i<patchEnd;i++)
 		{
-		(*(dest->rdiPtr))->maxEdgePosition=maxPosition++;
+		dest->rdiPtr->maxEdgePosition=maxPosition++;
 		dest++;
 		}
 
@@ -1598,8 +1598,8 @@ static void reorderForwardPatchRange_byDownstream(RoutePatch **patchBuffers, s32
 
 	RoutePatch *groupedPatches=patchBuffers[rangePingPong];
 
-	int firstMinPosition=(*(groupedPatches[patchStart].rdiPtr))->minEdgePosition;
-	int firstMaxPosition=(*(groupedPatches[patchStart].rdiPtr))->maxEdgePosition;
+	int firstMinPosition=groupedPatches[patchStart].rdiPtr->minEdgePosition;
+	int firstMaxPosition=groupedPatches[patchStart].rdiPtr->maxEdgePosition;
 	int firstPosition=patchStart;
 
 	int i=patchStart+1;
@@ -1608,16 +1608,16 @@ static void reorderForwardPatchRange_byDownstream(RoutePatch **patchBuffers, s32
 
 	while(i<patchLast)
 		{
-		int minPosition=(*(groupedPatches[i].rdiPtr))->minEdgePosition;
-		int maxPosition=(*(groupedPatches[i].rdiPtr))->maxEdgePosition;
+		int minPosition=groupedPatches[i].rdiPtr->minEdgePosition;
+		int maxPosition=groupedPatches[i].rdiPtr->maxEdgePosition;
 
 		if(firstMinPosition==TR_INIT_MINEDGEPOSITION && firstMaxPosition==TR_INIT_MAXEDGEPOSITION) // Unrouted range
 			{
 			while(i<patchLast && minPosition==TR_INIT_MINEDGEPOSITION && maxPosition==TR_INIT_MAXEDGEPOSITION)
 				{
 				i++;
-				minPosition=(*(groupedPatches[i].rdiPtr))->minEdgePosition;
-				maxPosition=(*(groupedPatches[i].rdiPtr))->maxEdgePosition;
+				minPosition=groupedPatches[i].rdiPtr->minEdgePosition;
+				maxPosition=groupedPatches[i].rdiPtr->maxEdgePosition;
 				}
 
 			reorderForwardPatchRange_byDownstream_unrouted(patchBuffers, firstPosition, i, rangePingPong);
@@ -1629,8 +1629,8 @@ static void reorderForwardPatchRange_byDownstream(RoutePatch **patchBuffers, s32
 			while(i<patchLast && minPosition==firstMinPosition && maxPosition==expectedMaxPosition)
 				{
 				i++;
-				minPosition=(*(groupedPatches[i].rdiPtr))->minEdgePosition;
-				maxPosition=(*(groupedPatches[i].rdiPtr))->maxEdgePosition;
+				minPosition=groupedPatches[i].rdiPtr->minEdgePosition;
+				maxPosition=groupedPatches[i].rdiPtr->maxEdgePosition;
 
 				expectedMaxPosition++;
 				}
@@ -1890,14 +1890,14 @@ static int reorderReversePatchRange_byOffset(RoutePatch **patchBuffers, s32 patc
 
 			while(src1<src1End && src2<src2End)
 				{
-				int offset1=(*(srcBuf[src1].rdiPtr))->minEdgePosition+positionShift;
-				int offset2=(*(srcBuf[src2].rdiPtr))->maxEdgePosition;
+				int offset1=srcBuf[src1].rdiPtr->minEdgePosition+positionShift;
+				int offset2=srcBuf[src2].rdiPtr->maxEdgePosition;
 
 				if(offset1<offset2) // Existing order is ok
 					{
 					*dest=srcBuf[src1++];
-					(*(dest->rdiPtr))->minEdgePosition+=positionShift;
-					(*(dest->rdiPtr))->maxEdgePosition+=positionShift;
+					dest->rdiPtr->minEdgePosition+=positionShift;
+					dest->rdiPtr->maxEdgePosition+=positionShift;
 					dest++;
 					}
 				else
@@ -1910,8 +1910,8 @@ static int reorderReversePatchRange_byOffset(RoutePatch **patchBuffers, s32 patc
 			while(src1<src1End)
 				{
 				*dest=srcBuf[src1++];
-				(*(dest->rdiPtr))->minEdgePosition+=positionShift;
-				(*(dest->rdiPtr))->maxEdgePosition+=positionShift;
+				dest->rdiPtr->minEdgePosition+=positionShift;
+				dest->rdiPtr->maxEdgePosition+=positionShift;
 				dest++;
 				}
 
@@ -1989,7 +1989,7 @@ static void reorderReversePatchRange_byDownstream_routed(RoutePatch **patchBuffe
 	//	LOG(LOG_INFO,"Downstream routed sorting %i to %i",patchStart, patchEnd);
 //	dumpRoutePatches("forward", patchBuffers[pingPong]+patchStart, patchCount);
 
-	int maxPosition=(*(patchBuffers[pingPong][patchStart].rdiPtr))->maxEdgePosition;
+	int maxPosition=patchBuffers[pingPong][patchStart].rdiPtr->maxEdgePosition;
 
 	while(inGroupSize<patchCount)
 		{
@@ -2066,7 +2066,7 @@ static void reorderReversePatchRange_byDownstream_routed(RoutePatch **patchBuffe
 
 	for(int i=patchStart;i<patchEnd;i++)
 		{
-		(*(dest->rdiPtr))->maxEdgePosition=maxPosition++;
+		dest->rdiPtr->maxEdgePosition=maxPosition++;
 		dest++;
 		}
 
@@ -2086,8 +2086,8 @@ static void reorderReversePatchRange_byDownstream(RoutePatch **patchBuffers, s32
 
 	RoutePatch *groupedPatches=patchBuffers[rangePingPong];
 
-	int firstMinPosition=(*(groupedPatches[patchStart].rdiPtr))->minEdgePosition;
-	int firstMaxPosition=(*(groupedPatches[patchStart].rdiPtr))->maxEdgePosition;
+	int firstMinPosition=groupedPatches[patchStart].rdiPtr->minEdgePosition;
+	int firstMaxPosition=groupedPatches[patchStart].rdiPtr->maxEdgePosition;
 	int firstPosition=patchStart;
 
 	int i=patchStart+1;
@@ -2096,16 +2096,16 @@ static void reorderReversePatchRange_byDownstream(RoutePatch **patchBuffers, s32
 
 	while(i<patchLast)
 		{
-		int minPosition=(*(groupedPatches[i].rdiPtr))->minEdgePosition;
-		int maxPosition=(*(groupedPatches[i].rdiPtr))->maxEdgePosition;
+		int minPosition=groupedPatches[i].rdiPtr->minEdgePosition;
+		int maxPosition=groupedPatches[i].rdiPtr->maxEdgePosition;
 
 		if(firstMinPosition==TR_INIT_MINEDGEPOSITION && firstMaxPosition==TR_INIT_MAXEDGEPOSITION) // Unrouted range
 			{
 			while(i<patchLast && minPosition==TR_INIT_MINEDGEPOSITION && maxPosition==TR_INIT_MAXEDGEPOSITION)
 				{
 				i++;
-				minPosition=(*(groupedPatches[i].rdiPtr))->minEdgePosition;
-				maxPosition=(*(groupedPatches[i].rdiPtr))->maxEdgePosition;
+				minPosition=groupedPatches[i].rdiPtr->minEdgePosition;
+				maxPosition=groupedPatches[i].rdiPtr->maxEdgePosition;
 				}
 
 			reorderReversePatchRange_byDownstream_unrouted(patchBuffers, firstPosition, i, rangePingPong);
@@ -2117,8 +2117,8 @@ static void reorderReversePatchRange_byDownstream(RoutePatch **patchBuffers, s32
 			while(i<patchLast && minPosition==firstMinPosition && maxPosition==expectedMaxPosition)
 				{
 				i++;
-				minPosition=(*(groupedPatches[i].rdiPtr))->minEdgePosition;
-				maxPosition=(*(groupedPatches[i].rdiPtr))->maxEdgePosition;
+				minPosition=groupedPatches[i].rdiPtr->minEdgePosition;
+				maxPosition=groupedPatches[i].rdiPtr->maxEdgePosition;
 
 				expectedMaxPosition++;
 				}
@@ -2263,7 +2263,7 @@ static void createRoutePatches(RoutingIndexedDispatchLinkIndexBlock *rdi, int en
 				int prefixLength=rdd->smers[index].seqIndexOffset;
 				int suffixLength=rdd->smers[index+1].seqIndexOffset;
 
-				forwardPatches[forwardCount].rdiPtr=rdi->linkEntries+i;
+				forwardPatches[forwardCount].rdiPtr=rdi->linkEntries[i];
 				forwardPatches[forwardCount].dispatchLinkIndex=rdi->linkIndexEntries[i];
 
 				forwardPatches[forwardCount].prefixIndex=stFindOrCreateSeqTail(prefixBuilder, prefixSmer, prefixLength);
@@ -2299,7 +2299,7 @@ static void createRoutePatches(RoutingIndexedDispatchLinkIndexBlock *rdi, int en
 				int prefixLength=rdd->smers[index+1].seqIndexOffset;
 				int suffixLength=rdd->smers[index].seqIndexOffset;
 
-				reversePatches[reverseCount].rdiPtr=rdi->linkEntries+i;
+				reversePatches[reverseCount].rdiPtr=rdi->linkEntries[i];
 				reversePatches[reverseCount].dispatchLinkIndex=rdi->linkIndexEntries[i];
 
 				reversePatches[reverseCount].prefixIndex=stFindOrCreateSeqTail(prefixBuilder, prefixSmer, prefixLength);

@@ -1084,8 +1084,8 @@ static void rttMergeRoutes_ordered_forwardMulti(RouteTableTreeBuilder *builder, 
 	{
 		s32 targetUpstream=patchPtr->prefixIndex;
 		s32 targetDownstream=patchPtr->suffixIndex;
-		s32 minEdgePosition=(*(patchPtr->rdiPtr))->minEdgePosition;
-		s32 maxEdgePosition=(*(patchPtr->rdiPtr))->maxEdgePosition;
+		s32 minEdgePosition=patchPtr->rdiPtr->minEdgePosition;
+		s32 maxEdgePosition=patchPtr->rdiPtr->maxEdgePosition;
 
 //		LOG(LOG_INFO,"Patch: P: %i S: %i [%i %i]",targetUpstream, targetDownstream, minEdgePosition, maxEdgePosition);
 
@@ -1095,7 +1095,7 @@ static void rttMergeRoutes_ordered_forwardMulti(RouteTableTreeBuilder *builder, 
 		if(minEdgePosition!=TR_INIT_MINEDGEPOSITION || maxEdgePosition!=TR_INIT_MAXEDGEPOSITION)
 			{
 			while(patchGroupPtr<patchPtrEnd && patchGroupPtr->prefixIndex==targetUpstream && patchGroupPtr->suffixIndex==targetDownstream &&
-					(*(patchGroupPtr->rdiPtr))->minEdgePosition == minEdgePosition && (*(patchGroupPtr->rdiPtr))->maxEdgePosition == expectedMaxEdgePosition)
+					patchGroupPtr->rdiPtr->minEdgePosition == minEdgePosition && patchGroupPtr->rdiPtr->maxEdgePosition == expectedMaxEdgePosition)
 				{
 				patchGroupPtr++;
 				expectedMaxEdgePosition++;
@@ -1104,7 +1104,7 @@ static void rttMergeRoutes_ordered_forwardMulti(RouteTableTreeBuilder *builder, 
 		else
 			{
 			while(patchGroupPtr<patchPtrEnd && patchGroupPtr->prefixIndex==targetUpstream && patchGroupPtr->suffixIndex==targetDownstream &&
-					(*(patchGroupPtr->rdiPtr))->minEdgePosition == TR_INIT_MINEDGEPOSITION && (*(patchGroupPtr->rdiPtr))->maxEdgePosition == TR_INIT_MAXEDGEPOSITION)
+					patchGroupPtr->rdiPtr->minEdgePosition == TR_INIT_MINEDGEPOSITION && patchGroupPtr->rdiPtr->maxEdgePosition == TR_INIT_MAXEDGEPOSITION)
 				patchGroupPtr++;
 			}
 /*
@@ -1250,16 +1250,16 @@ static void rttMergeRoutes_ordered_forwardMulti(RouteTableTreeBuilder *builder, 
 			// LOG(LOG_INFO,"Handoff %i %i",downstreamEdgeOffset,downstreamEdgeOffset);
 
 			// Map offsets to new entry
-			(*(patchPtr->rdiPtr))->minEdgePosition=downstreamEdgeOffset;
-			(*(patchPtr->rdiPtr))->maxEdgePosition=downstreamEdgeOffset;
+			patchPtr->rdiPtr->minEdgePosition=downstreamEdgeOffset;
+			patchPtr->rdiPtr->maxEdgePosition=downstreamEdgeOffset;
 
 			patchPtr++;
 			int width=1;
 
 			while(patchPtr<patchGroupPtr) // Remaining entries in group gain width
 				{
-				(*(patchPtr->rdiPtr))->minEdgePosition=downstreamEdgeOffset;
-				(*(patchPtr->rdiPtr))->maxEdgePosition=downstreamEdgeOffset+width;
+				patchPtr->rdiPtr->minEdgePosition=downstreamEdgeOffset;
+				patchPtr->rdiPtr->maxEdgePosition=downstreamEdgeOffset+width;
 
 				patchPtr++;
 				width++;
@@ -1299,8 +1299,8 @@ static void rttMergeRoutes_ordered_forwardMulti(RouteTableTreeBuilder *builder, 
 	//		LOG(LOG_INFO,"Handoff %i %i",downstreamEdgeOffset+minOffset,downstreamEdgeOffset+maxOffset);
 
 			// Map offsets to new entry
-			(*(patchPtr->rdiPtr))->minEdgePosition=downstreamEdgeOffset+minOffset;
-			(*(patchPtr->rdiPtr))->maxEdgePosition=downstreamEdgeOffset+maxOffset;
+			patchPtr->rdiPtr->minEdgePosition=downstreamEdgeOffset+minOffset;
+			patchPtr->rdiPtr->maxEdgePosition=downstreamEdgeOffset+maxOffset;
 
 //			LOG(LOG_INFO,"Handoff %i %i to RDI: %p",downstreamEdgeOffset+minOffset,downstreamEdgeOffset+maxOffset, (*(patchPtr->rdiPtr)));
 
@@ -1309,9 +1309,9 @@ static void rttMergeRoutes_ordered_forwardMulti(RouteTableTreeBuilder *builder, 
 
 			while(patchPtr<patchGroupPtr) // Remaining entries in group gain width
 				{
-				(*(patchPtr->rdiPtr))->minEdgePosition=downstreamEdgeOffset+minOffset;
+				patchPtr->rdiPtr->minEdgePosition=downstreamEdgeOffset+minOffset;
 				//(*(patchPtr->rdiPtr))->maxEdgePosition=downstreamEdgeOffset+width;
-				(*(patchPtr->rdiPtr))->maxEdgePosition=downstreamEdgeOffset+maxOffset+width;
+				patchPtr->rdiPtr->maxEdgePosition=downstreamEdgeOffset+maxOffset+width;
 
 //				LOG(LOG_INFO,"Handoff %i %i to RDI: %p",downstreamEdgeOffset+minOffset,downstreamEdgeOffset+maxOffset);
 
@@ -1343,16 +1343,16 @@ static void rttMergeRoutes_ordered_forwardMulti(RouteTableTreeBuilder *builder, 
 			//LOG(LOG_INFO,"Handoff %i %i",downstreamEdgeOffset,downstreamEdgeOffset);
 
 			// Map offsets
-			(*(patchPtr->rdiPtr))->minEdgePosition=downstreamEdgeOffset;
-			(*(patchPtr->rdiPtr))->maxEdgePosition=downstreamEdgeOffset;
+			patchPtr->rdiPtr->minEdgePosition=downstreamEdgeOffset;
+			patchPtr->rdiPtr->maxEdgePosition=downstreamEdgeOffset;
 
 			patchPtr++;
 			int width=1;
 
 			while(patchPtr<patchGroupPtr) // Remaining entries in group gain width
 				{
-				(*(patchPtr->rdiPtr))->minEdgePosition=downstreamEdgeOffset;
-				(*(patchPtr->rdiPtr))->maxEdgePosition=downstreamEdgeOffset+width;
+				patchPtr->rdiPtr->minEdgePosition=downstreamEdgeOffset;
+				patchPtr->rdiPtr->maxEdgePosition=downstreamEdgeOffset+width;
 
 				patchPtr++;
 				width++;
@@ -1606,8 +1606,8 @@ static void rttMergeRoutes_ordered_reverseMulti(RouteTableTreeBuilder *builder, 
 	{
 		s32 targetUpstream=patchPtr->suffixIndex;
 		s32 targetDownstream=patchPtr->prefixIndex;
-		s32 minEdgePosition=(*(patchPtr->rdiPtr))->minEdgePosition;
-		s32 maxEdgePosition=(*(patchPtr->rdiPtr))->maxEdgePosition;
+		s32 minEdgePosition=patchPtr->rdiPtr->minEdgePosition;
+		s32 maxEdgePosition=patchPtr->rdiPtr->maxEdgePosition;
 
 //		LOG(LOG_INFO,"Patch: P: %i S: %i [%i %i]",targetUpstream, targetDownstream, minEdgePosition, maxEdgePosition);
 
@@ -1617,7 +1617,7 @@ static void rttMergeRoutes_ordered_reverseMulti(RouteTableTreeBuilder *builder, 
 		if(minEdgePosition!=TR_INIT_MINEDGEPOSITION || maxEdgePosition!=TR_INIT_MAXEDGEPOSITION)
 			{
 			while(patchGroupPtr<patchPtrEnd && patchGroupPtr->suffixIndex==targetUpstream && patchGroupPtr->prefixIndex==targetDownstream &&
-					(*(patchGroupPtr->rdiPtr))->minEdgePosition == minEdgePosition && (*(patchGroupPtr->rdiPtr))->maxEdgePosition == expectedMaxEdgePosition)
+					patchGroupPtr->rdiPtr->minEdgePosition == minEdgePosition && patchGroupPtr->rdiPtr->maxEdgePosition == expectedMaxEdgePosition)
 				{
 				patchGroupPtr++;
 				expectedMaxEdgePosition++;
@@ -1626,7 +1626,7 @@ static void rttMergeRoutes_ordered_reverseMulti(RouteTableTreeBuilder *builder, 
 		else
 			{
 			while(patchGroupPtr<patchPtrEnd && patchGroupPtr->suffixIndex==targetUpstream && patchGroupPtr->prefixIndex==targetDownstream &&
-					(*(patchGroupPtr->rdiPtr))->minEdgePosition == TR_INIT_MINEDGEPOSITION && (*(patchGroupPtr->rdiPtr))->maxEdgePosition == TR_INIT_MAXEDGEPOSITION)
+					patchGroupPtr->rdiPtr->minEdgePosition == TR_INIT_MINEDGEPOSITION && patchGroupPtr->rdiPtr->maxEdgePosition == TR_INIT_MAXEDGEPOSITION)
 				patchGroupPtr++;
 			}
 /*
@@ -1796,16 +1796,16 @@ static void rttMergeRoutes_ordered_reverseMulti(RouteTableTreeBuilder *builder, 
 			// LOG(LOG_INFO,"Handoff %i %i",downstreamEdgeOffset,downstreamEdgeOffset);
 
 			// Map offsets to new entry
-			(*(patchPtr->rdiPtr))->minEdgePosition=downstreamEdgeOffset;
-			(*(patchPtr->rdiPtr))->maxEdgePosition=downstreamEdgeOffset;
+			patchPtr->rdiPtr->minEdgePosition=downstreamEdgeOffset;
+			patchPtr->rdiPtr->maxEdgePosition=downstreamEdgeOffset;
 
 			patchPtr++;
 			int width=1;
 
 			while(patchPtr<patchGroupPtr) // Remaining entries in group gain width
 				{
-				(*(patchPtr->rdiPtr))->minEdgePosition=downstreamEdgeOffset;
-				(*(patchPtr->rdiPtr))->maxEdgePosition=downstreamEdgeOffset+width;
+				patchPtr->rdiPtr->minEdgePosition=downstreamEdgeOffset;
+				patchPtr->rdiPtr->maxEdgePosition=downstreamEdgeOffset+width;
 
 				patchPtr++;
 				width++;
@@ -1845,8 +1845,8 @@ static void rttMergeRoutes_ordered_reverseMulti(RouteTableTreeBuilder *builder, 
 	//		LOG(LOG_INFO,"Handoff %i %i",downstreamEdgeOffset+minOffset,downstreamEdgeOffset+maxOffset);
 
 			// Map offsets to new entry
-			(*(patchPtr->rdiPtr))->minEdgePosition=downstreamEdgeOffset+minOffset;
-			(*(patchPtr->rdiPtr))->maxEdgePosition=downstreamEdgeOffset+maxOffset;
+			patchPtr->rdiPtr->minEdgePosition=downstreamEdgeOffset+minOffset;
+			patchPtr->rdiPtr->maxEdgePosition=downstreamEdgeOffset+maxOffset;
 
 //			LOG(LOG_INFO,"Handoff %i %i to RDI: %p",downstreamEdgeOffset+minOffset,downstreamEdgeOffset+maxOffset, (*(patchPtr->rdiPtr)));
 
@@ -1855,9 +1855,9 @@ static void rttMergeRoutes_ordered_reverseMulti(RouteTableTreeBuilder *builder, 
 
 			while(patchPtr<patchGroupPtr) // Remaining entries in group gain width
 				{
-				(*(patchPtr->rdiPtr))->minEdgePosition=downstreamEdgeOffset+minOffset;
+				patchPtr->rdiPtr->minEdgePosition=downstreamEdgeOffset+minOffset;
 				//(*(patchPtr->rdiPtr))->maxEdgePosition=downstreamEdgeOffset+width;
-				(*(patchPtr->rdiPtr))->maxEdgePosition=downstreamEdgeOffset+maxOffset+width;
+				patchPtr->rdiPtr->maxEdgePosition=downstreamEdgeOffset+maxOffset+width;
 
 //				LOG(LOG_INFO,"Handoff %i %i to RDI: %p",downstreamEdgeOffset+minOffset,downstreamEdgeOffset+maxOffset);
 
@@ -1889,16 +1889,16 @@ static void rttMergeRoutes_ordered_reverseMulti(RouteTableTreeBuilder *builder, 
 			//LOG(LOG_INFO,"Handoff %i %i",downstreamEdgeOffset,downstreamEdgeOffset);
 
 			// Map offsets
-			(*(patchPtr->rdiPtr))->minEdgePosition=downstreamEdgeOffset;
-			(*(patchPtr->rdiPtr))->maxEdgePosition=downstreamEdgeOffset;
+			patchPtr->rdiPtr->minEdgePosition=downstreamEdgeOffset;
+			patchPtr->rdiPtr->maxEdgePosition=downstreamEdgeOffset;
 
 			patchPtr++;
 			int width=1;
 
 			while(patchPtr<patchGroupPtr) // Remaining entries in group gain width
 				{
-				(*(patchPtr->rdiPtr))->minEdgePosition=downstreamEdgeOffset;
-				(*(patchPtr->rdiPtr))->maxEdgePosition=downstreamEdgeOffset+width;
+				patchPtr->rdiPtr->minEdgePosition=downstreamEdgeOffset;
+				patchPtr->rdiPtr->maxEdgePosition=downstreamEdgeOffset+width;
 
 				patchPtr++;
 				width++;

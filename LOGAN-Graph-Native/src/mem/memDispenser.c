@@ -2,6 +2,47 @@
 #include "common.h"
 
 
+void dumpBigDispenser(MemDispenser *disp)
+{
+	int totalBlocksize=0;
+
+	MemDispenserBlock *block=disp->block;
+
+	while(block!=NULL)
+		{
+		totalBlocksize+=block->blocksize;
+		block=block->prev;
+		}
+
+	if(totalBlocksize>2000000)
+		{
+		double ratio=((double)disp->allocated)/totalBlocksize;
+		LOG(LOG_INFO,"DispenserDump: %s - %i of %i (%02.2lf)", MEMTRACKER_NAMES[disp->memTrackerId], disp->allocated, totalBlocksize, ratio);
+		}
+}
+
+void dumpDispenser(MemDispenser *disp)
+{
+	int totalBlocksize=0;
+
+	LOG(LOG_INFO,"DispenserDump: %s",MEMTRACKER_NAMES[disp->memTrackerId]);
+
+	MemDispenserBlock *block=disp->block;
+
+	while(block!=NULL)
+		{
+		double ratio=((double)block->allocated)/block->blocksize;
+
+		LOG(LOG_INFO,"    Block: %i of %i (%02.2lf)", block->allocated, block->blocksize, ratio);
+		totalBlocksize+=block->blocksize;
+		block=block->prev;
+		}
+
+	double ratio=((double)disp->allocated)/totalBlocksize;
+
+	LOG(LOG_INFO,"Total: %i of %i (%02.2lf)", disp->allocated, totalBlocksize, ratio);
+
+}
 
 static MemDispenserBlock *dispenserBlockAlloc(int memTrackerId, s32 blocksize)
 {

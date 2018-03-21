@@ -68,7 +68,7 @@ typedef struct dispatchLinkStr {
 
 typedef struct routePatchStr
 {
-	DispatchLink **rdiPtr; // Needs double ptr to enable sorting by inbound position
+	DispatchLink *rdiPtr;
 	u32 dispatchLinkIndex;
 
 	s32 prefixIndex;

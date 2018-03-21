@@ -25,6 +25,8 @@ typedef struct sequenceLinkStr {
 	u32 nextIndex;			// Index of next SequenceLink in chain (or LINK_DUMMY at end)
 	u8 length;				// Length of packed sequence (in bp)
 	u8 position;			// Position of next base for lookup (in bp, from start of this brick)
+	u8 pad1;
+	u8 pad2;
 	u8 packedSequence[SEQUENCE_LINK_BYTES];	// Packed sequence (2bits per bp) - up to 224 bases2
 } SequenceLink;
 

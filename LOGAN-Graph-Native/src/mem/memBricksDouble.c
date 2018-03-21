@@ -203,7 +203,7 @@ static s32 doubleBrickAttemptPileReserveOrExpand(MemDoubleBrickPile *pile, s32 r
 
 			while(freeCount < (resRequest+pileMargin) && chunkCount < pile->chunkLimit)
 				{
-				LOG(LOG_INFO,"Expand DoubleBrick pile");
+//				LOG(LOG_INFO,"Expand DoubleBrick pile");
 				initDoubleBrickChunk(pile);
 				freeCount=__atomic_load_n(&(pile->freeCount), __ATOMIC_RELAXED);
 				}

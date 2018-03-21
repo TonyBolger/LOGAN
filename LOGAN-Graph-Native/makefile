@@ -32,6 +32,7 @@ CLI_OBJS += \
 ./bin/cli/common/graph/routeTablePacking.o \
 ./bin/cli/common/graph/routeTable.o \
 ./bin/cli/common/graph/routeTableArray.o \
+./bin/cli/common/graph/routeTableTags.o \
 ./bin/cli/common/graph/routeTableTree.o \
 ./bin/cli/common/graph/routeTableTreeArray.o \
 ./bin/cli/common/graph/routeTableTreeBranch.o \
@@ -83,6 +84,7 @@ JNI_OBJS += \
 ./bin/jni/common/graph/routeTablePacking.o \
 ./bin/jni/common/graph/routeTable.o \
 ./bin/jni/common/graph/routeTableArray.o \
+./bin/jni/common/graph/routeTableTags.o \
 ./bin/jni/common/graph/routeTableTree.o \
 ./bin/jni/common/graph/routeTableTreeArray.o \
 ./bin/jni/common/graph/routeTableTreeBranch.o \
