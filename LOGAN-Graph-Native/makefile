@@ -23,7 +23,8 @@ JNI_INC=-I/usr/lib/jvm/java/include/ -I/usr/lib/jvm/java/include/linux/ -I"./jni
 
 #CLI_LIBS = -lrt -lpthread 
 #CLI_LIBS = -lrt -lpthread -lmemkind
-CLI_LIBS = -lrt -lpthread -lprofiler -ljemalloc
+CLI_LIBS = -lrt -lpthread -lprofiler 
+#CLI_LIBS = -lrt -lpthread -lprofiler -ljemalloc
 #CLI_LIBS = -lrt -lpthread -lmemkind -lprofiler
 
 CLI_OBJS += \
