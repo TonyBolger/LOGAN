@@ -181,7 +181,7 @@ static int readBufferedFastaValidSequence(u8 *ioBuffer, int *offset, FastaParser
 	u8 *inPtr=ioBuffer+*offset;
 
 	SequenceWithQuality *swq=fastaRec->currentRecord;
-	int outLength=swq->length;
+	int outLength=swq->seqLength;
 	u8 *outPtr=swq->seq+outLength;
 
 	ch=*inPtr;
@@ -241,7 +241,7 @@ static int readBufferedFastaValidSequence(u8 *ioBuffer, int *offset, FastaParser
 		fastaRec->parserState=newState;
 
 	*offset=inPtr-ioBuffer;
-	swq->length=outLength;
+	swq->seqLength=outLength;
 
 	return 0;
 }
@@ -350,12 +350,16 @@ s64 faParseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 recor
 
 	swqBuffers[currentBuffer].rec[batchReadCount].seq=swqBuffers[currentBuffer].seqBuffer;
 	swqBuffers[currentBuffer].rec[batchReadCount].qual=NULL;
+	swqBuffers[currentBuffer].rec[batchReadCount].tagData=swqBuffers[currentBuffer].tagBuffer;
+
+	*((u32 *)(swqBuffers[currentBuffer].rec[batchReadCount].tagData))=0;
+	swqBuffers[currentBuffer].rec[batchReadCount].tagLength=4;
 
 	FastaParserState fastaParser;
 	fastaParser.parserState=PARSER_STATE_HEADER;
 
 	fastaParser.currentRecord=swqBuffers[currentBuffer].rec+batchReadCount;
-	fastaParser.currentRecord->length=0;
+	fastaParser.currentRecord->seqLength=0;
 	fastaParser.sequenceName[0]=0;
 
 	int ioOffset=0;
@@ -365,6 +369,7 @@ s64 faParseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 recor
 	if(ioBufferValid<ioBufferEnd)
 		ioBuffer[ioBufferValid]=0;
 
+	s64 totalSequences=0;
 	s64 totalBatch=0;
 	int len=0;
 
@@ -377,6 +382,7 @@ s64 faParseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 recor
 			{
 			case PARSER_STATE_HEADER:
 				ret=readBufferedFastaRecordHeader(ioBuffer, &ioOffset, &fastaParser);
+				totalSequences++;
 				break;
 
 			case PARSER_STATE_TRIM:
@@ -389,7 +395,7 @@ s64 faParseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 recor
 
 			}
 
-		len=fastaParser.currentRecord->length;
+		len=fastaParser.currentRecord->seqLength;
 		//LOG(LOG_INFO,"Frag length: %i", fastaParser.currentRecord->length);
 		if((len>=FASTA_SEQUENCE_VALID_MAX_LENGTH) || (fastaParser.parserState!=PARSER_STATE_SEQUENCE && len>0))
 			{
@@ -413,13 +419,17 @@ s64 faParseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 recor
 					}
 
 				fastaParser.currentRecord=swqBuffers[currentBuffer].rec+batchReadCount;
-				fastaParser.currentRecord->length=0;
+				fastaParser.currentRecord->seqLength=0;
 				}
 
 			swqBuffers[currentBuffer].rec[batchReadCount].seq=swqBuffers[currentBuffer].seqBuffer+batchBaseCount;
 			swqBuffers[currentBuffer].rec[batchReadCount].qual=NULL;
+			swqBuffers[currentBuffer].rec[batchReadCount].tagData=swqBuffers[currentBuffer].tagBuffer;
 
-			fastaParser.currentRecord->length=0; //
+			*((u32 *)(swqBuffers[currentBuffer].rec[batchReadCount].tagData))=(u32)totalBatch;
+			swqBuffers[currentBuffer].rec[batchReadCount].tagLength=4;
+
+			fastaParser.currentRecord->seqLength=0; //
 			}
 
 		if(ioOffset>ioBufferPrimarySize)
@@ -446,88 +456,6 @@ s64 faParseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 recor
 		totalBatch+=batchReadCount;
 		}
 
-	//int headerLen=
-
-
-
-
-
-
-	/*
-
-	int len = readBufferedFastaRecord(ioBuffer, &ioOffset, swqBuffers[currentBuffer].rec, maxBasesPerRead);
-	swqBuffers[currentBuffer].rec[batchReadCount].length=len;
-
-	while(len>0 && validRecordCount<lastRecord)
-		{
-		char *seq=swqBuffers[currentBuffer].rec[batchReadCount].seq;
-		if((len>=minSeqLength) && (strchr(seq,'N')==NULL))
-			{
-			if(validRecordCount>=recordsToSkip)
-				{
-				batchReadCount++;
-				batchBaseCount+=((len+3)&0xFFFFFFFC); // Round up to Dword
-
-				if((batchReadCount>=maxReads) || batchBaseCount>=(maxBases-maxBasesPerRead))
-					{
-					swqBuffers[currentBuffer].numSequences=batchReadCount;
-
-					(*handler)(swqBuffers+currentBuffer, ingressBuffers+currentBuffer, handlerContext);
-					totalBatch+=batchReadCount;
-					batchReadCount=0;
-					batchBaseCount=0;
-
-					currentBuffer=(currentBuffer+1)%PT_INGRESS_BUFFERS;
-					waitForBufferIdle(&swqBuffers[currentBuffer].usageCount);
-					}
-
-				progressCounter++;
-				usedRecords++;
-
-				if(progressCounter >= 1000000)
-					{
-					LOG(LOG_INFO,"Reads: %li", usedRecords);
-
-					if(monitor!=NULL)
-						(*monitor)();
-
-					progressCounter=0;
-					}
-				}
-
-			validRecordCount++;
-			}
-
-		allRecordCount++;
-
-		swqBuffers[currentBuffer].rec[batchReadCount].seq=swqBuffers[currentBuffer].seqBuffer+batchBaseCount;
-		swqBuffers[currentBuffer].rec[batchReadCount].qual=swqBuffers[currentBuffer].qualBuffer+batchBaseCount;
-
-		if(ioOffset>ioBufferPrimarySize)
-			{
-			int remaining=ioBufferValid-ioOffset;
-			memcpy(ioBuffer,ioBuffer+ioOffset,remaining);
-			ioOffset=0;
-
-			ioBufferValid=remaining+fread(ioBuffer+remaining,1,ioBufferRecycleSize+ioBufferPrimarySize-remaining,file);
-			if(ioBufferValid<ioBufferEnd)
-				ioBuffer[ioBufferValid]=0;
-			}
-
-		len=readBufferedFastaRecord(ioBuffer, &ioOffset, swqBuffers[currentBuffer].rec+batchReadCount, maxBasesPerRead);
-
-		swqBuffers[currentBuffer].rec[batchReadCount].length=len;
-		}
-
-	if(batchReadCount>0)
-		{
-		swqBuffers[currentBuffer].numSequences=batchReadCount;
-
-		(*handler)(swqBuffers+currentBuffer,ingressBuffers+currentBuffer, handlerContext);
-		totalBatch+=batchReadCount;
-		}
-
-*/
 
 	/*
 	LOG(LOG_INFO,"Used %li %li",usedRecords,totalBatch);
@@ -551,12 +479,10 @@ s64 faParseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 recor
 			}
 		}
 */
+
 	fclose(file);
 
-	//return usedRecords;
-
-
-	return 0;
+	return totalSequences;
 }
 
 

@@ -1,12 +1,12 @@
 #include "common.h"
 
 
-static void initSequenceBuffer(SwqBuffer *swqBuffer, int bufSize, int recordsPerBatch, int maxReadLength)
+static void initSequenceBuffer(SwqBuffer *swqBuffer, int maxBasesPerBatch, int maxTagPerBatch, int recordsPerBatch, int maxSequenceLength, int maxTagLength)
 {
-	if(bufSize>0)
+	if(maxBasesPerBatch>0)
 		{
-		swqBuffer->seqBuffer=G_ALLOC(bufSize, MEMTRACKID_SWQ);
-		swqBuffer->qualBuffer=G_ALLOC(bufSize, MEMTRACKID_SWQ);
+		swqBuffer->seqBuffer=G_ALLOC(maxBasesPerBatch, MEMTRACKID_SWQ);
+		swqBuffer->qualBuffer=G_ALLOC(maxBasesPerBatch, MEMTRACKID_SWQ);
 		}
 	else
 		{
@@ -14,11 +14,22 @@ static void initSequenceBuffer(SwqBuffer *swqBuffer, int bufSize, int recordsPer
 		swqBuffer->qualBuffer=NULL;
 		}
 
+	if(maxTagPerBatch>0)
+		{
+		swqBuffer->tagBuffer=G_ALLOC(maxTagPerBatch, MEMTRACKID_SWQ);
+		}
+	else
+		swqBuffer->tagBuffer=NULL;
+
 	swqBuffer->rec=G_ALLOC(sizeof(SequenceWithQuality)*recordsPerBatch, MEMTRACKID_SWQ);
 
-	swqBuffer->maxSequenceTotalLength=bufSize;
+	swqBuffer->maxSequenceTotalLength=maxBasesPerBatch;
+	swqBuffer->maxTagTotalLength=maxTagPerBatch;
+
 	swqBuffer->maxSequences=recordsPerBatch;
-	swqBuffer->maxSequenceLength=maxReadLength;
+	swqBuffer->maxSequenceLength=maxSequenceLength;
+	swqBuffer->maxTagLength=maxTagLength;
+
 	swqBuffer->numSequences=0;
 	swqBuffer->usageCount=0;
 
@@ -33,7 +44,7 @@ void prInitParseBuffer(ParseBuffer *parseBuffer)
 		parseBuffer->ingressBuffers[i].ingressPtr=NULL;
 		parseBuffer->ingressBuffers[i].ingressTotal=0;
 		parseBuffer->ingressBuffers[i].ingressUsageCount=NULL;
-		initSequenceBuffer(parseBuffer->swqBuffers+i, PARSER_BASES_PER_BATCH, PARSER_SEQ_PER_BATCH, PARSER_MAX_SEQ_LENGTH);
+		initSequenceBuffer(parseBuffer->swqBuffers+i, PARSER_BASES_PER_BATCH, PARSER_TAG_PER_BATCH, PARSER_SEQ_PER_BATCH, PARSER_MAX_SEQ_LENGTH, PARSER_MAX_TAG_LENGTH);
 		}
 }
 

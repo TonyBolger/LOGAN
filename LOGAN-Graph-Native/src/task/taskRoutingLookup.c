@@ -1536,7 +1536,7 @@ int scanForAndDispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb)
 		lookupReadBlock->smerEntryLookups[i]=NULL;
 		}
 
-	dumpBigDispenser(lookupReadBlock->disp);
+	//dumpBigDispenser(lookupReadBlock->disp);
 	dispenserReset(lookupReadBlock->disp);
 
 	__atomic_thread_fence(__ATOMIC_SEQ_CST);
@@ -1594,7 +1594,7 @@ static RoutingReadLookupRecycleBlock *queueLookupBlockFromRecycleList(RoutingBui
 			MemDispenser *recycleDisp=recycleList->disp;
 			recycleList=recycleList->nextPtr;
 
-			dumpBigDispenser(recycleDisp);
+			//dumpBigDispenser(recycleDisp);
 			dispenserFree(recycleDisp);
 			}
 		else

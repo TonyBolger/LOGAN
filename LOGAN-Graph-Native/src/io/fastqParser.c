@@ -100,7 +100,7 @@ int readBufferedFastqRecord(u8 *ioBuffer, int *offset, SequenceWithQuality *rec,
 {
 	int len1,len2;
 
-	rec->length=0;
+	rec->seqLength=0;
 
 	if(skipBufferedFastqLine(ioBuffer, offset)==0)	// Read Name
 		return 0;
@@ -123,7 +123,7 @@ int readBufferedFastqRecord(u8 *ioBuffer, int *offset, SequenceWithQuality *rec,
 		return FASTQ_PARSER_ERROR_LENGTH_MISMATCH;
 		}
 
-	rec->length=len1;
+	rec->seqLength=len1;
 
 	return len1;
 }
@@ -163,6 +163,8 @@ s64 fqParseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 recor
 
 	swqBuffers[currentBuffer].rec[batchReadCount].seq=swqBuffers[currentBuffer].seqBuffer;
 	swqBuffers[currentBuffer].rec[batchReadCount].qual=swqBuffers[currentBuffer].qualBuffer;
+	swqBuffers[currentBuffer].rec[batchReadCount].tagData=NULL;
+	swqBuffers[currentBuffer].rec[batchReadCount].tagLength=0;
 
 	int ioOffset=0;
 	int ioBufferEnd=ioBufferRecycleSize+ioBufferPrimarySize;
@@ -174,7 +176,7 @@ s64 fqParseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 recor
 	s64 totalBatch=0;
 
 	int len = readBufferedFastqRecord(ioBuffer, &ioOffset, swqBuffers[currentBuffer].rec, maxBasesPerRead);
-	swqBuffers[currentBuffer].rec[batchReadCount].length=len;
+	swqBuffers[currentBuffer].rec[batchReadCount].seqLength=len;
 
 	while(len>0 && validRecordCount<lastRecord)
 		{
@@ -229,6 +231,8 @@ s64 fqParseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 recor
 
 		swqBuffers[currentBuffer].rec[batchReadCount].seq=swqBuffers[currentBuffer].seqBuffer+batchBaseCount;
 		swqBuffers[currentBuffer].rec[batchReadCount].qual=swqBuffers[currentBuffer].qualBuffer+batchBaseCount;
+		swqBuffers[currentBuffer].rec[batchReadCount].tagData=NULL;
+		swqBuffers[currentBuffer].rec[batchReadCount].tagLength=0;
 
 		if(ioOffset>ioBufferPrimarySize)
 			{
@@ -243,7 +247,7 @@ s64 fqParseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 recor
 
 		len=readBufferedFastqRecord(ioBuffer, &ioOffset, swqBuffers[currentBuffer].rec+batchReadCount, maxBasesPerRead);
 
-		swqBuffers[currentBuffer].rec[batchReadCount].length=len;
+		swqBuffers[currentBuffer].rec[batchReadCount].seqLength=len;
 		}
 
 	if(batchReadCount>0)

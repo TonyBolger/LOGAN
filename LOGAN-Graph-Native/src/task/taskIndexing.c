@@ -43,8 +43,8 @@ static int tiDoIngress(ParallelTask *pt, int workerNo, void *workerState, void *
 		{
 		SequenceWithQuality *currentRec=rec->rec+i;
 
-		packSequence(currentRec->seq, packedSeq, currentRec->length);
-		smAddPathSmers(smerMap, currentRec->length, packedSeq, nodeSize, sparseness);
+		packSequence(currentRec->seq, packedSeq, currentRec->seqLength);
+		smAddPathSmers(smerMap, currentRec->seqLength, packedSeq, nodeSize, sparseness);
 		}
 
 	G_FREE(packedSeq, paddedLength, MEMTRACKID_INDEXING_PACKSEQ);

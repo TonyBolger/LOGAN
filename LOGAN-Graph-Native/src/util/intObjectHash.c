@@ -123,7 +123,7 @@ int iohGetNext(IohHash *map, int startIndex, int *keyPtr, void **valuePtr)
 
 static void resize(IohHash *map)
 {
-	LOG(LOG_INFO,"Hash Resize");
+	//LOG(LOG_INFO,"Hash Resize");
 
 	u32 oldSize=map->bucketMask+1;
 	u32 newSize=oldSize*2;

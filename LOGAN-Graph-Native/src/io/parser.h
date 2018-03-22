@@ -5,10 +5,14 @@
 #define PARSER_MIN_SEQ_LENGTH 40
 #define PARSER_MAX_SEQ_LENGTH 1000000
 
+#define PARSER_MAX_TAG_LENGTH 4
+
 
 // Record count can be larger than ingress blocksize, but base limit must match
 #define PARSER_SEQ_PER_BATCH 100000
 #define PARSER_BASES_PER_BATCH TASK_INGRESS_BASESTOTAL
+#define PARSER_TAG_PER_BATCH (PARSER_SEQ_PER_BATCH*PARSER_MAX_TAG_LENGTH)
+
 
 // RECYCLE_BUFFER should be at least FASTQ_MAX_READ_LENGTH * 4
 

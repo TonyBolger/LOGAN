@@ -243,16 +243,24 @@ __asm__(".symver memcpy,memcpy@GLIBC_2.2.5");
 typedef struct sequenceWithQualityStr {
 	u8 *seq;
 	u8 *qual;
-	s32 length;
+	s32 seqLength;
+	u8 *tagData;
+	u8 tagLength;
 } SequenceWithQuality;
 
 typedef struct swqBufferStr {
 	u8 *seqBuffer;
 	u8 *qualBuffer;
+	u8 *tagBuffer;
 	SequenceWithQuality *rec;
+
 	s32 maxSequenceTotalLength;
+	s32 maxTagTotalLength;
 	s32 maxSequences;
+
 	s32 maxSequenceLength;
+	s32 maxTagLength;
+
 	s32 numSequences;
 	s32 usageCount;
 } SwqBuffer;

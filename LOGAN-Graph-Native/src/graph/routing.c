@@ -172,10 +172,10 @@ static void writeBuildersAsDirectData(RoutingComboBuilder *builder, s8 sliceTag,
 
 	int totalSize=rtGetGapBlockHeaderSize()+prefixPackedSize+suffixPackedSize+routeTablePackedSize;
 
-	if(totalSize>16083)
+	if(totalSize>65535)
 		{
-		int oldShifted=oldTotalSize>>14;
-		int newShifted=totalSize>>14;
+		int oldShifted=oldTotalSize>>16;
+		int newShifted=totalSize>>16;
 
 		if(oldShifted!=newShifted)
 			{

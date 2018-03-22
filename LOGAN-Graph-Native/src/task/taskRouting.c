@@ -474,7 +474,7 @@ RoutingBuilder *allocRoutingBuilder(Graph *graph, int threads)
 
 	for(int i=0;i<TR_READBLOCK_LOOKUPS_INFLIGHT;i++)
 		{
-		rb->readLookupBlocks[i].disp=dispenserAlloc(MEMTRACKID_DISPENSER_ROUTING_LOOKUP, DISPENSER_BLOCKSIZE_SMALL, DISPENSER_BLOCKSIZE_MEDIUM);
+		rb->readLookupBlocks[i].disp=dispenserAlloc(MEMTRACKID_DISPENSER_ROUTING_LOOKUP, DISPENSER_BLOCKSIZE_MEDIUM, DISPENSER_BLOCKSIZE_LARGE);
 		rb->readLookupBlocks[i].compStat=LOOKUP_BLOCK_STATUS_IDLE;
 		rb->readLookupBlocks[i].outboundDispatches=NULL;
 		}

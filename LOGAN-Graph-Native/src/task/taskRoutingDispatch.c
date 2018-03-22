@@ -216,7 +216,7 @@ RoutingReadReferenceBlockDispatchArray *cleanupRoutingDispatchArrays(RoutingRead
 			{
 			*scan=current->nextPtr;
 
-			dumpBigDispenser(current->disp);
+			//dumpBigDispenser(current->disp);
 			dispenserFree(current->disp);
 			}
 		else
@@ -261,7 +261,7 @@ static void recycleDispatchLinkQueue(RoutingSliceAssignedDispatchLinkQueue *disp
 						assignDispatchLinkToQueue(newDispatchQueue, oldDispatchQueue->dispatchLinkIndexEntries[j], disp);
 
 					if(newMap==NULL)
-						newMap=iohInitMap(disp, 10);
+						newMap=iohInitMap(disp, 6);
 
 					iohPut(newMap, newDispatchQueue->sliceIndex, newDispatchQueue);
 					}
@@ -272,8 +272,8 @@ static void recycleDispatchLinkQueue(RoutingSliceAssignedDispatchLinkQueue *disp
 		dispatchLinkQueue->smerQueueMap[i]=newMap;
 		}
 
-	if(recycleCount>0)
-		LOG(LOG_INFO,"Recycled %i entries", recycleCount);
+	//if(recycleCount>0)
+//		LOG(LOG_INFO,"Recycled %i entries", recycleCount);
 }
 
 void recycleRoutingDispatchGroupState(RoutingDispatchGroupState *dispatchGroupState)
@@ -290,11 +290,11 @@ void recycleRoutingDispatchGroupState(RoutingDispatchGroupState *dispatchGroupSt
 		{
 		recycleDispatchLinkQueue(&(dispatchGroupState->dispatchLinkQueue), dispatchGroupState->swapDisp);
 
-		dumpBigDispenser(disp);
+		//dumpBigDispenser(disp);
 		dispenserReset(disp);
 
-		if(dispatchGroupState->swapDisp->allocated > 1000000)
-			LOG(LOG_INFO,"Swap now %i", dispatchGroupState->swapDisp->allocated);
+		//if(dispatchGroupState->swapDisp->allocated > 1000000)
+//			LOG(LOG_INFO,"Swap now %i", dispatchGroupState->swapDisp->allocated);
 
 		dispatchGroupState->disp=dispatchGroupState->swapDisp;
 		dispatchGroupState->swapDisp=disp;
@@ -751,7 +751,7 @@ static void assignInboundDispatchesToLinkQueue(MemDoubleBrickPile *dispatchPile,
 	if(map==NULL)
 		{
 //		LOG(LOG_INFO,"DISP_ROUTING_DISPATCH_GROUPSTATE Alloc Map");
-		map=iohInitMap(disp, 10);
+		map=iohInitMap(disp, 8);
 		dispatchLinkQueue->smerQueueMap[sliceWithinGroupIndex]=map;
 		}
 
@@ -1333,7 +1333,7 @@ static int scanForDispatchesForGroups(RoutingBuilder *rb, int startGroup, int en
 
 //						LOG(LOG_INFO,"Dispatched %i",dispatched);
 
-						dumpBigDispenser(routingDisp);
+//						dumpBigDispenser(routingDisp);
 						dispenserReset(routingDisp);
 						completedCount+=gatherSliceOutbound(sequencePile, lookupPile, dispatchPile, groupState, j, orderedDispatches, dispatched);
 						}
@@ -1353,7 +1353,7 @@ static int scanForDispatchesForGroups(RoutingBuilder *rb, int startGroup, int en
 
 	if(routingDisp!=NULL)
 		{
-		dumpBigDispenser(routingDisp);
+//		dumpBigDispenser(routingDisp);
 		dispenserFree(routingDisp);
 		}
 

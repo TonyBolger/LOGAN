@@ -186,7 +186,7 @@ void populateReadIngressBlock(SwqBuffer *rec, int ingressPosition, int ingressSi
 
 	for(int i=0;i<ingressSize;i++)
 		{
-		int length=currentRec->length;
+		int length=currentRec->seqLength;
 		int offset=0;
 
 		u32 *brickIndexPtr=ingressBlock->sequenceLinkIndex+i;
