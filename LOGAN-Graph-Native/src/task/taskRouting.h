@@ -23,10 +23,10 @@
 
 typedef struct sequenceLinkStr {
 	u32 nextIndex;			// Index of next SequenceLink in chain (or LINK_DUMMY at end)
-	u8 length;				// Length of packed sequence (in bp)
 	u8 position;			// Position of next base for lookup (in bp, from start of this brick)
-	u8 pad1;
-	u8 pad2;
+	u8 seqLength;			// Length of packed sequence (in bp)
+	u8 tagLength;			// Length of additional tag data (in bytes)
+	u8 pad;
 	u8 packedSequence[SEQUENCE_LINK_BYTES];	// Packed sequence (2bits per bp) - up to 224 bases2
 } SequenceLink;
 
@@ -43,6 +43,9 @@ typedef struct lookupLinkStr {
 	u16 revComp;			// Indicates if the original smer was rc (lsb = first smer). Top bit indicates if last lookup is end-of-sequence
 	SmerId smers[LOOKUP_LINK_SMERS];		// Specific smers to lookup
 } LookupLink;
+
+
+#define DISPATCHLINK_EOS_FLAG 0x80
 
 
 /* Defined in routeTable.h
@@ -380,9 +383,10 @@ struct routingBuilderStr {
 
 
 void trDumpSequenceLink(SequenceLink *link, u32 linkIndex);
+void trDumpSequenceLinkChain(MemSingleBrickPile *seqPile, SequenceLink *link, u32 linkIndex);
+
 void trDumpLookupLink(LookupLink *link, u32 linkIndex);
 void trDumpDispatchLink(DispatchLink *link, u32 linkIndex);
-
 void trDumpDispatchLinkChain(MemDoubleBrickPile *dispatchPile, DispatchLink *link, u32 linkIndex);
 
 RoutingBuilder *allocRoutingBuilder(Graph *graph, int threads);

@@ -194,19 +194,58 @@ void populateReadIngressBlock(SwqBuffer *rec, int ingressPosition, int ingressSi
 		if(length>1000000)
 			LOG(LOG_CRITICAL,"Length is %i",length);
 
+		SequenceLink *sequenceLink=NULL;
 
 		while(offset<length)
 			{
-			SequenceLink *sequenceLink=mbSingleBrickAllocate(&alloc, brickIndexPtr);
+			sequenceLink=mbSingleBrickAllocate(&alloc, brickIndexPtr);
 
 			s32 lengthToPack=MIN(length-offset, SEQUENCE_LINK_BASES);
 			packSequence(currentRec->seq+offset, sequenceLink->packedSequence, lengthToPack);
 
 			sequenceLink->position=0;
-			sequenceLink->length=lengthToPack;
+			sequenceLink->seqLength=lengthToPack;
+			sequenceLink->tagLength=0;
 
 			brickIndexPtr=&(sequenceLink->nextIndex);
 			offset+=lengthToPack;
+			}
+
+		if(currentRec->tagLength>0)
+			{
+//			LOG(LOG_INFO,"TagData: %08x", *((u32 *)(currentRec->tagData)));
+
+			length=currentRec->tagLength;
+			int packedOffset=(((int)sequenceLink->seqLength)+3)>>2;
+
+			s32 lengthToTransfer=MIN(length, SEQUENCE_LINK_BYTES-packedOffset);
+			offset=lengthToTransfer;
+
+			if(lengthToTransfer>0)
+				{
+				memcpy(sequenceLink->packedSequence+packedOffset, currentRec->tagData, lengthToTransfer);
+				sequenceLink->tagLength=lengthToTransfer;
+
+//				LOG(LOG_INFO,"Mixed SeqLink %i (%i)", lengthToTransfer, packedOffset);
+				}
+
+			while(offset<length)
+				{
+				sequenceLink=mbSingleBrickAllocate(&alloc, brickIndexPtr);
+
+				lengthToTransfer=MIN(length-offset, SEQUENCE_LINK_BYTES);
+				memcpy(sequenceLink->packedSequence, currentRec->tagData+offset, lengthToTransfer);
+
+				sequenceLink->position=0;
+				sequenceLink->seqLength=0;
+				sequenceLink->tagLength=lengthToTransfer;
+
+				brickIndexPtr=&(sequenceLink->nextIndex);
+				offset+=lengthToTransfer;
+
+//				LOG(LOG_INFO,"Additional Tag-only SeqLink %i", lengthToTransfer);
+				}
+
 			}
 
 		*brickIndexPtr=LINK_INDEX_DUMMY;

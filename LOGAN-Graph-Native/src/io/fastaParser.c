@@ -424,9 +424,12 @@ s64 faParseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 recor
 
 			swqBuffers[currentBuffer].rec[batchReadCount].seq=swqBuffers[currentBuffer].seqBuffer+batchBaseCount;
 			swqBuffers[currentBuffer].rec[batchReadCount].qual=NULL;
-			swqBuffers[currentBuffer].rec[batchReadCount].tagData=swqBuffers[currentBuffer].tagBuffer;
+			swqBuffers[currentBuffer].rec[batchReadCount].tagData=swqBuffers[currentBuffer].tagBuffer+batchReadCount*4;
 
-			*((u32 *)(swqBuffers[currentBuffer].rec[batchReadCount].tagData))=(u32)totalBatch;
+			u32 *tagPtr=(u32 *)(swqBuffers[currentBuffer].rec[batchReadCount].tagData);
+			u32 taggedReadCount=(u32)(batchReadCount+totalBatch);
+			*tagPtr=taggedReadCount;
+
 			swqBuffers[currentBuffer].rec[batchReadCount].tagLength=4;
 
 			fastaParser.currentRecord->seqLength=0; //

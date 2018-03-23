@@ -874,7 +874,13 @@ static int transferFromCompletedLookup(RoutingBuilder *rb,
 		}
 
 	if(oldLookupLink->indexType==LINK_INDEXTYPE_SEQ)
+		{
+		MemSingleBrickPile *seqPile=&(rb->sequenceLinkPile);
+		SequenceLink *seqLink=mbSingleBrickFindByIndex(seqPile, oldLookupLink->sourceIndex);
+		trDumpSequenceLinkChain(seqPile, seqLink, oldLookupLink->sourceIndex);
+
 		LOG(LOG_CRITICAL,"Unexpected SequenceLink type");
+		}
 	else if(oldLookupLink->indexType==LINK_INDEXTYPE_LOOKUP)  // Old Dispatch -> Old Lookup -> -> New Lookup -> Seq* -> null
 		{
 		LOG(LOG_CRITICAL,"Handle LookupLink type");
@@ -1136,7 +1142,7 @@ static s32 calculateDispatchLinkChainOffsetAdjustment(DispatchLink *dispatchLink
 
 static int validateSequenceLinkConsumed(SequenceLink *sequenceLink, u32 sequenceLinkIndex, MemSingleBrickPile *sequencePile)
 {
-	int diff=sequenceLink->length-sequenceLink->position;
+	int diff=sequenceLink->seqLength-sequenceLink->position;
 	u32 nextIndex=sequenceLink->nextIndex;
 
 	while(nextIndex!=LINK_INDEX_DUMMY)
@@ -1144,14 +1150,14 @@ static int validateSequenceLinkConsumed(SequenceLink *sequenceLink, u32 sequence
 		sequenceLinkIndex=nextIndex;
 		sequenceLink=mbSingleBrickFindByIndex(sequencePile, nextIndex);
 
-		diff+=sequenceLink->length-sequenceLink->position;
+		diff+=sequenceLink->seqLength-sequenceLink->position;
 		nextIndex=sequenceLink->nextIndex;
 		}
 
 	if(diff!=SMER_BASES-1)
 		{
 		LOG(LOG_INFO,"Sequence not fully consumed: %i",diff);
-		LOG(LOG_INFO,"SeqLink: %i Position %i of %i", sequenceLinkIndex, sequenceLink->position, sequenceLink->length);
+		LOG(LOG_INFO,"SeqLink: %i Position %i of %i", sequenceLinkIndex, sequenceLink->position, sequenceLink->seqLength);
 		return 0;
 		}
 
@@ -1183,12 +1189,34 @@ static int gatherSliceOutbound(MemSingleBrickPile *sequencePile, MemDoubleBrickP
 				{
 				case LINK_INDEXTYPE_SEQ: // Dispatch -> Seq* -> null - should be at end of sequence
 					{
+					if(!(dispatchLink->revComp & 0x80))
+						LOG(LOG_CRITICAL,"End of sequence: No marker. DispatchLink RevComp %02x", dispatchLink->revComp);
+
 					u32 sequenceLinkIndex=dispatchLink->nextOrSourceIndex;
 
 					SequenceLink *sequenceLink=mbSingleBrickFindByIndex(sequencePile, dispatchLink->nextOrSourceIndex);
 
 					if(!validateSequenceLinkConsumed(sequenceLink, dispatchLink->nextOrSourceIndex, sequencePile))
 						LOG(LOG_CRITICAL,"Sequence not fully consumed");
+
+					/*
+					if(sequenceLink->nextIndex==LINK_INDEX_DUMMY)
+						LOG(LOG_INFO,"Single seq tag: %i", sequenceLink->tagLength);
+					else
+						{
+						s32 tagLength=sequenceLink->tagLength;
+						u32 nextIndex=sequenceLink->nextIndex;
+
+						while(nextIndex!=LINK_INDEX_DUMMY)
+							{
+							SequenceLink *nextSeqLink=mbSingleBrickFindByIndex(sequencePile, nextIndex);
+							tagLength+=nextSeqLink->tagLength;
+							nextIndex=nextSeqLink->nextIndex;
+							}
+
+						LOG(LOG_INFO,"Multi seq tag: %i", tagLength);
+						}
+*/
 
 					freeSequenceLinkChain(sequencePile, sequenceLinkIndex); // Possibly more than one seqLink in chain
 

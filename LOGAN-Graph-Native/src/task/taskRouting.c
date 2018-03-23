@@ -31,17 +31,47 @@ void trDumpSequenceLink(SequenceLink *link, u32 linkIndex)
 //	u8 position;			// Position of first unprocessed base (in bp)
 //	u8 packedSequence[SEQUENCE_LINK_BYTES];
 
-	LOG(LOG_INFO,"SequenceLink Dump: Idx %i (%p)",linkIndex, link);
+	LOGN(LOG_INFO,"SequenceLink Dump: Idx %i (%p)",linkIndex, link);
 
-	LOG(LOG_INFO,"  NextIdx: %u", link->nextIndex);
-	LOG(LOG_INFO,"  Len: %u",(u32)(link->length));
-	LOG(LOG_INFO,"  Pos: %u",(u32)(link->position));
+	LOGN(LOG_INFO,"  NextIdx: %u", link->nextIndex);
+	LOGN(LOG_INFO,"  Pos: %u",(u32)(link->position));
+	LOGN(LOG_INFO,"  Len: %u",(u32)(link->seqLength));
 
-	u8 buffer[SEQUENCE_LINK_BASES+1];
-	unpackSequence(link->packedSequence, (u32)link->length, buffer);
+	u8 seqBuffer[SEQUENCE_LINK_BASES+1];
+	unpackSequence(link->packedSequence, (u32)link->seqLength, seqBuffer);
 
-	LOG(LOG_INFO,"  Seq: %s",buffer);
+	LOGN(LOG_INFO,"  Seq: %s",seqBuffer);
+
+	LOGN(LOG_INFO,"  Tag Length: %i", link->tagLength);
+
+	if(link->tagLength>0)
+		{
+		LOGS(LOG_INFO,"  TagData: ");
+
+		int tagPosition=(link->seqLength+3)>>2;
+		for(int i=0;i<link->tagLength;i++)
+			LOGS(LOG_INFO,"%02x ",link->packedSequence[tagPosition+i]);
+
+		LOGN(LOG_INFO,"");
+		}
 }
+
+
+void trDumpSequenceLinkChain(MemSingleBrickPile *seqPile, SequenceLink *link, u32 linkIndex)
+{
+	trDumpSequenceLink(link, linkIndex);
+
+	while(link->nextIndex!=LINK_INDEX_DUMMY)
+		{
+		linkIndex=link->nextIndex;
+		link=mbSingleBrickFindByIndex(seqPile, linkIndex);
+
+		trDumpSequenceLink(link, linkIndex);
+		}
+}
+
+
+
 
 void trDumpLookupLink(LookupLink *link, u32 linkIndex)
 {

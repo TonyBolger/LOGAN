@@ -18,6 +18,10 @@
 
 extern int logLevel;
 
+// LOG = decorate + newline
+// LOGN = newline
+// LOGS =
+
 // Much wow to fix syntax
 
 #define LOG(L,...) do { if(L<=logLevel) _log(L,1,__FILE__, __LINE__, __VA_ARGS__); } while(0)
