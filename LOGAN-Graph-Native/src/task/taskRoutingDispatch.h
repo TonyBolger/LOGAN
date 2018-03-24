@@ -17,6 +17,9 @@ int countDispatchReadsRemaining(RoutingBuilder *rb);
 
 */
 
+
+int validateDispatchLinkOffsets(DispatchLink *dispatchLink, int position, char *message);
+
 // Entry points for trDoIntermediate
 
 int scanForDispatches(RoutingBuilder *rb, u64 workerToken, int workerNo, RoutingWorkerState *wState, int force);

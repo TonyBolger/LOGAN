@@ -108,6 +108,11 @@ void waitForShutdown(ParallelTask *pt)
 
 	__atomic_thread_fence(__ATOMIC_SEQ_CST);
 
+	if(!queueIsEmpty(pt->ingressQueue))
+		LOG(LOG_CRITICAL, "Master: Non empty ingress queue");
+	else
+		LOG(LOG_INFO,"Master: Verified empty ingress queue");
+
 	LOG(LOG_INFO,"Master: Done Shutdown %i %i",
 			__atomic_load_n(&(pt->accumulatedIngressArrived),__ATOMIC_SEQ_CST),
 			__atomic_load_n(&(pt->accumulatedIngressProcessed),__ATOMIC_SEQ_CST));
@@ -153,10 +158,45 @@ void queueShutdown(ParallelTask *pt)
 
 	__atomic_thread_fence(__ATOMIC_SEQ_CST);
 
-#ifdef FEATURE_ENABLE_TICKTOCK
-	if(pt->config->doTickTock != NULL)
-		pt->config->doTickTock(pt);
-#endif
+	while(!queueIsEmpty(pt->ingressQueue))
+		{
+		struct timespec req;
+
+		req.tv_sec=DEFAULT_SLEEP_SECS;
+		req.tv_nsec=DEFAULT_SLEEP_NANOS;
+
+		nanosleep(&req, NULL);
+
+		considerTickTock(pt);
+
+		wakeIdleWorkers(pt);
+		}
+
+	int ingressAccept=__atomic_load_n(&pt->ingressAcceptToken, __ATOMIC_SEQ_CST);
+	ParallelTaskIngress *activeIngress=__atomic_load_n(&(pt->activeIngressPtr), __ATOMIC_SEQ_CST);
+
+	while(ingressAccept==0 || activeIngress!=NULL)
+		{
+		struct timespec req;
+
+		req.tv_sec=DEFAULT_SLEEP_SECS;
+		req.tv_nsec=DEFAULT_SLEEP_NANOS;
+
+		nanosleep(&req, NULL);
+
+		considerTickTock(pt);
+
+		wakeIdleWorkers(pt);
+
+		ingressAccept=__atomic_load_n(&pt->ingressAcceptToken, __ATOMIC_SEQ_CST);
+		activeIngress=__atomic_load_n(&(pt->activeIngressPtr), __ATOMIC_SEQ_CST);
+		}
+
+
+	#ifdef FEATURE_ENABLE_TICKTOCK
+		if(pt->config->doTickTock != NULL)
+			pt->config->doTickTock(pt);
+	#endif
 
 	__atomic_store_n(&pt->reqShutdown, 1, __ATOMIC_SEQ_CST);
 	wakeIdleWorkers(pt);
@@ -210,8 +250,6 @@ static int changeState(ParallelTask *pt, int originState, int destinationState)
 static int performTaskConsumeActiveIngress(ParallelTask *pt, int workerNo, RoutingWorkerState *wState)
 {
 	int oldToken=1;
-
-//	LOG(LOG_INFO,"Ingress - think about it"); Gets to this
 
 	if(!__atomic_compare_exchange_n(&pt->ingressConsumeToken, &oldToken, 0, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST))
 		{

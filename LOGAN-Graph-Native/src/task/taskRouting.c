@@ -98,9 +98,9 @@ void trDumpLookupLink(LookupLink *link, u32 linkIndex)
 		unpackSmer(link->smers[i], buffer);
 
 		if(revComp&1)
-			LOG(LOG_INFO, "  Smer: %s (rc)", buffer);
+			LOG(LOG_INFO, "  Smer: %s (rc) %012lx", buffer, link->smers[i]);
 		else
-			LOG(LOG_INFO, "  Smer: %s", buffer);
+			LOG(LOG_INFO, "  Smer: %s      %012lx", buffer, link->smers[i]);
 
 		revComp>>=1;
 		}
@@ -157,7 +157,59 @@ void trDumpDispatchLinkChain(MemDoubleBrickPile *dispatchPile, DispatchLink *lin
 		}
 }
 
+void trDumpLinkChain(MemSingleBrickPile *sequencePile, MemDoubleBrickPile *lookupPile, MemDoubleBrickPile *dispatchPile, u32 linkIndex, u8 indexType)
+{
+	while(linkIndex!=LINK_INDEX_DUMMY)
+		{
+		SequenceLink *seqLink=NULL;
+		LookupLink *lookupLink=NULL;
+		DispatchLink *dispatchLink=NULL;
 
+		switch(indexType)
+			{
+			case LINK_INDEXTYPE_SEQ:
+				seqLink=mbSingleBrickFindByIndex(sequencePile, linkIndex);
+				trDumpSequenceLink(seqLink, linkIndex);
+				linkIndex=seqLink->nextIndex;
+				indexType=LINK_INDEXTYPE_SEQ;
+				break;
+
+			case LINK_INDEXTYPE_LOOKUP:
+				lookupLink=mbDoubleBrickFindByIndex(lookupPile, linkIndex);
+				trDumpLookupLink(lookupLink, linkIndex);
+				linkIndex=lookupLink->sourceIndex;
+				indexType=lookupLink->indexType;
+				break;
+
+			case LINK_INDEXTYPE_DISPATCH:
+				dispatchLink=mbDoubleBrickFindByIndex(dispatchPile, linkIndex);
+				trDumpDispatchLink(dispatchLink, linkIndex);
+				linkIndex=dispatchLink->nextOrSourceIndex;
+				indexType=dispatchLink->indexType;
+				break;
+
+			default:
+				LOG(LOG_INFO,"Cannot dump unknown link type %i", indexType);
+				return;
+			}
+		}
+}
+
+
+void trDumpLinkChainFromLookupLink(MemSingleBrickPile *sequencePile, MemDoubleBrickPile *lookupPile, MemDoubleBrickPile *dispatchPile,
+		LookupLink *lookupLink, u32 lookupLinkIndex)
+{
+	trDumpLookupLink(lookupLink, lookupLinkIndex);
+	trDumpLinkChain(sequencePile, lookupPile, dispatchPile, lookupLink->sourceIndex, lookupLink->indexType);
+}
+
+
+void trDumpLinkChainFromDispatchLink(MemSingleBrickPile *sequencePile, MemDoubleBrickPile *lookupPile, MemDoubleBrickPile *dispatchPile,
+		DispatchLink *dispatchLink, u32 dispatchLinkIndex)
+{
+	trDumpDispatchLink(dispatchLink, dispatchLinkIndex);
+	trDumpLinkChain(sequencePile, lookupPile, dispatchPile, dispatchLink->nextOrSourceIndex, dispatchLink->indexType);
+}
 
 
 

@@ -12,7 +12,7 @@ static u32 unpackTails(u8 *data, s64 *tails, s32 tailCount)
 		s64 len=*data++;// Packing: Length byte, followed by packed 4 base per byte, as needed
 
 		if(len>23)
-			LOG(LOG_CRITICAL,"TAIL: Loaded len %i",len);
+			LOG(LOG_CRITICAL,"TAIL: Loaded %i of %i with len %i from %p",i, tailCount, len, data);
 
 		int bytes=(len+3)>>2;
 		packedSize+=bytes+1;
@@ -187,6 +187,9 @@ u8 *stWriteSeqTailBuilderPackedData(SeqTailBuilder *builder, u8 *data)
 		SmerId smer=tail & SMER_MASK;
 		s32 smerLength = tail >> 48;
 
+		if(smerLength>23)
+			LOG(LOG_CRITICAL,"TAIL: Writing %i of %i with len %i",i, oldCount, smerLength);
+
 		data+=writeSeqTailBuilderPackedDataSingle(data, smer, smerLength);
 		}
 
@@ -195,6 +198,9 @@ u8 *stWriteSeqTailBuilderPackedData(SeqTailBuilder *builder, u8 *data)
 		s64 tail=builder->newTails[i];
 		SmerId smer=tail & SMER_MASK;
 		s32 smerLength = tail >> 48;
+
+		if(smerLength>23)
+			LOG(LOG_CRITICAL,"TAIL: Writing %i of %i with len %i",i, newCount, smerLength);
 
 		data+=writeSeqTailBuilderPackedDataSingle(data, smer, smerLength);
 		}

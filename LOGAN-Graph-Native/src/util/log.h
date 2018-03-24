@@ -29,6 +29,9 @@ extern int logLevel;
 #define LOGS(L,...) do { if(L<=logLevel) _log(L,-1,__FILE__, __LINE__, __VA_ARGS__); } while(0)
 
 void logInit();
+void logLockMutex();
+void logUnlockMutex();
+
 void _log(int level, int decorate, char *file, int line, const char *fmt, ...);
 
 #endif

@@ -389,6 +389,11 @@ void trDumpLookupLink(LookupLink *link, u32 linkIndex);
 void trDumpDispatchLink(DispatchLink *link, u32 linkIndex);
 void trDumpDispatchLinkChain(MemDoubleBrickPile *dispatchPile, DispatchLink *link, u32 linkIndex);
 
+void trDumpLinkChain(MemSingleBrickPile *sequencePile, MemDoubleBrickPile *lookupPile, MemDoubleBrickPile *dispatchPile, u32 linkIndex, u8 indexType);
+
+void trDumpLinkChainFromLookupLink(MemSingleBrickPile *sequencePile, MemDoubleBrickPile *lookupPile, MemDoubleBrickPile *dispatchPile, LookupLink *lookupLink, u32 lookupLinkIndex);
+void trDumpLinkChainFromDispatchLink(MemSingleBrickPile *sequencePile, MemDoubleBrickPile *lookupPile, MemDoubleBrickPile *dispatchPile, DispatchLink *dispatchLink, u32 dispatchLinkIndex);
+
 RoutingBuilder *allocRoutingBuilder(Graph *graph, int threads);
 
 void createRoutingBuilderWorkers(RoutingBuilder *rb);

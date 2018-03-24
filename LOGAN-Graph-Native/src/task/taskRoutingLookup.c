@@ -34,7 +34,19 @@ static void expandLookupPercolateBlock(RoutingLookupPercolate *block, MemDispens
 	//block->presenceAbsence=NULL;//dAlloc(disp, PAD_BYTELENGTH_8BYTE(PAD_1BITLENGTH_BYTE(size)));
 }
 
+//static
+int checkSmerLookup(RoutingBuilder *rb, SmerId smer)
+{
+	SmerEntry smerEntry=SMER_GET_BOTTOM(smer);
+	u64 hash=hashForSmer(smerEntry);
+	u32 sliceIndex=sliceForSmer(smer,hash);
 
+	SmerArraySlice *slice=rb->graph->smerArray.slice+sliceIndex;
+
+	int index=saFindSmerEntry(slice,smerEntry);
+
+	return index;
+}
 
 static void assignSmersToLookupPercolates(SmerId *smers, int smerCount, RoutingLookupPercolate *smerLookupPercolates[], MemDispenser *disp)
 {
@@ -293,7 +305,12 @@ int extractIndexedSmerDataFromLookupPercolates(SmerId *allSmers, int allSmerCoun
 	for(int i=1; i<entries; i++)
 		{
 		int thisIndex=indexedDataOrig[i].seqIndexOffset;
-		indexedDataOrig[i].seqIndexOffset=thisIndex-prevIndex;
+
+		int diffOffset=thisIndex-prevIndex;
+		if(diffOffset>23)
+			LOG(LOG_CRITICAL,"Oversize offset %i", diffOffset);
+
+		indexedDataOrig[i].seqIndexOffset=diffOffset;
 		prevIndex=thisIndex;
 		}
 
@@ -1087,7 +1104,6 @@ static int transferFoundSmersToDispatch(DispatchLink *dispatchLink, MemDoubleBri
 			smerIndex=2;
 
 			dispatchLink=newDispatchLink;
-
 			}
 
 		dispatchLink->smers[smerIndex]=indexedSmers[i];
@@ -1275,7 +1291,10 @@ static void processPredispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb,
 				extractIndexedSmerDataFromLookupPercolates(lookupLink->smers, lookupLink->smerCount, lookupLink->revComp,
 				indexedSmers, indexedRevComp,
 				extractFlag, lookupReadBlock->smerEntryLookupsPercolates);
-//		LOG(LOG_INFO,"Found %i - flags %i",foundCount, extractFlag);
+
+
+
+		//		LOG(LOG_INFO,"Found %i - flags %i",foundCount, extractFlag);
 
 		// Correct offset of first found smer, allowing for lookup position and existing dispatch smers
 
@@ -1289,12 +1308,37 @@ static void processPredispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb,
 		DispatchLink *lastDispatchLink=NULL;
 		int dispatchCount=transferFoundSmersToDispatch(dispatchLink, dispatchLinkAlloc, foundCount, indexedSmers, indexedRevComp, lastFlag, &lastDispatchLink);
 
+		if(validateDispatchLinkOffsets(dispatchLink, 1, "processPredispatchLookupCompleteReadLookupBlocks"))
+			{
+			logLockMutex();
+
+			LOG(LOG_INFO,"INVALID DISPATCH LINK DETECTED");
+
+			LOG(LOG_INFO,"Found count is %i", foundCount);
+
+
+			trDumpLinkChainFromLookupLink(sequencePile, lookupPile, dispatchPile, lookupLink, lookupLinkIndex);
+
+			for(int j=0;j<lookupLink->smerCount;j++)
+				{
+				SmerId smer=lookupLink->smers[j];
+				SmerId cSmer=complementSmerId(smer);
+
+				LOG(LOG_INFO,"SmerIndex: %i %i",checkSmerLookup(rb, smer), checkSmerLookup(rb, cSmer));
+				}
+
+
+			LOG(LOG_CRITICAL, "LOGGED ALL THE THINGS");
+			}
+
 		//LOG(LOG_INFO,"Ignoring found smers");
 		if(dispatchCount < DISPATCH_LINK_SMER_THRESHOLD) // If dispatch link less than threshold
 			{
 			if(!lastFlag)  // more to come - recycle to lookup
 				{
-//				LOG(LOG_INFO,"Recycle scenario");
+				if(dispatchLink->length<foundCount)
+					LOG(LOG_INFO,"Recycle scenario - %i %i", foundCount, dispatchLink->length);
+
 //				trDumpSequenceLink(sequenceLink, sequenceLinkIndex);
 //				trDumpDispatchLink(dispatchLink, dispatchLinkIndex);
 //				trDumpLookupLink(lookupLink, lookupLinkIndex);
@@ -1548,6 +1592,8 @@ int scanForAndDispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb)
 		return 0;
 		}
 
+	__atomic_thread_fence(__ATOMIC_SEQ_CST);
+
 	//LOG(LOG_INFO,"scanForAndDispatchLookupCompleteReadLookupBlocks");
 
 	if(lookupReadBlock->blockType==LOOKUP_RECYCLE_BLOCK_PREDISPATCH)
@@ -1661,9 +1707,7 @@ static RoutingReadLookupRecycleBlock *queueLookupBlockFromRecycleList(RoutingBui
 			lookupForSlice->completionCountPtr=NULL;
 		}
 
-	__atomic_thread_fence(__ATOMIC_SEQ_CST);
 	queueReadLookupBlock(lookupBlock, usedSlices);
-	__atomic_thread_fence(__ATOMIC_SEQ_CST);
 
 	u64 usedSlices2=0;
 	for(int i=0;i<=highestSlice;i++) // Careful now

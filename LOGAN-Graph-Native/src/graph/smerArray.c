@@ -24,10 +24,22 @@ s32 saInitSmerArray(SmerArray *smerArray, SmerMap *smerMap) {
 
 		SmerEntry *smerTmp=smSmerEntryArrayAlloc(count);
 		smGetSortedSliceSmerEntries(mapSlices+i,smerTmp);
+/*
+		for(int j=0;j<count;j++)
+			{
+			//LOG(LOG_INFO,"Smer: %lx in %i",smerTmp[j], i);
 
-//		for(int j=0;j<count;j++)
-//			LOG(LOG_INFO,"Smer: %lx in %i",smerTmp[j], i);
+			SmerId smerId=recoverSmerId(i, smerTmp[j]);
+			u8 smerBuf[SMER_BASES+1];
+			unpackSmer(smerId, smerBuf);
 
+			SmerId cSmerId=complementSmerId(smerId);
+			u8 cSmerBuf[SMER_BASES+1];
+			unpackSmer(cSmerId, cSmerBuf);
+
+			LOG(LOG_INFO,"SMER: %s %012lx %s %012lx", smerBuf, smerId, cSmerBuf, cSmerId);
+			}
+*/
 		arraySlices[i].smerIT=siitInitImplicitTree(smerTmp,count);
 		arraySlices[i].smerData=smSmerDataArrayAlloc(count);
 

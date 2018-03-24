@@ -180,9 +180,8 @@ u32 smFindIndexesOfExistingSmers(SmerMap *smerMap, u8 *data, s32 maxIndex,
 
 	while(i<=maxIndex)
 		{
-		//LOG(LOG_INFO,"Test %i",i);
-
 		SmerId smerId = smerIds[i];
+
 
 		u64 hash = hashForSmer(smerId);
 		int sliceNo=sliceForSmer(smerId, hash);
@@ -481,9 +480,80 @@ void smAddPathSmers(SmerMap *smerMap, u32 dataLength, u8 *data, s32 nodeSize, s3
 
 	SmerId *smerIds=lAlloc((maxValidIndex+1)*sizeof(SmerId));
 	calculatePossibleSmers(data, maxValidIndex, smerIds);
+/*
+	int debugFlag=0;
 
+	for(int i=0;i<=maxValidIndex;i++)
+		{
+		SmerId smerId=smerIds[i];
+
+		switch(smerId)
+			{
+			case 0x0fcf00bc3cf1L:
+			case 0x3b0c3c1ff0c0L:
+			case 0x3cf00bc3cf10L:
+			case 0x0fb0c3c1ff0cL:
+			case 0x03ec30f07fc3L:
+			case 0x00fb0c3c1ff0L:
+			case 0x003ec30f07fcL:
+			case 0x000fb0c3c1ffL:
+			case 0x00bc3cf10ffcL:
+			case 0x02f0f3c43ff0L:
+			case 0x0bc3cf10ffc0L:
+			case 0x2f0f3c43ff01L:
+			case 0x0bf003ec30f0L:
+			case 0x02fc00fb0c3cL:
+			case 0x00bf003ec30fL:
+			case 0x002fc00fb0c3L:
+			case 0x000bf003ec30L:
+			case 0x0002fc00fb0cL:
+			case 0x0f10ffc07ffcL:
+			case 0x3c002fc00fb0L:
+			case 0x310ffc07ffc0L:
+			case 0x043ff01fff00L:
+			case 0x10ffc07ffc02L:
+			case 0x03ff01fff00bL:
+			case 0x01ff000bf003L:
+			case 0x307fc002fc00L:
+
+			LOG(LOG_INFO,"DEBUGSMER: %012lx",smerId);
+			debugFlag=1;
+			}
+		}
+
+	if(debugFlag)
+		{
+		for(int i=0;i<=maxValidIndex;i++)
+			{
+			SmerId smerId=smerIds[i];
+
+			u8 smerBuf[SMER_BASES+1];
+			unpackSmer(smerId, smerBuf);
+
+			SmerId cSmerId=complementSmerId(smerId);
+			u8 cSmerBuf[SMER_BASES+1];
+			unpackSmer(cSmerId, cSmerBuf);
+
+			LOG(LOG_INFO,"POSSIBLE SMER: %s %012lx %s %012lx at %i", smerBuf, smerId, cSmerBuf, cSmerId, i);
+			}
+		}
+
+*/
 	u32 oldIndexCount=smFindIndexesOfExistingSmers(smerMap, data, maxValidIndex, oldIndexes, smerIds, indexMaxDistance);
 
+	/*
+	if(debugFlag)
+		{
+		LOG(LOG_INFO, "Existing Indexes: %i", oldIndexCount);
+
+		for(int i=0;i<oldIndexCount;i++)
+			{
+			LOG(LOG_INFO,"Found Smer %012lx at %i", smerIds[oldIndexes[i]], oldIndexes[i]);
+			}
+//		LogIndexes(oldIndexes, oldIndexCount, smerIds);
+
+		}
+*/
 	//LOG(LOG_INFO, "Existing Indexes: ");
 	//LogIndexes(oldIndexes, oldIndexCount, smerIds);
 

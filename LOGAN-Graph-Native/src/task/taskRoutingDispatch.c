@@ -819,6 +819,23 @@ static void shuffleProcessedDispatchLinkEntries(DispatchLink *dispatchLink)
 */
 
 
+int validateDispatchLinkOffsets(DispatchLink *dispatchLink, int position, char *message)
+{
+	for(int i=position;i<dispatchLink->length; i++)
+		{
+		if(dispatchLink->smers[i].seqIndexOffset>23)
+			{
+			trDumpDispatchLink(dispatchLink, 0);
+			LOG(LOG_INFO,"Overlong distance in DispatchLink: %i from %s", dispatchLink->smers[i].seqIndexOffset, message);
+			return 1;
+			}
+		}
+
+	return 0;
+}
+
+
+
 static void mergeDispatchLinks(DispatchLink *oldDispatchLink, DispatchLink *newDispatchLink)
 {
 	int firstToKeep=oldDispatchLink->length-2;
@@ -836,6 +853,11 @@ static void mergeDispatchLinks(DispatchLink *oldDispatchLink, DispatchLink *newD
 
 	newDispatchLink->minEdgePosition=oldDispatchLink->minEdgePosition;
 	newDispatchLink->maxEdgePosition=oldDispatchLink->maxEdgePosition;
+
+	if(validateDispatchLinkOffsets(newDispatchLink, 1, "Merge"))
+		LOG(LOG_CRITICAL,"Bailing out");
+
+
 }
 
 static u32 findLookupLinkInDispatchChain(MemDoubleBrickPile *dispatchPile,  DispatchLink *dispatchLink)
@@ -866,12 +888,17 @@ static int transferFromCompletedLookup(RoutingBuilder *rb,
 	u32 oldLookupLinkIndex=oldDispatchLink->nextOrSourceIndex;
 	LookupLink *oldLookupLink=mbDoubleBrickFindByIndex(lookupPile, oldLookupLinkIndex);
 
-	if(oldLookupLink->smerCount<0)
+	int oldLookupSmerCount=__atomic_load_n(&oldLookupLink->smerCount, __ATOMIC_SEQ_CST);
+
+	if(oldLookupSmerCount<0)
 		{
 		//LOG(LOG_INFO,"Lookup not completed %i",oldDispatchLinkIndex);
 		//trDumpDispatchLink(oldDispatchLink, oldDispatchLinkIndex);
 		return 0;
 		}
+
+	__atomic_thread_fence(__ATOMIC_SEQ_CST);
+
 
 	if(oldLookupLink->indexType==LINK_INDEXTYPE_SEQ)
 		{
@@ -965,6 +992,9 @@ static int processSlice(RoutingBuilder *rb, RoutingSliceAssignedDispatchLinkQueu
 			{
 			u32 dispatchLinkIndex=dispatchQueue->dispatchLinkIndexEntries[i];
 			DispatchLink *dispatchLink=mbDoubleBrickFindByIndex(dispatchPile, dispatchLinkIndex);
+
+			if(validateDispatchLinkOffsets(dispatchLink, 1, "processSlice"))
+				LOG(LOG_CRITICAL,"Bailing out");
 
 			if(dispatchLink->position==dispatchLink->length-2) // Not enough to work with
 				{

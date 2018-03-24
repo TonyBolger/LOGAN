@@ -11,7 +11,8 @@
 int logLevel = LOG_TRACE;
 
 #ifdef LOCK_LOG
-static pthread_mutex_t logMutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t logMutex;
+static pthread_mutexattr_t logMutexAttr;
 #endif
 
 static int logInitFlag=0;
@@ -19,11 +20,31 @@ static struct timeval startTv;
 
 void logInit()
 {
+	pthread_mutexattr_init(&logMutexAttr);
+	pthread_mutexattr_settype(&logMutexAttr, PTHREAD_MUTEX_RECURSIVE);
+	pthread_mutex_init(&logMutex, &logMutexAttr);
+
 	if(!logInitFlag)
 		{
 		gettimeofday(&startTv, NULL);
 		logInitFlag=1;
 		}
+}
+
+
+
+void logLockMutex()
+{
+	#ifdef LOCK_LOG
+		pthread_mutex_lock(&logMutex);
+	#endif
+}
+
+void logUnlockMutex()
+{
+	#ifdef LOCK_LOG
+		pthread_mutex_unlock(&logMutex);
+	#endif
 }
 
 

@@ -39,6 +39,8 @@ static int tiDoIngress(ParallelTask *pt, int workerNo, void *workerState, void *
 	int nodeSize=graph->config.nodeSize;
 	int sparseness=graph->config.sparseness;
 
+	LOG(LOG_INFO,"IngressBlock Start: %i Size: %i", ingressPosition, ingressSize);
+
 	for(i=ingressPosition;i<ingressLast;i++)
 		{
 		SequenceWithQuality *currentRec=rec->rec+i;

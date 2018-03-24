@@ -2263,6 +2263,12 @@ static void createRoutePatches(RoutingIndexedDispatchLinkIndexBlock *rdi, int en
 				int prefixLength=rdd->smers[index].seqIndexOffset;
 				int suffixLength=rdd->smers[index+1].seqIndexOffset;
 
+				if(prefixLength>23)
+					LOG(LOG_CRITICAL,"Overlong prefix: %i (%i) [%i]",prefixLength, index, rdd->smers[0].seqIndexOffset);
+
+				if(suffixLength>23)
+					LOG(LOG_CRITICAL,"Overlong suffix: %i (%i) [%i]",suffixLength, index, rdd->smers[0].seqIndexOffset);
+
 				forwardPatches[forwardCount].rdiPtr=rdi->linkEntries[i];
 				forwardPatches[forwardCount].dispatchLinkIndex=rdi->linkIndexEntries[i];
 
@@ -2298,6 +2304,12 @@ static void createRoutePatches(RoutingIndexedDispatchLinkIndexBlock *rdi, int en
 
 				int prefixLength=rdd->smers[index+1].seqIndexOffset;
 				int suffixLength=rdd->smers[index].seqIndexOffset;
+
+				if(prefixLength>23)
+					LOG(LOG_CRITICAL,"Overlong prefix: %i (%i) [%i]",prefixLength, index, rdd->smers[0].seqIndexOffset);
+
+				if(suffixLength>23)
+					LOG(LOG_CRITICAL,"Overlong suffix: %i (%i) [%i]",suffixLength, index, rdd->smers[0].seqIndexOffset);
 
 				reversePatches[reverseCount].rdiPtr=rdi->linkEntries[i];
 				reversePatches[reverseCount].dispatchLinkIndex=rdi->linkIndexEntries[i];
