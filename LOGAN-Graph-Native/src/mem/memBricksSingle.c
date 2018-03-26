@@ -530,20 +530,24 @@ void *mbSingleBrickAllocate(MemSingleBrickAllocator *alloc, u32 *brickIndexPtr)
 		s32 allocCount=singleBlockAllocateGroup(alloc);
 		s32 loopCount=0;
 
-		while(allocCount==0 && loopCount++<1000)
+		if(allocCount==0)
 			{
 			singleBrickUnlockChunk(alloc->chunk, singleBrickPileNextFlag(alloc->scanFlag));
-			int scanFlag=singleBrickAllocatorScanForChunkAndLock(alloc);
 
-			if(scanFlag<0)
+			while(allocCount==0 && loopCount++<1000)
 				{
-				LOG(LOG_INFO,"Chunk Scan/Lock Failed");
-				return NULL;
+				int scanFlag=singleBrickAllocatorScanForChunkAndLock(alloc);
+
+				if(scanFlag<0)
+					{
+					LOG(LOG_INFO,"Chunk Scan/Lock Failed");
+					return NULL;
+					}
+
+				alloc->scanFlag=scanFlag;
+
+				allocCount=singleBlockAllocateGroup(alloc);
 				}
-
-			alloc->scanFlag=scanFlag;
-
-			allocCount=singleBlockAllocateGroup(alloc);
 			}
 
 		if(loopCount>=1000)

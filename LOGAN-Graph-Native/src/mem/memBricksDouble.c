@@ -536,20 +536,24 @@ void *mbDoubleBrickAllocate(MemDoubleBrickAllocator *alloc, u32 *brickIndexPtr)
 		s32 allocCount=doubleBlockAllocateGroup(alloc);
 		s32 loopCount=0;
 
-		while(allocCount==0 && loopCount++<1000)
+		if(allocCount==0)
 			{
 			doubleBrickUnlockChunk(alloc->chunk, doubleBrickPileNextFlag(alloc->scanFlag));
-			int scanFlag=doubleBrickAllocatorScanForChunkAndLock(alloc);
 
-			if(scanFlag<0)
+			while(allocCount==0 && loopCount++<1000)
 				{
-				LOG(LOG_INFO,"Chunk Scan/Lock Failed");
-				return NULL;
+				int scanFlag=doubleBrickAllocatorScanForChunkAndLock(alloc);
+
+				if(scanFlag<0)
+					{
+					LOG(LOG_INFO,"Chunk Scan/Lock Failed");
+					return NULL;
+					}
+
+				alloc->scanFlag=scanFlag;
+
+				allocCount=doubleBlockAllocateGroup(alloc);
 				}
-
-			alloc->scanFlag=scanFlag;
-
-			allocCount=doubleBlockAllocateGroup(alloc);
 			}
 
 		if(loopCount>=1000)
