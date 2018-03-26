@@ -2592,7 +2592,8 @@ int rtRouteReadsForSmer(RoutingIndexedDispatchLinkIndexBlock *rdi, u32 entryOffs
 //		LOG(LOG_INFO,"Before merge route:");
 //		rtaDumpRoutingTableArray(routingBuilder.arrayBuilder);
 
-		rtaMergeRoutes(routingBuilder.arrayBuilder, forwardPatches, reversePatches, forwardCount, reverseCount, forwardTagCount, reverseTagCount,
+		rtaMergeRoutes(routingBuilder.arrayBuilder, routingBuilder.tagBuilder,
+				forwardPatches, reversePatches, forwardCount, reverseCount, forwardTagCount, reverseTagCount,
 				prefixCount, suffixCount, orderedDispatches, disp);
 
 //		LOG(LOG_INFO,"After merge route:");

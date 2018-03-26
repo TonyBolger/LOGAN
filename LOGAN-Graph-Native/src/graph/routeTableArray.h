@@ -46,6 +46,7 @@ typedef struct routeTableArrayBufferStr
 	 s32 newSuffix;
 	 s32 newWidth;
 
+	 s32 totalNewWidth;
 	 s32 maxWidth;
 } RouteTableArrayBuffer;
 
@@ -62,7 +63,7 @@ s32 rtaGetRouteTableArrayBuilderDirty(RouteTableArrayBuilder *builder);
 s32 rtaGetRouteTableArrayBuilderPackedSize(RouteTableArrayBuilder *builder);
 u8 *rtaWriteRouteTableArrayBuilderPackedData(RouteTableArrayBuilder *builder, u8 *data);
 
-void rtaMergeRoutes(RouteTableArrayBuilder *builder, RoutePatch *forwardRoutePatches, RoutePatch *reverseRoutePatches,
+void rtaMergeRoutes(RouteTableArrayBuilder *builder, RouteTableTagBuilder *tagBuilder, RoutePatch *forwardRoutePatches, RoutePatch *reverseRoutePatches,
 		s32 forwardRoutePatchCount, s32 reverseRoutePatchCount, s32 forwardTagCount, s32 reverseTagCount,
 		s32 prefixCount, s32 suffixCount, u32 *orderedDispatches, MemDispenser *disp);
 

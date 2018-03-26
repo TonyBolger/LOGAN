@@ -79,3 +79,31 @@ u8 *rtgWriteRouteTableTagBuilderPackedData(RouteTableTagBuilder *builder, u8 *da
 	*data=0;
 	return data+1;
 }
+
+void rtgMergeForwardRoutes(RouteTableTagBuilder *builder, RoutePatch *patchPtr, RoutePatch *endPatchPtr)
+{
+	while(patchPtr<endPatchPtr)
+		{
+		if(patchPtr->rdiPtr->revComp & DISPATCHLINK_EOS_FLAG)
+			{
+			LOG(LOG_INFO,"Forward patch - Suffix: %i Offset: %i Tag: %p",patchPtr->suffixIndex, patchPtr->nodeOffset, patchPtr->tagData);
+			}
+		patchPtr++;
+		}
+}
+
+void rtgMergeReverseRoutes(RouteTableTagBuilder *builder, RoutePatch *patchPtr, RoutePatch *endPatchPtr)
+{
+	while(patchPtr<endPatchPtr)
+		{
+		if(patchPtr->rdiPtr->revComp & DISPATCHLINK_EOS_FLAG)
+			{
+			LOG(LOG_INFO,"Reverse patch - Prefix: %i Offset: %i Tag: %p",patchPtr->prefixIndex, patchPtr->nodeOffset, patchPtr->tagData);
+			}
+
+		patchPtr++;
+		}
+}
+
+
+
