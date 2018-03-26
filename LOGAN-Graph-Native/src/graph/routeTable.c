@@ -1232,6 +1232,7 @@ MemCircHeapChunkIndex *rtReclaimIndexer(u8 *heapDataPtr, s64 targetAmount, u8 ta
 				scanPtr=stScanTails(scanPtr);
 				scanPtr=stScanTails(scanPtr);
 				scanPtr=rtaScanRouteTableArray(scanPtr);
+				scanPtr=rtgScanRouteTableTags(scanPtr);
 
 				s32 size=scanPtr-heapDataPtr;
 

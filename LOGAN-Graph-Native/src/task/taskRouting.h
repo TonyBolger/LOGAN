@@ -12,65 +12,6 @@
 #define TR_INIT_MAXEDGEPOSITION (INT_MAX>>1)
 
 
-
-#define LINK_INDEX_DUMMY 0x0
-
-
-#define SEQUENCE_LINK_BYTES 56
-#define SEQUENCE_LINK_BASES (SEQUENCE_LINK_BYTES*4)
-
-#define LOOKUP_LINK_SMERS 15
-
-typedef struct sequenceLinkStr {
-	u32 nextIndex;			// Index of next SequenceLink in chain (or LINK_DUMMY at end)
-	u8 position;			// Position of next base for lookup (in bp, from start of this brick)
-	u8 seqLength;			// Length of packed sequence (in bp)
-	u8 tagLength;			// Length of additional tag data (in bytes)
-	u8 pad;
-	u8 packedSequence[SEQUENCE_LINK_BYTES];	// Packed sequence (2bits per bp) - up to 224 bases2
-} SequenceLink;
-
-#define LINK_INDEXTYPE_SEQ 0
-#define LINK_INDEXTYPE_LOOKUP 1
-#define LINK_INDEXTYPE_DISPATCH 2
-
-#define LOOKUPLINK_EOS_FLAG 0x8000
-
-typedef struct lookupLinkStr {
-	u32 sourceIndex;		// Index of SeqLink or Dispatch
-	u8 indexType;			// Indicates meaning of previous (SeqLink or Dispatch)
-	s8 smerCount;			// Number of smers to lookup (negative means in progress, positive means complete)
-	u16 revComp;			// Indicates if the original smer was rc (lsb = first smer). Top bit indicates if last lookup is end-of-sequence
-	SmerId smers[LOOKUP_LINK_SMERS];		// Specific smers to lookup
-} LookupLink;
-
-
-#define DISPATCHLINK_EOS_FLAG 0x80
-
-
-/* Defined in routeTable.h
-
-typedef struct dispatchLinkSmerStr {
-	SmerId smer;		// The actual smer ID
-	u16 seqIndexOffset; // Distance to next smer, or number of additional kmers already tested (if last)
-	u16 slice;			// Ranges (0-16383)
-	u32 sliceIndex;		// Index within slice
-} DispatchLinkSmer;
-
-typedef struct dispatchLinkStr {
-	u32 nextOrSourceIndex;		// Index of Next Dispatch or Source SeqLink
-	u8 indexType;				// Indicates meaning of previous
-	u8 length;					// How many valid indexesSmers are there
-	u8 position;				// The current indexed smer
-	u8 revComp;					// Indicate if the original smer was rc
-	s32 minEdgePosition;
-	s32 maxEdgePosition;
-	DispatchLinkSmer smers[7];
-} DispatchLink;
-
-*/
-
-
 // 0 = idle, 1 = allocated,2 = active,3 = locked, 4 = complete
 
 // Ingress uses a simple integer status

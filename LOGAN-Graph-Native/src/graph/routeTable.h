@@ -4,46 +4,44 @@
 #define ALLOC_HEADER_LIVE_MASK 0x80
 
 
-
-/*
-typedef struct routingReadDataEntryStr {
-	u32 readIndex; // 4
-	SmerId fsmer; // 8
-	SmerId rsmer; // 8
-	u32 slice; // 4
-	u32 sliceIndex; // 4
-} RoutingReadIndexedDataEntry;
-
-typedef struct routingReadDataStr {
-	//u8 *packedSeq; // 8
-	//u8 *quality; // 8
-	//u32 seqLength; // 4
-
-	s32 *completionCountPtr; // 8
-	s32 indexCount; // 4
-
-	// Tracking of edge positions
-
-	s32 minEdgePosition;
-	s32 maxEdgePosition;
-
-	RoutingReadIndexedDataEntry indexedData[];
-
-	// Split into aux RoutingReadDataEntry structure with []. Add first/last.
-	//u32 *readIndexes; // 8
-	//SmerId *fsmers; // 8
-	//SmerId *rsmers; // 8
-	//u32 *slices; // 8
-	//u32 *sliceIndexes; // 8
-
-} __attribute__((aligned (32))) RoutingReadData;
-*/
+#define LINK_INDEX_DUMMY 0x0
 
 
+#define SEQUENCE_LINK_BYTES 56
+#define SEQUENCE_LINK_BASES (SEQUENCE_LINK_BYTES*4)
+
+#define SEQUENCE_LINK_MAX_TAG_LENGTH 255
+
+#define LOOKUP_LINK_SMERS 15
+
+typedef struct sequenceLinkStr {
+	u32 nextIndex;			// Index of next SequenceLink in chain (or LINK_DUMMY at end)
+	u8 position;			// Position of next base for lookup (in bp, from start of this brick)
+	u8 seqLength;			// Length of packed sequence (in bp)
+	u8 tagLength;			// Length of additional tag data (in bytes)
+	u8 pad;
+	u8 packedSequence[SEQUENCE_LINK_BYTES];	// Packed sequence (2bits per bp) - up to 224 bases2
+} SequenceLink;
+
+#define LINK_INDEXTYPE_SEQ 0
+#define LINK_INDEXTYPE_LOOKUP 1
+#define LINK_INDEXTYPE_DISPATCH 2
+
+#define LOOKUPLINK_EOS_FLAG 0x8000
+
+typedef struct lookupLinkStr {
+	u32 sourceIndex;		// Index of SeqLink or Dispatch
+	u8 indexType;			// Indicates meaning of previous (SeqLink or Dispatch)
+	s8 smerCount;			// Number of smers to lookup (negative means in progress, positive means complete)
+	u16 revComp;			// Indicates if the original smer was rc (lsb = first smer). Top bit indicates if last lookup is end-of-sequence
+	SmerId smers[LOOKUP_LINK_SMERS];		// Specific smers to lookup
+} LookupLink;
 
 
 #define DISPATCH_LINK_SMERS 7
 #define DISPATCH_LINK_SMER_THRESHOLD 5
+
+#define DISPATCHLINK_EOS_FLAG 0x80
 
 typedef struct dispatchLinkSmerStr {
 	SmerId smer;		// The actual smer ID
@@ -69,6 +67,7 @@ typedef struct dispatchLinkStr {
 typedef struct routePatchStr
 {
 	DispatchLink *rdiPtr;
+	u8 *tagData;
 	u32 dispatchLinkIndex;
 
 	s32 prefixIndex;
@@ -97,6 +96,10 @@ typedef struct routingSliceAssignedDispatchLinkQueueStr {
 
 
 typedef struct routingIndexedDispatchLinkIndexBlockStr {
+	MemSingleBrickPile *sequenceLinkPile;
+	MemDoubleBrickPile *lookupLinkPile;
+	MemDoubleBrickPile *dispatchLinkPile;
+
 	s32 sliceIndex; // 4
 	u32 entryCount; // 4
 	u32 *linkIndexEntries; // 8
@@ -141,6 +144,9 @@ typedef struct heapDataBlockStr
 typedef struct routeTableArrayBuilderStr RouteTableArrayBuilder;
 typedef struct routeTableTreeBuilderStr RouteTableTreeBuilder;
 
+typedef struct routeTableTagBuilderStr RouteTableTagBuilder;
+
+
 typedef struct routingComboBuilderStr
 {
 	MemDispenser *disp;
@@ -152,6 +158,8 @@ typedef struct routingComboBuilderStr
 	SeqTailBuilder suffixBuilder;
 
 	RouteTableArrayBuilder *arrayBuilder;
+	RouteTableTagBuilder *tagBuilder;
+
 	HeapDataBlock combinedDataBlock;
 	u8 *combinedDataPtr;
 

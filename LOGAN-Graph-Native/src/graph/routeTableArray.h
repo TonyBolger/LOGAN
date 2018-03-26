@@ -62,8 +62,8 @@ s32 rtaGetRouteTableArrayBuilderDirty(RouteTableArrayBuilder *builder);
 s32 rtaGetRouteTableArrayBuilderPackedSize(RouteTableArrayBuilder *builder);
 u8 *rtaWriteRouteTableArrayBuilderPackedData(RouteTableArrayBuilder *builder, u8 *data);
 
-void rtaMergeRoutes(RouteTableArrayBuilder *builder,
-		RoutePatch *forwardRoutePatches, RoutePatch *reverseRoutePatches, s32 forwardRoutePatchCount, s32 reverseRoutePatchCount,
+void rtaMergeRoutes(RouteTableArrayBuilder *builder, RoutePatch *forwardRoutePatches, RoutePatch *reverseRoutePatches,
+		s32 forwardRoutePatchCount, s32 reverseRoutePatchCount, s32 forwardTagCount, s32 reverseTagCount,
 		s32 prefixCount, s32 suffixCount, u32 *orderedDispatches, MemDispenser *disp);
 
 void rtaUnpackRouteTableArrayForSmerLinked(SmerLinked *smerLinked, u8 *data, MemDispenser *disp);

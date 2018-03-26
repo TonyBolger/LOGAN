@@ -29,11 +29,53 @@ Implementation:
 
 	During insertion, only 'ending' edges can have tags (edge zero and dangling edges). As such, only sequences to these edges need to be synchronized.
 
-
-
-
-
-
-
-
 */
+
+
+u8 *rtgScanRouteTableTags(u8 *data)
+{
+	//u8 tagTableFlag=*data;
+
+	return data+1;
+}
+
+u8 *rtgInitRouteTableTagBuilder(RouteTableTagBuilder *builder, u8 *data, MemDispenser *disp)
+{
+	builder->disp=disp;
+
+	//LOG(LOG_INFO,"RouteTable init from %p",data);
+//	data=readRouteTableBuilderPackedData(builder,data);
+
+	builder->newForwardEntries=NULL;
+	builder->newReverseEntries=NULL;
+
+	builder->newForwardEntryCount=0;
+	builder->newReverseEntryCount=0;
+
+	builder->newForwardEntryAlloc=0;
+	builder->newReverseEntryAlloc=0;
+
+	return data+1;
+
+}
+
+void rtgDumpRoutingTags(RouteTableTagBuilder *builder)
+{
+	LOG(LOG_CRITICAL,"TODO");
+}
+
+s32 rtgGetRouteTableTagBuilderDirty(RouteTableTagBuilder *builder)
+{
+	return 0;
+}
+
+s32 rtgGetRouteTableTagBuilderPackedSize(RouteTableTagBuilder *builder)
+{
+	return 1;
+}
+
+u8 *rtgWriteRouteTableTagBuilderPackedData(RouteTableTagBuilder *builder, u8 *data)
+{
+	*data=0;
+	return data+1;
+}

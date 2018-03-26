@@ -110,8 +110,8 @@ void waitForShutdown(ParallelTask *pt)
 
 	if(!queueIsEmpty(pt->ingressQueue))
 		LOG(LOG_CRITICAL, "Master: Non empty ingress queue");
-	else
-		LOG(LOG_INFO,"Master: Verified empty ingress queue");
+//	else
+//		LOG(LOG_INFO,"Master: Verified empty ingress queue");
 
 	LOG(LOG_INFO,"Master: Done Shutdown %i %i",
 			__atomic_load_n(&(pt->accumulatedIngressArrived),__ATOMIC_SEQ_CST),

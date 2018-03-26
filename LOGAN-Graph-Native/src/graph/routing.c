@@ -17,9 +17,12 @@ static void createBuildersFromNullData(RoutingComboBuilder *builder)
 	stInitSeqTailBuilder(&(builder->suffixBuilder), NULL, builder->disp);
 
 	builder->arrayBuilder=dAlloc(builder->disp, sizeof(RouteTableArrayBuilder));
+	builder->tagBuilder=dAlloc(builder->disp, sizeof(RouteTableTagBuilder));
+
 	builder->treeBuilder=NULL;
 
 	rtaInitRouteTableArrayBuilder(builder->arrayBuilder, NULL, builder->disp);
+	rtgInitRouteTableTagBuilder(builder->tagBuilder, NULL, builder->disp);
 
 	builder->upgradedToTree=0;
 }
@@ -53,9 +56,12 @@ static void createBuildersFromDirectData(RoutingComboBuilder *builder)
 	afterData=stInitSeqTailBuilder(&(builder->suffixBuilder), afterData, builder->disp);
 
 	builder->arrayBuilder=dAlloc(builder->disp, sizeof(RouteTableArrayBuilder));
+	builder->tagBuilder=dAlloc(builder->disp, sizeof(RouteTableTagBuilder));
+
 	builder->treeBuilder=NULL;
 
 	afterData=rtaInitRouteTableArrayBuilder(builder->arrayBuilder, afterData, builder->disp);
+	afterData=rtgInitRouteTableTagBuilder(builder->tagBuilder, afterData, builder->disp);
 
 	u32 size=afterData-afterHeader;
 	builder->combinedDataBlock.dataSize=size;
@@ -75,6 +81,8 @@ void createBuildersFromIndirectData(RoutingComboBuilder *builder)
 	s32 topHeaderSize=rtGetGapBlockHeaderSize();
 
 	builder->arrayBuilder=NULL;
+	builder->tagBuilder=NULL;
+
 	rtInitHeapDataBlock(&(builder->combinedDataBlock), builder->sliceIndex);
 
 	builder->combinedDataPtr=NULL;
@@ -158,7 +166,8 @@ static void writeBuildersAsDirectData(RoutingComboBuilder *builder, s8 sliceTag,
 {
 	if(!(stGetSeqTailBuilderDirty(&(builder->prefixBuilder)) ||
 		 stGetSeqTailBuilderDirty(&(builder->suffixBuilder)) ||
-		 rtaGetRouteTableArrayBuilderDirty(builder->arrayBuilder)))
+		 rtaGetRouteTableArrayBuilderDirty(builder->arrayBuilder) ||
+		 rtgGetRouteTableTagBuilderDirty(builder->tagBuilder) ))
 		{
 		LOG(LOG_INFO,"Nothing to write");
 		return;
@@ -169,8 +178,9 @@ static void writeBuildersAsDirectData(RoutingComboBuilder *builder, s8 sliceTag,
 	int prefixPackedSize=stGetSeqTailBuilderPackedSize(&(builder->prefixBuilder));
 	int suffixPackedSize=stGetSeqTailBuilderPackedSize(&(builder->suffixBuilder));
 	int routeTablePackedSize=rtaGetRouteTableArrayBuilderPackedSize(builder->arrayBuilder);
+	int routeTableTagPackedSize=rtgGetRouteTableTagBuilderPackedSize(builder->tagBuilder);
 
-	int totalSize=rtGetGapBlockHeaderSize()+prefixPackedSize+suffixPackedSize+routeTablePackedSize;
+	int totalSize=rtGetGapBlockHeaderSize()+prefixPackedSize+suffixPackedSize+routeTablePackedSize+routeTableTagPackedSize;
 
 	if(totalSize>65535)
 		{
@@ -217,6 +227,7 @@ static void writeBuildersAsDirectData(RoutingComboBuilder *builder, s8 sliceTag,
 	newData=stWriteSeqTailBuilderPackedData(&(builder->prefixBuilder), newData);
 	newData=stWriteSeqTailBuilderPackedData(&(builder->suffixBuilder), newData);
 	newData=rtaWriteRouteTableArrayBuilderPackedData(builder->arrayBuilder, newData);
+	newData=rtgWriteRouteTableTagBuilderPackedData(builder->tagBuilder, newData);
 
 }
 
@@ -2201,15 +2212,95 @@ static RoutePatch *reorderReversePatches(RoutePatch *reversePatches, s32 patchCo
 	return reversePatches;
 }
 
+/*
+static void dumpTag(u8 *tagData)
+{
+	if(tagData==NULL)
+		{
+		LOG(LOG_INFO,"TagData: NULL");
+		return;
+		}
 
+	int length=*(tagData++);
+
+	LOG(LOG_INFO,"TagData Length: %i", length);
+
+	LOGS(LOG_INFO,"Data:");
+
+	for(int i=0;i<length;i++)
+		LOGS(LOG_INFO," %02x", *(tagData++));
+
+	LOGN(LOG_INFO,"");
+}
+*/
+
+static u8 *extractTagData(RoutingIndexedDispatchLinkIndexBlock *rdi, DispatchLink *dispatchLink, MemDispenser *disp)
+{
+	// Dispatch* -> Sequence* -> null
+
+	while(dispatchLink->indexType==LINK_INDEXTYPE_DISPATCH && dispatchLink->nextOrSourceIndex!=LINK_INDEX_DUMMY)
+		dispatchLink=mbDoubleBrickFindByIndex(rdi->dispatchLinkPile, dispatchLink->nextOrSourceIndex);
+
+	if(dispatchLink->nextOrSourceIndex==LINK_INDEX_DUMMY)
+		LOG(LOG_CRITICAL, "Expected sequence link, found end of chain");
+
+	if(dispatchLink->indexType!=LINK_INDEXTYPE_SEQ)
+		LOG(LOG_CRITICAL, "Expected sequence type, found %i", dispatchLink->indexType);
+
+	u32 sequenceLinkIndex=dispatchLink->nextOrSourceIndex;
+	SequenceLink *sequenceLink=mbSingleBrickFindByIndex(rdi->sequenceLinkPile, sequenceLinkIndex);
+
+	while(sequenceLink->tagLength==0 && sequenceLink->nextIndex!=LINK_INDEX_DUMMY)
+		sequenceLink=mbSingleBrickFindByIndex(rdi->sequenceLinkPile, sequenceLink->nextIndex);
+
+	int tagLength=sequenceLink->tagLength;
+
+	if(tagLength==0) // No tag
+		return NULL;
+
+	SequenceLink *scanSequenceLink=sequenceLink;
+
+	while(scanSequenceLink->nextIndex!=LINK_INDEX_DUMMY)
+		{
+		scanSequenceLink=mbSingleBrickFindByIndex(rdi->sequenceLinkPile, scanSequenceLink->nextIndex);
+		tagLength+=scanSequenceLink->tagLength;
+		}
+
+	if(tagLength>SEQUENCE_LINK_MAX_TAG_LENGTH)
+		LOG(LOG_CRITICAL,"Found over-long tag with %i length", tagLength);
+
+	u8 *tagData=dAlloc(disp, tagLength+1);
+	*tagData=tagLength;
+
+	u8 *tagPtr=tagData+1;
+	int toCopy=sequenceLink->seqLength;
+
+	int offset=(sequenceLink->seqLength+3)>>2;
+
+	memcpy(tagPtr, sequenceLink->packedSequence+offset, toCopy);
+	tagPtr+=toCopy;
+
+	while(sequenceLink->nextIndex!=LINK_INDEX_DUMMY)
+		{
+		sequenceLink=mbSingleBrickFindByIndex(rdi->sequenceLinkPile, sequenceLink->nextIndex);
+
+		toCopy=sequenceLink->seqLength;
+		memcpy(tagPtr, sequenceLink->packedSequence, toCopy);
+		tagPtr+=toCopy;
+		}
+
+	//dumpTag(tagData);
+
+	return tagData;
+}
 
 
 static void createRoutePatches(RoutingIndexedDispatchLinkIndexBlock *rdi, int entryOffset, int entryCount,
-		SeqTailBuilder *prefixBuilder, SeqTailBuilder *suffixBuilder,
-		RoutePatch **forwardPatchesPtr, RoutePatch **reversePatchesPtr,
-		int *forwardCountPtr, int *reverseCountPtr, MemDispenser *disp)
+		SeqTailBuilder *prefixBuilder, SeqTailBuilder *suffixBuilder, RoutePatch **forwardPatchesPtr, RoutePatch **reversePatchesPtr,
+		int *forwardCountPtr, int *reverseCountPtr, int *forwardTagCountPtr, int *reverseTagCountPtr, MemDispenser *disp)
 {
 	int forwardCount=0, reverseCount=0;
+	int forwardTagCount=0, reverseTagCount=0;
 
 	RoutePatch *forwardPatches=dAlloc(disp,sizeof(RoutePatch)*entryCount);
 	RoutePatch *reversePatches=dAlloc(disp,sizeof(RoutePatch)*entryCount);
@@ -2290,6 +2381,14 @@ static void createRoutePatches(RoutingIndexedDispatchLinkIndexBlock *rdi, int en
 							bufferP, prefixLength, forwardPatches[forwardCount].prefixIndex,  bufferN, bufferS, suffixLength, forwardPatches[forwardCount].suffixIndex);
 					}
 
+				if(rdd->revComp & DISPATCHLINK_EOS_FLAG)
+					{
+					forwardPatches[forwardCount].tagData=extractTagData(rdi, rdd, disp);
+					forwardTagCount++;
+					}
+				else
+					forwardPatches[forwardCount].tagData=NULL;
+
 				forwardCount++;
 			}
 		else	// (smerRc&0x2) - Reverse-complement Read Orientation
@@ -2331,6 +2430,14 @@ static void createRoutePatches(RoutingIndexedDispatchLinkIndexBlock *rdi, int en
 							bufferP, prefixLength, reversePatches[reverseCount].prefixIndex,  bufferN, bufferS, suffixLength, reversePatches[reverseCount].suffixIndex);
 					}
 
+				if(rdd->revComp & DISPATCHLINK_EOS_FLAG)
+					{
+					reversePatches[reverseCount].tagData=extractTagData(rdi, rdd, disp);
+					reverseTagCount++;
+					}
+				else
+					reversePatches[reverseCount].tagData=NULL;
+
 				reverseCount++;
 			}
 	}
@@ -2349,6 +2456,8 @@ static void createRoutePatches(RoutingIndexedDispatchLinkIndexBlock *rdi, int en
 	*forwardCountPtr=forwardCount;
 	*reverseCountPtr=reverseCount;
 
+	*forwardTagCountPtr=forwardTagCount;
+	*reverseTagCountPtr=reverseTagCount;
 }
 
 
@@ -2410,8 +2519,11 @@ int rtRouteReadsForSmer(RoutingIndexedDispatchLinkIndexBlock *rdi, u32 entryOffs
 	int forwardCount=0;
 	int reverseCount=0;
 
+	int forwardTagCount=0;
+	int reverseTagCount=0;
+
 	createRoutePatches(rdi, entryOffset, entryCount, &(routingBuilder.prefixBuilder), &(routingBuilder.suffixBuilder),
-			&forwardPatches, &reversePatches, &forwardCount, &reverseCount, disp);
+			&forwardPatches, &reversePatches, &forwardCount, &reverseCount, &forwardTagCount, &reverseTagCount, disp);
 
 	s32 prefixCount=stGetSeqTailTotalTailCount(&(routingBuilder.prefixBuilder))+1;
 	s32 suffixCount=stGetSeqTailTotalTailCount(&(routingBuilder.suffixBuilder))+1;
@@ -2480,7 +2592,8 @@ int rtRouteReadsForSmer(RoutingIndexedDispatchLinkIndexBlock *rdi, u32 entryOffs
 //		LOG(LOG_INFO,"Before merge route:");
 //		rtaDumpRoutingTableArray(routingBuilder.arrayBuilder);
 
-		rtaMergeRoutes(routingBuilder.arrayBuilder, forwardPatches, reversePatches, forwardCount, reverseCount, prefixCount, suffixCount, orderedDispatches, disp);
+		rtaMergeRoutes(routingBuilder.arrayBuilder, forwardPatches, reversePatches, forwardCount, reverseCount, forwardTagCount, reverseTagCount,
+				prefixCount, suffixCount, orderedDispatches, disp);
 
 //		LOG(LOG_INFO,"After merge route:");
 //		rtaDumpRoutingTableArray(routingBuilder.arrayBuilder);

@@ -29,10 +29,15 @@ static void initDispatchIndexedIntermediateBlock(RoutingIndexedDispatchLinkIndex
 
 }
 
-RoutingIndexedDispatchLinkIndexBlock *allocDispatchIndexedIntermediateBlock(MemDispenser *disp)
+RoutingIndexedDispatchLinkIndexBlock *allocDispatchIndexedIntermediateBlock(MemDispenser *disp, RoutingBuilder *rb)
 {
 	RoutingIndexedDispatchLinkIndexBlock *block=dAlloc(disp, sizeof(RoutingIndexedDispatchLinkIndexBlock));
 	initDispatchIndexedIntermediateBlock(block, disp);
+
+	block->sequenceLinkPile=&(rb->sequenceLinkPile);
+	block->lookupLinkPile=&(rb->lookupLinkPile);
+	block->dispatchLinkPile=&(rb->dispatchLinkPile);
+
 	return block;
 }
 
@@ -983,7 +988,7 @@ static int processSlice(RoutingBuilder *rb, RoutingSliceAssignedDispatchLinkQueu
 		if(dispatchQueue->position!=0)
 			LOG(LOG_CRITICAL,"DispatchQueue: %i entries for slice %i with invalid position %i",dispatchQueue->entryCount,dispatchQueue->sliceIndex, dispatchQueue->position);
 
-		RoutingIndexedDispatchLinkIndexBlock *indexBlock=allocDispatchIndexedIntermediateBlock(routingDisp);
+		RoutingIndexedDispatchLinkIndexBlock *indexBlock=allocDispatchIndexedIntermediateBlock(routingDisp, rb);
 		indexBlock->sliceIndex=sliceIndex;
 
 		//int threshold=MIN(dispatchQueue->entryCount-dispatchQueue->position, DISPATCH_LINK_QUEUE_FORCE_THRESHOLD);
@@ -1219,7 +1224,7 @@ static int gatherSliceOutbound(MemSingleBrickPile *sequencePile, MemDoubleBrickP
 				{
 				case LINK_INDEXTYPE_SEQ: // Dispatch -> Seq* -> null - should be at end of sequence
 					{
-					if(!(dispatchLink->revComp & 0x80))
+					if(!(dispatchLink->revComp & DISPATCHLINK_EOS_FLAG))
 						LOG(LOG_CRITICAL,"End of sequence: No marker. DispatchLink RevComp %02x", dispatchLink->revComp);
 
 					u32 sequenceLinkIndex=dispatchLink->nextOrSourceIndex;
