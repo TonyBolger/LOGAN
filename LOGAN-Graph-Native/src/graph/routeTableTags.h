@@ -5,8 +5,7 @@
 typedef struct routeTableTagStr
 {
 	u8 *tagData;
-	s32 tailIndex;
-	s32 position;
+	s32 nodePosition;
 
 } RouteTableTag;
 
@@ -27,10 +26,8 @@ struct routeTableTagBuilderStr
 	u32 newForwardEntryCount;
 	u32 newReverseEntryCount;
 
-	u32 newForwardEntryAlloc;
-	u32 newReverseEntryAlloc;
-
-	s32 totalPackedSize;
+	s32 forwardPackedSize;
+	s32 reversePackedSize;
 
 };
 
@@ -45,8 +42,8 @@ s32 rtgGetRouteTableTagBuilderDirty(RouteTableTagBuilder *builder);
 s32 rtgGetRouteTableTagBuilderPackedSize(RouteTableTagBuilder *builder);
 u8 *rtgWriteRouteTableTagBuilderPackedData(RouteTableTagBuilder *builder, u8 *data);
 
-void rtgMergeForwardRoutes(RouteTableTagBuilder *builder, RoutePatch *patchPtr, RoutePatch *endPatchPtr);
-void rtgMergeReverseRoutes(RouteTableTagBuilder *builder, RoutePatch *patchPtr, RoutePatch *endPatchPtr);
+void rtgMergeForwardRoutes(RouteTableTagBuilder *builder, s32 forwardTagCount, RoutePatch *patchPtr, RoutePatch *endPatchPtr);
+void rtgMergeReverseRoutes(RouteTableTagBuilder *builder, s32 reverseTagCount, RoutePatch *patchPtr, RoutePatch *endPatchPtr);
 
 #endif
 

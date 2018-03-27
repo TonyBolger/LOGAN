@@ -2363,6 +2363,8 @@ static void createRoutePatches(RoutingIndexedDispatchLinkIndexBlock *rdi, int en
 				forwardPatches[forwardCount].rdiPtr=rdi->linkEntries[i];
 				forwardPatches[forwardCount].dispatchLinkIndex=rdi->linkIndexEntries[i];
 
+				forwardPatches[forwardCount].nodePosition=-1;
+
 				forwardPatches[forwardCount].prefixIndex=stFindOrCreateSeqTail(prefixBuilder, prefixSmer, prefixLength);
 				forwardPatches[forwardCount].suffixIndex=stFindOrCreateSeqTail(suffixBuilder, suffixSmer, suffixLength);
 
@@ -2384,7 +2386,8 @@ static void createRoutePatches(RoutingIndexedDispatchLinkIndexBlock *rdi, int en
 				if(rdd->revComp & DISPATCHLINK_EOS_FLAG)
 					{
 					forwardPatches[forwardCount].tagData=extractTagData(rdi, rdd, disp);
-					forwardTagCount++;
+					if(forwardPatches[forwardCount].tagData!=NULL)
+						forwardTagCount++;
 					}
 				else
 					forwardPatches[forwardCount].tagData=NULL;
@@ -2413,6 +2416,8 @@ static void createRoutePatches(RoutingIndexedDispatchLinkIndexBlock *rdi, int en
 				reversePatches[reverseCount].rdiPtr=rdi->linkEntries[i];
 				reversePatches[reverseCount].dispatchLinkIndex=rdi->linkIndexEntries[i];
 
+				reversePatches[reverseCount].nodePosition=-1;
+
 				reversePatches[reverseCount].prefixIndex=stFindOrCreateSeqTail(prefixBuilder, prefixSmer, prefixLength);
 				reversePatches[reverseCount].suffixIndex=stFindOrCreateSeqTail(suffixBuilder, suffixSmer, suffixLength);
 
@@ -2433,7 +2438,8 @@ static void createRoutePatches(RoutingIndexedDispatchLinkIndexBlock *rdi, int en
 				if(rdd->revComp & DISPATCHLINK_EOS_FLAG)
 					{
 					reversePatches[reverseCount].tagData=extractTagData(rdi, rdd, disp);
-					reverseTagCount++;
+					if(reversePatches[reverseCount].tagData!=NULL)
+						reverseTagCount++;
 					}
 				else
 					reversePatches[reverseCount].tagData=NULL;

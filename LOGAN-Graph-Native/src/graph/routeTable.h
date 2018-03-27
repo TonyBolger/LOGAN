@@ -70,7 +70,7 @@ typedef struct routePatchStr
 	u8 *tagData;
 	u32 dispatchLinkIndex;
 
-	s32 nodeOffset;
+	s32 nodePosition;
 	s32 prefixIndex;
 	s32 suffixIndex;
 } RoutePatch;
