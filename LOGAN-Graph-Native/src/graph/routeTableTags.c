@@ -31,51 +31,13 @@ Implementation:
 
 */
 
+#define ROUTETAG_HEADER_FWD_NONE 0
+#define ROUTETAG_HEADER_FWD 0x1
 
-u8 *rtgScanRouteTableTags(u8 *data)
-{
-	//u8 tagTableFlag=*data;
+#define ROUTETAG_HEADER_REV_NONE 0
+#define ROUTETAG_HEADER_REV 0x10
 
-	return data+1;
-}
-
-
-static u8 *readRouteTableTagBuilderPackedData(RouteTableTagBuilder *builder, u8 *data)
-{
-	u8 header=0;
-
-	if(data!=NULL)
-		header=*(data++);
-
-	if(header!=0)
-		LOG(LOG_CRITICAL,"Non zero tag table header");
-
-	builder->oldForwardEntryCount=0;
-	builder->oldReverseEntryCount=0;
-
-	builder->forwardPackedSize=0;
-	builder->reversePackedSize=0;
-
-	return data;
-}
-
-u8 *rtgInitRouteTableTagBuilder(RouteTableTagBuilder *builder, u8 *data, MemDispenser *disp)
-{
-	builder->disp=disp;
-
-	data=readRouteTableTagBuilderPackedData(builder,data);
-
-	builder->newForwardEntries=NULL;
-	builder->newReverseEntries=NULL;
-
-	builder->newForwardEntryCount=0;
-	builder->newReverseEntryCount=0;
-
-	return data;
-
-}
-
-static void rtgDumpRouteTableTagEntryArray(char *name, RouteTableTag *entries, u32 entryCount)
+static void dumpRouteTableTagEntryArray(char *name, RouteTableTag *entries, u32 entryCount)
 {
 	LOGN(LOG_INFO,"%s: EntryCount %i",name, entryCount);
 
@@ -112,20 +74,164 @@ void rtgDumpRouteTableTags(RouteTableTagBuilder *builder)
 
 	LOG(LOG_INFO,"Old Data Size: %i",builder->oldDataSize);
 
-	rtgDumpRouteTableTagEntryArray("Old Forward", builder->oldForwardEntries, builder->oldForwardEntryCount);
-	rtgDumpRouteTableTagEntryArray("New Forward", builder->newForwardEntries, builder->newForwardEntryCount);
+	dumpRouteTableTagEntryArray("Old Forward", builder->oldForwardEntries, builder->oldForwardEntryCount);
+	dumpRouteTableTagEntryArray("New Forward", builder->newForwardEntries, builder->newForwardEntryCount);
 
 	LOG(LOG_INFO,"Forward Packed Size: %i",builder->forwardPackedSize);
 
-	rtgDumpRouteTableTagEntryArray("Old Reverse", builder->oldReverseEntries, builder->oldReverseEntryCount);
-	rtgDumpRouteTableTagEntryArray("New Reverse", builder->newReverseEntries, builder->newReverseEntryCount);
+	dumpRouteTableTagEntryArray("Old Reverse", builder->oldReverseEntries, builder->oldReverseEntryCount);
+	dumpRouteTableTagEntryArray("New Reverse", builder->newReverseEntries, builder->newReverseEntryCount);
 
 	LOG(LOG_INFO,"Reverse Packed Size: %i",builder->reversePackedSize);
 }
 
+u8 *rtgScanRouteTableTags(u8 *data)
+{
+	u8 header=0;
+
+	if(data!=NULL)
+		header=*(data++);
+
+	if(header & ROUTETAG_HEADER_FWD)
+		{
+		u32 *sizePtr=(u32 *)data;
+		u32 size=*sizePtr;
+		data+=4+size;
+		}
+
+	if(header & ROUTETAG_HEADER_REV)
+		{
+		u32 *sizePtr=(u32 *)data;
+		u32 size=*sizePtr;
+		data+=4+size;
+		}
+
+	return data;
+
+}
+
+
+static void readRouteTableTagArray(RouteTableTagBuilder *builder, RouteTableTag **entriesPtr, u32 *entryCountPtr, u8 *dataPtr, u8 *dataEndPtr)
+{
+	u8 *scanPtr=dataPtr;
+	u32 entryCount=0;
+
+	while(scanPtr<dataEndPtr)
+		{
+		scanPtr+=4; // skip node position
+		u8 tagLength=*scanPtr;
+		scanPtr+=tagLength+1;
+		entryCount++;
+		}
+
+	if(scanPtr!=dataEndPtr)
+		LOG(LOG_CRITICAL,"Tag Array end did not match expected. Actual %p Expected %p",scanPtr, dataEndPtr);
+
+	RouteTableTag *entries=dAlloc(builder->disp, sizeof(RouteTableTag)*entryCount);
+	*entriesPtr=entries;
+	*entryCountPtr=entryCount;
+
+	while(dataPtr<dataEndPtr)
+		{
+		u32 *positionPtr=(u32 *)dataPtr;
+		entries->nodePosition=*positionPtr;
+		dataPtr+=4;
+
+		u8 tagLength=*dataPtr;
+		u8 *tagData=dAlloc(builder->disp, tagLength+1);
+		memcpy(tagData, dataPtr, tagLength+1);
+		entries->tagData=tagData;
+
+		dataPtr+=tagLength+1;
+		entries++;
+		}
+
+	if(dataPtr!=dataEndPtr)
+		LOG(LOG_CRITICAL,"Tag Array end did not match expected. Actual %p Expected %p",dataPtr, dataEndPtr);
+
+
+}
+
+static u8 *readRouteTableTagBuilderPackedData(RouteTableTagBuilder *builder, u8 *data)
+{
+	u8 header=0;
+
+	if(data!=NULL)
+		header=*(data++);
+
+	//u8 *dataOrig=data;
+
+	if(header & ROUTETAG_HEADER_FWD)
+		{
+		u32 *sizePtr=(u32 *)data;
+		u32 size=*sizePtr;
+		data+=4;
+
+		u8 *dataEnd=data+size;
+		readRouteTableTagArray(builder, &(builder->oldForwardEntries), &(builder->oldForwardEntryCount), data, dataEnd);
+		data=dataEnd;
+
+		builder->forwardPackedSize=size+4;
+		}
+	else
+		{
+		builder->oldForwardEntryCount=0;
+		builder->forwardPackedSize=0;
+		}
+
+	if(header & ROUTETAG_HEADER_REV)
+		{
+		u32 *sizePtr=(u32 *)data;
+		u32 size=*sizePtr;
+		data+=4;
+
+		u8 *dataEnd=data+size;
+		readRouteTableTagArray(builder, &(builder->oldReverseEntries), &(builder->oldReverseEntryCount), data, dataEnd);
+		data=dataEnd;
+
+		builder->reversePackedSize=size+4;
+		}
+	else
+		{
+		builder->oldReverseEntryCount=0;
+		builder->reversePackedSize=0;
+		}
+
+	/*
+	int size=data-dataOrig;
+	if(size>100)
+		{
+		LOG(LOG_INFO,"readRouteTableTagBuilderPackedData: Parsed %i",size);
+		rtgDumpRouteTableTags(builder);
+		}
+*/
+
+	return data;
+}
+
+u8 *rtgInitRouteTableTagBuilder(RouteTableTagBuilder *builder, u8 *data, MemDispenser *disp)
+{
+	builder->disp=disp;
+
+	builder->newForwardEntries=NULL;
+	builder->newReverseEntries=NULL;
+
+	builder->newForwardEntryCount=0;
+	builder->newReverseEntryCount=0;
+
+	data=readRouteTableTagBuilderPackedData(builder,data);
+
+	return data;
+
+}
+
+
+
+
+
 s32 rtgGetRouteTableTagBuilderDirty(RouteTableTagBuilder *builder)
 {
-	return 0;
+	return (builder->newForwardEntryCount!=0) || (builder->newReverseEntryCount!=0);
 }
 
 s32 rtgGetRouteTableTagBuilderPackedSize(RouteTableTagBuilder *builder)
@@ -133,26 +239,76 @@ s32 rtgGetRouteTableTagBuilderPackedSize(RouteTableTagBuilder *builder)
 	return 1+builder->forwardPackedSize+builder->reversePackedSize;
 }
 
-u8 *rtgWriteRouteTableTagBuilderPackedData(RouteTableTagBuilder *builder, u8 *data)
+static u8 *writeRouteTableTagArray(RouteTableTag *tagEntries, u32 entryCount, u8 *data)
 {
-	if(builder->forwardPackedSize>0 || builder->reversePackedSize>0)
+	for(int i=0;i<entryCount;i++)
 		{
-		rtgDumpRouteTableTags(builder);
-		LOG(LOG_CRITICAL,"TODO");
+		u32 *positionPtr=(u32 *)data;
+		*positionPtr=tagEntries[i].nodePosition;
+		data+=4;
+
+		u8 *tagData=tagEntries[i].tagData;
+
+		u8 tagLength=*(tagData);
+		memcpy(data, tagData, tagLength+1);
+		data+=tagLength+1;
 		}
 
+	return data;
+}
 
-	*data=0;
-	return data+1;
+u8 *rtgWriteRouteTableTagBuilderPackedData(RouteTableTagBuilder *builder, u8 *data)
+{
+	u8 fwdHeader=(builder->forwardPackedSize>0)?ROUTETAG_HEADER_FWD:0;
+	u8 revHeader=(builder->reversePackedSize>0)?ROUTETAG_HEADER_REV:0;
+
+	*(data++)=fwdHeader | revHeader;
+
+	u8 *expectedData=data+builder->forwardPackedSize;
+
+	if(builder->forwardPackedSize>0)
+		{
+		u32 *sizePtr=(u32 *)data;
+		*sizePtr=builder->forwardPackedSize-4;
+		data+=4;
+
+		if(builder->newForwardEntries!=NULL)
+			data=writeRouteTableTagArray(builder->newForwardEntries, builder->newForwardEntryCount, data);
+		else
+			data=writeRouteTableTagArray(builder->oldForwardEntries, builder->oldForwardEntryCount, data);
+		}
+
+	if(data!=expectedData)
+		LOG(LOG_CRITICAL,"Forward tag data did not end at expected location Actual: %p vs Expected: %p", data, expectedData);
+
+	expectedData=data+builder->reversePackedSize;
+
+	if(builder->reversePackedSize>0)
+		{
+		u32 *sizePtr=(u32 *)data;
+		*sizePtr=builder->reversePackedSize-4;
+		data+=4;
+
+		if(builder->newReverseEntries!=NULL)
+			data=writeRouteTableTagArray(builder->newReverseEntries, builder->newReverseEntryCount, data);
+		else
+			data=writeRouteTableTagArray(builder->oldReverseEntries, builder->oldReverseEntryCount, data);
+		}
+
+	if(data!=expectedData)
+		LOG(LOG_CRITICAL,"Reverse tag data did not end at expected location Actual: %p vs Expected: %p", data, expectedData);
+
+	return data;
 }
 
 void rtgMergeForwardRoutes(RouteTableTagBuilder *builder, int forwardTagCount, RoutePatch *patchPtr, RoutePatch *endPatchPtr)
 {
 	s32 totalTags=builder->oldForwardEntryCount+forwardTagCount;
-	LOG(LOG_INFO, "rtgMergeForwardRoutes Tags %i OldTags %i Total %i",forwardTagCount, builder->oldForwardEntryCount, totalTags);
 
 	if(totalTags==0)
 		return;
+
+	//LOG(LOG_INFO, "rtgMergeForwardRoutes Tags %i OldTags %i Total %i",forwardTagCount, builder->oldForwardEntryCount, totalTags);
 
 	s32 packedSize=0;
 
@@ -213,10 +369,10 @@ void rtgMergeForwardRoutes(RouteTableTagBuilder *builder, int forwardTagCount, R
 void rtgMergeReverseRoutes(RouteTableTagBuilder *builder, s32 reverseTagCount, RoutePatch *patchPtr, RoutePatch *endPatchPtr)
 {
 	s32 totalTags=builder->oldReverseEntryCount+reverseTagCount;
-	LOG(LOG_INFO, "rtgMergeReverseRoutes Tags %i OldTags %i Total %i",reverseTagCount, builder->oldReverseEntryCount, totalTags);
-
 	if(totalTags==0)
 		return;
+
+	//LOG(LOG_INFO, "rtgMergeReverseRoutes Tags %i OldTags %i Total %i",reverseTagCount, builder->oldReverseEntryCount, totalTags);
 
 	s32 packedSize=0;
 
