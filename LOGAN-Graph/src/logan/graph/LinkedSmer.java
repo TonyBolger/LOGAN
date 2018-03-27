@@ -51,7 +51,9 @@ public class LinkedSmer {
 	private Tail suffixes[];
 	private Route forwardRoutes[];
 	private Route reverseRoutes[];
-
+	private RouteTag forwardRouteTags[];
+	private RouteTag reverseRouteTags[];
+		
 	public LinkedSmer(long smerId, Tail prefixes[], Tail suffixes[], Route forwardRoutes[], Route reverseRoutes[])
 	{
 		this.smerId=smerId;
@@ -59,8 +61,22 @@ public class LinkedSmer {
 		this.suffixes=suffixes;
 		this.forwardRoutes=forwardRoutes;
 		this.reverseRoutes=reverseRoutes;
+		this.forwardRouteTags=new RouteTag[0];
+		this.reverseRouteTags=new RouteTag[0];
 	}
 
+	public LinkedSmer(long smerId, Tail prefixes[], Tail suffixes[], Route forwardRoutes[], Route reverseRoutes[], 
+			RouteTag forwardRouteTags[], RouteTag reverseRouteTags[])
+	{
+		this.smerId=smerId;
+		this.prefixes=prefixes;
+		this.suffixes=suffixes;
+		this.forwardRoutes=forwardRoutes;
+		this.reverseRoutes=reverseRoutes;
+		this.forwardRouteTags=forwardRouteTags;
+		this.reverseRouteTags=reverseRouteTags;
+	}
+	
 	public long getSmerId() {
 		return smerId;
 	}
@@ -81,6 +97,14 @@ public class LinkedSmer {
 		return reverseRoutes;
 	}
 
+	public RouteTag[] getForwardRouteTags() {
+		return forwardRouteTags;
+	}
+
+	public RouteTag[] getReverseRouteTags() {
+		return reverseRouteTags;
+	}
+
 	public String toString()
 	{
 		StringBuilder sb=new StringBuilder();
@@ -99,8 +123,15 @@ public class LinkedSmer {
 		sb.append("], \nReverseRoutes("+reverseRoutes.length+"): [");
 		for(Route r: reverseRoutes)
 			sb.append(r.toString());
+		sb.append("], \nForwardRouteTags("+forwardRouteTags.length+"): [");
+		for(RouteTag r: forwardRouteTags)
+			sb.append(r.toString());
+		sb.append("], \nReverseRouteTags("+reverseRouteTags.length+"): [");
+		for(RouteTag r: reverseRouteTags)
+			sb.append(r.toString());
 		sb.append("] ]");
 
+		
 		return sb.toString();
 	}
 
@@ -750,6 +781,27 @@ public class LinkedSmer {
 
 	}
 
+	public static class RouteTag
+	{
+		private int nodePosition;
+		private byte tagData[];
+		
+		public RouteTag(int nodePosition, byte[] tagData) {
+			this.nodePosition = nodePosition;
+			this.tagData = tagData;
+		}
+		
+		public int getNodePosition() {
+			return nodePosition;
+		}
+		
+		public byte[] getTagData() {
+			return tagData;
+		}
+		
+		
+	}
+	
 	public static class NodeContext
 	{
 		private LinkedSmer smer;

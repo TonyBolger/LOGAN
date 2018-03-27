@@ -515,7 +515,7 @@ static s32 arrayBufferPartialTransfer(RouteTableArrayBuffer *buf, s32 requestedT
 }
 
 
-static int arrayBufferGetOffset(RouteTableArrayBuffer *buf)
+static int arrayBufferGetNodePosition(RouteTableArrayBuffer *buf)
 {
 	return buf->totalNewWidth+buf->newWidth;
 }
@@ -765,11 +765,11 @@ static RouteTableEntry *rtaMergeRoutes_ordered_forwardSingle(RouteTableArrayBuil
 
 //		LOG(LOG_INFO,"Handoff %i %i",downstreamEdgeOffset,downstreamEdgeOffset);
 
-		s32 nodeOffset=arrayBufferGetOffset(&buf);
+		s32 nodePosition=arrayBufferGetNodePosition(&buf);
 		// Map offsets to new entry
 		patch->rdiPtr->minEdgePosition=downstreamEdgeOffset;
 		patch->rdiPtr->maxEdgePosition=downstreamEdgeOffset;
-		patch->nodePosition=nodeOffset;
+		patch->nodePosition=nodePosition;
 
 		arrayBufferPushOutput(&buf, targetPrefix, targetSuffix, 1);
 		}
@@ -794,7 +794,7 @@ static RouteTableEntry *rtaMergeRoutes_ordered_forwardSingle(RouteTableArrayBuil
 
 //		LOG(LOG_INFO,"Handoff %i %i",downstreamEdgeOffset+minOffset,downstreamEdgeOffset+maxOffset);
 
-		s32 nodeOffset=arrayBufferGetOffset(&buf);
+		s32 nodeOffset=arrayBufferGetNodePosition(&buf);
 		// Map offsets to new entry
 		patch->rdiPtr->minEdgePosition=downstreamEdgeOffset+minOffset;
 		patch->rdiPtr->maxEdgePosition=downstreamEdgeOffset+maxOffset;
@@ -826,7 +826,7 @@ static RouteTableEntry *rtaMergeRoutes_ordered_forwardSingle(RouteTableArrayBuil
 
 //		LOG(LOG_INFO,"Handoff %i %i",downstreamEdgeOffset,downstreamEdgeOffset);
 
-		s32 nodeOffset=arrayBufferGetOffset(&buf);
+		s32 nodeOffset=arrayBufferGetNodePosition(&buf);
 		// Map offsets
 		patch->rdiPtr->minEdgePosition=downstreamEdgeOffset;
 		patch->rdiPtr->maxEdgePosition=downstreamEdgeOffset;
@@ -938,11 +938,11 @@ RouteTableEntry *rtaMergeRoutes_ordered_forwardMulti(RouteTableArrayBuilder *bui
 
 			// LOG(LOG_INFO,"Handoff %i %i",downstreamEdgeOffset,downstreamEdgeOffset);
 
-			s32 nodeOffset=arrayBufferGetOffset(&buf);
+			s32 nodePosition=arrayBufferGetNodePosition(&buf);
 			// Map offsets to new entry
 			patchPtr->rdiPtr->minEdgePosition=downstreamEdgeOffset;
 			patchPtr->rdiPtr->maxEdgePosition=downstreamEdgeOffset;
-			patchPtr->nodePosition=nodeOffset++;
+			patchPtr->nodePosition=nodePosition++;
 			patchPtr++;
 			int width=1;
 
@@ -950,7 +950,7 @@ RouteTableEntry *rtaMergeRoutes_ordered_forwardMulti(RouteTableArrayBuilder *bui
 				{
 				patchPtr->rdiPtr->minEdgePosition=downstreamEdgeOffset;
 				patchPtr->rdiPtr->maxEdgePosition=downstreamEdgeOffset+width;
-				patchPtr->nodePosition=nodeOffset++;
+				patchPtr->nodePosition=nodePosition++;
 
 				patchPtr++;
 				width++;
@@ -988,7 +988,7 @@ RouteTableEntry *rtaMergeRoutes_ordered_forwardMulti(RouteTableArrayBuilder *bui
 
 	//		LOG(LOG_INFO,"Handoff %i %i",downstreamEdgeOffset+minOffset,downstreamEdgeOffset+maxOffset);
 
-			s32 nodeOffset=arrayBufferGetOffset(&buf)+minOffset;
+			s32 nodeOffset=arrayBufferGetNodePosition(&buf)+minOffset;
 
 			// Map offsets to new entry
 			patchPtr->rdiPtr->minEdgePosition=downstreamEdgeOffset+minOffset;
@@ -1039,7 +1039,7 @@ RouteTableEntry *rtaMergeRoutes_ordered_forwardMulti(RouteTableArrayBuilder *bui
 			if(transWidth1!=splitWidth1)
 				LOG(LOG_CRITICAL,"Split transfer size mismatch %i %i",splitWidth1, transWidth1);
 
-			s32 nodeOffset=arrayBufferGetOffset(&buf);
+			s32 nodeOffset=arrayBufferGetNodePosition(&buf);
 
 			// Map offsets
 			patchPtr->rdiPtr->minEdgePosition=downstreamEdgeOffset;
@@ -1305,11 +1305,11 @@ static RouteTableEntry *rtaMergeRoutes_ordered_reverseSingle(RouteTableArrayBuil
 
 //		LOG(LOG_INFO,"Handoff %i %i",downstreamEdgeOffset,downstreamEdgeOffset);
 
-		s32 nodeOffset=arrayBufferGetOffset(&buf);
+		s32 nodePosition=arrayBufferGetNodePosition(&buf);
 		// Map offsets to new entry
 		patch->rdiPtr->minEdgePosition=downstreamEdgeOffset;
 		patch->rdiPtr->maxEdgePosition=downstreamEdgeOffset;
-		patch->nodePosition=nodeOffset;
+		patch->nodePosition=nodePosition;
 
 		arrayBufferPushOutput(&buf, targetPrefix, targetSuffix, 1);
 		}
@@ -1334,7 +1334,7 @@ static RouteTableEntry *rtaMergeRoutes_ordered_reverseSingle(RouteTableArrayBuil
 
 //		LOG(LOG_INFO,"Handoff %i %i",downstreamEdgeOffset+minOffset,downstreamEdgeOffset+maxOffset);
 
-		s32 nodeOffset=arrayBufferGetOffset(&buf);
+		s32 nodeOffset=arrayBufferGetNodePosition(&buf);
 		// Map offsets to new entry
 		patch->rdiPtr->minEdgePosition=downstreamEdgeOffset+minOffset;
 		patch->rdiPtr->maxEdgePosition=downstreamEdgeOffset+maxOffset;
@@ -1366,7 +1366,7 @@ static RouteTableEntry *rtaMergeRoutes_ordered_reverseSingle(RouteTableArrayBuil
 		if(transWidth1!=splitWidth1)
 			LOG(LOG_CRITICAL,"Split transfer size mismatch %i %i",splitWidth1, transWidth1);
 
-		s32 nodeOffset=arrayBufferGetOffset(&buf);
+		s32 nodeOffset=arrayBufferGetNodePosition(&buf);
 
 		// Map offsets
 		patch->rdiPtr->minEdgePosition=downstreamEdgeOffset;
@@ -1491,11 +1491,11 @@ RouteTableEntry *rtaMergeRoutes_ordered_reverseMulti(RouteTableArrayBuilder *bui
 
 			//LOG(LOG_INFO,"Handoff %i %i",downstreamEdgeOffset,downstreamEdgeOffset);
 
-			s32 nodeOffset=arrayBufferGetOffset(&buf);
+			s32 nodePosition=arrayBufferGetNodePosition(&buf);
 			// Map offsets to new entry
 			patchPtr->rdiPtr->minEdgePosition=downstreamEdgeOffset;
 			patchPtr->rdiPtr->maxEdgePosition=downstreamEdgeOffset;
-			patchPtr->nodePosition=nodeOffset++;
+			patchPtr->nodePosition=nodePosition++;
 
 			patchPtr++;
 			int width=1;
@@ -1504,7 +1504,7 @@ RouteTableEntry *rtaMergeRoutes_ordered_reverseMulti(RouteTableArrayBuilder *bui
 				{
 				patchPtr->rdiPtr->minEdgePosition=downstreamEdgeOffset;
 				patchPtr->rdiPtr->maxEdgePosition=downstreamEdgeOffset+width;
-				patchPtr->nodePosition=nodeOffset++;
+				patchPtr->nodePosition=nodePosition++;
 
 				patchPtr++;
 				width++;
@@ -1541,7 +1541,7 @@ RouteTableEntry *rtaMergeRoutes_ordered_reverseMulti(RouteTableArrayBuilder *bui
 
 	//		LOG(LOG_INFO,"Handoff %i %i",downstreamEdgeOffset+minOffset,downstreamEdgeOffset+maxOffset);
 
-			s32 nodeOffset=arrayBufferGetOffset(&buf)+minOffset;
+			s32 nodeOffset=arrayBufferGetNodePosition(&buf)+minOffset;
 
 			// Map offsets to new entry
 			patchPtr->rdiPtr->minEdgePosition=downstreamEdgeOffset+minOffset;
@@ -1593,7 +1593,7 @@ RouteTableEntry *rtaMergeRoutes_ordered_reverseMulti(RouteTableArrayBuilder *bui
 			if(transWidth1!=splitWidth1)
 				LOG(LOG_CRITICAL,"Split transfer size mismatch %i %i",splitWidth1, transWidth1);
 
-			s32 nodeOffset=arrayBufferGetOffset(&buf);
+			s32 nodeOffset=arrayBufferGetNodePosition(&buf);
 
 			// Map offsets
 			patchPtr->rdiPtr->minEdgePosition=downstreamEdgeOffset;
