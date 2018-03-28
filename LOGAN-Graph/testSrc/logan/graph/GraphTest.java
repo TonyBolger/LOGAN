@@ -50,12 +50,19 @@ public class GraphTest extends TestCase {
 //		File files1[]={new File("../../LOGAN-scratch/data/Ecoli-1_Q20.fq")};
 //		File files2[]={new File("../../LOGAN-scratch/data/Ecoli-1_Q20.fq")};
 
-		File files1[]={new File("../../LOGAN-scratch/data/Test_ACGT.fq")};
-		File files2[]={new File("../../LOGAN-scratch/data/Test_ACGT.fq")};
-
+//		File files1[]={new File("../../LOGAN-scratch/data/Test_ACGT.fq")};
+//		File files2[]={new File("../../LOGAN-scratch/data/Test_ACGT.fq")};
 
 //		File files1[]={new File("../data/Arabi-1_Q20.fq")};
 //		File files2[]={new File("../data/Arabi-1_Q20_10m.fq")};
+
+
+		File files1[]={new File("../../LOGAN-scratch/ref/TAIR10.fa"),new File("../../LOGAN-scratch/data/Arabi-1_Q20.fq")};
+		File files2[]={new File("../../LOGAN-scratch/ref/TAIR10.fa"),new File("../../LOGAN-scratch/data/Arabi-1_Q20.fq")};
+
+		//File files1[]={new File("../../LOGAN-scratch/ref/TAIR10.fa")};
+		//File files2[]={new File("../../LOGAN-scratch/ref/TAIR10.fa")};
+
 
 		int threadCount=1;
 

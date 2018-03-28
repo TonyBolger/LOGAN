@@ -6,6 +6,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.ListIterator;
 
+import logan.graph.LinkedSmer.RouteTag;
 import logan.graph.LinkedSmer.WhichSequenceDirection;
 
 public class GraphWalker {
@@ -59,7 +60,7 @@ public class GraphWalker {
 		edge.extractSequence(sb, WhichSequenceDirection.ORIGINAL, false);
 	}
 
-	public void followEdge(LinkedSmer.EdgeContext edge, StringBuilder sb, boolean loud) {
+	public LinkedSmer.RouteTag followEdge(LinkedSmer.EdgeContext edge, StringBuilder sb, boolean loud) {
 		// System.out.println("Following: "+edge);
 
 		// LinkedSmer [ID: 2868259474793, Seq: AAGGCGTTCACGCCGCATCCGGC,
@@ -76,7 +77,7 @@ public class GraphWalker {
 			edge.extractSequence(sb, WhichSequenceDirection.ORIGINAL, true);
 		}
 
-		int maxCount = 1000;
+		int maxCount = 2000;
 
 		while (edge != null && maxCount-- > 0) {
 			edge = edge.transitionAcrossNode(WhichSequenceDirection.ORIGINAL);
@@ -93,13 +94,20 @@ public class GraphWalker {
 				System.out.println();
 			}
 
-			edge = edge.transitionToLinkingEdge(WhichSequenceDirection.ORIGINAL, linkingSmer);
-			if (loud) {
-				System.out.println();
-				System.out.println("Linked to: " + edge);
-			}
+			if(linkingSmer!=null)
+				{
+				edge = edge.transitionToLinkingEdge(WhichSequenceDirection.ORIGINAL, linkingSmer);
+				if (loud) {
+					System.out.println();
+					System.out.println("Linked to: " + edge);
+				}
+				}
+			else
+				return edge.getTagData();
+
 		}
 
+		return null;
 	}
 
 	public void verifyUpstream(LinkedSmer smer) {
@@ -154,6 +162,8 @@ public class GraphWalker {
 		int reads = 0;
 		int smerCount = 0;
 
+		int noTagReads=0;
+
 		System.out.println("Dump begins");
 
 		for (long smerId : smerIds) {
@@ -176,22 +186,30 @@ public class GraphWalker {
 			for (LinkedSmer.EdgeContext edge : readContexts) {
 				try {
 					StringBuilder sb = new StringBuilder();
-					followEdge(edge, sb, false);
+					RouteTag tag=followEdge(edge, sb, false);
 
-					System.out.println("SEQ: "+sb.toString());
+					if(tag==null)
+						{
+//						System.out.println("SEQ: "+sb.toString());
+						noTagReads++;
+						}
+//					else
+//						System.out.println("TAG: "+tag.toString()+" SEQ: "+sb.toString());
+
 				} catch (RuntimeException e) {
 					throw e;
 					// followEdge(edge,true);
 				}
 			}
 
-			if (++smerCount % 1000000 == 0)
+			if (++smerCount % 10000 == 0)
 				System.out.println("Processed " + smerCount + " smers with " + reads + " reads");
 		}
 
 		System.out.println("Dump complete");
 		System.out.println("Processed " + smerCount + " smers with " + reads + " reads");
 
+		System.out.println("No Tag Reads: "+noTagReads);
 	}
 
 }

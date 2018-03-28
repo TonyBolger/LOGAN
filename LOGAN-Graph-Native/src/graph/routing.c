@@ -2674,12 +2674,13 @@ SmerLinked *rtGetLinkedSmer(SmerArray *smerArray, SmerId rootSmerId, MemDispense
 
 		if(rtHeaderIsLiveDirect(*data))
 			{
-			data+=rtGetGapBlockHeaderSize();
+			//LOG(LOG_INFO,"Linked Smer: Got data 2");
 
+			data+=rtGetGapBlockHeaderSize();
 			data=stUnpackPrefixesForSmerLinked(smerLinked, data, disp);
 			data=stUnpackSuffixesForSmerLinked(smerLinked, data, disp);
-
-			rtaUnpackRouteTableArrayForSmerLinked(smerLinked, data, disp);
+			data=rtaUnpackRouteTableArrayForSmerLinked(smerLinked, data, disp);
+			rtgUnpackRouteTableTagsForSmerLinked(smerLinked, data, disp);
 
 			for(int i=0;i<smerLinked->prefixCount;i++)
 				if(saFindSmer(smerArray, smerLinked->prefixSmers[i])<0)
@@ -2692,6 +2693,8 @@ SmerLinked *rtGetLinkedSmer(SmerArray *smerArray, SmerId rootSmerId, MemDispense
 			}
 		else if(rtHeaderIsLiveTop(*data))
 			{
+			//LOG(LOG_INFO,"Linked Smer: Got data 3");
+
 			RoutingComboBuilder routingBuilder;
 
 			routingBuilder.disp=disp;
@@ -2734,6 +2737,13 @@ SmerLinked *rtGetLinkedSmer(SmerArray *smerArray, SmerId rootSmerId, MemDispense
 
 			rttUnpackRouteTableForSmerLinked(smerLinked, &(treeBuilder->forwardWalker), &(treeBuilder->reverseWalker), disp);
 
+			// TAGS not supported yet in Tree mode
+
+			smerLinked->forwardRouteTags=NULL;
+			smerLinked->forwardRouteTagCount=0;
+
+			smerLinked->reverseRouteTags=NULL;
+			smerLinked->reverseRouteTagCount=0;
 
 			for(int i=0;i<smerLinked->prefixCount;i++)
 				if(saFindSmer(smerArray, smerLinked->prefixSmers[i])<0)

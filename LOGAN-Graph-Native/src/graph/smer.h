@@ -66,6 +66,13 @@ typedef struct routeTableEntryStr
 	s32 width;
 } RouteTableEntry;
 
+typedef struct routeTableTagStr
+{
+	u8 *tagData;
+	s32 nodePosition;
+} RouteTableTag;
+
+
 
 #define SMER_EXISTS_FORWARD (1)
 #define SMER_EXISTS_NOT (0)
@@ -87,8 +94,13 @@ typedef struct smerLinkedStr
 
 	RouteTableEntry *forwardRouteEntries;
 	RouteTableEntry *reverseRouteEntries;
-	u32 forwardRouteCount;
-	u32 reverseRouteCount;
+	u32 forwardRouteEntryCount;
+	u32 reverseRouteEntryCount;
+
+	RouteTableTag *forwardRouteTags;
+	RouteTableTag *reverseRouteTags;
+	u32 forwardRouteTagCount;
+	u32 reverseRouteTagCount;
 
 } SmerLinked;
 

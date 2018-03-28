@@ -370,7 +370,7 @@ void *stUnpackSuffixesForSmerLinked(SmerLinked *smerLinked, u8 *data, MemDispens
 {
 	if(data!=NULL)
 		{
-		data+=vpIntDecode(data, &smerLinked->prefixCount);
+		data+=vpIntDecode(data, &smerLinked->suffixCount);
 
 //		u16 *countPtr=(u16 *)data; // FIXME
 //		smerLinked->suffixCount=*countPtr;

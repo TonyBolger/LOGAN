@@ -75,6 +75,34 @@ void prFreeParseBuffer(ParseBuffer *parseBuffer)
 		}
 }
 
+void prWaitForSwqBufferIdle(SwqBuffer *swqBuffer)
+{
+	//LOG(LOG_INFO,"WaitForIdle");
+
+	while(__atomic_load_n(&(swqBuffer->usageCount),__ATOMIC_SEQ_CST)>0)
+		{
+		struct timespec req;
+
+		req.tv_sec=DEFAULT_SLEEP_SECS;
+		req.tv_nsec=DEFAULT_SLEEP_NANOS;
+
+		nanosleep(&req, NULL);
+		}
+
+	if(__atomic_load_n(&(swqBuffer->usageCount),__ATOMIC_SEQ_CST)<0)
+		LOG(LOG_CRITICAL,"Negative usage");
+
+	__atomic_thread_fence(__ATOMIC_SEQ_CST);
+
+	//LOG(LOG_INFO,"WaitForIdle Done");
+}
+
+void prWaitForParseBufferIdle(ParseBuffer *parseBuffer)
+{
+	for(int i=0;i<PT_INGRESS_BUFFERS;i++)
+		prWaitForSwqBufferIdle(&(parseBuffer->swqBuffers[i]));
+}
+
 
 
 static int guessFileFormatByExtensions(char *path)

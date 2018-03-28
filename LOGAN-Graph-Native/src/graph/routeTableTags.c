@@ -27,7 +27,7 @@ Implementation:
 
 	Tag tables need to be have positional synchronization with routing tables.
 
-	During insertion, only 'ending' edges can have tags (edge zero and dangling edges).
+	During insertion, only 'ending' edges can have tags (edge zero and dangling edges out of final Smer).
 
 */
 
@@ -111,7 +111,7 @@ u8 *rtgScanRouteTableTags(u8 *data)
 }
 
 
-static void readRouteTableTagArray(RouteTableTagBuilder *builder, RouteTableTag **entriesPtr, u32 *entryCountPtr, u8 *dataPtr, u8 *dataEndPtr)
+static void readRouteTableTagArray(RouteTableTag **entriesPtr, u32 *entryCountPtr, u8 *dataPtr, u8 *dataEndPtr, MemDispenser *disp)
 {
 	u8 *scanPtr=dataPtr;
 	u32 entryCount=0;
@@ -127,7 +127,7 @@ static void readRouteTableTagArray(RouteTableTagBuilder *builder, RouteTableTag 
 	if(scanPtr!=dataEndPtr)
 		LOG(LOG_CRITICAL,"Tag Array end did not match expected. Actual %p Expected %p",scanPtr, dataEndPtr);
 
-	RouteTableTag *entries=dAlloc(builder->disp, sizeof(RouteTableTag)*entryCount);
+	RouteTableTag *entries=dAlloc(disp, sizeof(RouteTableTag)*entryCount);
 	*entriesPtr=entries;
 	*entryCountPtr=entryCount;
 
@@ -138,7 +138,7 @@ static void readRouteTableTagArray(RouteTableTagBuilder *builder, RouteTableTag 
 		dataPtr+=4;
 
 		u8 tagLength=*dataPtr;
-		u8 *tagData=dAlloc(builder->disp, tagLength+1);
+		u8 *tagData=dAlloc(disp, tagLength+1);
 		memcpy(tagData, dataPtr, tagLength+1);
 		entries->tagData=tagData;
 
@@ -168,7 +168,7 @@ static u8 *readRouteTableTagBuilderPackedData(RouteTableTagBuilder *builder, u8 
 		data+=4;
 
 		u8 *dataEnd=data+size;
-		readRouteTableTagArray(builder, &(builder->oldForwardEntries), &(builder->oldForwardEntryCount), data, dataEnd);
+		readRouteTableTagArray(&(builder->oldForwardEntries), &(builder->oldForwardEntryCount), data, dataEnd, builder->disp);
 		data=dataEnd;
 
 		builder->forwardPackedSize=size+4;
@@ -186,7 +186,7 @@ static u8 *readRouteTableTagBuilderPackedData(RouteTableTagBuilder *builder, u8 
 		data+=4;
 
 		u8 *dataEnd=data+size;
-		readRouteTableTagArray(builder, &(builder->oldReverseEntries), &(builder->oldReverseEntryCount), data, dataEnd);
+		readRouteTableTagArray(&(builder->oldReverseEntries), &(builder->oldReverseEntryCount), data, dataEnd, builder->disp);
 		data=dataEnd;
 
 		builder->reversePackedSize=size+4;
@@ -430,5 +430,49 @@ void rtgMergeReverseRoutes(RouteTableTagBuilder *builder, s32 reverseTagCount, R
 
 }
 
+
+u8 *rtgUnpackRouteTableTagsForSmerLinked(SmerLinked *smerLinked, u8 *data, MemDispenser *disp)
+{
+	u8 header=0;
+
+	if(data!=NULL)
+		header=*(data++);
+
+	if(header & ROUTETAG_HEADER_FWD)
+			{
+			u32 *sizePtr=(u32 *)data;
+			u32 size=*sizePtr;
+			data+=4;
+
+			u8 *dataEnd=data+size;
+			readRouteTableTagArray(&(smerLinked->forwardRouteTags), &(smerLinked->forwardRouteTagCount), data, dataEnd, disp);
+			data=dataEnd;
+
+			}
+		else
+			{
+			smerLinked->forwardRouteTags=NULL;
+			smerLinked->forwardRouteTagCount=0;
+			}
+
+		if(header & ROUTETAG_HEADER_REV)
+			{
+			u32 *sizePtr=(u32 *)data;
+			u32 size=*sizePtr;
+			data+=4;
+
+			u8 *dataEnd=data+size;
+			readRouteTableTagArray(&(smerLinked->reverseRouteTags), &(smerLinked->reverseRouteTagCount), data, dataEnd, disp);
+			data=dataEnd;
+			}
+		else
+			{
+			smerLinked->reverseRouteTags=NULL;
+			smerLinked->reverseRouteTagCount=0;
+			}
+
+		return data;
+
+}
 
 

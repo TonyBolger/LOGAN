@@ -7,28 +7,6 @@
 
 #include "common.h"
 
-static void waitForBufferIdle(int *usageCount)
-{
-	//LOG(LOG_INFO,"WaitForIdle");
-
-	while(__atomic_load_n(usageCount,__ATOMIC_SEQ_CST)>0)
-		{
-		struct timespec req;
-
-		req.tv_sec=DEFAULT_SLEEP_SECS;
-		req.tv_nsec=DEFAULT_SLEEP_NANOS;
-
-		nanosleep(&req, NULL);
-		}
-
-	if(__atomic_load_n(usageCount,__ATOMIC_SEQ_CST)<0)
-		LOG(LOG_CRITICAL,"Negative usage");
-
-	__atomic_thread_fence(__ATOMIC_SEQ_CST);
-
-	//LOG(LOG_INFO,"WaitForIdle Done");
-}
-
 
 
 static int readBufferedFastqLine(u8 *ioBuffer, int *offset, u8 *outPtr, int maxLength)
@@ -155,7 +133,7 @@ s64 fqParseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 recor
 	s32 progressCounter=0;
 	s64 lastRecord=recordsToSkip+recordsToUse;
 
-	waitForBufferIdle(&swqBuffers[currentBuffer].usageCount);
+	prWaitForSwqBufferIdle(&swqBuffers[currentBuffer]);
 
 	int maxReads=swqBuffers[currentBuffer].maxSequences;
 	int maxBases=swqBuffers[currentBuffer].maxSequenceTotalLength;
@@ -204,7 +182,7 @@ s64 fqParseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 recor
 //					if(usage>0)
 //						LOG(LOG_INFO, "New buffer usage count was %i",usage);
 
-					waitForBufferIdle(&swqBuffers[currentBuffer].usageCount);
+					prWaitForSwqBufferIdle(&swqBuffers[currentBuffer]);
 
 //					if(usage>0)
 //						LOG(LOG_INFO, "New buffer usage count is now %i",buffers[currentBuffer].usageCount);

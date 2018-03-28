@@ -36,13 +36,16 @@ typedef struct graphJniStr
 	jfieldID linkedSmerTailFieldSmerId;
 	jfieldID linkedSmerTailFieldSmerExists;
 */
-	jclass linkedSmerRouteCls;
-	jmethodID linkedSmerRouteMethodInit;
+	jclass linkedSmerRouteEntryCls;
+	jmethodID linkedSmerRouteEntryMethodInit;
 	/*
 	jfieldID linkedSmerRouteFieldPrefix;
 	jfieldID linkedSmerRouteFieldSuffix;
 	jfieldID linkedSmerRouteFieldWidth;
 */
+	jclass linkedSmerRouteTagCls;
+	jmethodID linkedSmerRouteTagMethodInit;
+
 } GraphJni;
 
 

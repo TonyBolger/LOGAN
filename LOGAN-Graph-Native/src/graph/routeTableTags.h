@@ -2,12 +2,6 @@
 #define __ROUTE_TABLE_TAGS_H
 
 
-typedef struct routeTableTagStr
-{
-	u8 *tagData;
-	s32 nodePosition;
-
-} RouteTableTag;
 
 struct routeTableTagBuilderStr
 {
@@ -44,6 +38,8 @@ u8 *rtgWriteRouteTableTagBuilderPackedData(RouteTableTagBuilder *builder, u8 *da
 
 void rtgMergeForwardRoutes(RouteTableTagBuilder *builder, s32 forwardTagCount, RoutePatch *patchPtr, RoutePatch *endPatchPtr);
 void rtgMergeReverseRoutes(RouteTableTagBuilder *builder, s32 reverseTagCount, RoutePatch *patchPtr, RoutePatch *endPatchPtr);
+
+u8 *rtgUnpackRouteTableTagsForSmerLinked(SmerLinked *smerLinked, u8 *data, MemDispenser *disp);
 
 #endif
 

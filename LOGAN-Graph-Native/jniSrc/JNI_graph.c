@@ -59,7 +59,7 @@ static int JNIutil_getLongArray(JNIEnv *env, jlong *dest, jlongArray src, int el
 }
 */
 
-/*
+
 static jbyteArray toByteArray(JNIEnv *env, u8 *data, u32 size)
 {
 	if(data!=NULL)
@@ -72,6 +72,7 @@ static jbyteArray toByteArray(JNIEnv *env, u8 *data, u32 size)
 	return NULL;
 }
 
+/*
 static jlongArray toLongArray(JNIEnv *env, s64 *data, u32 size)
 {
 	if(data!=NULL)
@@ -115,6 +116,8 @@ static void processReadFiles(JNIEnv *env, jobjectArray jFilePaths, void *handler
 		(*env)->DeleteLocalRef(env, jFilePath);
 		}
 
+	prWaitForParseBufferIdle(&parseBuffer);
+
 	prFreeParseBuffer(&parseBuffer);
 }
 
@@ -135,17 +138,26 @@ static int prepareJniRefs(JNIEnv *env, GraphJni *graphJni) {
 
 	JNIREF_NULL_CHECK(graphJni->linkedSmerCls=(*env)->NewGlobalRef(env, (*env)->FindClass(env,"logan/graph/LinkedSmer")) ,"class logan.graph.LinkedSmer");
 	JNIREF_NULL_CHECK(graphJni->linkedSmerMethodInit=(*env)->GetMethodID(env, graphJni->linkedSmerCls, "<init>",
-			"(J[Llogan/graph/LinkedSmer$Tail;[Llogan/graph/LinkedSmer$Tail;[Llogan/graph/LinkedSmer$Route;[Llogan/graph/LinkedSmer$Route;)V"), "method LinkedSmer.<init>");
+			"(J[Llogan/graph/LinkedSmer$Tail;[Llogan/graph/LinkedSmer$Tail;"
+			"[Llogan/graph/LinkedSmer$RouteEntry;[Llogan/graph/LinkedSmer$RouteEntry;"
+			"[Llogan/graph/LinkedSmer$RouteTag;[Llogan/graph/LinkedSmer$RouteTag;)V"),
+			"method LinkedSmer.<init>");
 
 	// LinkedSmer.Tail
 
 	JNIREF_NULL_CHECK(graphJni->linkedSmerTailCls=(*env)->NewGlobalRef(env, (*env)->FindClass(env,"logan/graph/LinkedSmer$Tail")),"class LinkedSmer.Tail");
 	JNIREF_NULL_CHECK(graphJni->linkedSmerTailMethodInit=(*env)->GetMethodID(env, graphJni->linkedSmerTailCls, "<init>","(JJB)V"), "LinkedSmer.Tail.<init>");
 
-	// LinkedSmer.Route
+	// LinkedSmer.RouteEntry
 
-	JNIREF_NULL_CHECK(graphJni->linkedSmerRouteCls=(*env)->NewGlobalRef(env, (*env)->FindClass(env,"logan/graph/LinkedSmer$Route")),"class LinkedSmer.Route");
-	JNIREF_NULL_CHECK(graphJni->linkedSmerRouteMethodInit=(*env)->GetMethodID(env, graphJni->linkedSmerRouteCls, "<init>","(SSI)V"), "LinkedSmer.Route.<init>");
+	JNIREF_NULL_CHECK(graphJni->linkedSmerRouteEntryCls=(*env)->NewGlobalRef(env, (*env)->FindClass(env,"logan/graph/LinkedSmer$RouteEntry")),"class LinkedSmer.RouteEntry");
+	JNIREF_NULL_CHECK(graphJni->linkedSmerRouteEntryMethodInit=(*env)->GetMethodID(env, graphJni->linkedSmerRouteEntryCls, "<init>","(SSI)V"), "LinkedSmer.RouteEntry.<init>");
+
+	// LinkedSmer.RouteTag
+
+	JNIREF_NULL_CHECK(graphJni->linkedSmerRouteTagCls=(*env)->NewGlobalRef(env, (*env)->FindClass(env,"logan/graph/LinkedSmer$RouteTag")),"class LinkedSmer.RouteTag");
+	JNIREF_NULL_CHECK(graphJni->linkedSmerRouteTagMethodInit=(*env)->GetMethodID(env, graphJni->linkedSmerRouteTagCls, "<init>","(I[B)V"), "LinkedSmer.RouteTag.<init>");
+
 
 	return 0;
 }
@@ -155,7 +167,8 @@ static int cleanupJniRefs(JNIEnv *env, GraphJni *graphJni)
 	(*env)->DeleteGlobalRef(env, graphJni->graphCls);
 	(*env)->DeleteGlobalRef(env, graphJni->linkedSmerCls);
 	(*env)->DeleteGlobalRef(env, graphJni->linkedSmerTailCls);
-	(*env)->DeleteGlobalRef(env, graphJni->linkedSmerRouteCls);
+	(*env)->DeleteGlobalRef(env, graphJni->linkedSmerRouteEntryCls);
+	(*env)->DeleteGlobalRef(env, graphJni->linkedSmerRouteTagCls);
 
 	return 0;
 }
@@ -450,8 +463,6 @@ JNIEXPORT jobject JNICALL Java_logan_graph_Graph_getLinkedSmer_1Native
 	SmerLinked *linked=rtGetLinkedSmer(smerArray, (SmerId)jSmerId, dispenser);
 	jobject jObj=NULL;
 
-	//LOG(LOG_INFO,"Linked Smer: %p",linked);
-
 	if(linked!=NULL)
 		{
 		int i;
@@ -459,15 +470,21 @@ JNIEXPORT jobject JNICALL Java_logan_graph_Graph_getLinkedSmer_1Native
 		int prefixCount=linked->prefixCount;
 		int suffixCount=linked->suffixCount;
 
-		int forwardRouteCount=linked->forwardRouteCount;
-		int reverseRouteCount=linked->reverseRouteCount;
+		int forwardRouteEntryCount=linked->forwardRouteEntryCount;
+		int reverseRouteEntryCount=linked->reverseRouteEntryCount;
+
+		int forwardRouteTagCount=linked->forwardRouteTagCount;
+		int reverseRouteTagCount=linked->reverseRouteTagCount;
 
 		//(*env)->EnsureLocalCapacity(env, 16+prefixes+suffixes+routes);
 
 		jarray prefixesObjectArray=(*env)->NewObjectArray(env, prefixCount, jni->linkedSmerTailCls, NULL);
 		jarray suffixesObjectArray=(*env)->NewObjectArray(env, suffixCount, jni->linkedSmerTailCls, NULL);
-		jarray forwardRouteObjectArray=(*env)->NewObjectArray(env, forwardRouteCount, jni->linkedSmerRouteCls, NULL);
-		jarray reverseRouteObjectArray=(*env)->NewObjectArray(env, reverseRouteCount, jni->linkedSmerRouteCls, NULL);
+		jarray forwardRouteEntryObjectArray=(*env)->NewObjectArray(env, forwardRouteEntryCount, jni->linkedSmerRouteEntryCls, NULL);
+		jarray reverseRouteEntryObjectArray=(*env)->NewObjectArray(env, reverseRouteEntryCount, jni->linkedSmerRouteEntryCls, NULL);
+		jarray forwardRouteTagObjectArray=(*env)->NewObjectArray(env, forwardRouteTagCount, jni->linkedSmerRouteTagCls, NULL);
+		jarray reverseRouteTagObjectArray=(*env)->NewObjectArray(env, reverseRouteTagCount, jni->linkedSmerRouteTagCls, NULL);
+
 
 		if(prefixesObjectArray==NULL)
 			LOG(LOG_INFO,"PrefixArray Null");
@@ -475,10 +492,10 @@ JNIEXPORT jobject JNICALL Java_logan_graph_Graph_getLinkedSmer_1Native
 		if(suffixesObjectArray==NULL)
 			LOG(LOG_INFO,"SuffixArray Null");
 
-		if(forwardRouteObjectArray==NULL)
+		if(forwardRouteEntryObjectArray==NULL)
 			LOG(LOG_INFO,"ForwardRouteArray Null");
 
-		if(reverseRouteObjectArray==NULL)
+		if(reverseRouteEntryObjectArray==NULL)
 			LOG(LOG_INFO,"ReverseRouteArray Null");
 
 		for(i=0;i<prefixCount;i++)
@@ -501,30 +518,56 @@ JNIEXPORT jobject JNICALL Java_logan_graph_Graph_getLinkedSmer_1Native
 			}
 
 
-		for(i=0;i<forwardRouteCount;i++)
+		for(i=0;i<forwardRouteEntryCount;i++)
 			{
 			RouteTableEntry *routeEntry=linked->forwardRouteEntries+i;
 
-			jobject routeObject=(*env)->NewObject(env, jni->linkedSmerRouteCls, jni->linkedSmerRouteMethodInit,
+			jobject routeObject=(*env)->NewObject(env, jni->linkedSmerRouteEntryCls, jni->linkedSmerRouteEntryMethodInit,
 					(jshort)routeEntry->prefix, (jshort)routeEntry->suffix, (jint)routeEntry->width);
 
-			(*env)->SetObjectArrayElement(env, forwardRouteObjectArray, i, routeObject);
+			(*env)->SetObjectArrayElement(env, forwardRouteEntryObjectArray, i, routeObject);
 			(*env)->DeleteLocalRef(env,routeObject);
 			}
 
-		for(i=0;i<reverseRouteCount;i++)
+		for(i=0;i<reverseRouteEntryCount;i++)
 			{
 			RouteTableEntry *routeEntry=linked->reverseRouteEntries+i;
 
-			jobject routeObject=(*env)->NewObject(env, jni->linkedSmerRouteCls, jni->linkedSmerRouteMethodInit,
+			jobject routeObject=(*env)->NewObject(env, jni->linkedSmerRouteEntryCls, jni->linkedSmerRouteEntryMethodInit,
 					(jshort)routeEntry->prefix, (jshort)routeEntry->suffix, (jint)routeEntry->width);
 
-			(*env)->SetObjectArrayElement(env, reverseRouteObjectArray, i, routeObject);
+			(*env)->SetObjectArrayElement(env, reverseRouteEntryObjectArray, i, routeObject);
 			(*env)->DeleteLocalRef(env,routeObject);
 			}
 
+		for(i=0;i<forwardRouteTagCount;i++)
+			{
+			RouteTableTag *routeTag=linked->forwardRouteTags+i;
+
+			jbyteArray tagData=toByteArray(env, routeTag->tagData+1, *(routeTag->tagData));
+
+			jobject routeTagObject=(*env)->NewObject(env, jni->linkedSmerRouteTagCls, jni->linkedSmerRouteTagMethodInit,
+							(jint)routeTag->nodePosition, tagData);
+
+			(*env)->SetObjectArrayElement(env, forwardRouteTagObjectArray, i, routeTagObject);
+			(*env)->DeleteLocalRef(env,routeTagObject);
+			}
+
+		for(i=0;i<reverseRouteTagCount;i++)
+			{
+			RouteTableTag *routeTag=linked->reverseRouteTags+i;
+
+			jbyteArray tagData=toByteArray(env, routeTag->tagData+1, *(routeTag->tagData));
+
+			jobject routeTagObject=(*env)->NewObject(env, jni->linkedSmerRouteTagCls, jni->linkedSmerRouteTagMethodInit,
+							(jint)routeTag->nodePosition, tagData);
+
+			(*env)->SetObjectArrayElement(env, reverseRouteTagObjectArray, i, routeTagObject);
+			(*env)->DeleteLocalRef(env,routeTagObject);
+			}
+
 		jObj=(*env)->NewObject(env, jni->linkedSmerCls, jni->linkedSmerMethodInit, (jlong)linked->smerId,
-				prefixesObjectArray, suffixesObjectArray, forwardRouteObjectArray, reverseRouteObjectArray);
+				prefixesObjectArray, suffixesObjectArray, forwardRouteEntryObjectArray, reverseRouteEntryObjectArray, forwardRouteTagObjectArray, reverseRouteTagObjectArray);
 		}
 
 	dispenserFree(dispenser);
