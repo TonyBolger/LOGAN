@@ -9,16 +9,17 @@ import logan.graph.Graph.RouteBuilder;
 public class TestHelper {
 
 	private Graph graph;
-	
+
 	public TestHelper(Graph graph) {
 		this.graph=graph;
 	}
-	
-	
+
+
 	public void graphIndexingHelper(File files[], int threadCount) throws InterruptedException, IOException
 	{
 		final IndexBuilder ib=graph.makeIndexBuilder(threadCount);
 
+		/*
 		System.out.println("Indexing: Starting threads");
 		Thread threads[]=new Thread[threadCount];
 		for(int i=0;i<threads.length;i++)
@@ -33,7 +34,7 @@ public class TestHelper {
 
 			threads[i].start();
 			}
-
+*/
 
 		System.out.println("Indexing: Waiting startup");
 		ib.waitStartup();
@@ -48,10 +49,12 @@ public class TestHelper {
 		ib.waitShutdown();
 		System.out.println("Indexing: Shutdown complete");
 
+		/*
 		System.out.println("Indexing: joining threads");
 		for(int i=0;i<threads.length;i++)
 			threads[i].join();
 		System.out.println("Indexing: All threads joined");
+*/
 
 		System.out.println("Indexing: Freeing");
 
@@ -63,6 +66,7 @@ public class TestHelper {
 	{
 		final RouteBuilder rb=graph.makeRouteBuilder(threadCount);
 
+		/*
 		System.out.println("Routing: Starting threads");
 		Thread threads[]=new Thread[threadCount];
 		for(int i=0;i<threads.length;i++)
@@ -77,7 +81,7 @@ public class TestHelper {
 
 			threads[i].start();
 			}
-
+*/
 
 		System.out.println("Routing: Waiting startup");
 		rb.waitStartup();
@@ -92,10 +96,12 @@ public class TestHelper {
 		rb.waitShutdown();
 		System.out.println("Routing: Shutdown complete");
 
+		/*
 		System.out.println("Routing: joining threads");
 		for(int i=0;i<threads.length;i++)
 			threads[i].join();
 		System.out.println("Routing: All threads joined");
+*/
 
 		System.out.println("Routing: Freeing");
 

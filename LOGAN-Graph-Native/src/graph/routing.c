@@ -2273,7 +2273,7 @@ static u8 *extractTagData(RoutingIndexedDispatchLinkIndexBlock *rdi, DispatchLin
 	*tagData=tagLength;
 
 	u8 *tagPtr=tagData+1;
-	int toCopy=sequenceLink->seqLength;
+	int toCopy=sequenceLink->tagLength;
 
 	int offset=(sequenceLink->seqLength+3)>>2;
 
@@ -2284,7 +2284,7 @@ static u8 *extractTagData(RoutingIndexedDispatchLinkIndexBlock *rdi, DispatchLin
 		{
 		sequenceLink=mbSingleBrickFindByIndex(rdi->sequenceLinkPile, sequenceLink->nextIndex);
 
-		toCopy=sequenceLink->seqLength;
+		toCopy=sequenceLink->tagLength;
 		memcpy(tagPtr, sequenceLink->packedSequence, toCopy);
 		tagPtr+=toCopy;
 		}
@@ -2383,7 +2383,7 @@ static void createRoutePatches(RoutingIndexedDispatchLinkIndexBlock *rdi, int en
 							bufferP, prefixLength, forwardPatches[forwardCount].prefixIndex,  bufferN, bufferS, suffixLength, forwardPatches[forwardCount].suffixIndex);
 					}
 
-				if(rdd->revComp & DISPATCHLINK_EOS_FLAG)
+				if((rdd->revComp & DISPATCHLINK_EOS_FLAG) && (rdd->position+3 == rdd->length))
 					{
 					forwardPatches[forwardCount].tagData=extractTagData(rdi, rdd, disp);
 					if(forwardPatches[forwardCount].tagData!=NULL)
@@ -2435,7 +2435,7 @@ static void createRoutePatches(RoutingIndexedDispatchLinkIndexBlock *rdi, int en
 							bufferP, prefixLength, reversePatches[reverseCount].prefixIndex,  bufferN, bufferS, suffixLength, reversePatches[reverseCount].suffixIndex);
 					}
 
-				if(rdd->revComp & DISPATCHLINK_EOS_FLAG)
+				if((rdd->revComp & DISPATCHLINK_EOS_FLAG) && (rdd->position+3 == rdd->length))
 					{
 					reversePatches[reverseCount].tagData=extractTagData(rdi, rdd, disp);
 					if(reversePatches[reverseCount].tagData!=NULL)

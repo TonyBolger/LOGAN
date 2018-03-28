@@ -866,6 +866,8 @@ public class LinkedSmer {
 				sb.append("]");
 				}
 
+			sb.append("]");
+
 			return sb.toString();
 		}
 

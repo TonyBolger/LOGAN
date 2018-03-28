@@ -64,7 +64,7 @@ public class GraphTest extends TestCase {
 		//File files2[]={new File("../../LOGAN-scratch/ref/TAIR10.fa")};
 
 
-		int threadCount=1;
+		int threadCount=8;
 
 		helper.graphIndexingHelper(files1,threadCount);
 		System.out.println("Indexing complete");

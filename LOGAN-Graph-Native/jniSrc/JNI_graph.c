@@ -189,7 +189,7 @@ JNIEXPORT void JNICALL Java_logan_graph_Graph_00024IndexBuilder_shutdown_1Native
 JNIEXPORT void JNICALL Java_logan_graph_Graph_00024IndexBuilder_waitShutdown_1Native
   (JNIEnv *, jobject, jlong);
 
-JNIEXPORT void JNICALL Java_logan_graph_Graph_00024IndexBuilder_workerPerformTasks_1Native
+JNIEXPORT void JNICALL Java_logan_graph_Graph_00024IndexBuilder_workerPerormTasks_1Native
   (JNIEnv *, jobject, jlong);
 
 JNIEXPORT void JNICALL Java_logan_graph_Graph_00024IndexBuilder_free_1Native
@@ -254,9 +254,9 @@ JNIEXPORT void JNICALL Java_logan_graph_Graph_00024IndexBuilder_waitShutdown_1Na
 JNIEXPORT void JNICALL Java_logan_graph_Graph_00024IndexBuilder_workerPerformTasks_1Native
   (JNIEnv *env, jobject this, jlong handle)
 {
-	IndexingBuilder *ib = (IndexingBuilder *) handle;
+	//IndexingBuilder *ib = (IndexingBuilder *) handle;
 
-	performTask_worker(ib->pt);
+	//performTask_worker(ib->pt);
 }
 
 
@@ -326,9 +326,9 @@ JNIEXPORT void JNICALL Java_logan_graph_Graph_00024RouteBuilder_waitShutdown_1Na
 JNIEXPORT void JNICALL Java_logan_graph_Graph_00024RouteBuilder_workerPerformTasks_1Native
   (JNIEnv *env, jobject this, jlong handle)
 {
-	RoutingBuilder *rb = (RoutingBuilder *) handle;
+	//RoutingBuilder *rb = (RoutingBuilder *) handle;
 
-	performTask_worker(rb->pt);
+//	performTask_worker(rb->pt);
 }
 
 JNIEXPORT void JNICALL Java_logan_graph_Graph_00024RouteBuilder_free_1Native
@@ -594,6 +594,7 @@ JNIEXPORT jlong JNICALL Java_logan_graph_Graph_makeIndexBuilder_1Native
 	Graph *graph = (Graph *) handle;
 
 	IndexingBuilder *ib=allocIndexingBuilder(graph,threads);
+	createIndexingBuilderWorkers(ib);
 
 	return (long)ib;
 }
@@ -615,6 +616,7 @@ JNIEXPORT jlong JNICALL Java_logan_graph_Graph_makeRouteBuilder_1Native
 	Graph *graph = (Graph *) handle;
 
 	RoutingBuilder *rb=allocRoutingBuilder(graph,threads);
+	createRoutingBuilderWorkers(rb);
 
 	return (long)rb;
 }

@@ -9,16 +9,16 @@ struct routeTableTagBuilderStr
 
 	u32 oldDataSize;
 
-	RouteTableTag *oldForwardEntries;
-	RouteTableTag *oldReverseEntries;
+	RouteTableTag *oldForwardTags;
+	RouteTableTag *oldReverseTags;
 
-	RouteTableTag *newForwardEntries;
-	RouteTableTag *newReverseEntries;
+	RouteTableTag *newForwardTags;
+	RouteTableTag *newReverseTags;
 
-	u32 oldForwardEntryCount;
-	u32 oldReverseEntryCount;
-	u32 newForwardEntryCount;
-	u32 newReverseEntryCount;
+	u32 oldForwardTagCount;
+	u32 oldReverseTagCount;
+	u32 newForwardTagCount;
+	u32 newReverseTagCount;
 
 	s32 forwardPackedSize;
 	s32 reversePackedSize;

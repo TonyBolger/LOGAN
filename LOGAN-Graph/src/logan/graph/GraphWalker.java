@@ -193,8 +193,8 @@ public class GraphWalker {
 //						System.out.println("SEQ: "+sb.toString());
 						noTagReads++;
 						}
-//					else
-//						System.out.println("TAG: "+tag.toString()+" SEQ: "+sb.toString());
+					else
+						System.out.println("TAG: "+tag.toString()+" SEQ: "+sb.toString());
 
 				} catch (RuntimeException e) {
 					throw e;

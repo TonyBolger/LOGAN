@@ -213,7 +213,9 @@ void populateReadIngressBlock(SwqBuffer *rec, int ingressPosition, int ingressSi
 
 		if(currentRec->tagLength>0)
 			{
-//			LOG(LOG_INFO,"TagData: %08x", *((u32 *)(currentRec->tagData)));
+			//LOG(LOG_INFO,"TagData: %08x", *((u32 *)(currentRec->tagData)));
+
+			//LOG(LOG_INFO,"TagData: %i %i %i %i", currentRec->tagData[0], currentRec->tagData[1], currentRec->tagData[2], currentRec->tagData[3]);
 
 			length=currentRec->tagLength;
 			int packedOffset=(((int)sequenceLink->seqLength)+3)>>2;
