@@ -64,5 +64,15 @@ void trRoutingBuilderFree(RoutingBuilder *rb);
 Graph *grGraphAlloc();
 void grGraphFree(Graph *graph);
 
+// SequenceIndex
+
+SequenceFragment *siSequenceFragmentAlloc();
+void siSequenceFragmentFree(SequenceFragment *seqFrag);
+
+Sequence *siSequenceAlloc();
+void siSequenceFree(Sequence *seq);
+
+SequenceSource *siSequenceSourceAlloc();
+void siSequenceSourceFree(SequenceSource *seqSrc);
 
 #endif

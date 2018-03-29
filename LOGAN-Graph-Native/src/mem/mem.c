@@ -241,3 +241,44 @@ void grGraphFree(Graph *graph)
 	G_FREE(graph, sizeof(Graph), MEMTRACKID_GRAPH);
 }
 
+
+/*
+ *
+ * Specific allocator for SequenceFragment/Sequence/SequenceSource
+ *
+ */
+
+SequenceFragment *siSequenceFragmentAlloc()
+{
+	return G_ALLOC_C(sizeof(SequenceFragment), MEMTRACKID_SEQINDEX);
+}
+
+void siSequenceFragmentFree(SequenceFragment *seqFrag)
+{
+	G_FREE(seqFrag, sizeof(SequenceFragment), MEMTRACKID_SEQINDEX);
+}
+
+Sequence *siSequenceAlloc()
+{
+	return G_ALLOC_C(sizeof(Sequence), MEMTRACKID_SEQINDEX);
+}
+
+void siSequenceFree(Sequence *seq)
+{
+	G_FREE(seq, sizeof(Sequence), MEMTRACKID_SEQINDEX);
+}
+
+SequenceSource *siSequenceSourceAlloc()
+{
+	return G_ALLOC_C(sizeof(SequenceSource), MEMTRACKID_SEQINDEX);
+}
+
+void siSequenceSourceFree(SequenceSource *seqSrc)
+{
+	G_FREE(seqSrc, sizeof(SequenceSource), MEMTRACKID_SEQINDEX);
+}
+
+
+
+
+
