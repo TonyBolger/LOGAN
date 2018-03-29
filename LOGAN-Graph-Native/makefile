@@ -40,6 +40,7 @@ CLI_OBJS += \
 ./bin/cli/common/graph/routeTableTreeProxy.o \
 ./bin/cli/common/graph/routeTableTreeWalker.o \
 ./bin/cli/common/graph/routing.o \
+./bin/cli/common/graph/seqIndex.o \
 ./bin/cli/common/graph/seqTail.o \
 ./bin/cli/common/graph/smer.o \
 ./bin/cli/common/graph/smerArray.o \
@@ -93,6 +94,7 @@ JNI_OBJS += \
 ./bin/jni/common/graph/routeTableTreeWalker.o \
 ./bin/jni/common/graph/routing.o \
 ./bin/jni/common/graph/seqTail.o \
+./bin/jni/common/graph/seqIndex.o \
 ./bin/jni/common/graph/smer.o \
 ./bin/jni/common/graph/smerArray.o \
 ./bin/jni/common/graph/smerMap.o \

@@ -7,8 +7,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import jdk.nashorn.internal.runtime.FindProperty;
-
 public class LinkedSmer {
 
 	private final static int SMER_LENGTH=23;

@@ -295,6 +295,7 @@ typedef struct swqBufferStr {
 
 #include "graph/smer.h"
 #include "graph/seqTail.h"
+#include "graph/seqIndex.h"
 #include "graph/routeTablePacking.h"
 #include "graph/routeTable.h"
 #include "graph/routeTableTags.h"
