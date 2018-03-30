@@ -89,7 +89,9 @@ static jlongArray toLongArray(JNIEnv *env, s64 *data, u32 size)
 
 
 
-static void processReadFiles(JNIEnv *env, jobjectArray jFilePaths, void *handlerContext, void (*handler)(SwqBuffer *swqBuffer, ParallelTaskIngress *ingressBuffer, void *handlerContext))
+static void processReadFiles(JNIEnv *env, jobjectArray jFilePaths, void *handlerContext,
+		void (*handler)(SwqBuffer *swqBuffer, ParallelTaskIngress *ingressBuffer, void *handlerContext),
+		SequenceIndex *seqIndex)
 {
 	ParseBuffer parseBuffer;
 	prInitParseBuffer(&parseBuffer);
@@ -109,7 +111,7 @@ static void processReadFiles(JNIEnv *env, jobjectArray jFilePaths, void *handler
 		LOG(LOG_INFO,"Parse %s",filePath);
 
 		int reads=prParseAndProcess(filePath, PARSER_MIN_SEQ_LENGTH, 0, LONG_MAX, &parseBuffer,
-				handlerContext, handler, NULL);
+				handlerContext, handler, NULL, seqIndex);
 
 		LOG(LOG_INFO,"Parsed %i reads from %s",reads,filePath);
 
@@ -132,7 +134,39 @@ static int prepareJniRefs(JNIEnv *env, GraphJni *graphJni) {
 
 	// Graph
 
-	JNIREF_NULL_CHECK(graphJni->graphCls = (*env)->NewGlobalRef(env, (*env)->FindClass(env,"logan/graph/Graph")),"class logan.graph.Graph");
+	JNIREF_NULL_CHECK(graphJni->graphCls = (*env)->NewGlobalRef(env, (*env)->FindClass(env,"logan/graph/Graph")),"class Graph");
+
+	// SequenceIndex
+
+	JNIREF_NULL_CHECK(graphJni->sequenceIndexCls=(*env)->NewGlobalRef(env, (*env)->FindClass(env,"logan/graph/SequenceIndex")),"class SequenceIndex");
+
+	JNIREF_NULL_CHECK(graphJni->sequenceIndexMethodInit=(*env)->GetMethodID(env, graphJni->sequenceIndexCls, "<init>",
+				"([Llogan/graph/SequenceIndex$SequenceSource;)V"), "method SequenceIndex.<init>");
+
+	// SequenceIndex.SequenceSource
+
+	JNIREF_NULL_CHECK(graphJni->sequenceSourceCls=(*env)->NewGlobalRef(env, (*env)->FindClass(env,"logan/graph/SequenceIndex$SequenceSource")),
+			"class SequenceIndex.SequenceSource");
+
+	JNIREF_NULL_CHECK(graphJni->sequenceSourceMethodInit=(*env)->GetMethodID(env, graphJni->sequenceSourceCls, "<init>",
+			"(Ljava/lang/String;[Llogan/graph/SequenceIndex$Sequence;)V"), "SequenceIndex$SequenceSource.<init>");
+
+	// SequenceIndex.Sequence
+
+	JNIREF_NULL_CHECK(graphJni->sequenceCls=(*env)->NewGlobalRef(env, (*env)->FindClass(env,"logan/graph/SequenceIndex$Sequence")),
+			"class SequenceIndex.Sequence");
+
+	JNIREF_NULL_CHECK(graphJni->sequenceMethodInit=(*env)->GetMethodID(env, graphJni->sequenceCls, "<init>",
+			"(Ljava/lang/String;[Llogan/graph/SequenceIndex$SequenceFragment;I)V"), "SequenceIndex$Sequence.<init>");
+
+	// SequenceIndex.SequenceFragment
+
+	JNIREF_NULL_CHECK(graphJni->sequenceFragmentCls=(*env)->NewGlobalRef(env, (*env)->FindClass(env,"logan/graph/SequenceIndex$SequenceFragment")),
+			"class SequenceIndex.SequenceFragment");
+
+	JNIREF_NULL_CHECK(graphJni->sequenceFragmentMethodInit=(*env)->GetMethodID(env, graphJni->sequenceFragmentCls, "<init>",
+			"(III)V"), "SequenceIndex$SequenceFragment.<init>");
+
 
 	// LinkedSmer
 
@@ -165,6 +199,12 @@ static int prepareJniRefs(JNIEnv *env, GraphJni *graphJni) {
 static int cleanupJniRefs(JNIEnv *env, GraphJni *graphJni)
 {
 	(*env)->DeleteGlobalRef(env, graphJni->graphCls);
+
+	(*env)->DeleteGlobalRef(env, graphJni->sequenceIndexCls);
+	(*env)->DeleteGlobalRef(env, graphJni->sequenceSourceCls);
+	(*env)->DeleteGlobalRef(env, graphJni->sequenceCls);
+	(*env)->DeleteGlobalRef(env, graphJni->sequenceFragmentCls);
+
 	(*env)->DeleteGlobalRef(env, graphJni->linkedSmerCls);
 	(*env)->DeleteGlobalRef(env, graphJni->linkedSmerTailCls);
 	(*env)->DeleteGlobalRef(env, graphJni->linkedSmerRouteEntryCls);
@@ -217,7 +257,7 @@ JNIEXPORT void JNICALL Java_logan_graph_Graph_00024IndexBuilder_processReadFiles
 {
 	IndexingBuilder *ib = (IndexingBuilder *) handle;
 
-	processReadFiles(env, jFilePaths, ib, prIndexingBuilderDataHandler);
+	processReadFiles(env, jFilePaths, ib, prIndexingBuilderDataHandler, &(ib->graph->seqIndex));
 }
 
 /*
@@ -244,19 +284,6 @@ JNIEXPORT void JNICALL Java_logan_graph_Graph_00024IndexBuilder_waitShutdown_1Na
 	IndexingBuilder *ib = (IndexingBuilder *) handle;
 
 	waitForShutdown(ib->pt);
-}
-
-/*
- * Class:     logan_graph_Graph_IndexBuilder
- * Method:    perform_Native
- * Signature: (J)V
- */
-JNIEXPORT void JNICALL Java_logan_graph_Graph_00024IndexBuilder_workerPerformTasks_1Native
-  (JNIEnv *env, jobject this, jlong handle)
-{
-	//IndexingBuilder *ib = (IndexingBuilder *) handle;
-
-	//performTask_worker(ib->pt);
 }
 
 
@@ -304,7 +331,7 @@ JNIEXPORT void JNICALL Java_logan_graph_Graph_00024RouteBuilder_processReadFiles
 {
 	RoutingBuilder *rb = (RoutingBuilder *) handle;
 
-	processReadFiles(env, jFilePaths, rb, prRoutingBuilderDataHandler);
+	processReadFiles(env, jFilePaths, rb, prRoutingBuilderDataHandler, NULL);
 }
 
 JNIEXPORT void JNICALL Java_logan_graph_Graph_00024RouteBuilder_shutdown_1Native
@@ -321,14 +348,6 @@ JNIEXPORT void JNICALL Java_logan_graph_Graph_00024RouteBuilder_waitShutdown_1Na
 	RoutingBuilder *rb = (RoutingBuilder *) handle;
 
 	waitForShutdown(rb->pt);
-}
-
-JNIEXPORT void JNICALL Java_logan_graph_Graph_00024RouteBuilder_workerPerformTasks_1Native
-  (JNIEnv *env, jobject this, jlong handle)
-{
-	//RoutingBuilder *rb = (RoutingBuilder *) handle;
-
-//	performTask_worker(rb->pt);
 }
 
 JNIEXPORT void JNICALL Java_logan_graph_Graph_00024RouteBuilder_free_1Native
@@ -349,6 +368,10 @@ JNIEXPORT jint JNICALL Java_logan_graph_Graph_getSmerCount_1Native
   (JNIEnv *, jobject, jlong);
 
 JNIEXPORT jlongArray JNICALL Java_logan_graph_Graph_getSmerIds_1Native
+  (JNIEnv *, jobject, jlong);
+
+
+JNIEXPORT jobject JNICALL Java_logan_graph_Graph_getSequenceIndex_1Native
   (JNIEnv *, jobject, jlong);
 
 
@@ -447,6 +470,16 @@ JNIEXPORT jlongArray JNICALL Java_logan_graph_Graph_getSmerIds_1Native
 	smSmerIdArrayFree(smerIds, smerCount);
 
 	return jsmerIds;
+}
+
+
+JNIEXPORT jobject JNICALL Java_logan_graph_Graph_getSequenceIndex_1Native
+  (JNIEnv *env, jobject this, jlong handle)
+{
+//	Graph *graph = (Graph *) handle;
+//	GraphJni *jni = graph->userPtr;
+
+	return NULL;
 }
 
 

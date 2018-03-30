@@ -52,7 +52,7 @@ void prWaitForParseBufferIdle(ParseBuffer *parseBuffer);
 
 s64 prParseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 recordsToUse, ParseBuffer *parseBuffer,
 		void *handlerContext, void (*handler)(SwqBuffer *swqBuffer, ParallelTaskIngress *ingressBuffer, void *handlerContext),
-		void (*monitor)());
+		void (*monitor)(), SequenceIndex *seqIndex);
 
 void prIndexingBuilderDataHandler(SwqBuffer *swqBuffer, ParallelTaskIngress *ingressBuffer, void *context);
 void prRoutingBuilderDataHandler(SwqBuffer *swqBuffer, ParallelTaskIngress *ingressBuffer, void *context);

@@ -155,7 +155,7 @@ static int guessFileFormatByExtensions(char *path)
 
 s64 prParseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 recordsToUse, ParseBuffer *parseBuffer,
 		void *handlerContext, void (*handler)(SwqBuffer *swqBuffer, ParallelTaskIngress *ingressBuffer, void *handlerContext),
-		void (*monitor)())
+		void (*monitor)(), SequenceIndex *seqIndex)
 {
 	s64 sequences=0;
 	int format=guessFileFormatByExtensions(path);
@@ -180,7 +180,7 @@ s64 prParseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 recor
 			sequences=faParseAndProcess(path, PARSER_MIN_SEQ_LENGTH, 0, LONG_MAX,
 					parseBuffer->ioBuffer, PARSER_IO_RECYCLE_BUFFER, PARSER_IO_PRIMARY_BUFFER,
 					parseBuffer->swqBuffers, parseBuffer->ingressBuffers, PT_INGRESS_BUFFERS,
-					handlerContext, handler, monitor);
+					handlerContext, handler, monitor, seqIndex);
 			break;
 
 		case PARSE_FILE_CONTENT_FASTA | PARSE_FILE_COMPRESSION_GZIP:

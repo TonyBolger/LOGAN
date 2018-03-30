@@ -293,16 +293,39 @@ int readBufferedFastqRecord(u8 *ioBuffer, int *offset, SequenceWithQuality *rec,
 
 */
 
+static SequenceSource *createSeqSrc(SequenceIndex *seqIndex, char *path)
+{
+	if(seqIndex==NULL)
+		return NULL;
 
+	int len=strlen(path);
+	char *dupPath=alloca(len+1);
+	strncpy(dupPath, path, len);
+	dupPath[len]=0;
 
+	char *slashPtr=strrchr(dupPath, '/');
+	if(slashPtr==NULL)
+		slashPtr=dupPath;
+	else
+		slashPtr++;
+
+	char *dotPtr=strchr(slashPtr, '.');
+	if(dotPtr!=NULL)
+		*dotPtr=0;
+
+	return siAddSequenceSource(seqIndex, slashPtr);
+}
 
 
 s64 faParseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 recordsToUse,
 		u8 *ioBuffer, int ioBufferRecycleSize, int ioBufferPrimarySize,
 		SwqBuffer *swqBuffers, ParallelTaskIngress *ingressBuffers, int bufferCount,
 		void *handlerContext, void (*handler)(SwqBuffer *swqBuffer, ParallelTaskIngress *ingressBuffer, void *handlerContext),
-		void (*monitor)())
+		void (*monitor)(), SequenceIndex *seqIndex)
 {
+	SequenceSource *seqSrc=createSeqSrc(seqIndex, path);
+	Sequence *seq=NULL;
+
 	FILE *file=fopen(path,"r");
 
 	if(file==NULL)
@@ -330,9 +353,6 @@ s64 faParseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 recor
 	swqBuffers[currentBuffer].rec[batchReadCount].qual=NULL;
 	swqBuffers[currentBuffer].rec[batchReadCount].tagData=swqBuffers[currentBuffer].tagBuffer;
 
-	*((u32 *)(swqBuffers[currentBuffer].rec[batchReadCount].tagData))=0;
-	swqBuffers[currentBuffer].rec[batchReadCount].tagLength=4;
-
 	FastaParserState fastaParser;
 	fastaParser.parserState=PARSER_STATE_HEADER;
 
@@ -349,7 +369,9 @@ s64 faParseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 recor
 
 	s64 totalSequences=0;
 	s64 totalBatch=0;
-	int len=0;
+	int fragmentLength=0;
+
+	int sequenceLength=0;
 
 	int ret=0;
 	while(fastaParser.parserState!=PARSER_STATE_EOF && ret >= 0)
@@ -361,6 +383,9 @@ s64 faParseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 recor
 			case PARSER_STATE_HEADER:
 				ret=readBufferedFastaRecordHeader(ioBuffer, &ioOffset, &fastaParser);
 				totalSequences++;
+				if(seqSrc!=NULL)
+					seq=siAddSequence(seqSrc, fastaParser.sequenceName);
+				sequenceLength=0;
 				break;
 
 			case PARSER_STATE_TRIM:
@@ -373,15 +398,31 @@ s64 faParseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 recor
 
 			}
 
-		len=fastaParser.currentRecord->seqLength;
+		fragmentLength=fastaParser.currentRecord->seqLength;
 		//LOG(LOG_INFO,"Frag length: %i", fastaParser.currentRecord->length);
-		if((len>=FASTA_SEQUENCE_VALID_MAX_LENGTH) || (fastaParser.parserState!=PARSER_STATE_SEQUENCE && len>0))
+		if((fragmentLength>=FASTA_SEQUENCE_VALID_MAX_LENGTH) || (fastaParser.parserState!=PARSER_STATE_SEQUENCE && fragmentLength>0))
 			{
-			if((len >= PARSER_MIN_SEQ_LENGTH))// && (len>1800) && (len<2000))
+			if((fragmentLength >= PARSER_MIN_SEQ_LENGTH))// && (len>1800) && (len<2000))
 				{
+				u32 *tagPtr=(u32 *)(swqBuffers[currentBuffer].rec[batchReadCount].tagData);
+				u32 taggedReadCount=(u32)(batchReadCount+totalBatch);
+				*tagPtr=taggedReadCount;
+
+				swqBuffers[currentBuffer].rec[batchReadCount].tagLength=4;
+
+				int newSequenceLength=sequenceLength+fragmentLength;
+
+				if(seq!=NULL)
+					{
+					siAddSequenceFragment(seq, taggedReadCount, sequenceLength, newSequenceLength);
+					seq->totalLength=newSequenceLength;
+					}
+
+				sequenceLength=newSequenceLength;
+
 				//LOG(LOG_INFO,"Accepting: Sequence %s Fragment %i", fastaParser.sequenceName, fastaParser.currentRecord->length);
 				batchReadCount++;
-				batchBaseCount+=((len+3)&0xFFFFFFFC); // Round up to Dword
+				batchBaseCount+=((fragmentLength+3)&0xFFFFFFFC); // Round up to Dword
 
 				if((batchReadCount>=maxReads) || batchBaseCount>=(maxBases-maxBasesPerRead))
 					{
@@ -403,12 +444,6 @@ s64 faParseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 recor
 			swqBuffers[currentBuffer].rec[batchReadCount].seq=swqBuffers[currentBuffer].seqBuffer+batchBaseCount;
 			swqBuffers[currentBuffer].rec[batchReadCount].qual=NULL;
 			swqBuffers[currentBuffer].rec[batchReadCount].tagData=swqBuffers[currentBuffer].tagBuffer+batchReadCount*4;
-
-			u32 *tagPtr=(u32 *)(swqBuffers[currentBuffer].rec[batchReadCount].tagData);
-			u32 taggedReadCount=(u32)(batchReadCount+totalBatch);
-			*tagPtr=taggedReadCount;
-
-			swqBuffers[currentBuffer].rec[batchReadCount].tagLength=4;
 
 			fastaParser.currentRecord->seqLength=0; //
 			}

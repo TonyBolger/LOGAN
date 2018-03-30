@@ -26,7 +26,7 @@ s64 faParseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 recor
 		u8 *ioBuffer, int ioBufferRecycleSize, int ioBufferPrimarySize,
 		SwqBuffer *swqBuffers, ParallelTaskIngress *ingressBuffers, int bufferCount,
 		void *handlerContext, void (*handler)(SwqBuffer *swqBuffer, ParallelTaskIngress *ingressBuffer, void *handlerContext),
-		void (*monitor)());
+		void (*monitor)(), SequenceIndex *seqIndex);
 
 
 #endif

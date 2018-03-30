@@ -57,61 +57,60 @@ public class GraphTest extends TestCase {
 //		File files2[]={new File("../data/Arabi-1_Q20_10m.fq")};
 
 
-		File files1[]={new File("../../LOGAN-scratch/ref/TAIR10.fa"),new File("../../LOGAN-scratch/data/Arabi-1_Q20.fq")};
-		File files2[]={new File("../../LOGAN-scratch/ref/TAIR10.fa"),new File("../../LOGAN-scratch/data/Arabi-1_Q20.fq")};
+		//File files1[]={new File("../../LOGAN-scratch/ref/TAIR10.fa"),new File("../../LOGAN-scratch/data/Arabi-1_Q20.fq")};
+		//File files2[]={new File("../../LOGAN-scratch/ref/TAIR10.fa"),new File("../../LOGAN-scratch/data/Arabi-1_Q20.fq")};
 
-		//File files1[]={new File("../../LOGAN-scratch/ref/TAIR10.fa")};
-		//File files2[]={new File("../../LOGAN-scratch/ref/TAIR10.fa")};
+			File files1[]={new File("../../LOGAN-scratch/ref/TAIR10.fa")};
+			File files2[]={new File("../../LOGAN-scratch/ref/TAIR10.fa")};
 
+			int threadCount=8;
 
-		int threadCount=8;
+			helper.graphIndexingHelper(files1,threadCount);
+			System.out.println("Indexing complete");
 
-		helper.graphIndexingHelper(files1,threadCount);
-		System.out.println("Indexing complete");
+			long smers[];
 
-		long smers[];
+			System.out.println("Smer Count (after Index): "+graph.getSmerCount());
+			smers=graph.getSmerIds();
 
-		System.out.println("Smer Count (after Index): "+graph.getSmerCount());
-		smers=graph.getSmerIds();
-
-		System.out.println("Smer Array Length: "+smers.length);
-		if(smers.length<10)
-			{
-			for(long smer: smers)
-				System.out.println(smer);
-			}
-
-		graph.switchMode();
-
-
-		helper.graphRoutingHelper(files2,threadCount);
-		System.out.println("Routing complete1");
-
-//		graphRoutingHelper(files,threadCount);
-//		System.out.println("Routing complete2");
-
-		System.out.println("Smer Count (after Route): "+graph.getSmerCount());
-		smers=graph.getSmerIds();
-		System.out.println("Smer Array Length: "+smers.length);
-
-		GraphWalker walker=new GraphWalker(graph);
-		walker.dump();
-
-		/*
-		if(smers.length<10)
-			{
-			for(long smer: smers)
-				System.out.println(smer);
-
-			for(long smer: smers)
+			System.out.println("Smer Array Length: "+smers.length);
+			if(smers.length<10)
 				{
-				LinkedSmer linkedSmer=graph.getLinkedSmer(smer);
-				System.out.println(linkedSmer);
+				for(long smer: smers)
+					System.out.println(smer);
 				}
 
-			}
+			graph.switchMode();
+
+			helper.graphRoutingHelper(files2,threadCount);
+			System.out.println("Routing complete1");
+
+//			graphRoutingHelper(files,threadCount);
+//			System.out.println("Routing complete2");
+
+			System.out.println("Smer Count (after Route): "+graph.getSmerCount());
+			smers=graph.getSmerIds();
+			System.out.println("Smer Array Length: "+smers.length);
+
+		//	GraphWalker walker=new GraphWalker(graph);
+		//	walker.dump();
+
+		/*
+			if(smers.length<10)
+				{
+				for(long smer: smers)
+					System.out.println(smer);
+
+				for(long smer: smers)
+					{
+					LinkedSmer linkedSmer=graph.getLinkedSmer(smer);
+					System.out.println(linkedSmer);
+					}
+
+				}
 			*/
 
+			graph.free();
 			}
 		catch(Exception e)
 			{

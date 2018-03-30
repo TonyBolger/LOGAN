@@ -17,6 +17,7 @@ public class Graph {
 	private GraphConfig config;
     private long graphHandle;
 
+    private SequenceIndex sequenceIndex;
     private Mode currentMode;
 
 /*
@@ -47,6 +48,16 @@ public class Graph {
 		checkHandleAndMode(null);
 
 		return getSmerIds_Native(graphHandle);
+	}
+
+	public SequenceIndex getSequenceIndex() throws GraphException
+	{
+		checkHandleAndMode(null);
+
+		if(sequenceIndex==null)
+			sequenceIndex=getSequenceIndex_Native(graphHandle);
+
+		return sequenceIndex;
 	}
 
 	public IndexBuilder makeIndexBuilder(int threads) throws GraphException
@@ -114,6 +125,8 @@ public class Graph {
 
 	private native int getSmerCount_Native(long graphHandle);
 	private native long[] getSmerIds_Native(long graphHandle);
+
+	private native SequenceIndex getSequenceIndex_Native(long builderHandle);
 
 	/* Native Query (Map Mode) */
 
@@ -272,11 +285,6 @@ public class Graph {
 			waitShutdown_Native(builderHandle);
 		}
 
-		//public void workerPerformTasks()
-		//{
-//			workerPerformTasks_Native(builderHandle);
-	//	}
-
 		private native void waitStartup_Native(long builderHandle);
 
 		//private native void processReads_Native(long builderHandle, byte data[], int offsets[], int chunkSize);
@@ -284,8 +292,6 @@ public class Graph {
 
 		private native void shutdown_Native(long builderHandle);
 		private native void waitShutdown_Native(long builderHandle);
-
-		private native void workerPerformTasks_Native(long builderHandle);
 
 		private native void free_Native(long builderHandle);
 	}

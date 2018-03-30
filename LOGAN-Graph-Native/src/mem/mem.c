@@ -244,7 +244,7 @@ void grGraphFree(Graph *graph)
 
 /*
  *
- * Specific allocator for SequenceFragment/Sequence/SequenceSource
+ * Specific allocator for SequenceFragment/Sequence/SequenceSource/SequenceIndex
  *
  */
 

@@ -20,29 +20,32 @@ typedef struct graphJniStr
 	jclass graphCls;
 
 
+	// SequenceIndex and friends
+
+	jclass sequenceIndexCls;
+	jmethodID sequenceIndexMethodInit;
+
+	jclass sequenceSourceCls;
+	jmethodID sequenceSourceMethodInit;
+
+	jclass sequenceCls;
+	jmethodID sequenceMethodInit;
+
+	jclass sequenceFragmentCls;
+	jmethodID sequenceFragmentMethodInit;
+
+
+	// LinkedSmer and friends
+
 	jclass linkedSmerCls;
 	jmethodID linkedSmerMethodInit;
-	/*
-	jfieldID linkedSmerFieldSmerId;
-	jfieldID linkedSmerFieldPrefixes;
-	jfieldID linkedSmerFieldSuffixes;
-	jfieldID linkedSmerFieldForwardRoutes;
-	jfieldID linkedSmerFieldReverseRoutes;
-*/
+
 	jclass linkedSmerTailCls;
 	jmethodID linkedSmerTailMethodInit;
-	/*
-	jfieldID linkedSmerTailFieldData;
-	jfieldID linkedSmerTailFieldSmerId;
-	jfieldID linkedSmerTailFieldSmerExists;
-*/
+
 	jclass linkedSmerRouteEntryCls;
 	jmethodID linkedSmerRouteEntryMethodInit;
-	/*
-	jfieldID linkedSmerRouteFieldPrefix;
-	jfieldID linkedSmerRouteFieldSuffix;
-	jfieldID linkedSmerRouteFieldWidth;
-*/
+
 	jclass linkedSmerRouteTagCls;
 	jmethodID linkedSmerRouteTagMethodInit;
 

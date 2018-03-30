@@ -22,8 +22,8 @@ Implementation:
 	Low storage / processing overhead suggests storing tags in an optional tag table, which is separate but associated to an existing routing table.
 
     Empty case requires a 'negative' flag, preferably per routing table, to indicate the absence of the optional tag table.
-    	For the RouteTableArray case, this can be one additional byte per node.
-    	For the RouteTableTree case, this can be two additional entries in the top-level node.
+    	For the RouteTableArray case, this can be appended immediately after the route table, and requires one additional byte per node.
+    	For the RouteTableTree case, this could alternatively be two additional entries in the top-level node.
 
 	Tag tables need to be have positional synchronization with routing tables.
 

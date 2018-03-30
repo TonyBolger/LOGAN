@@ -36,6 +36,8 @@ Graph *grAllocGraph(s32 nodeSize, s32 sparseness, void *userPtr)
 
 	Graph *graph=grGraphAlloc();
 
+	siInitSequenceIndex(&(graph->seqIndex));
+
 	graph->config.nodeSize=nodeSize;
 	graph->config.sparseness=sparseness;
 	graph->userPtr=userPtr;
@@ -52,6 +54,10 @@ Graph *grAllocGraph(s32 nodeSize, s32 sparseness, void *userPtr)
 void grFreeGraph(Graph *graph)
 {
 	LOG(LOG_INFO,"Freeing Graph");
+
+	siDumpSequenceIndex(&(graph->seqIndex));
+
+	siCleanupSequenceIndex(&(graph->seqIndex));
 
 	if(graph->mode==GRAPH_MODE_INDEX)
 		smCleanupSmerMap(&(graph->smerMap));

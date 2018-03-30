@@ -25,7 +25,7 @@ void runIptMaster(char **filePaths, int fileCount, int threadCount, Graph *graph
 		LOG(LOG_INFO,"Indexing: Parsing %s",path);
 
 		s64 reads=prParseAndProcess(path, PARSER_MIN_SEQ_LENGTH, 0, LONG_MAX, &parseBuffer,
-				ib, prIndexingBuilderDataHandler, monitor);
+				ib, prIndexingBuilderDataHandler, monitor, &(graph->seqIndex));
 
 		LOG(LOG_INFO,"Indexing: Parsed %i sequences from %s",reads,path);
 		}
@@ -69,7 +69,7 @@ void runRptMaster(char **filePaths, int fileCount, int threadCount, Graph *graph
 		LOG(LOG_INFO,"Routing: Parsing %s",path);
 
 		s64 reads=prParseAndProcess(path, PARSER_MIN_SEQ_LENGTH, 0, LONG_MAX, &parseBuffer,
-				rb, prRoutingBuilderDataHandler, monitor);
+				rb, prRoutingBuilderDataHandler, monitor, NULL);
 
 		LOG(LOG_INFO,"Routing: Parsed %i sequences from %s",reads,path);
 		}

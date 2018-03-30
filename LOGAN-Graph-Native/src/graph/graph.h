@@ -23,6 +23,8 @@ typedef struct graphStr
 {
 	GraphConfig config;
 
+	SequenceIndex seqIndex;
+
 	u32 mode;
 	u32 pathCount;
 
