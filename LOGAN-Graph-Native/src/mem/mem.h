@@ -66,14 +66,14 @@ void grGraphFree(Graph *graph);
 
 // SequenceIndex
 
-SequenceFragment *siSequenceFragmentAlloc();
-void siSequenceFragmentFree(SequenceFragment *seqFrag);
+IndexedSequenceFragment *siSequenceFragmentAlloc();
+void siSequenceFragmentFree(IndexedSequenceFragment *seqFrag);
 
-Sequence *siSequenceAlloc();
-void siSequenceFree(Sequence *seq);
+IndexedSequence *siSequenceAlloc();
+void siSequenceFree(IndexedSequence *seq);
 
-SequenceSource *siSequenceSourceAlloc();
-void siSequenceSourceFree(SequenceSource *seqSrc);
+IndexedSequenceSource *siSequenceSourceAlloc();
+void siSequenceSourceFree(IndexedSequenceSource *seqSrc);
 
 
 

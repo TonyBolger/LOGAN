@@ -1,33 +1,33 @@
 #ifndef __SEQ_INDEX_H
 #define __SEQ_INDEX_H
 
-typedef struct sequenceFragmentStr {
-	struct sequenceFragmentStr *next;
+typedef struct indexedSequenceFragmentStr {
+	struct indexedSequenceFragmentStr *next;
 	u32 sequenceId;
 	u32 startPosition;
 	u32 endPosition;
-} SequenceFragment;
+} IndexedSequenceFragment;
 
-typedef struct sequenceStr {
-	struct sequenceStr *next;
+typedef struct indexedSequenceStr {
+	struct indexedSequenceStr *next;
 	char *name;
-	SequenceFragment *fragments;
-	SequenceFragment *lastFragment;
+	IndexedSequenceFragment *fragments;
+	IndexedSequenceFragment *lastFragment;
 	u32 fragmentCount;
 	u32 totalLength;
-} Sequence;
+} IndexedSequence;
 
-typedef struct sequenceSourceStr {
-	struct sequenceSourceStr *next;
+typedef struct indexedSequenceSourceStr {
+	struct indexedSequenceSourceStr *next;
 	char *name;
-	Sequence *sequences;
-	Sequence *lastSequence;
+	IndexedSequence *sequences;
+	IndexedSequence *lastSequence;
 	int sequenceCount;
-} SequenceSource;
+} IndexedSequenceSource;
 
 typedef struct sequenceIndexStr {
-	SequenceSource *sequenceSource;
-	SequenceSource *lastSequenceSource;
+	IndexedSequenceSource *sequenceSource;
+	IndexedSequenceSource *lastSequenceSource;
 	int sequenceSourceCount;
 } SequenceIndex;
 
@@ -37,9 +37,9 @@ void siCleanupSequenceIndex(SequenceIndex *seqIndex);
 
 void siDumpSequenceIndex(SequenceIndex *seqIndex);
 
-SequenceSource *siAddSequenceSource(SequenceIndex *seqIndex, char *name);
-Sequence *siAddSequence(SequenceSource *seqSrc, char *name);
-SequenceFragment *siAddSequenceFragment(Sequence *seq, u32 sequenceId, u32 startPosition, u32 endPosition);
+IndexedSequenceSource *siAddSequenceSource(SequenceIndex *seqIndex, char *name);
+IndexedSequence *siAddSequence(IndexedSequenceSource *seqSrc, char *name);
+IndexedSequenceFragment *siAddSequenceFragment(IndexedSequence *seq, u32 sequenceId, u32 startPosition, u32 endPosition);
 
 
 #endif

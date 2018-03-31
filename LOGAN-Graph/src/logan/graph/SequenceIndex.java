@@ -13,6 +13,25 @@ public class SequenceIndex {
 		return sources;
 	}
 
+	public void dump()
+	{
+		//LOG(LOG_INFO,"Dump SequenceIndex contains %i Sources", seqIndex->sequenceSourceCount);
+
+		System.out.println("SequenceIndex: Contains "+sources.length+" Sources");
+		for(SequenceSource seqSrc: sources)
+			{
+			System.out.println("  SequenceSource "+seqSrc.name+" contains "+seqSrc.sequences.length+" Sequences");
+			for(Sequence seq: seqSrc.sequences)
+				{
+				System.out.println("  Sequence "+seq.name+" ("+seq.totalLength+") contains "+seq.fragments.length+" Fragments");
+				for(SequenceFragment seqFrag: seq.fragments)
+					System.out.println("  Fragment ID "+seqFrag.sequenceId+" Range "+seqFrag.startPosition+" to "+seqFrag.endPosition);
+				}
+			}
+
+
+	}
+
 
 
 

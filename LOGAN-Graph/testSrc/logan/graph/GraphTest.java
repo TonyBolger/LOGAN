@@ -92,7 +92,9 @@ public class GraphTest extends TestCase {
 			smers=graph.getSmerIds();
 			System.out.println("Smer Array Length: "+smers.length);
 
-		//	GraphWalker walker=new GraphWalker(graph);
+			graph.getSequenceIndex().dump();
+
+//			GraphWalker walker=new GraphWalker(graph);
 		//	walker.dump();
 
 		/*

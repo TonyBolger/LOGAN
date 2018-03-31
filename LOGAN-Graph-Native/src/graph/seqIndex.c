@@ -9,9 +9,9 @@ void siInitSequenceIndex(SequenceIndex *seqIndex)
 }
 
 
-static SequenceSource *initSequenceSource(char *name)
+static IndexedSequenceSource *initSequenceSource(char *name)
 {
-	SequenceSource *seqSrc=siSequenceSourceAlloc();
+	IndexedSequenceSource *seqSrc=siSequenceSourceAlloc();
 
 	seqSrc->next=NULL;
 
@@ -27,9 +27,9 @@ static SequenceSource *initSequenceSource(char *name)
 	return seqSrc;
 }
 
-static Sequence *initSequence(char *name)
+static IndexedSequence *initSequence(char *name)
 {
-	Sequence *seq=siSequenceAlloc();
+	IndexedSequence *seq=siSequenceAlloc();
 
 	seq->next=NULL;
 
@@ -50,30 +50,30 @@ static Sequence *initSequence(char *name)
 
 void siCleanupSequenceIndex(SequenceIndex *seqIndex)
 {
-	SequenceSource *seqSrc=seqIndex->sequenceSource;
+	IndexedSequenceSource *seqSrc=seqIndex->sequenceSource;
 	while(seqSrc!=NULL)
 		{
 		G_FREE(seqSrc->name, strlen(seqSrc->name)+1, MEMTRACKID_SEQINDEX);
 
-		Sequence *seq=seqSrc->sequences;
+		IndexedSequence *seq=seqSrc->sequences;
 		while(seq!=NULL)
 			{
 			G_FREE(seq->name, strlen(seq->name)+1, MEMTRACKID_SEQINDEX);
 
-			SequenceFragment *seqFrag=seq->fragments;
+			IndexedSequenceFragment *seqFrag=seq->fragments;
 			while(seqFrag!=NULL)
 				{
-				SequenceFragment *nextSeqFrag=seqFrag->next;
+				IndexedSequenceFragment *nextSeqFrag=seqFrag->next;
 				siSequenceFragmentFree(seqFrag);
 				seqFrag=nextSeqFrag;
 				}
 
-			Sequence *nextSeq=seq->next;
+			IndexedSequence *nextSeq=seq->next;
 			siSequenceFree(seq);
 			seq=nextSeq;
 			}
 
-		SequenceSource *nextSrcSeq=seqSrc->next;
+		IndexedSequenceSource *nextSrcSeq=seqSrc->next;
 		siSequenceSourceFree(seqSrc);
 		seqSrc=nextSrcSeq;
 		}
@@ -88,30 +88,30 @@ void siDumpSequenceIndex(SequenceIndex *seqIndex)
 {
 	LOG(LOG_INFO,"Dump SequenceIndex contains %i Sources", seqIndex->sequenceSourceCount);
 
-	SequenceSource *seqSrc=seqIndex->sequenceSource;
+	IndexedSequenceSource *seqSrc=seqIndex->sequenceSource;
 	while(seqSrc!=NULL)
 		{
 		LOG(LOG_INFO,"  Source %s contains %i Sequences", seqSrc->name, seqSrc->sequenceCount);
 
-		Sequence *seq=seqSrc->sequences;
+		IndexedSequence *seq=seqSrc->sequences;
 		while(seq!=NULL)
 			{
 			LOG(LOG_INFO,"    Sequence %s (Length: %i) contains %i Fragments", seq->name, seq->totalLength, seq->fragmentCount);
 
-			/*SequenceFragment *seqFrag=seq->fragments;
+			IndexedSequenceFragment *seqFrag=seq->fragments;
 			while(seqFrag!=NULL)
 				{
 				LOG(LOG_INFO,"      Fragment ID: %u Range: %u:%u", seqFrag->sequenceId, seqFrag->startPosition, seqFrag->endPosition);
 				seqFrag=seqFrag->next;
 				}
-*/
 
-			SequenceFragment *seqFrag=seq->fragments;
+
+/*			SequenceFragment *seqFrag=seq->fragments;
 			LOG(LOG_INFO,"      First Fragment ID: %u Range: %u:%u", seqFrag->sequenceId, seqFrag->startPosition, seqFrag->endPosition);
 
 			seqFrag=seq->lastFragment;
 			LOG(LOG_INFO,"      Last Fragment ID: %u Range: %u:%u", seqFrag->sequenceId, seqFrag->startPosition, seqFrag->endPosition);
-
+*/
 			seq=seq->next;
 			}
 
@@ -122,9 +122,9 @@ void siDumpSequenceIndex(SequenceIndex *seqIndex)
 }
 
 
-SequenceSource *siAddSequenceSource(SequenceIndex *seqIndex, char *name)
+IndexedSequenceSource *siAddSequenceSource(SequenceIndex *seqIndex, char *name)
 {
-	SequenceSource *seqSrc=initSequenceSource(name);
+	IndexedSequenceSource *seqSrc=initSequenceSource(name);
 
 	if(seqIndex->sequenceSource==NULL)
 		seqIndex->sequenceSource=seqSrc;
@@ -138,9 +138,9 @@ SequenceSource *siAddSequenceSource(SequenceIndex *seqIndex, char *name)
 }
 
 
-Sequence *siAddSequence(SequenceSource *seqSrc, char *name)
+IndexedSequence *siAddSequence(IndexedSequenceSource *seqSrc, char *name)
 {
-	Sequence *seq=initSequence(name);
+	IndexedSequence *seq=initSequence(name);
 
 	if(seqSrc->sequences==NULL)
 		seqSrc->sequences=seq;
@@ -154,9 +154,9 @@ Sequence *siAddSequence(SequenceSource *seqSrc, char *name)
 }
 
 
-SequenceFragment *siAddSequenceFragment(Sequence *seq, u32 sequenceId, u32 startPosition, u32 endPosition)
+IndexedSequenceFragment *siAddSequenceFragment(IndexedSequence *seq, u32 sequenceId, u32 startPosition, u32 endPosition)
 {
-	SequenceFragment *seqFrag=siSequenceFragmentAlloc();
+	IndexedSequenceFragment *seqFrag=siSequenceFragmentAlloc();
 
 	seqFrag->next=NULL;
 

@@ -248,34 +248,34 @@ void grGraphFree(Graph *graph)
  *
  */
 
-SequenceFragment *siSequenceFragmentAlloc()
+IndexedSequenceFragment *siSequenceFragmentAlloc()
 {
-	return G_ALLOC_C(sizeof(SequenceFragment), MEMTRACKID_SEQINDEX);
+	return G_ALLOC_C(sizeof(IndexedSequenceFragment), MEMTRACKID_SEQINDEX);
 }
 
-void siSequenceFragmentFree(SequenceFragment *seqFrag)
+void siSequenceFragmentFree(IndexedSequenceFragment *seqFrag)
 {
-	G_FREE(seqFrag, sizeof(SequenceFragment), MEMTRACKID_SEQINDEX);
+	G_FREE(seqFrag, sizeof(IndexedSequenceFragment), MEMTRACKID_SEQINDEX);
 }
 
-Sequence *siSequenceAlloc()
+IndexedSequence *siSequenceAlloc()
 {
-	return G_ALLOC_C(sizeof(Sequence), MEMTRACKID_SEQINDEX);
+	return G_ALLOC_C(sizeof(IndexedSequence), MEMTRACKID_SEQINDEX);
 }
 
-void siSequenceFree(Sequence *seq)
+void siSequenceFree(IndexedSequence *seq)
 {
-	G_FREE(seq, sizeof(Sequence), MEMTRACKID_SEQINDEX);
+	G_FREE(seq, sizeof(IndexedSequence), MEMTRACKID_SEQINDEX);
 }
 
-SequenceSource *siSequenceSourceAlloc()
+IndexedSequenceSource *siSequenceSourceAlloc()
 {
-	return G_ALLOC_C(sizeof(SequenceSource), MEMTRACKID_SEQINDEX);
+	return G_ALLOC_C(sizeof(IndexedSequenceSource), MEMTRACKID_SEQINDEX);
 }
 
-void siSequenceSourceFree(SequenceSource *seqSrc)
+void siSequenceSourceFree(IndexedSequenceSource *seqSrc)
 {
-	G_FREE(seqSrc, sizeof(SequenceSource), MEMTRACKID_SEQINDEX);
+	G_FREE(seqSrc, sizeof(IndexedSequenceSource), MEMTRACKID_SEQINDEX);
 }
 
 

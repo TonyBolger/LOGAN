@@ -476,10 +476,62 @@ JNIEXPORT jlongArray JNICALL Java_logan_graph_Graph_getSmerIds_1Native
 JNIEXPORT jobject JNICALL Java_logan_graph_Graph_getSequenceIndex_1Native
   (JNIEnv *env, jobject this, jlong handle)
 {
-//	Graph *graph = (Graph *) handle;
-//	GraphJni *jni = graph->userPtr;
+	Graph *graph = (Graph *) handle;
+	GraphJni *jni = graph->userPtr;
 
-	return NULL;
+	int sequenceSourceCount=graph->seqIndex.sequenceSourceCount;
+	jarray sequenceSourceObjectArray=(*env)->NewObjectArray(env, sequenceSourceCount, jni->sequenceSourceCls, NULL);
+	int sequenceSourceIndex=0;
+
+	IndexedSequenceSource *seqSrc=graph->seqIndex.sequenceSource;
+
+	while(seqSrc!=NULL)
+		{
+		int sequenceCount=seqSrc->sequenceCount;
+		jarray sequenceObjectArray=(*env)->NewObjectArray(env, sequenceCount, jni->sequenceCls, NULL);
+		int sequenceIndex=0;
+
+		IndexedSequence *seq=seqSrc->sequences;
+
+		while(seq!=NULL)
+			{
+			int fragmentCount=seq->fragmentCount;
+			jarray fragmentObjectArray=(*env)->NewObjectArray(env, fragmentCount, jni->sequenceFragmentCls, NULL);
+			int fragmentIndex=0;
+
+			IndexedSequenceFragment *frag=seq->fragments;
+
+			while(frag!=NULL)
+				{
+				jobject fragmentObj=(*env)->NewObject(env, jni->sequenceFragmentCls, jni->sequenceFragmentMethodInit, frag->sequenceId, frag->startPosition, frag->endPosition);
+				(*env)->SetObjectArrayElement(env, fragmentObjectArray, fragmentIndex, fragmentObj);
+				(*env)->DeleteLocalRef(env,fragmentObj);
+				fragmentIndex++;
+
+				frag=frag->next;
+				}
+
+			jobject sequenceNameObj=(*env)->NewStringUTF(env, seq->name);
+			jobject sequenceObj=(*env)->NewObject(env, jni->sequenceCls, jni->sequenceMethodInit, sequenceNameObj, fragmentObjectArray, seq->totalLength);
+			(*env)->SetObjectArrayElement(env, sequenceObjectArray, sequenceIndex, sequenceObj);
+			(*env)->DeleteLocalRef(env,sequenceObj);
+			sequenceIndex++;
+
+			seq=seq->next;
+			}
+
+		jobject sequenceSourceNameObj=(*env)->NewStringUTF(env, seqSrc->name);
+		jobject sequenceSourceObj=(*env)->NewObject(env, jni->sequenceSourceCls, jni->sequenceSourceMethodInit, sequenceSourceNameObj, sequenceObjectArray);
+		(*env)->SetObjectArrayElement(env, sequenceSourceObjectArray, sequenceSourceIndex, sequenceSourceObj);
+		(*env)->DeleteLocalRef(env,sequenceSourceObj);
+		sequenceSourceIndex++;
+
+		seqSrc=seqSrc->next;
+		}
+
+	jobject sequenceIndexObj=(*env)->NewObject(env, jni->sequenceIndexCls, jni->sequenceIndexMethodInit, sequenceSourceObjectArray);
+
+	return sequenceIndexObj;
 }
 
 
