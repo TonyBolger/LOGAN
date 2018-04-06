@@ -21,5 +21,5 @@ Any recent version of: gcc, make, jdk & ant
 ### To Test
 
 * Change to LOGAN-Graph-Native/bin
-* Run using ./LOGAN <indexingThreads> <routingThreads> <file1...>
+* Run using ./LOGAN <indexingThreads> <routingThreads> <file1>...
 * Files can be either reads from Illumina, PacBio and Oxford Nanopore etc. in FASTQ format (.fq extension), or reference / pre-assembled sequences in FASTA format (.fa extension). Support for compressed files is planned.
