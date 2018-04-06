@@ -15,11 +15,11 @@ Any recent version of: gcc, make, jdk & ant
 
 ### To Build 
 
-* Change to LOGAN-Graph directory, and build Java part using ant
-* Change to LOGAN-Graph-Native, build JNI headers using ./scripts/jHeaders.sh, then build native code using make
+* Change to `LOGAN-Graph` directory, and build Java part using `ant`
+* Change to `LOGAN-Graph-Native` directory, build JNI headers using `./scripts/jHeaders.sh`, then build native code using `make`
 
 ### To Test
 
 * Change to LOGAN-Graph-Native/bin
-* Run using ./LOGAN <indexingThreads> <routingThreads> <file1>...
+* Run using `./LOGAN <indexingThreads> <routingThreads> <file1>...`
 * Files can be either reads from Illumina, PacBio and Oxford Nanopore etc. in FASTQ format (.fq extension), or reference / pre-assembled sequences in FASTA format (.fa extension). Support for compressed files is planned.
