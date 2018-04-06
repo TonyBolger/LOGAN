@@ -1,6 +1,6 @@
 # LOGAN: LOssless Graph-based Analysis of NGS Datasets
 
-Implementation of the Routed Sparse Graph approached described [here](https://www.biorxiv.org/content/early/2017/08/21/175976)
+Implementation of the Routed Sparse Graph approach described [here](https://www.biorxiv.org/content/early/2017/08/21/175976)
 
 Creates a graph-based representation of short read, long read or pre-assembled sequences. Current implementation is primarily optimized for short reads, and partially also for pre-assembled sequences. Modest long-read datasets can also be used. 
 
