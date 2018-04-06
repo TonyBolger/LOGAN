@@ -102,6 +102,8 @@ typedef struct smerLinkedStr
 	u32 forwardRouteTagCount;
 	u32 reverseRouteTagCount;
 
+	s64 totalRoutes;
+
 } SmerLinked;
 
 

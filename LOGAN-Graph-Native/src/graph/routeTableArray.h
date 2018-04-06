@@ -67,7 +67,7 @@ void rtaMergeRoutes(RouteTableArrayBuilder *builder, RouteTableTagBuilder *tagBu
 		s32 forwardRoutePatchCount, s32 reverseRoutePatchCount, s32 forwardTagCount, s32 reverseTagCount,
 		s32 prefixCount, s32 suffixCount, u32 *orderedDispatches, MemDispenser *disp);
 
-u8 *rtaUnpackRouteTableArrayForSmerLinked(SmerLinked *smerLinked, u8 *data, MemDispenser *disp);
+u8 *rtaUnpackRouteTableArrayForSmerLinked(SmerLinked *smerLinked, u8 *data, s64 routeLimit, MemDispenser *disp);
 
 void rtaGetStats(RouteTableArrayBuilder *builder,
 		s64 *routeTableForwardRouteEntriesPtr, s64 *routeTableForwardRoutesPtr, s64 *routeTableReverseRouteEntriesPtr, s64 *routeTableReverseRoutesPtr,

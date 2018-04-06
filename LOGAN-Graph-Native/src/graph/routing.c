@@ -2649,7 +2649,7 @@ typedef struct smerLinkedStr
 
  */
 
-SmerLinked *rtGetLinkedSmer(SmerArray *smerArray, SmerId rootSmerId, MemDispenser *disp)
+SmerLinked *rtGetLinkedSmer(SmerArray *smerArray, SmerId rootSmerId, s64 routeLimit, MemDispenser *disp)
 {
 	int sliceNum, index;
 	u8 *data=saFindSmerAndData(smerArray, rootSmerId, &sliceNum, &index);
@@ -2662,6 +2662,8 @@ SmerLinked *rtGetLinkedSmer(SmerArray *smerArray, SmerId rootSmerId, MemDispense
 
 	SmerLinked *smerLinked=dAlloc(disp,sizeof(SmerLinked));
 	smerLinked->smerId=rootSmerId;
+
+	smerLinked->totalRoutes=0;
 
 	if(data==NULL)
 		{
@@ -2679,7 +2681,7 @@ SmerLinked *rtGetLinkedSmer(SmerArray *smerArray, SmerId rootSmerId, MemDispense
 			data+=rtGetGapBlockHeaderSize();
 			data=stUnpackPrefixesForSmerLinked(smerLinked, data, disp);
 			data=stUnpackSuffixesForSmerLinked(smerLinked, data, disp);
-			data=rtaUnpackRouteTableArrayForSmerLinked(smerLinked, data, disp);
+			data=rtaUnpackRouteTableArrayForSmerLinked(smerLinked, data, routeLimit, disp);
 			rtgUnpackRouteTableTagsForSmerLinked(smerLinked, data, disp);
 
 			for(int i=0;i<smerLinked->prefixCount;i++)
@@ -2735,7 +2737,7 @@ SmerLinked *rtGetLinkedSmer(SmerArray *smerArray, SmerId rootSmerId, MemDispense
 				smerLinked->suffixes=NULL;
 				}
 
-			rttUnpackRouteTableForSmerLinked(smerLinked, &(treeBuilder->forwardWalker), &(treeBuilder->reverseWalker), disp);
+			rttUnpackRouteTableForSmerLinked(smerLinked, &(treeBuilder->forwardWalker), &(treeBuilder->reverseWalker), routeLimit, disp);
 
 			// TAGS not supported yet in Tree mode
 

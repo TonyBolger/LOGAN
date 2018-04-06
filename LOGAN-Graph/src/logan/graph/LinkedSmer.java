@@ -53,20 +53,10 @@ public class LinkedSmer {
 	private RouteEntry reverseRouteEntries[];
 	private RouteTag forwardRouteTags[];
 	private RouteTag reverseRouteTags[];
-
-	public LinkedSmer(long smerId, Tail prefixes[], Tail suffixes[], RouteEntry forwardRouteEntries[], RouteEntry reverseRouteEntries[])
-	{
-		this.smerId=smerId;
-		this.prefixes=prefixes;
-		this.suffixes=suffixes;
-		this.forwardRouteEntries=forwardRouteEntries;
-		this.reverseRouteEntries=reverseRouteEntries;
-		this.forwardRouteTags=new RouteTag[0];
-		this.reverseRouteTags=new RouteTag[0];
-	}
+	private long totalRoutes;
 
 	public LinkedSmer(long smerId, Tail prefixes[], Tail suffixes[], RouteEntry forwardRouteEntries[], RouteEntry reverseRouteEntries[],
-			RouteTag forwardRouteTags[], RouteTag reverseRouteTags[])
+			RouteTag forwardRouteTags[], RouteTag reverseRouteTags[], long totalRoutes)
 	{
 		this.smerId=smerId;
 		this.prefixes=prefixes;
@@ -75,6 +65,7 @@ public class LinkedSmer {
 		this.reverseRouteEntries=reverseRouteEntries;
 		this.forwardRouteTags=forwardRouteTags;
 		this.reverseRouteTags=reverseRouteTags;
+		this.totalRoutes=totalRoutes;
 	}
 
 	public long getSmerId() {
@@ -103,6 +94,10 @@ public class LinkedSmer {
 
 	public RouteTag[] getReverseRouteTags() {
 		return reverseRouteTags;
+	}
+
+	public long getTotalRoutes() {
+		return totalRoutes;
 	}
 
 	public String toString()
@@ -263,9 +258,9 @@ public class LinkedSmer {
 	// Prefix     <- this
 	// SmerId -> tailData
 
-	private static long TAIL_LENGTH_MASK=0xFFFF000000000000L;
-	private static int TAIL_LENGTH_SHIFT=48;
-	private static long TAIL_BASES_MASK=0x0000FFFFFFFFFFFFL;
+	public static long TAIL_LENGTH_MASK=0xFFFF000000000000L;
+	public static int TAIL_LENGTH_SHIFT=48;
+	public static long TAIL_BASES_MASK=0x0000FFFFFFFFFFFFL;
 
 	private int prefixSmerIndex(long smerId, byte exists, long tailData)
 	{
@@ -739,6 +734,53 @@ public class LinkedSmer {
 
 
 
+	public static void makeSequenceSpanningContexts(LinkedSmer smer, boolean forwardRoutes, boolean reverseRoutes, List<EdgeContext> prefixContexts, List<EdgeContext> suffixContexts)
+	{
+		if(forwardRoutes && smer.forwardRouteEntries!=null)
+			{
+			int prefixPositions[]=new int[smer.prefixes.length+1];
+			int suffixPositions[]=new int[smer.suffixes.length+1];
+
+			for(RouteEntry route: smer.forwardRouteEntries)
+				{
+				int prefixPosition=prefixPositions[route.prefix];
+				int suffixPosition=suffixPositions[route.suffix];
+
+				for(int i=0;i<route.width;i++)
+					{
+					prefixContexts.add(new EdgeContext(smer, route.prefix, WhichTail.PREFIX, WhichRouteTable.FORWARD, prefixPosition+i));
+					suffixContexts.add(new EdgeContext(smer, route.suffix, WhichTail.SUFFIX, WhichRouteTable.REVERSE, suffixPosition+i));
+					}
+
+				prefixPositions[route.prefix]+=route.width;
+				suffixPositions[route.suffix]+=route.width;
+				}
+			}
+
+		if(reverseRoutes && smer.reverseRouteEntries!=null)
+			{
+			int prefixPositions[]=new int[smer.prefixes.length+1];
+			int suffixPositions[]=new int[smer.suffixes.length+1];
+
+			for(RouteEntry route: smer.reverseRouteEntries)
+				{
+				int prefixPosition=prefixPositions[route.prefix];
+				int suffixPosition=suffixPositions[route.suffix];
+
+				for(int i=0;i<route.width;i++)
+					{
+					prefixContexts.add(new EdgeContext(smer, route.prefix, WhichTail.PREFIX, WhichRouteTable.FORWARD, prefixPosition+i));
+					suffixContexts.add(new EdgeContext(smer, route.suffix, WhichTail.SUFFIX, WhichRouteTable.REVERSE, suffixPosition+i));
+					}
+
+				prefixPositions[route.prefix]+=route.width;
+				suffixPositions[route.suffix]+=route.width;
+				}
+			}
+	}
+
+
+
 
 
 	public static class Tail
@@ -761,7 +803,7 @@ public class LinkedSmer {
 			return smerId;
 		}
 
-		public byte isSmerExists() {
+		public byte getSmerExists() {
 			return smerExists;
 		}
 

@@ -17,6 +17,7 @@ public class TestHelper {
 
 	public void graphIndexingHelper(File files[], int threadCount) throws InterruptedException, IOException
 	{
+		System.out.println("Indexing: Using "+threadCount+" threads");
 		final IndexBuilder ib=graph.makeIndexBuilder(threadCount);
 
 		/*
@@ -64,6 +65,8 @@ public class TestHelper {
 
 	public void graphRoutingHelper(File files[], int threadCount) throws InterruptedException, IOException
 	{
+		System.out.println("Routing: Using "+threadCount+" threads");
+
 		final RouteBuilder rb=graph.makeRouteBuilder(threadCount);
 
 		/*

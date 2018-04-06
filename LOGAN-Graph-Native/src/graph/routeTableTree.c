@@ -2052,16 +2052,18 @@ void rttMergeRoutes(RouteTableTreeBuilder *builder,
 }
 
 
-void rttUnpackRouteTableForSmerLinked(SmerLinked *smerLinked, RouteTableTreeWalker *forwardWalker, RouteTableTreeWalker *reverseWalker, MemDispenser *disp)
+void rttUnpackRouteTableForSmerLinked(SmerLinked *smerLinked, RouteTableTreeWalker *forwardWalker, RouteTableTreeWalker *reverseWalker, s64 routeLimit, MemDispenser *disp)
 {
 	RouteTableUnpackedEntry *unpackedEntry;
 	s16 upstream;
 	int totalEntryCount;
 	RouteTableEntry *routeEntries;
 
+	s64 totalRoutes=0;
+
 	rttwSeekStart(forwardWalker);
 
-	if(forwardWalker->leafEntryArray!=NULL)
+	if(forwardWalker->leafEntryArray!=NULL && routeLimit>=0)
 		{
 		totalEntryCount=forwardWalker->leafEntryArray->entryCount;
 
@@ -2082,6 +2084,8 @@ void rttUnpackRouteTableForSmerLinked(SmerLinked *smerLinked, RouteTableTreeWalk
 				routeEntries->suffix=unpackedEntry->downstream;
 				routeEntries->width=unpackedEntry->width;
 
+				totalRoutes+=unpackedEntry->width;
+
 				routeEntries++;
 				}
 			while(rttwNextEntry(forwardWalker, &upstream, &unpackedEntry));
@@ -2098,7 +2102,7 @@ void rttUnpackRouteTableForSmerLinked(SmerLinked *smerLinked, RouteTableTreeWalk
 
 	rttwSeekStart(reverseWalker);
 
-	if(reverseWalker->leafEntryArray!=NULL)
+	if(reverseWalker->leafEntryArray!=NULL && routeLimit>=0)
 		{
 		totalEntryCount=reverseWalker->leafEntryArray->entryCount;
 
@@ -2121,6 +2125,8 @@ void rttUnpackRouteTableForSmerLinked(SmerLinked *smerLinked, RouteTableTreeWalk
 				routeEntries->suffix=upstream;
 				routeEntries->width=unpackedEntry->width;
 
+				totalRoutes+=unpackedEntry->width;
+
 				routeEntries++;
 				}
 			while(rttwNextEntry(reverseWalker, &upstream, &unpackedEntry));
@@ -2135,6 +2141,7 @@ void rttUnpackRouteTableForSmerLinked(SmerLinked *smerLinked, RouteTableTreeWalk
 		smerLinked->reverseRouteEntryCount=0;
 		}
 
+	smerLinked->totalRoutes=totalRoutes;
 }
 
 

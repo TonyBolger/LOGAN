@@ -151,11 +151,12 @@ static int decodeHeader(u8 *packedData, u32 *prefixBits, u32 *suffixBits, u32 *w
 }
 
 
-static void rtaUnpackRoutes(u8 *data, int prefixBits, int suffixBits, int widthBits,
+static s64 rtaUnpackRoutes(u8 *data, int prefixBits, int suffixBits, int widthBits,
 		RouteTableEntry *forwardEntries, RouteTableEntry *reverseEntries, u32 forwardEntryCount, u32 reverseEntryCount,
 		int *maxPrefixPtr, int *maxSuffixPtr, int *maxWidthPtr)
 {
 	int maxPrefix=0,maxSuffix=0,maxWidth=0;
+	s64 totalRoutes=0;
 
 	BitUnpacker unpacker;
 	bpInitUnpacker(&unpacker, data, 0);
@@ -178,6 +179,7 @@ static void rtaUnpackRoutes(u8 *data, int prefixBits, int suffixBits, int widthB
 		forwardEntries[i].prefix=prefix;
 		forwardEntries[i].suffix=suffix;
 		forwardEntries[i].width=width;
+		totalRoutes+=width;
 		}
 
 	for(int i=0;i<reverseEntryCount;i++)
@@ -198,6 +200,7 @@ static void rtaUnpackRoutes(u8 *data, int prefixBits, int suffixBits, int widthB
 		reverseEntries[i].prefix=prefix;
 		reverseEntries[i].suffix=suffix;
 		reverseEntries[i].width=width;
+		totalRoutes+=width;
 		}
 
 	if(maxPrefixPtr!=NULL)
@@ -208,6 +211,8 @@ static void rtaUnpackRoutes(u8 *data, int prefixBits, int suffixBits, int widthB
 
 	if(maxWidthPtr!=NULL)
 		*maxWidthPtr=maxWidth;
+
+	return totalRoutes;
 }
 
 static u8 *readRouteTableBuilderPackedData(RouteTableArrayBuilder *builder, u8 *data)
@@ -1808,7 +1813,7 @@ void rtaMergeRoutes(RouteTableArrayBuilder *builder, RouteTableTagBuilder *tagBu
 
 
 
-u8 *rtaUnpackRouteTableArrayForSmerLinked(SmerLinked *smerLinked, u8 *data, MemDispenser *disp)
+u8 *rtaUnpackRouteTableArrayForSmerLinked(SmerLinked *smerLinked, u8 *data, s64 routeLimit, MemDispenser *disp)
 {
 	u32 prefixBits=0, suffixBits=0, widthBits=0, forwardEntryCount=0, reverseEntryCount=0;
 
@@ -1816,15 +1821,18 @@ u8 *rtaUnpackRouteTableArrayForSmerLinked(SmerLinked *smerLinked, u8 *data, MemD
 		{
 		data+=decodeHeader(data, &prefixBits, &suffixBits, &widthBits, &forwardEntryCount, &reverseEntryCount);
 
-		smerLinked->forwardRouteEntries=dAlloc(disp, sizeof(RouteTableEntry)*forwardEntryCount);
-		smerLinked->reverseRouteEntries=dAlloc(disp, sizeof(RouteTableEntry)*reverseEntryCount);
+		if(routeLimit>=0)
+			{
+			smerLinked->forwardRouteEntries=dAlloc(disp, sizeof(RouteTableEntry)*forwardEntryCount);
+			smerLinked->reverseRouteEntries=dAlloc(disp, sizeof(RouteTableEntry)*reverseEntryCount);
 
-		smerLinked->forwardRouteEntryCount=forwardEntryCount;
-		smerLinked->reverseRouteEntryCount=reverseEntryCount;
+			smerLinked->forwardRouteEntryCount=forwardEntryCount;
+			smerLinked->reverseRouteEntryCount=reverseEntryCount;
 
-		rtaUnpackRoutes(data, prefixBits, suffixBits, widthBits,
+			smerLinked->totalRoutes=rtaUnpackRoutes(data, prefixBits, suffixBits, widthBits,
 				smerLinked->forwardRouteEntries, smerLinked->reverseRouteEntries, forwardEntryCount, reverseEntryCount,
 				NULL,NULL,NULL);
+			}
 
 		data+=PAD_1BITLENGTH_BYTE((prefixBits+suffixBits+widthBits)*(forwardEntryCount+reverseEntryCount));
 		}

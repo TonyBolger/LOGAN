@@ -2,8 +2,11 @@ package logan.graph;
 
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.SoftReference;
+import java.lang.ref.WeakReference;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import logan.graph.LinkedSmer.WhichSequenceDirection;
 
 
 public class LinkedSmerCache {
@@ -56,14 +59,14 @@ public class LinkedSmerCache {
 
 	private void considerCleanup()
 	{
-		if((cleanupTrigger.incrementAndGet() & 0xFFFF) == 0)
+		if((cleanupTrigger.incrementAndGet() & 0xFFF) == 0)
 			cleanup();
 	}
 
 
 	public LinkedSmer getLinkedSmer(long smerId)
 	{
-		SoftReference<LinkedSmer> ref=cache.get(smerId);
+		WeakReference<LinkedSmer> ref=cache.get(smerId);
 
 		if(ref!=null)
 			{
@@ -82,7 +85,20 @@ public class LinkedSmerCache {
 		else
 			considerCleanup();
 
-		LinkedSmer linkedSmer=graph.getLinkedSmer(smerId);
+		LinkedSmer linkedSmer=graph.getLinkedSmer(smerId, Graph.LINKED_SMER_ROUTE_UNLIMITED);
+
+		if(linkedSmer==null)
+			throw new RuntimeException("Null LinkedSmer for "+smerId);
+
+		if(linkedSmer.getTotalRoutes()>10000)
+			{
+			int fwd=linkedSmer.getForwardRouteEntries()!=null?linkedSmer.getForwardRouteEntries().length:0;
+			int rev=linkedSmer.getReverseRouteEntries()!=null?linkedSmer.getReverseRouteEntries().length:0;
+
+			String smerStr=linkedSmer.getSequence(WhichSequenceDirection.ORIGINAL);
+
+			System.out.println("LINKEDSMER "+smerStr+" "+smerId+" has "+linkedSmer.getTotalRoutes()+" Fwd: "+fwd+" Rev: "+rev);
+			}
 
 		CacheEntry entry=new CacheEntry(smerId, linkedSmer, refQueue);
 		cache.put(smerId, entry);
@@ -95,11 +111,11 @@ public class LinkedSmerCache {
 
 	public void showStats()
 	{
-		System.out.println("LinkedSmerCache - Hits: "+hits.get()+" Misses: "+misses.get()+" Expired: "+expired.get()+" Cleanups: "+cleanupCounter.get());
+		System.out.println("LinkedSmerCache - Size: "+cache.size()+" Hits: "+hits.get()+" Misses: "+misses.get()+" Expired: "+expired.get()+" Cleanups: "+cleanupCounter.get());
 	}
 
 
-	private static class CacheEntry extends SoftReference<LinkedSmer>
+	private static class CacheEntry extends WeakReference<LinkedSmer>
 	  {
 	    private Long smerId;
 

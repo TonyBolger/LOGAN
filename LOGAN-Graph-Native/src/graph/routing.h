@@ -49,16 +49,16 @@ typedef struct smerRoutingStatsStr
 
 //#define ROUTING_TREE_THRESHOLD 100
 //#define ROUTING_TREE_THRESHOLD 400
-//#define ROUTING_TREE_THRESHOLD 1000
+#define ROUTING_TREE_THRESHOLD 1000
 //#define ROUTING_TREE_THRESHOLD 4000
 //#define ROUTING_TREE_THRESHOLD 10000
 //#define ROUTING_TREE_THRESHOLD 100000
 
-#define ROUTING_TREE_THRESHOLD 1000000000
+//#define ROUTING_TREE_THRESHOLD 1000000000
 
 int rtRouteReadsForSmer(RoutingIndexedDispatchLinkIndexBlock *rdi, u32 entryOffset, u32 entryCount, SmerArraySlice *slice, u32 *orderedDispatches, MemDispenser *disp, MemHeap *heap, u8 sliceTag);
 
-SmerLinked *rtGetLinkedSmer(SmerArray *smerArray, SmerId rootSmerId, MemDispenser *disp);
+SmerLinked *rtGetLinkedSmer(SmerArray *smerArray, SmerId rootSmerId, s64 routeLimit, MemDispenser *disp);
 
 SmerRoutingStats *rtGetRoutingStats(SmerArraySlice *smerArraySlice, u32 sliceNum, MemDispenser *disp);
 

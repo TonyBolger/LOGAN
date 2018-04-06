@@ -110,6 +110,41 @@ public class GraphWalker {
 		return null;
 	}
 
+	public LinkedSmer.RouteTag followEdge(LinkedSmer.EdgeContext edge) {
+
+		// System.out.println("Following: "+edge);
+
+		// LinkedSmer [ID: 2868259474793, Seq: AAGGCGTTCACGCCGCATCCGGC,
+		// LinkedSmer [ID: 11473037899172, Seq: AGGCGTTCACGCCGCATCCGGCA,
+
+		/*
+		 * long smerId=edge.getSmer().getSmerId();
+		 *
+		 * if(smerId==11473037899172L) { System.out.println("Smer is "
+		 * +edge.getSmer()); System.out.println(); }
+		 */
+
+		int maxCount = 2000;
+
+		while (edge != null && maxCount-- > 0) {
+			edge = edge.transitionAcrossNode(WhichSequenceDirection.ORIGINAL);
+
+			long linkingSmerId=edge.getLinkingSmerId();
+
+			if(linkingSmerId!=-1)
+				{
+				LinkedSmer linkingSmer = cache.getLinkedSmer(linkingSmerId);
+				edge = edge.transitionToLinkingEdge(WhichSequenceDirection.ORIGINAL, linkingSmer);
+				}
+			else
+				return edge.getTagData();
+
+		}
+
+		return null;
+	}
+
+
 	public void verifyUpstream(LinkedSmer smer) {
 		System.out.println(smer.toString());
 
@@ -162,6 +197,7 @@ public class GraphWalker {
 		int reads = 0;
 		int smerCount = 0;
 
+		int tagReads=0;
 		int noTagReads=0;
 
 		System.out.println("Dump begins");
@@ -170,8 +206,8 @@ public class GraphWalker {
 			// System.out.println(smerId);
 
 			LinkedSmer linkedSmer = cache.getLinkedSmer(smerId);
-			linkedSmer.verifyUniqueTails();
-			linkedSmer.verifyTailIndexes();
+			//linkedSmer.verifyUniqueTails();
+			//linkedSmer.verifyTailIndexes();
 
 			//if(linkedSmer.getSmerId()==0)
 			//	verifyUpstream(linkedSmer);
@@ -185,8 +221,10 @@ public class GraphWalker {
 
 			for (LinkedSmer.EdgeContext edge : readContexts) {
 				try {
-					StringBuilder sb = new StringBuilder();
-					RouteTag tag=followEdge(edge, sb, false);
+					//StringBuilder sb = new StringBuilder();
+					//RouteTag tag=followEdge(edge, sb, false);
+
+					RouteTag tag=followEdge(edge);
 
 					if(tag==null)
 						{
@@ -194,7 +232,10 @@ public class GraphWalker {
 						noTagReads++;
 						}
 					else
-						System.out.println("TAG: "+tag.toString()+" SEQ: "+sb.toString());
+						{
+						//System.out.println("TAG: "+tag.toString()+" SEQ: "+sb.toString());
+						tagReads++;
+						}
 
 				} catch (RuntimeException e) {
 					throw e;
@@ -203,13 +244,16 @@ public class GraphWalker {
 			}
 
 			if (++smerCount % 10000 == 0)
+				{
 				System.out.println("Processed " + smerCount + " smers with " + reads + " reads");
+				cache.showStats();
+				}
 		}
 
 		System.out.println("Dump complete");
 		System.out.println("Processed " + smerCount + " smers with " + reads + " reads");
 
-		System.out.println("No Tag Reads: "+noTagReads);
+		System.out.println("Tag Reads: "+tagReads+" No Tag Reads: "+noTagReads);
 	}
 
 }

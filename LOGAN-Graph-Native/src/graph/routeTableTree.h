@@ -224,7 +224,7 @@ void rttMergeRoutes(RouteTableTreeBuilder *builder,
 		RoutePatch *forwardRoutePatches, RoutePatch *reverseRoutePatches, s32 forwardRoutePatchCount, s32 reverseRoutePatchCount,
 		s32 prefixCount, s32 suffixCount, u32 *orderedDispatches, MemDispenser *disp);
 
-void rttUnpackRouteTableForSmerLinked(SmerLinked *smerLinked, RouteTableTreeWalker *forwardWalker, RouteTableTreeWalker *reverseWalker, MemDispenser *disp);
+void rttUnpackRouteTableForSmerLinked(SmerLinked *smerLinked, RouteTableTreeWalker *forwardWalker, RouteTableTreeWalker *reverseWalker, s64 routeLimit, MemDispenser *disp);
 
 void rttGetStats(RouteTableTreeBuilder *builder,
 		s64 *routeTableForwardRouteEntriesPtr, s64 *routeTableForwardRoutesPtr, s64 *routeTableReverseRouteEntriesPtr, s64 *routeTableReverseRoutesPtr,

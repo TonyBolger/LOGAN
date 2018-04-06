@@ -87,12 +87,13 @@ public class Graph {
 		currentMode=Mode.ROUTE;
 	}
 
+	public static final long LINKED_SMER_ROUTE_UNLIMITED=Long.MAX_VALUE;
 
-	public LinkedSmer getLinkedSmer(long smerId) throws GraphException
+	public LinkedSmer getLinkedSmer(long smerId, long routeLimit) throws GraphException
 	{
 		checkHandleAndMode(Mode.ROUTE);
 
-		return getLinkedSmer_Native(graphHandle, smerId);
+		return getLinkedSmer_Native(graphHandle, smerId, routeLimit);
 	}
 
 	public void free() throws GraphException
@@ -134,7 +135,7 @@ public class Graph {
 
 	/* Native Query (Array Mode) */
 
-	private native LinkedSmer getLinkedSmer_Native(long graphHandle, long smerId);
+	private native LinkedSmer getLinkedSmer_Native(long graphHandle, long smerId, long routeLimit);
 
 //	private native int SA_validateSmer_Native(long graphHandle, long smerId);
 

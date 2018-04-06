@@ -55,7 +55,7 @@ void grFreeGraph(Graph *graph)
 {
 	LOG(LOG_INFO,"Freeing Graph");
 
-	siDumpSequenceIndex(&(graph->seqIndex));
+//	siDumpSequenceIndex(&(graph->seqIndex));
 
 	siCleanupSequenceIndex(&(graph->seqIndex));
 
