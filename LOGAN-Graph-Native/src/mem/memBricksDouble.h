@@ -74,6 +74,8 @@ s32 mbGetFreeDoubleBrickChunk(MemDoubleBrickChunk *chunk);
 s32 mbCheckDoubleBrickAvailability(MemDoubleBrickPile *pile, s32 brickCount);
 s32 mbGetDoubleBrickPileCapacity(MemDoubleBrickPile *pile);
 
+void mbShowDoubleBrickPileStatus(MemDoubleBrickPile *pile);
+
 s32 mbInitDoubleBrickAllocator(MemDoubleBrickAllocator *alloc, MemDoubleBrickPile *pile, s32 pileResRequest);
 void *mbDoubleBrickAllocate(MemDoubleBrickAllocator *alloc, u32 *brickIndexPtr);
 void mbDoubleBrickAllocatorCleanup(MemDoubleBrickAllocator *alloc);

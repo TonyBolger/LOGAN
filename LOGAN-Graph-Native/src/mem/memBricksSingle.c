@@ -50,7 +50,9 @@ void mbInitSingleBrickPile(MemSingleBrickPile *pile, s32 chunkCount, s32 chunkLi
 
 void mbFreeSingleBrickPile(MemSingleBrickPile *pile, char *pileName)
 {
-	for(int i=0;i<pile->chunkCount;i++)
+	s32 chunkCount=__atomic_load_n(&(pile->chunkCount), __ATOMIC_SEQ_CST);
+
+	for(int i=0;i<chunkCount;i++)
 		{
 		int alloc=SINGLEBRICK_BRICKS_PER_CHUNK-pile->chunks[i]->header.freeCount;
 
@@ -109,10 +111,18 @@ s32 mbCheckSingleBrickAvailability(MemSingleBrickPile *pile, s32 brickCount)
 
 s32 mbGetSingleBrickPileCapacity(MemSingleBrickPile *pile)
 {
-	return pile->chunkCount*SINGLEBRICK_BRICKS_PER_CHUNK;
+	return 	__atomic_load_n(&pile->chunkCount, __ATOMIC_SEQ_CST)*SINGLEBRICK_BRICKS_PER_CHUNK;
 }
 
 
+void mbShowSingleBrickPileStatus(MemSingleBrickPile *pile)
+{
+	s32 freeCount=__atomic_load_n(&(pile->freeCount), __ATOMIC_SEQ_CST);
+	s32 chunkLimit=pile->chunkLimit;
+	s32 chunkCount=__atomic_load_n(&pile->chunkCount, __ATOMIC_SEQ_CST);
+
+	LOG(LOG_INFO,"Pile using %i chunks of %i: Bricks: %i free", chunkCount, chunkLimit, freeCount);
+}
 
 
 
@@ -157,7 +167,7 @@ static s32 singleBrickAttemptPileReserve(MemSingleBrickPile *pile, s32 resReques
 	for(int loopCount=0;loopCount<100000;loopCount++)
 		{
 		s32 freeCount=__atomic_load_n(&(pile->freeCount), __ATOMIC_RELAXED);
-		s32 pileMargin=pile->chunkCount*SINGLEBRICK_PILE_MARGIN_PER_CHUNK;
+		s32 pileMargin=__atomic_load_n(&pile->chunkCount, __ATOMIC_SEQ_CST)*SINGLEBRICK_PILE_MARGIN_PER_CHUNK;
 
 		if(freeCount<(resRequest+pileMargin))
 			return 0;
@@ -240,7 +250,9 @@ static s32 singleBrickPileUnreserve(MemSingleBrickPile *pile, s32 resRequest)
 
 static s32 singleBrickPileScanForUsableChunk(MemSingleBrickPile *pile, s32 startChunk)
 {
-	for(int i=startChunk;i<pile->chunkCount;i++)
+	s32 chunkCount=__atomic_load_n(&pile->chunkCount, __ATOMIC_SEQ_CST);
+
+	for(int i=startChunk;i<chunkCount;i++)
 		{
 		if(mbGetFreeSingleBrickChunk(pile->chunks[i])>SINGLEBRICK_CHUNK_MARGIN_PER_CHUNK && __atomic_load_n(&(pile->chunks[i]->header.flagPosition),__ATOMIC_RELAXED)>=0)
 			return i;
@@ -298,7 +310,7 @@ static s32 singleBrickUnlockChunk(MemSingleBrickChunk *chunk, u16 flagPosition)
 static s32 singleBrickPileNextChunk(MemSingleBrickPile *pile, s32 chunk)
 {
 	chunk++;
-	if(chunk>=pile->chunkCount)
+	if(chunk>=__atomic_load_n(&(pile->chunkCount), __ATOMIC_SEQ_CST))
 		return 0;
 	return chunk;
 }
@@ -591,7 +603,7 @@ void *mbSingleBrickFindByIndex(MemSingleBrickPile *pile, u32 brickIndex)
 	u32 chunkIndex=brickIndex>>16;
 	u32 index=(brickIndex &0xFFFF);
 
-	if(chunkIndex>pile->chunkCount)
+	if(chunkIndex>__atomic_load_n(&(pile->chunkCount), __ATOMIC_SEQ_CST))
 		LOG(LOG_CRITICAL,"Index beyond end of pile");
 
 	return pile->chunks[chunkIndex]->bricks+index;
@@ -609,7 +621,7 @@ void mbSingleBrickFreeByIndex(MemSingleBrickPile *pile, u32 brickIndex)
 	u32 flagIndex=(brickIndex &0xFFFF)>>6;
 	u32 allocIndex=(brickIndex & 0x3F);
 
-	if(chunkIndex>pile->chunkCount)
+	if(chunkIndex>__atomic_load_n(&(pile->chunkCount), __ATOMIC_SEQ_CST))
 		LOG(LOG_CRITICAL,"Index beyond end of pile");
 
 	if(!singleBlockUnallocateEntry(pile->chunks[chunkIndex], flagIndex, allocIndex))

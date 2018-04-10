@@ -75,6 +75,8 @@ s32 mbGetFreeSingleBrickChunk(MemSingleBrickChunk *chunk);
 s32 mbCheckSingleBrickAvailability(MemSingleBrickPile *pile, s32 brickCount);
 s32 mbGetSingleBrickPileCapacity(MemSingleBrickPile *pile);
 
+void mbShowSingleBrickPileStatus(MemSingleBrickPile *pile);
+
 s32 mbInitSingleBrickAllocator(MemSingleBrickAllocator *alloc, MemSingleBrickPile *pile, s32 pileResRequest);
 void *mbSingleBrickAllocate(MemSingleBrickAllocator *alloc, u32 *brickIndexPtr);
 void mbSingleBrickAllocatorCleanup(MemSingleBrickAllocator *alloc);

@@ -51,7 +51,9 @@ void mbInitDoubleBrickPile(MemDoubleBrickPile *pile, s32 chunkCount, s32 chunkLi
 
 void mbFreeDoubleBrickPile(MemDoubleBrickPile *pile, char *pileName)
 {
-	for(int i=0;i<pile->chunkCount;i++)
+	s32 chunkCount=__atomic_load_n(&(pile->chunkCount), __ATOMIC_SEQ_CST);
+
+	for(int i=0;i<chunkCount;i++)
 		{
 		int alloc=DOUBLEBRICK_BRICKS_PER_CHUNK-pile->chunks[i]->header.freeCount;
 
@@ -112,8 +114,19 @@ s32 mbCheckDoubleBrickAvailability(MemDoubleBrickPile *pile, s32 brickCount)
 
 s32 mbGetDoubleBrickPileCapacity(MemDoubleBrickPile *pile)
 {
-	return pile->chunkCount*DOUBLEBRICK_BRICKS_PER_CHUNK;
+	return __atomic_load_n(&(pile->chunkCount), __ATOMIC_SEQ_CST)*DOUBLEBRICK_BRICKS_PER_CHUNK;
 }
+
+
+void mbShowDoubleBrickPileStatus(MemDoubleBrickPile *pile)
+{
+	s32 freeCount=__atomic_load_n(&(pile->freeCount), __ATOMIC_SEQ_CST);
+	s32 chunkLimit=pile->chunkLimit;
+	s32 chunkCount=__atomic_load_n(&pile->chunkCount, __ATOMIC_SEQ_CST);
+
+	LOG(LOG_INFO,"Pile using %i chunks of %i: Bricks: %i free", chunkCount, chunkLimit, freeCount);
+}
+
 
 
 static s32 doubleBrickLockPile(MemDoubleBrickPile *pile)
@@ -164,7 +177,7 @@ static s32 doubleBrickAttemptPileReserve(MemDoubleBrickPile *pile, s32 resReques
 	for(int loopCount=0;loopCount<100000;loopCount++)
 		{
 		s32 freeCount=__atomic_load_n(&(pile->freeCount), __ATOMIC_SEQ_CST);
-		s32 pileMargin=pile->chunkCount*DOUBLEBRICK_PILE_MARGIN_PER_CHUNK;
+		s32 pileMargin=__atomic_load_n(&(pile->chunkCount), __ATOMIC_SEQ_CST)*DOUBLEBRICK_PILE_MARGIN_PER_CHUNK;
 
 		if(freeCount<(resRequest+pileMargin))
 			return 0;
@@ -197,9 +210,8 @@ static s32 doubleBrickAttemptPileReserveOrExpand(MemDoubleBrickPile *pile, s32 r
 		if(doubleBrickLockPile(pile))
 			{
 			s32 freeCount=__atomic_load_n(&(pile->freeCount), __ATOMIC_RELAXED);
-			s32 pileMargin=pile->chunkCount*DOUBLEBRICK_PILE_MARGIN_PER_CHUNK;
-
 			chunkCount=__atomic_load_n(&pile->chunkCount, __ATOMIC_SEQ_CST);
+			s32 pileMargin=chunkCount*DOUBLEBRICK_PILE_MARGIN_PER_CHUNK;
 
 			while(freeCount < (resRequest+pileMargin) && chunkCount < pile->chunkLimit)
 				{
@@ -304,7 +316,7 @@ static s32 doubleBrickUnlockChunk(MemDoubleBrickChunk *chunk, u16 flagPosition)
 static s32 doubleBrickPileNextChunk(MemDoubleBrickPile *pile, s32 chunk)
 {
 	chunk++;
-	if(chunk>=pile->chunkCount)
+	if(chunk>=__atomic_load_n(&(pile->chunkCount), __ATOMIC_SEQ_CST))
 		return 0;
 	return chunk;
 }
@@ -597,7 +609,7 @@ void *mbDoubleBrickFindByIndex(MemDoubleBrickPile *pile, u32 brickIndex)
 	u32 chunkIndex=brickIndex>>16;
 	u32 index=(brickIndex &0xFFFF);
 
-	if(chunkIndex>pile->chunkCount)
+	if(chunkIndex>__atomic_load_n(&(pile->chunkCount), __ATOMIC_SEQ_CST))
 		LOG(LOG_CRITICAL,"Index beyond end of pile");
 
 	return pile->chunks[chunkIndex]->bricks+index;
@@ -609,7 +621,7 @@ void mbDoubleBrickFreeByIndex(MemDoubleBrickPile *pile, u32 brickIndex)
 	u32 flagIndex=(brickIndex &0xFFFF)>>6;
 	u32 allocIndex=(brickIndex & 0x3F);
 
-	if(chunkIndex>pile->chunkCount)
+	if(chunkIndex>__atomic_load_n(&(pile->chunkCount), __ATOMIC_SEQ_CST))
 		LOG(LOG_CRITICAL,"Index beyond end of pile");
 
 	if(!doubleBlockUnallocateEntry(pile->chunks[chunkIndex], flagIndex, allocIndex))

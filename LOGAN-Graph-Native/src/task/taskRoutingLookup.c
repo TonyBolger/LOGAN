@@ -1556,6 +1556,8 @@ int scanForAndDispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb)
 	if(!mbCheckDoubleBrickAvailability(dispatchPile, TR_ROUTING_DISPATCHES_PER_LOOKUP*TR_ROUTING_BLOCKSIZE))
 		{
 		LOG(LOG_INFO,"dispatch bricks");
+		mbShowDoubleBrickPileStatus(dispatchPile);
+
 		return 0;
 		}
 
@@ -1564,6 +1566,8 @@ int scanForAndDispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb)
 	if(!mbCheckDoubleBrickAvailability(lookupPile, TR_ROUTING_BLOCKSIZE))
 		{
 		LOG(LOG_INFO,"lookup bricks");
+		mbShowDoubleBrickPileStatus(lookupPile);
+
 		return 0;
 		}
 
@@ -1571,6 +1575,8 @@ int scanForAndDispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb)
 	if(!mbInitDoubleBrickAllocator(&dispatchLinkAlloc, dispatchPile, TR_ROUTING_DISPATCHES_PER_LOOKUP*TR_ROUTING_BLOCKSIZE))
 		{
 		LOG(LOG_INFO,"dispatch bricks");
+		mbShowDoubleBrickPileStatus(dispatchPile);
+
 		return 0;
 		}
 
@@ -1578,6 +1584,8 @@ int scanForAndDispatchLookupCompleteReadLookupBlocks(RoutingBuilder *rb)
 	if(!mbInitDoubleBrickAllocator(&lookupLinkAlloc, lookupPile, TR_ROUTING_BLOCKSIZE))
 		{
 		LOG(LOG_INFO,"lookup bricks");
+		mbShowDoubleBrickPileStatus(lookupPile);
+
 		mbDoubleBrickAllocatorCleanup(&dispatchLinkAlloc);
 		return 0;
 		}

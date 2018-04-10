@@ -1,13 +1,7 @@
 package logan.graph;
 
 import java.io.File;
-import java.io.IOException;
-
 import junit.framework.TestCase;
-import logan.analysis.linear.LinearCompactGraph;
-import logan.analysis.wavefront.WavefrontAnalysis;
-import logan.graph.Graph.IndexBuilder;
-import logan.graph.Graph.RouteBuilder;
 
 public class GraphTest extends TestCase {
 
