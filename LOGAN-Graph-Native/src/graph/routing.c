@@ -203,7 +203,12 @@ static void writeBuildersAsDirectData(RoutingComboBuilder *builder, s8 sliceTag,
 	s32 oldTagOffset=0;
 
 	if(totalSize>1000000)
-		LOG(LOG_INFO,"writeDirect: CircAlloc %i",totalSize);
+		{
+		u8 buffer[SMER_BASES+1];
+		unpackSmer(builder->smer, buffer);
+
+		LOG(LOG_INFO,"writeDirect: CircAlloc %i for %s",totalSize, buffer);
+		}
 
 	newData=mhAlloc(heap, totalSize, sliceTag, sliceIndex, &oldTagOffset);
 
@@ -275,7 +280,12 @@ static RouteTableTreeTopBlock *writeBuildersAsIndirectData_writeTop(RoutingCombo
 		s32 oldTagOffset=0;
 
 		if(totalSize>1000000)
-			LOG(LOG_INFO,"writeIndirectTop: CircAlloc %i",totalSize);
+			{
+			u8 buffer[SMER_BASES+1];
+			unpackSmer(routingBuilder->smer, buffer);
+
+			LOG(LOG_INFO,"writeIndirectTop: CircAlloc %i for %s",totalSize, buffer);
+			}
 
 		u8 *newTopData=mhcAlloc(&(heap->circ), totalSize, sliceTag, sliceIndex, &oldTagOffset);
 		s32 diff=sliceIndex-oldTagOffset;
@@ -1146,7 +1156,12 @@ static void writeBuildersAsIndirectData(RoutingComboBuilder *routingBuilder, u8 
 			s32 size=writeBuildersAsIndirectData_mergeTopArrayUpdates_leaf_accumulateSize(arrayProxy, indexSize);
 
 			if(size>1000000)
-				LOG(LOG_INFO,"writeIndirect Leaf: CircAlloc %i",size);
+				{
+				u8 buffer[SMER_BASES+1];
+				unpackSmer(routingBuilder->smer, buffer);
+
+				LOG(LOG_INFO,"writeIndirect Leaf: CircAlloc %i for %s",totalNeededSize, buffer);
+				}
 
 			u8 *newLeafData=mhAlloc(heap, size, sliceTag, INT_MAX, NULL);
 
@@ -1171,7 +1186,12 @@ static void writeBuildersAsIndirectData(RoutingComboBuilder *routingBuilder, u8 
 			s32 size=writeBuildersAsIndirectData_mergeTopArrayUpdates_branch_accumulateSize(arrayProxy, indexSize);
 
 			if(size>1000000)
-				LOG(LOG_INFO,"writeIndirect Branch: CircAlloc %i",size);
+				{
+				u8 buffer[SMER_BASES+1];
+				unpackSmer(routingBuilder->smer, buffer);
+
+				LOG(LOG_INFO,"writeIndirect Branch: CircAlloc %i for %s",totalNeededSize, buffer);
+				}
 
 			u8 *newBranchData=mhAlloc(heap, size, sliceTag, INT_MAX, NULL);
 
