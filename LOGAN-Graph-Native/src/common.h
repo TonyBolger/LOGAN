@@ -48,12 +48,12 @@
 #define TR_SEQUENCE_IN_FLIGHT_ROUTING_THRESHOLD ((u64)(TR_MAX_SEQUENCES_IN_FLIGHT*0.95))
 
 
-// ~60K usable bricks per chunk, so one chunk per 6 blocks: 7.5M -> 125 (~130) x per-seq ratio
+// ~60K usable bricks per chunk, so one chunk per 6 blocks: 7.5M -> 125 (140 with margin) x per-seq ratio
 //
 // Short read - Approximate: 1 : 1.5-2 : 2 - 3
 // Long read - Approximate: 5 : 1.5-2 : 2 - 3
 
-#define TR_BRICKCHUNKS_BASE_MAX 130
+#define TR_BRICKCHUNKS_BASE_MAX 140
 
 #define TR_BRICKCHUNKS_SEQUENCE_MIN 50
 #define TR_BRICKCHUNKS_SEQUENCE_MAX (TR_BRICKCHUNKS_BASE_MAX*5)

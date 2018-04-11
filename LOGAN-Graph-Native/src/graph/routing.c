@@ -1089,7 +1089,12 @@ static void writeBuildersAsIndirectData(RoutingComboBuilder *routingBuilder, u8 
 	if(totalNeededSize>0)
 		{
 		if(totalNeededSize>1000000)
-			LOG(LOG_INFO,"writeIndirectTailAndArray: CircAlloc %i",totalNeededSize);
+			{
+			u8 buffer[SMER_BASES+1];
+			unpackSmer(routingBuilder->smer, buffer);
+
+			LOG(LOG_INFO,"writeIndirectTailAndArray: CircAlloc %i for %s",totalNeededSize, buffer);
+			}
 
 		u8 *newArrayData=mhAlloc(heap, totalNeededSize, sliceTag, INT_MAX, NULL);
 
@@ -2489,6 +2494,8 @@ int rtRouteReadsForSmer(RoutingIndexedDispatchLinkIndexBlock *rdi, u32 entryOffs
 	routingBuilder.rootPtr=slice->smerData+sliceIndex;
 	routingBuilder.sliceIndex=sliceIndex;
 	routingBuilder.sliceTag=sliceTag;
+
+	routingBuilder.smer=slice->smerIT[sliceIndex];
 
 //	s32 oldHeaderSize=0, oldPrefixDataSize=0, oldSuffixDataSize=0, oldRouteTableDataSize=0;
 

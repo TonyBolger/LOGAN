@@ -27,7 +27,7 @@ void runIptMaster(char **filePaths, int fileCount, int threadCount, Graph *graph
 		s64 reads=prParseAndProcess(path, PARSER_MIN_SEQ_LENGTH, 0, LONG_MAX, &parseBuffer,
 				ib, prIndexingBuilderDataHandler, monitor, &(graph->seqIndex));
 
-		LOG(LOG_INFO,"Indexing: Parsed %i sequences from %s",reads,path);
+		LOG(LOG_INFO,"Indexing: Parsed %li sequences from %s",reads,path);
 		}
 
 	#ifdef FEATURE_ENABLE_MEMTRACK
@@ -71,7 +71,7 @@ void runRptMaster(char **filePaths, int fileCount, int threadCount, Graph *graph
 		s64 reads=prParseAndProcess(path, PARSER_MIN_SEQ_LENGTH, 0, LONG_MAX, &parseBuffer,
 				rb, prRoutingBuilderDataHandler, monitor, NULL);
 
-		LOG(LOG_INFO,"Routing: Parsed %i sequences from %s",reads,path);
+		LOG(LOG_INFO,"Routing: Parsed %li sequences from %s",reads,path);
 		}
 
 

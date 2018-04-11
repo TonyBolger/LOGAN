@@ -154,6 +154,7 @@ typedef struct routingComboBuilderStr
 	u8 **rootPtr;
 	s32 sliceIndex;
 	u8 sliceTag;
+	SmerId smer;
 
 	SeqTailBuilder prefixBuilder;
 	SeqTailBuilder suffixBuilder;
