@@ -154,7 +154,9 @@ s64 fqParseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 recor
 		LOG(LOG_CRITICAL,"Error reading file");
 
 	s64 fileOffset=bytesRead;
-	posix_fadvise(fd, fileOffset, ioBufferPrimarySize, POSIX_FADV_WILLNEED);
+
+	if(PARSER_IO_PREFETCH_MULTIPLIER>0)
+		posix_fadvise(fd, fileOffset, ioBufferPrimarySize*PARSER_IO_PREFETCH_MULTIPLIER, POSIX_FADV_WILLNEED);
 
 	int ioBufferValid=bytesRead;
 
@@ -238,7 +240,8 @@ s64 fqParseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 recor
 
 			fileOffset+=bytesRead;
 
-			posix_fadvise(fd, fileOffset, ioBufferPrimarySize, POSIX_FADV_WILLNEED);
+			if(PARSER_IO_PREFETCH_MULTIPLIER>0)
+				posix_fadvise(fd, fileOffset, ioBufferPrimarySize*PARSER_IO_PREFETCH_MULTIPLIER, POSIX_FADV_WILLNEED);
 
 			ioBufferValid=remaining+ioOffset+bytesRead;
 			if(ioBufferValid<ioBufferEnd)

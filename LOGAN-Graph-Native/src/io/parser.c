@@ -160,11 +160,17 @@ s64 prParseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 recor
 	s64 sequences=0;
 	int format=guessFileFormatByExtensions(path);
 
+	if(minSeqLength<SMER_BASES)
+		{
+		LOG(LOG_INFO,"Increasing minimum sequence length to %i",SMER_BASES);
+		minSeqLength=SMER_BASES;
+		}
+
 	switch(format)
 		{
 		case PARSE_FILE_CONTENT_FASTQ:
 			LOG(LOG_INFO,"Path: '%s' Content: 'FastQ' Compression: 'None'", path);
-			sequences=fqParseAndProcess(path, PARSER_MIN_SEQ_LENGTH, 0, LONG_MAX,
+			sequences=fqParseAndProcess(path, minSeqLength, recordsToSkip, recordsToUse,
 					parseBuffer->ioBuffer, PARSER_IO_RECYCLE_BUFFER, PARSER_IO_PRIMARY_BUFFER,
 					parseBuffer->swqBuffers, parseBuffer->ingressBuffers, PT_INGRESS_BUFFERS,
 					handlerContext, handler, monitor);
@@ -177,7 +183,7 @@ s64 prParseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 recor
 
 		case PARSE_FILE_CONTENT_FASTA:
 			LOG(LOG_INFO,"Path: '%s' Content: 'FastA' Compression: 'None'", path);
-			sequences=faParseAndProcess(path, PARSER_MIN_SEQ_LENGTH, 0, LONG_MAX,
+			sequences=faParseAndProcess(path, minSeqLength, recordsToSkip, recordsToUse,
 					parseBuffer->ioBuffer, PARSER_IO_RECYCLE_BUFFER, PARSER_IO_PRIMARY_BUFFER,
 					parseBuffer->swqBuffers, parseBuffer->ingressBuffers, PT_INGRESS_BUFFERS,
 					handlerContext, handler, monitor, seqIndex);

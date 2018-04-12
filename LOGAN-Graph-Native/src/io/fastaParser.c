@@ -411,7 +411,7 @@ s64 faParseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 recor
 			{
 			u8 *overlapData=NULL;
 
-			if((fragmentLength >= PARSER_MIN_SEQ_LENGTH))
+			if((fragmentLength >= minSeqLength))
 				{
 				u32 *tagPtr=(u32 *)(swqBuffers[currentBuffer].rec[batchReadCount].tagData);
 				u32 taggedReadCount=(u32)(batchReadCount+totalBatch);
@@ -589,7 +589,7 @@ s64 xfaParseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 reco
 		//LOG(LOG_INFO,"Frag length: %i", fastaParser.currentRecord->length);
 		if((fragmentLength>=FASTA_SEQUENCE_VALID_MAX_LENGTH) || (fastaParser.parserState!=PARSER_STATE_SEQUENCE && fragmentLength>0))
 			{
-			if((fragmentLength >= PARSER_MIN_SEQ_LENGTH))// && (len>1800) && (len<2000))
+			if((fragmentLength >= minSeqLength))// && (len>1800) && (len<2000))
 				{
 				u32 *tagPtr=(u32 *)(swqBuffers[currentBuffer].rec[batchReadCount].tagData);
 				u32 taggedReadCount=(u32)(batchReadCount+totalBatch);

@@ -19,6 +19,8 @@
 #define PARSER_IO_RECYCLE_BUFFER (4*1024*1024)
 #define PARSER_IO_PRIMARY_BUFFER (10*1024*1024)
 
+#define PARSER_IO_PREFETCH_MULTIPLIER 16
+
 // File Content and compression can be combined
 #define PARSE_FILE_CONTENT_MASK 0xFF
 
