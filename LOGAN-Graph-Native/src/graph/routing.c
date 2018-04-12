@@ -1160,7 +1160,7 @@ static void writeBuildersAsIndirectData(RoutingComboBuilder *routingBuilder, u8 
 				u8 buffer[SMER_BASES+1];
 				unpackSmer(routingBuilder->smer, buffer);
 
-				LOG(LOG_INFO,"writeIndirect Leaf: CircAlloc %i for %s",totalNeededSize, buffer);
+				LOG(LOG_INFO,"writeIndirect Leaf: CircAlloc %i for %s",size, buffer);
 				}
 
 			u8 *newLeafData=mhAlloc(heap, size, sliceTag, INT_MAX, NULL);
@@ -1190,7 +1190,7 @@ static void writeBuildersAsIndirectData(RoutingComboBuilder *routingBuilder, u8 
 				u8 buffer[SMER_BASES+1];
 				unpackSmer(routingBuilder->smer, buffer);
 
-				LOG(LOG_INFO,"writeIndirect Branch: CircAlloc %i for %s",totalNeededSize, buffer);
+				LOG(LOG_INFO,"writeIndirect Branch: CircAlloc %i for %s",size, buffer);
 				}
 
 			u8 *newBranchData=mhAlloc(heap, size, sliceTag, INT_MAX, NULL);
