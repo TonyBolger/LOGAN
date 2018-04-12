@@ -117,13 +117,15 @@ s64 fqParseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 recor
 		void *handlerContext, void (*handler)(SwqBuffer *swqBuffer, ParallelTaskIngress *ingressBuffer, void *handlerContext),
 		void (*monitor)())
 {
-	FILE *file=fopen(path,"r");
+	int fd=open(path, O_RDONLY);
 
-	if(file==NULL)
+	if(fd<0)
 		{
 		LOG(LOG_CRITICAL,"Failed to open input file: '%s'",path);
 		return 0;
 		}
+
+	posix_fadvise(fd, 0, 0, POSIX_FADV_SEQUENTIAL);
 
 	s64 currentBuffer=0;
 	s64 batchReadCount=0;
@@ -147,9 +149,18 @@ s64 fqParseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 recor
 	int ioOffset=0;
 	int ioBufferEnd=ioBufferRecycleSize+ioBufferPrimarySize;
 
-	int ioBufferValid=fread(ioBuffer,1,ioBufferRecycleSize+ioBufferPrimarySize,file);
+	ssize_t bytesRead=read(fd, ioBuffer,ioBufferRecycleSize+ioBufferPrimarySize);
+	if(bytesRead<0)
+		LOG(LOG_CRITICAL,"Error reading file");
+
+	s64 fileOffset=bytesRead;
+	posix_fadvise(fd, fileOffset, ioBufferPrimarySize, POSIX_FADV_WILLNEED);
+
+	int ioBufferValid=bytesRead;
+
 	if(ioBufferValid<ioBufferEnd)
 		ioBuffer[ioBufferValid]=0;
+
 
 	s64 totalBatch=0;
 
@@ -215,10 +226,21 @@ s64 fqParseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 recor
 		if(ioOffset>ioBufferPrimarySize)
 			{
 			int remaining=ioBufferValid-ioOffset;
-			memcpy(ioBuffer,ioBuffer+ioOffset,remaining);
-			ioOffset=0;
+			u8 *remainingPtr=ioBuffer+ioOffset;
+			ioOffset-=ioBufferPrimarySize;
 
-			ioBufferValid=remaining+fread(ioBuffer+remaining,1,ioBufferRecycleSize+ioBufferPrimarySize-remaining,file);
+			memcpy(ioBuffer+ioOffset,remainingPtr,remaining);
+
+			bytesRead=read(fd, ioBuffer+ioOffset+remaining,ioBufferPrimarySize);
+
+			if(bytesRead<0)
+				LOG(LOG_CRITICAL,"Error reading file");
+
+			fileOffset+=bytesRead;
+
+			posix_fadvise(fd, fileOffset, ioBufferPrimarySize, POSIX_FADV_WILLNEED);
+
+			ioBufferValid=remaining+ioOffset+bytesRead;
 			if(ioBufferValid<ioBufferEnd)
 				ioBuffer[ioBufferValid]=0;
 			}
@@ -257,7 +279,7 @@ s64 fqParseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 recor
 			}
 		}
 
-	fclose(file);
+	close(fd);
 
 	return usedRecords;
 

@@ -2515,7 +2515,14 @@ int rtRouteReadsForSmer(RoutingIndexedDispatchLinkIndexBlock *rdi, u32 entryOffs
 	routingBuilder.sliceIndex=sliceIndex;
 	routingBuilder.sliceTag=sliceTag;
 
-	routingBuilder.smer=slice->smerIT[sliceIndex];
+	if(rdi->entryCount>0)
+		{
+		DispatchLink *rdd=rdi->linkEntries[0];
+		int index=rdd->position+1;
+		routingBuilder.smer=rdd->smers[index].smer;
+		}
+	else
+		routingBuilder.smer=SMER_DUMMY;
 
 //	s32 oldHeaderSize=0, oldPrefixDataSize=0, oldSuffixDataSize=0, oldRouteTableDataSize=0;
 

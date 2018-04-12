@@ -10,6 +10,7 @@
 
 #include <stdlib.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
@@ -22,6 +23,8 @@
 #include <signal.h>
 #include <limits.h>
 #include <stdint.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 
 //#define FEATURE_ENABLE_SMER_STATS
