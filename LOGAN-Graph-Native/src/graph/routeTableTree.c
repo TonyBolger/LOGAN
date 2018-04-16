@@ -2061,7 +2061,7 @@ void rttUnpackRouteTableForSmerLinked(SmerLinked *smerLinked, RouteTableTreeWalk
 
 	s64 totalRoutes=0;
 
-	rttwSeekStart(forwardWalker);
+	rttwSeekStart(forwardWalker, 1);
 
 	if(forwardWalker->leafEntryArray!=NULL && routeLimit>=0)
 		{
@@ -2074,7 +2074,7 @@ void rttUnpackRouteTableForSmerLinked(SmerLinked *smerLinked, RouteTableTreeWalk
 		smerLinked->forwardRouteEntries=routeEntries;
 		smerLinked->forwardRouteEntryCount=totalEntryCount;
 
-		rttwSeekStart(forwardWalker);
+		rttwSeekStart(forwardWalker,1);
 
 		if(rttwGetCurrentEntry(forwardWalker, &upstream, &unpackedEntry))
 			{
@@ -2100,7 +2100,7 @@ void rttUnpackRouteTableForSmerLinked(SmerLinked *smerLinked, RouteTableTreeWalk
 		smerLinked->forwardRouteEntryCount=0;
 		}
 
-	rttwSeekStart(reverseWalker);
+	rttwSeekStart(reverseWalker, 1);
 
 	if(reverseWalker->leafEntryArray!=NULL && routeLimit>=0)
 		{
@@ -2115,7 +2115,7 @@ void rttUnpackRouteTableForSmerLinked(SmerLinked *smerLinked, RouteTableTreeWalk
 		smerLinked->reverseRouteEntries=routeEntries;
 		smerLinked->reverseRouteEntryCount=totalEntryCount;
 
-		rttwSeekStart(reverseWalker);
+		rttwSeekStart(reverseWalker, 1);
 
 		if(rttwGetCurrentEntry(reverseWalker, &upstream, &unpackedEntry))
 			{

@@ -18,13 +18,15 @@
 #include <malloc.h>
 #include <pthread.h>
 #include <stdarg.h>
-#include <sys/time.h>
-#include <sys/mman.h>
 #include <signal.h>
 #include <limits.h>
 #include <stdint.h>
+
+#include <sys/time.h>
+#include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/uio.h>
 
 
 //#define FEATURE_ENABLE_SMER_STATS
@@ -323,6 +325,7 @@ typedef struct swqBufferStr {
 #include "io/parser.h"
 #include "io/fastqParser.h"
 #include "io/fastaParser.h"
+#include "io/serdes.h"
 
 // Leave mem.h to end (it needs all struct/typedefs defined)
 #include "mem/mem.h"

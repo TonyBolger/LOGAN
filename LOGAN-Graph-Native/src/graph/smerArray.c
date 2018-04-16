@@ -261,7 +261,7 @@ u32 saGetSmerCount(SmerArray *smerArray) {
 	return total;
 }
 
-static int saGetSliceSmerIds(SmerArraySlice *smerArraySlice, int sliceNum, SmerId *smerIdArray)
+int saGetSliceSmerIds(SmerArraySlice *smerArraySlice, int sliceNum, SmerId *smerIdArray)
 {
 	SmerId *ptr=smerIdArray;
 

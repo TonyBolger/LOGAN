@@ -174,6 +174,8 @@ void saVerifyIndexing(s32 maxAllowedDistance, s32 *indexes, u32 indexCount, int 
 
 
 u32 saGetSmerCount(SmerArray *smerArray);
+
+int saGetSliceSmerIds(SmerArraySlice *smerArraySlice, int sliceNum, SmerId *smerIdArray);
 void saGetSmerIds(SmerArray *smerArray, SmerId *smerIds);
 
 #endif

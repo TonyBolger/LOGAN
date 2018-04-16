@@ -36,7 +36,7 @@ void rttwDumpWalker(RouteTableTreeWalker *walker);
 
 void rttwAppendNewLeaf(RouteTableTreeWalker *walker);
 
-void rttwSeekStart(RouteTableTreeWalker *walker);
+void rttwSeekStart(RouteTableTreeWalker *walker, s32 ensureUnpacked);
 void rttwSeekEnd(RouteTableTreeWalker *walker);
 
 s32 rttwGetCurrentEntry(RouteTableTreeWalker *walker, s16 *upstream, RouteTableUnpackedEntry **entry);

@@ -88,6 +88,55 @@ void runRptMaster(char **filePaths, int fileCount, int threadCount, Graph *graph
 }
 
 
+void static writeNodes(Graph *graph)
+{
+	LOG(LOG_INFO,"Writing Nodes");
+	int fd=open("test.nodes", O_CREAT | O_TRUNC | O_WRONLY, S_IRUSR | S_IWUSR);
+
+	GraphSerdes serdes;
+	serInitSerdes(&serdes, graph);
+
+	serWriteNodes(&serdes, fd);
+
+	serCleanupSerdes(&serdes);
+
+	close(fd);
+}
+
+
+void static writeEdges(Graph *graph)
+{
+	LOG(LOG_INFO,"Writing Edges");
+	int fd=open("test.edges", O_CREAT | O_TRUNC | O_WRONLY, S_IRUSR | S_IWUSR);
+
+	GraphSerdes serdes;
+	serInitSerdes(&serdes, graph);
+
+	serWriteEdges(&serdes, fd);
+
+	serCleanupSerdes(&serdes);
+
+	close(fd);
+}
+
+
+void static writeRoutes(Graph *graph)
+{
+	LOG(LOG_INFO,"Writing Routes");
+	int fd=open("test.routes", O_CREAT | O_TRUNC | O_WRONLY, S_IRUSR | S_IWUSR);
+
+	GraphSerdes serdes;
+	serInitSerdes(&serdes, graph);
+
+	serWriteRoutes(&serdes, fd);
+
+	serCleanupSerdes(&serdes);
+
+	close(fd);
+}
+
+
+
 
 int main(int argc, char **argv)
 {
@@ -155,6 +204,10 @@ int main(int argc, char **argv)
 //	sleep(60);
 
 #endif
+
+	writeNodes(graph);
+	writeEdges(graph);
+	writeRoutes(graph);
 
 	grFreeGraph(graph);
 

@@ -42,7 +42,7 @@ void rttwAppendNewLeaf(RouteTableTreeWalker *walker)
 }
 
 
-void rttwSeekStart(RouteTableTreeWalker *walker)
+void rttwSeekStart(RouteTableTreeWalker *walker, s32 ensureUnpacked)
 {
 	RouteTableTreeBranchProxy *branchProxy=NULL;
 	RouteTableTreeLeafProxy *leafProxy=NULL;
@@ -58,19 +58,21 @@ void rttwSeekStart(RouteTableTreeWalker *walker)
 	walker->leafEntryIndex=0;
 	walker->leafEntryArray=NULL;
 
-	if(leafProxy==NULL)
+	if(ensureUnpacked)
 		{
-		rttwAppendNewLeaf(walker);
-		leafProxy=walker->leafProxy;
-		}
-	else
-		{
-		rttlEnsureFullyUnpacked(walker->treeProxy, walker->leafProxy);
+		if(leafProxy==NULL)
+			{
+			rttwAppendNewLeaf(walker);
+			leafProxy=walker->leafProxy;
+			}
+		else
+			{
+			rttlEnsureFullyUnpacked(walker->treeProxy, walker->leafProxy);
 
-		if(walker->leafArrayIndex < walker->leafProxy->unpackedBlock->entryArrayCount)
-			walker->leafEntryArray=walker->leafProxy->unpackedBlock->entryArrays[walker->leafArrayIndex];
+			if(walker->leafArrayIndex < walker->leafProxy->unpackedBlock->entryArrayCount)
+				walker->leafEntryArray=walker->leafProxy->unpackedBlock->entryArrays[walker->leafArrayIndex];
+			}
 		}
-
 
 }
 

@@ -149,9 +149,7 @@ void createBuildersFromIndirectData(RoutingComboBuilder *builder)
 		u8 *arrayBlockData=top->data[i];
 
 		if(arrayBlockData!=NULL)
-			{
 			treeBuilder->dataBlocks[i].headerSize=rtDecodeIndexedBlockHeader_0(arrayBlockData, &(treeBuilder->dataBlocks[i].variant), NULL, NULL);
-			}
 		}
 
 //	LOG(LOG_INFO,"Parse Indirect: Building");
@@ -2650,8 +2648,195 @@ int rtRouteReadsForSmer(RoutingIndexedDispatchLinkIndexBlock *rdi, u32 entryOffs
 
 
 
+void rtGetTailData(SmerArray *smerArray, SmerId smerId, u8 **prefixPtr, u32 *prefixSizePtr, u8 **suffixPtr, u32 *suffixSizePtr)
+{
+	int sliceNum, index;
+	u8 *data=saFindSmerAndData(smerArray, smerId, &sliceNum, &index);
+
+	if(index<0 || data==NULL)
+		{
+		*prefixPtr=NULL;
+		*prefixSizePtr=0;
+
+		*suffixPtr=NULL;
+		*suffixSizePtr=0;
+
+		return;
+		}
+
+	if(rtHeaderIsLiveDirect(*data))
+		{
+		u8 *afterHeader=data+rtGetGapBlockHeaderSize();
+		u8 *afterPrefix=stScanTails(afterHeader);
+		u8 *afterSuffix=stScanTails(afterPrefix);
+
+		*prefixPtr=afterHeader;
+		*prefixSizePtr=afterPrefix-afterHeader;
+
+		*suffixPtr=afterPrefix;
+		*suffixSizePtr=afterSuffix-afterPrefix;
+		}
+
+	else if(rtHeaderIsLiveTop(*data))
+		{
+		s32 topHeaderSize=rtGetGapBlockHeaderSize();
+		RouteTableTreeTopBlock *top=(RouteTableTreeTopBlock *)(data+topHeaderSize);
+
+		u8 *prefixBlockData=top->data[ROUTE_TOPINDEX_PREFIX];
+		if(prefixBlockData!=NULL)
+			{
+			u8 *prefixData=prefixBlockData+rtDecodeTailBlockHeader(prefixBlockData, NULL, NULL, NULL);
+			u8 *afterPrefix=stScanTails(prefixData);
+
+			*prefixPtr=prefixData;
+			*prefixSizePtr=(afterPrefix-prefixData);
+			}
+		else
+			{
+			*prefixPtr=NULL;
+			*prefixSizePtr=0;
+			}
+
+		u8 *suffixBlockData=top->data[ROUTE_TOPINDEX_SUFFIX];
+		if(suffixBlockData!=NULL)
+			{
+			u8 *suffixData=suffixBlockData+rtDecodeTailBlockHeader(suffixBlockData, NULL, NULL, NULL);
+			u8 *afterSuffix=stScanTails(suffixData);
+
+			*suffixPtr=suffixData;
+			*suffixSizePtr=(afterSuffix-suffixData);
+			}
+		else
+			{
+			*suffixPtr=NULL;
+			*suffixSizePtr=0;
+			}
+		}
+}
 
 
+s32 rtGetRouteTableArrayData(SmerArray *smerArray, SmerId smerId, u8 **dataPtr, u32 *dataSizePtr)
+{
+	int sliceNum, index;
+	u8 *data=saFindSmerAndData(smerArray, smerId, &sliceNum, &index);
+
+	*dataPtr=NULL;
+	*dataSizePtr=0;
+
+	if(index<0 || data==NULL)
+		return 0;
+
+	if(rtHeaderIsLiveDirect(*data))
+		{
+		u8 *afterHeader=data+rtGetGapBlockHeaderSize();
+		u8 *afterPrefix=stScanTails(afterHeader);
+		u8 *afterSuffix=stScanTails(afterPrefix);
+		u8 *afterRouteTableArray=rtaScanRouteTableArray(afterSuffix);
+
+		*dataPtr=afterSuffix;
+		*dataSizePtr=afterRouteTableArray-afterSuffix;
+
+		return 0;
+		}
+	else
+		return 1;
+}
+
+
+
+void rtGetRouteTableTreeData(SmerArray *smerArray, SmerId smerId, u32 *forwardCountPtr, u8 ***forwardDataPtr, u32 **forwardDataSizePtr,
+		u32 *reverseCountPtr, u8 ***reverseDataPtr, u32 **reverseDataSizePtr,  MemDispenser *disp)
+{
+	int sliceNum, index;
+	u8 *data=saFindSmerAndData(smerArray, smerId, &sliceNum, &index);
+
+	*forwardCountPtr=0;
+	*forwardDataPtr=NULL;
+	*forwardDataSizePtr=NULL;
+
+	*reverseCountPtr=0;
+	*reverseDataPtr=NULL;
+	*reverseDataSizePtr=NULL;
+
+	if(index<0 || data==NULL)
+		return;
+
+	if(rtHeaderIsLiveTop(*data))
+		{
+		s32 topHeaderSize=rtGetGapBlockHeaderSize();
+		RouteTableTreeTopBlock *top=(RouteTableTreeTopBlock *)(data+topHeaderSize);
+		RouteTableTreeBuilder treeBuilder;
+
+		treeBuilder.disp=disp;
+		treeBuilder.newEntryCount=0;
+
+		for(int i=ROUTE_TOPINDEX_FORWARD_BRANCH_ARRAY_0; i<=ROUTE_TOPINDEX_REVERSE_LEAF_ARRAY_0;i++)
+			{
+			u8 *arrayBlockData=top->data[i];
+
+			if(arrayBlockData!=NULL)
+				treeBuilder.dataBlocks[i].headerSize=rtDecodeIndexedBlockHeader_0(arrayBlockData, &(treeBuilder.dataBlocks[i].variant), NULL, NULL);
+			}
+
+		rttInitRouteTableTreeBuilder(&treeBuilder, top);
+
+		u32 forwardCount=treeBuilder.forwardProxy.leafArrayProxy.oldDataCount;
+
+		if(forwardCount>0)
+			{
+			u8 **forwardData=dAlloc(disp, forwardCount*sizeof(u8 *));
+			u32 *forwardDataSize=dAlloc(disp, forwardCount*sizeof(u32));
+
+			*forwardCountPtr=forwardCount;
+			*forwardDataPtr=forwardData;
+			*forwardDataSizePtr=forwardDataSize;
+
+			rttwSeekStart(&(treeBuilder.forwardWalker), 0);
+			while(treeBuilder.forwardWalker.leafProxy!=NULL)
+				{
+				RouteTableTreeLeafProxy *leafProxy=treeBuilder.forwardWalker.leafProxy;
+
+				u8 *leafData=(leafProxy->leafBlock->packedBlockData);
+				s32 leafDataSize=rtpGetPackedSingleBlockSize((RouteTablePackedSingleBlock *)(leafData));
+
+				*(forwardData++)=leafData;
+				*(forwardDataSize++)=leafDataSize;
+
+				if(!rttwAdvanceToNextLeaf(&(treeBuilder.forwardWalker),0))
+					break;
+				}
+			}
+
+		u32 reverseCount=treeBuilder.reverseProxy.leafArrayProxy.oldDataCount;
+
+		if(reverseCount>0)
+			{
+			u8 **reverseData=dAlloc(disp, reverseCount*sizeof(u8 *));
+			u32 *reverseDataSize=dAlloc(disp, reverseCount*sizeof(u32));
+
+			*reverseCountPtr=reverseCount;
+			*reverseDataPtr=reverseData;
+			*reverseDataSizePtr=reverseDataSize;
+
+			rttwSeekStart(&(treeBuilder.reverseWalker), 0);
+			while(treeBuilder.reverseWalker.leafProxy!=NULL)
+				{
+				RouteTableTreeLeafProxy *leafProxy=treeBuilder.reverseWalker.leafProxy;
+
+				u8 *leafData=(leafProxy->leafBlock->packedBlockData);
+				s32 leafDataSize=rtpGetPackedSingleBlockSize((RouteTablePackedSingleBlock *)(leafData));
+
+				*(reverseData++)=leafData;
+				*(reverseDataSize++)=leafDataSize;
+
+				if(!rttwAdvanceToNextLeaf(&(treeBuilder.reverseWalker),0))
+					break;
+				}
+			}
+
+		}
+
+}
 
 
 /*

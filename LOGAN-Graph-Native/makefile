@@ -48,6 +48,7 @@ CLI_OBJS += \
 ./bin/cli/common/io/fastaParser.o \
 ./bin/cli/common/io/fastqParser.o \
 ./bin/cli/common/io/parser.o \
+./bin/cli/common/io/serdes.o \
 ./bin/cli/common/mem/mem.o \
 ./bin/cli/common/mem/memBricksDouble.o \
 ./bin/cli/common/mem/memBricksSingle.o \
@@ -101,6 +102,7 @@ JNI_OBJS += \
 ./bin/jni/common/io/fastaParser.o \
 ./bin/jni/common/io/fastqParser.o \
 ./bin/jni/common/io/parser.o \
+./bin/jni/common/io/serdes.o \
 ./bin/jni/common/mem/mem.o \
 ./bin/jni/common/mem/memBricksDouble.o \
 ./bin/jni/common/mem/memBricksSingle.o \
