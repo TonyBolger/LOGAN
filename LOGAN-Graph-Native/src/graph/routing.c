@@ -2715,6 +2715,67 @@ void rtGetTailData(SmerArray *smerArray, SmerId smerId, u8 **prefixPtr, u32 *pre
 }
 
 
+void rtSetTailData(SmerArray *smerArray, SmerId smerId, u8 *prefix, u32 prefixSize, u8 *suffix, u32 suffixSize)
+{
+	int sliceNum, index;
+	u8 *data=saFindSmerAndData(smerArray, smerId, &sliceNum, &index);
+
+	u32 sliceGroup=sliceNum>>SMER_DISPATCH_GROUP_SHIFT;
+	u32 sliceWithinGroup=sliceNum&SMER_DISPATCH_GROUP_SLICEMASK;
+
+	MemHeap *heap=smerArray->heaps[sliceGroup];
+	u8 sliceTag=(u8)sliceWithinGroup;
+
+	if(index<0 || data==NULL)
+		{
+		int totalSize=rtGetGapBlockHeaderSize()+
+				prefixSize+
+				suffixSize+
+				rtaGetNullRouteTableArrayPackedSize()+
+				rtgGetNullRouteTableTagPackedSize();
+
+		s32 oldTagOffset=0;
+		u8 *newData=mhAlloc(heap, totalSize, sliceTag, index, &oldTagOffset);
+
+		if(newData==NULL)
+			{
+			LOG(LOG_CRITICAL,"Failed at alloc after compact: Wanted %i",totalSize);
+			}
+
+		s32 diff=index-oldTagOffset;
+
+		smerArray->slice[sliceNum].smerData[index]=newData;
+
+		rtEncodeGapDirectBlockHeader(diff, newData);
+		newData+=rtGetGapBlockHeaderSize();
+
+		memcpy(newData, prefix, prefixSize);
+		newData+=prefixSize;
+
+		memcpy(newData, suffix, suffixSize);
+		newData+=suffixSize;
+
+		newData=rtaWriteNullRouteTableArrayPackedData(newData);
+		newData=rtgWriteNullRouteTableTagPackedData(newData);
+
+		return;
+		}
+
+	if(rtHeaderIsLiveDirect(*data))
+		{
+		LOG(LOG_CRITICAL,"rtSetTailData: RouteTable %i %i", prefixSize, suffixSize);
+
+		}
+	else if(rtHeaderIsLiveTop(*data))
+		{
+		LOG(LOG_CRITICAL,"rtSetTailData: RouteTree %i %i", prefixSize, suffixSize);
+
+		}
+
+}
+
+
+
 s32 rtGetRouteTableArrayData(SmerArray *smerArray, SmerId smerId, u8 **dataPtr, u32 *dataSizePtr)
 {
 	int sliceNum, index;
@@ -2742,6 +2803,88 @@ s32 rtGetRouteTableArrayData(SmerArray *smerArray, SmerId smerId, u8 **dataPtr, 
 		return 1;
 }
 
+
+void rtSetRouteTableArrayData(SmerArray *smerArray, SmerId smerId, u8 *routeDataPtr, u32 routeDataSize)
+{
+	u8 *tmp=rtaScanRouteTableArray(routeDataPtr);
+	int checkSize=tmp-routeDataPtr;
+
+	if(checkSize!=routeDataSize)
+		LOG(LOG_CRITICAL,"RouteSizeMismatch %i vs %i", checkSize, routeDataSize);
+
+	int sliceNum, index;
+	u8 *oldData=saFindSmerAndData(smerArray, smerId, &sliceNum, &index);
+
+	u32 sliceGroup=sliceNum>>SMER_DISPATCH_GROUP_SHIFT;
+	u32 sliceWithinGroup=sliceNum&SMER_DISPATCH_GROUP_SLICEMASK;
+
+	MemHeap *heap=smerArray->heaps[sliceGroup];
+	u8 sliceTag=(u8)sliceWithinGroup;
+
+	if(index<0 || oldData==NULL)
+		{
+		LOG(LOG_CRITICAL,"rtSetRouteTableArrayData: NULL");
+		}
+	if(rtHeaderIsLiveDirect(*oldData))
+		{
+		int headerSize=rtGetGapBlockHeaderSize();
+
+		u8 *afterHeader=oldData+headerSize;
+		u8 *afterPrefix=stScanTails(afterHeader);
+		u8 *afterSuffix=stScanTails(afterPrefix);
+		u8 *afterRoutes=rtaScanRouteTableArray(afterSuffix);
+		u8 *afterTags=rtgScanRouteTableTags(afterRoutes);
+
+		int tailDataSize=afterSuffix-afterHeader;
+
+		int tagSize=rtgGetNullRouteTableTagPackedSize();
+
+		int oldTotalSize=afterTags-oldData;
+
+		int totalSize=headerSize+tailDataSize+routeDataSize+tagSize;
+
+		s32 oldTagOffset=0;
+		u8 *newData=mhAlloc(heap, totalSize, sliceTag, index, &oldTagOffset);
+
+		if(newData==NULL)
+			{
+			LOG(LOG_CRITICAL,"Failed at alloc after compact: Wanted %i",totalSize);
+			}
+
+		s32 diff=index-oldTagOffset;
+
+		oldData=smerArray->slice[sliceNum].smerData[index];  // Rebind
+		u8 *oldTailData=oldData+headerSize;
+
+		mhFree(heap, oldData, oldTotalSize);
+		smerArray->slice[sliceNum].smerData[index]=newData;
+
+		u8 *expectedEnd=newData+totalSize;
+
+		rtEncodeGapDirectBlockHeader(diff, newData);
+		newData+=headerSize;
+
+		memcpy(newData, oldTailData, tailDataSize);
+		newData+=tailDataSize;
+
+		memcpy(newData, routeDataPtr, routeDataSize);
+		newData+=routeDataSize;
+
+		newData=rtgWriteNullRouteTableTagPackedData(newData);
+
+		if(newData!=expectedEnd)
+			LOG(LOG_CRITICAL,"End Mismatch %p vs %p", newData, expectedEnd);
+
+		return;
+		}
+	else if(rtHeaderIsLiveTop(*oldData))
+		{
+		LOG(LOG_CRITICAL,"rtSetRouteTableArrayData: RouteTree");
+
+		}
+
+
+}
 
 
 void rtGetRouteTableTreeData(SmerArray *smerArray, SmerId smerId, u32 *forwardCountPtr, u8 ***forwardDataPtr, u32 **forwardDataSizePtr,
@@ -2836,6 +2979,73 @@ void rtGetRouteTableTreeData(SmerArray *smerArray, SmerId smerId, u32 *forwardCo
 
 		}
 
+}
+
+
+u64 rtSetRouteTableTreeData(SmerArray *smerArray, SmerId smerId, u8 *leafData, u32 *leafSizeTable,
+		u32 forwardCount, u32 reverseCount, MemDispenser *disp)
+{
+	int sliceNum, index;
+	u8 *data=saFindSmerAndData(smerArray, smerId, &sliceNum, &index);
+
+	RoutingComboBuilder routingBuilder;
+
+	//u32 sliceGroup=sliceNum>>SMER_DISPATCH_GROUP_SHIFT;
+	u32 sliceWithinGroup=sliceNum&SMER_DISPATCH_GROUP_SLICEMASK;
+
+	//MemHeap *heap=smerArray->heaps[sliceGroup];
+	u8 sliceTag=(u8)sliceWithinGroup;
+
+	if(index<0 || data==NULL)
+		{
+		LOG(LOG_CRITICAL,"rtSetRouteTableTreeData: NULL");
+		}
+
+	if(rtHeaderIsLiveDirect(*data))
+		{
+		LOG(LOG_INFO,"rtSetRouteTableTreeData: Direct");
+
+		routingBuilder.disp=disp;
+		routingBuilder.rootPtr=smerArray->slice[sliceNum].smerData+index;
+		routingBuilder.sliceIndex=index;
+		routingBuilder.sliceTag=sliceTag;
+
+		createBuildersFromDirectData(&routingBuilder);
+
+		s32 prefixCount=stGetSeqTailTotalTailCount(&(routingBuilder.prefixBuilder))+1;
+		s32 suffixCount=stGetSeqTailTotalTailCount(&(routingBuilder.suffixBuilder))+1;
+
+		upgradeToTree(&routingBuilder, prefixCount, suffixCount);
+
+
+		}
+	else if(rtHeaderIsLiveTop(*data))
+		{
+		LOG(LOG_CRITICAL,"rtSetRouteTableTreeData: RouteTree");
+		}
+
+
+
+	u64 dataSize=0;
+
+	for(int i=0;i<forwardCount;i++)
+		{
+		u32 leafSize=(*leafSizeTable++);
+
+		data+=leafSize;
+		dataSize+=leafSize;
+		}
+
+	for(int i=0;i<reverseCount;i++)
+		{
+		u32 leafSize=(*leafSizeTable++);
+
+		data+=leafSize;
+		dataSize+=leafSize;
+		}
+
+
+	return dataSize;
 }
 
 

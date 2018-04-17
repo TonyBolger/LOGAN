@@ -108,7 +108,52 @@ int readBufferedFastqRecord(u8 *ioBuffer, int *offset, SequenceWithQuality *rec,
 
 
 
+// Allows suppression of reads based on content
 
+static s32 validateSequence(char *seq)
+{
+	if(strchr(seq,'N')!=NULL)
+		return 0;
+
+	if(strstr(seq,"CAACAACAACAACAACAACAACA")!=NULL)
+		return 0;
+
+	if(strstr(seq,"ACAACAACAACAACAACAACAAC")!=NULL)
+		return 0;
+
+	if(strstr(seq,"AACAACAACAACAACAACAACAA")!=NULL)
+		return 0;
+
+	if(strstr(seq,"TTGTTGTTGTTGTTGTTGTTGTT")!=NULL)
+		return 0;
+
+	if(strstr(seq,"TGTTGTTGTTGTTGTTGTTGTTG")!=NULL)
+		return 0;
+
+	if(strstr(seq,"GTTGTTGTTGTTGTTGTTGTTGT")!=NULL)
+		return 0;
+
+	if(strstr(seq,"GAAGAAGAAGAAGAAGAAGAAGA")!=NULL)
+		return 0;
+
+	if(strstr(seq,"AGAAGAAGAAGAAGAAGAAGAAG")!=NULL)
+		return 0;
+
+	if(strstr(seq,"AAGAAGAAGAAGAAGAAGAAGAA")!=NULL)
+		return 0;
+
+	if(strstr(seq,"TTCTTCTTCTTCTTCTTCTTCTT")!=NULL)
+		return 0;
+
+	if(strstr(seq,"TCTTCTTCTTCTTCTTCTTCTTC")!=NULL)
+		return 0;
+
+	if(strstr(seq,"CTTCTTCTTCTTCTTCTTCTTCT")!=NULL)
+		return 0;
+
+
+	return 1;
+}
 
 
 s64 fqParseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 recordsToUse,
@@ -172,7 +217,7 @@ s64 fqParseAndProcess(char *path, int minSeqLength, s64 recordsToSkip, s64 recor
 	while(len>0 && validRecordCount<lastRecord)
 		{
 		u8 *seq=swqBuffers[currentBuffer].rec[batchReadCount].seq;
-		if((len>=minSeqLength) && (strchr((char *)seq,'N')==NULL))
+		if((len>=minSeqLength) && validateSequence((char *)seq))
 			{
 			if(validRecordCount>=recordsToSkip)
 				{

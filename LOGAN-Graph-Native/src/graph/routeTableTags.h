@@ -34,7 +34,10 @@ void rtgDumpRoutingTags(RouteTableTagBuilder *builder);
 s32 rtgGetRouteTableTagBuilderDirty(RouteTableTagBuilder *builder);
 
 s32 rtgGetRouteTableTagBuilderPackedSize(RouteTableTagBuilder *builder);
+s32 rtgGetNullRouteTableTagPackedSize();
+
 u8 *rtgWriteRouteTableTagBuilderPackedData(RouteTableTagBuilder *builder, u8 *data);
+u8 *rtgWriteNullRouteTableTagPackedData(u8 *data);
 
 void rtgMergeForwardRoutes(RouteTableTagBuilder *builder, s32 forwardTagCount, RoutePatch *patchPtr, RoutePatch *endPatchPtr);
 void rtgMergeReverseRoutes(RouteTableTagBuilder *builder, s32 reverseTagCount, RoutePatch *patchPtr, RoutePatch *endPatchPtr);

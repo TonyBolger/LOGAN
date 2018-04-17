@@ -59,9 +59,16 @@ typedef struct smerRoutingStatsStr
 int rtRouteReadsForSmer(RoutingIndexedDispatchLinkIndexBlock *rdi, u32 entryOffset, u32 entryCount, SmerArraySlice *slice, u32 *orderedDispatches, MemDispenser *disp, MemHeap *heap, u8 sliceTag);
 
 void rtGetTailData(SmerArray *smerArray, SmerId smerId, u8 **prefixPtr, u32 *prefixSizePtr, u8 **suffixPtr, u32 *suffixSizePtr);
+void rtSetTailData(SmerArray *smerArray, SmerId smerId, u8 *prefix, u32 prefixSize, u8 *suffix, u32 suffixSize);
+
 s32 rtGetRouteTableArrayData(SmerArray *smerArray, SmerId smerId, u8 **dataPtr, u32 *dataSizePtr);
+void rtSetRouteTableArrayData(SmerArray *smerArray, SmerId smerId, u8 *dataPtr, u32 dataSize);
+
 void rtGetRouteTableTreeData(SmerArray *smerArray, SmerId smerId, u32 *forwardCountPtr, u8 ***forwardDataPtr, u32 **forwardDataSizePtr,
 		 u32 *reverseCountPtr, u8 ***reverseDataPtr, u32 **reverseDataSizePtr,  MemDispenser *disp);
+
+u64 rtSetRouteTableTreeData(SmerArray *smerArray, SmerId smerId, u8 *data, u32 *sizeTable, u32 forwardCount, u32 reverseCount, MemDispenser *disp);
+
 
 
 SmerLinked *rtGetLinkedSmer(SmerArray *smerArray, SmerId rootSmerId, s64 routeLimit, MemDispenser *disp);

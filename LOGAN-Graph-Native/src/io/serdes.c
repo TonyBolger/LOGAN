@@ -59,6 +59,35 @@ static void initPacketHeader(u8 *data, u32 type, u32 size)
 	header->version=0;
 }
 
+static s64 readPacketHeader(int fd, SerdesPacketHeader *header)
+{
+	s64 size=sizeof(SerdesPacketHeader);
+	s64 headerBytes=read(fd, header, size);
+
+	if(headerBytes!=size)
+		{
+		if(headerBytes!=0)
+			LOG(LOG_CRITICAL,"Read Header: %li vs %li. Error %i", size, headerBytes, errno);
+
+		return 1;
+		}
+
+	if(header->magic!=SERDES_PACKET_MAGIC)
+		{
+		LOG(LOG_CRITICAL,"Invalid Magic: %08x", header->magic);
+		return 1;
+		}
+
+	if(header->version!=0)
+		{
+		LOG(LOG_CRITICAL,"Unexpected packet version: %08x", header->version);
+		return 0;
+		}
+
+	return 0;
+}
+
+
 s64 serWriteSliceNodes(GraphSerdes *serdes, int fd, int sliceNo)
 {
 	SmerArray *smerArray=&(serdes->graph->smerArray);
@@ -80,7 +109,7 @@ s64 serWriteSliceNodes(GraphSerdes *serdes, int fd, int sliceNo)
 	s64 bytes=write(fd, data, size);
 
 	if(bytes!=size)
-		LOG(LOG_CRITICAL,"Nodes %li vs %li", size, bytes);
+		LOG(LOG_CRITICAL,"Write Nodes: %li vs %li. Error %i", size, bytes, errno);
 
 	dispenserReset(serdes->disp);
 
@@ -97,6 +126,57 @@ s64 serWriteNodes(GraphSerdes *serdes, int fd)
 
 	return total;
 }
+
+
+
+s64 serReadNodePacket(GraphSerdes *serdes, int fd)
+{
+	SerdesPacketHeader header;
+
+	if(readPacketHeader(fd, &header))
+		return 0;
+
+	if(header.type!=SERDES_PACKETTYPE_NODE)
+		{
+		LOG(LOG_CRITICAL,"Unexpected packet type: %08x", header.type);
+		return 0;
+		}
+
+	s32 remainingSize=header.size-sizeof(SerdesPacketHeader);
+	SerdesPacketNode *packetNode=dAlloc(serdes->disp, remainingSize);
+	s64 payloadBytes=read(fd, packetNode, remainingSize);
+
+	if(payloadBytes!=remainingSize)
+		LOG(LOG_CRITICAL,"Read Nodes: %li vs %li. Error %i", remainingSize, payloadBytes, errno);
+
+	int sliceNum=packetNode->sliceNo;
+
+	SmerArray *smerArray=&(serdes->graph->smerArray);
+
+	saSetSliceSmerIds(smerArray, sliceNum, packetNode->smers, packetNode->smerCount, serdes->disp);
+
+	dispenserReset(serdes->disp);
+
+	return payloadBytes;
+}
+
+s64 serReadNodes(GraphSerdes *serdes, int fd)
+{
+	s64 bytes=serReadNodePacket(serdes, fd);
+	s64 totalBytes=bytes;
+
+	while(bytes>0)
+		{
+		bytes=serReadNodePacket(serdes, fd);
+		totalBytes+=bytes;
+		}
+
+
+	LOG(LOG_INFO,"Graph now contains %i Nodes", saGetSmerCount(&(serdes->graph->smerArray)));
+
+	return totalBytes;
+}
+
 
 
 s64 serWriteSliceEdges(GraphSerdes *serdes, int fd, int sliceNo)
@@ -173,7 +253,7 @@ s64 serWriteSliceEdges(GraphSerdes *serdes, int fd, int sliceNo)
 	s64 bytes=wrapped_writev(fd, iovBase, iov-iovBase);
 
 	if(bytes!=totalSize)
-	  LOG(LOG_CRITICAL,"Edges %li vs %li. Error %i", totalSize, bytes, errno);
+	  LOG(LOG_CRITICAL,"Write Edges: %li vs %li. Error %i", totalSize, bytes, errno);
 
 	dispenserReset(serdes->disp);
 
@@ -190,6 +270,88 @@ s64 serWriteEdges(GraphSerdes *serdes, int fd)
 
 	return total;
 }
+
+
+s64 serReadEdgePacket(GraphSerdes *serdes, int fd)
+{
+	SerdesPacketHeader header;
+
+	if(readPacketHeader(fd, &header))
+		return 0;
+
+	if(header.type!=SERDES_PACKETTYPE_EDGE)
+		{
+		LOG(LOG_CRITICAL,"Unexpected packet type: %08x", header.type);
+		return 0;
+		}
+
+	s32 remainingSize=header.size-sizeof(SerdesPacketHeader);
+	SerdesPacketEdge *packetEdge=dAlloc(serdes->disp, remainingSize);
+	s64 payloadBytes=read(fd, packetEdge, remainingSize);
+
+	if(payloadBytes!=remainingSize)
+		LOG(LOG_CRITICAL,"Read Edges: %li vs %li. Error %i", remainingSize, payloadBytes, errno);
+
+	int sliceNum=packetEdge->sliceNo;
+	int smerCount=packetEdge->smerCount;
+
+	SmerArray *smerArray=&(serdes->graph->smerArray);
+	SmerArraySlice *slice=&(smerArray->slice[sliceNum]);
+
+	u32 size=sizeof(SmerId)*smerCount;
+	SmerId *smerIds=dAlloc(serdes->disp, size);
+
+	saGetSliceSmerIds(slice, sliceNum, smerIds);
+
+	u32 *sizeTable=(u32 *)(packetEdge->data);
+	u64 sizeTableSize=sizeof(u32)*smerCount*2;
+	u8 *data=packetEdge->data+sizeTableSize;
+
+	u32 dataSize=0;
+
+	for(int i=0;i<smerCount;i++)
+		{
+		SmerId smerId=smerIds[i];
+
+		u32 prefixSize=*(sizeTable++);
+		u32 suffixSize=*(sizeTable++);
+
+		rtSetTailData(smerArray, smerId, data, prefixSize, data+prefixSize, suffixSize);
+
+		u32 combinedSize=(prefixSize+suffixSize);
+
+		data+=combinedSize;
+		dataSize+=combinedSize;
+		}
+
+	u32 totalSize=sizeof(SerdesPacketEdge)+sizeTableSize+dataSize;
+
+	if(remainingSize!=totalSize)
+		LOG(LOG_CRITICAL,"Read Edges: Size Mismatch: %i vs %i", remainingSize, totalSize);
+
+	dispenserReset(serdes->disp);
+
+	return payloadBytes;
+}
+
+s64 serReadEdges(GraphSerdes *serdes, int fd)
+{
+	s64 bytes=serReadEdgePacket(serdes, fd);
+	s64 totalBytes=bytes;
+
+	while(bytes>0)
+		{
+		bytes=serReadEdgePacket(serdes, fd);
+		totalBytes+=bytes;
+		}
+
+	return totalBytes;
+}
+
+
+
+
+
 
 
 
@@ -236,6 +398,7 @@ static s64 writeSmerRouteTree(GraphSerdes *serdes, int fd, SmerArray *smerArray,
 		u8 *data=forwardData[i];
 		u32 dataSize=forwardDataSize[i];
 
+		*(sizeTable++)=dataSize;
 		if(dataSize>0)
 			{
 			iov->iov_base=data;
@@ -251,6 +414,7 @@ static s64 writeSmerRouteTree(GraphSerdes *serdes, int fd, SmerArray *smerArray,
 		u8 *data=reverseData[i];
 		u32 dataSize=reverseDataSize[i];
 
+		*(sizeTable++)=dataSize;
 		if(dataSize>0)
 			{
 			iov->iov_base=data;
@@ -266,7 +430,7 @@ static s64 writeSmerRouteTree(GraphSerdes *serdes, int fd, SmerArray *smerArray,
 	s64 bytes=wrapped_writev(fd, iovBase, iov-iovBase);
 
 	if(bytes!=totalSize)
-		LOG(LOG_CRITICAL, "RouteTree %li vs %li", totalSize, bytes);
+		LOG(LOG_CRITICAL, "RouteTree %li vs %li. Error %i", totalSize, bytes, errno);
 
 	dispenserReset(serdes->subDisp);
 
@@ -339,7 +503,7 @@ s64 serWriteSliceRoutes(GraphSerdes *serdes, int fd, int sliceNo)
 	s64 bytes=wrapped_writev(fd, iovBase, iov-iovBase);
 
 	if(bytes!=totalSize)
-		LOG(LOG_CRITICAL, "RouteArray %li vs %li", totalSize, bytes);
+		LOG(LOG_CRITICAL, "RouteArray %li vs %li. Error %i", totalSize, bytes, errno);
 
 	dispenserReset(serdes->disp);
 
@@ -356,6 +520,122 @@ s64 serWriteRoutes(GraphSerdes *serdes, int fd)
 		total+=serWriteSliceRoutes(serdes, fd, i);
 
 	return total;
+}
+
+
+
+s64 readSmerRouteTree(GraphSerdes *serdes, int fd, SerdesPacketHeader *header)
+{
+	SmerArray *smerArray=&(serdes->graph->smerArray);
+
+	s32 remainingSize=header->size-sizeof(SerdesPacketHeader);
+	SerdesPacketRouteTree *packetRouteTree=dAlloc(serdes->disp, remainingSize);
+	s64 payloadBytes=read(fd, packetRouteTree, remainingSize);
+
+	if(payloadBytes!=remainingSize)
+		LOG(LOG_CRITICAL,"Read Route Array: %li vs %li. Error %i", remainingSize, payloadBytes, errno);
+
+	SmerId smerId=packetRouteTree->smerId;
+	int forwardLeafCount=packetRouteTree->forwardLeaves;
+	int reverseLeafCount=packetRouteTree->reverseLeaves;
+
+	u32 *sizeTable=(u32 *)(packetRouteTree->data);
+	u64 sizeTableSize=sizeof(u32)*(forwardLeafCount+reverseLeafCount);
+	u8 *data=packetRouteTree->data+sizeTableSize;
+
+	u64 dataSize=rtSetRouteTableTreeData(smerArray, smerId, data, sizeTable, forwardLeafCount, reverseLeafCount, serdes->disp);
+
+	u32 totalSize=sizeof(SerdesPacketRouteTree)+sizeTableSize+dataSize;
+
+	if(remainingSize!=totalSize)
+		LOG(LOG_CRITICAL,"Read Route Tree: Size Mismatch: %i vs %i", remainingSize, totalSize);
+
+	dispenserReset(serdes->disp);
+
+	return dataSize;
+
+}
+
+
+s64 readSliceRoutes(GraphSerdes *serdes, int fd, SerdesPacketHeader *header)
+{
+	s32 remainingSize=header->size-sizeof(SerdesPacketHeader);
+	SerdesPacketRouteArray *packetRouteArray=dAlloc(serdes->disp, remainingSize);
+	s64 payloadBytes=read(fd, packetRouteArray, remainingSize);
+
+	if(payloadBytes!=remainingSize)
+		LOG(LOG_CRITICAL,"Read Route Array: %li vs %li. Error %i", remainingSize, payloadBytes, errno);
+
+	int sliceNum=packetRouteArray->sliceNo;
+	int smerCount=packetRouteArray->smerCount;
+
+	SmerArray *smerArray=&(serdes->graph->smerArray);
+	SmerArraySlice *slice=&(smerArray->slice[sliceNum]);
+
+	u32 size=sizeof(SmerId)*smerCount;
+	SmerId *smerIds=dAlloc(serdes->disp, size);
+
+	saGetSliceSmerIds(slice, sliceNum, smerIds);
+
+	u32 *sizeTable=(u32 *)(packetRouteArray->data);
+	u64 sizeTableSize=sizeof(u32)*smerCount;
+	u8 *data=packetRouteArray->data+sizeTableSize;
+
+	u32 dataSize=0;
+
+	for(int i=0;i<smerCount;i++)
+		{
+		SmerId smerId=smerIds[i];
+		u32 tableSize=*(sizeTable++);
+
+		if(tableSize>0)
+			rtSetRouteTableArrayData(smerArray, smerId, data, tableSize);
+
+		data+=tableSize;
+		dataSize+=tableSize;
+		}
+
+	u32 totalSize=sizeof(SerdesPacketRouteArray)+sizeTableSize+dataSize;
+
+	if(remainingSize!=totalSize)
+		LOG(LOG_CRITICAL,"Read Route Array: Size Mismatch: %i vs %i", remainingSize, totalSize);
+
+	dispenserReset(serdes->disp);
+
+	return totalSize;
+
+}
+
+
+s64 serReadRoutePacket(GraphSerdes *serdes, int fd)
+{
+	SerdesPacketHeader header;
+
+	if(readPacketHeader(fd, &header))
+		return 0;
+
+	if(header.type==SERDES_PACKETTYPE_RARR)
+		return readSliceRoutes(serdes, fd, &header);
+	else if(header.type==SERDES_PACKETTYPE_RTRE)
+		return readSmerRouteTree(serdes, fd, &header);
+	else
+		LOG(LOG_CRITICAL,"Unexpected packet type: %08x", header.type);
+		return 0;
+
+}
+
+s64 serReadRoutes(GraphSerdes *serdes, int fd)
+{
+	s64 bytes=serReadRoutePacket(serdes, fd);
+	s64 totalBytes=bytes;
+
+	while(bytes>0)
+		{
+		bytes=serReadRoutePacket(serdes, fd);
+		totalBytes+=bytes;
+		}
+
+	return totalBytes;
 }
 
 

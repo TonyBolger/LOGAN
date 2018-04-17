@@ -2,6 +2,35 @@
 
 #include "common.h"
 
+void setSmerArraySliceEntries(SmerArraySlice *arraySlice, SmerEntry *smerEntries, s32 smerCount)
+{
+	if(arraySlice->smerIT!=NULL)
+		siitFreeImplicitTree(arraySlice->smerIT, arraySlice->smerCount);
+
+	if(arraySlice->smerData!=NULL)
+		smSmerDataArrayFree(arraySlice->smerData, arraySlice->smerCount);
+
+	if(arraySlice->bloom.data!=NULL)
+		freeBloom(&(arraySlice->bloom));
+
+
+	arraySlice->smerIT=siitInitImplicitTree(smerEntries,smerCount);
+	arraySlice->smerData=smSmerDataArrayAlloc(smerCount);
+
+	for(int j=0;j<smerCount;j++)
+		arraySlice->smerData[j]=NULL;
+
+	arraySlice->smerCount=smerCount;
+
+	Bloom *bloom=&(arraySlice->bloom);
+	initBloom(bloom, smerCount, 4, 8);
+
+	for(int j=0;j<smerCount;j++)
+		setBloom(bloom,smerEntries[j]);
+
+
+}
+
 
 s32 saInitSmerArray(SmerArray *smerArray, SmerMap *smerMap) {
 
@@ -40,19 +69,8 @@ s32 saInitSmerArray(SmerArray *smerArray, SmerMap *smerMap) {
 			LOG(LOG_INFO,"SMER: %s %012lx %s %012lx", smerBuf, smerId, cSmerBuf, cSmerId);
 			}
 */
-		arraySlices[i].smerIT=siitInitImplicitTree(smerTmp,count);
-		arraySlices[i].smerData=smSmerDataArrayAlloc(count);
 
-		for(int j=0;j<count;j++)
-			arraySlices[i].smerData[j]=NULL;
-
-		arraySlices[i].smerCount=count;
-
-		Bloom *bloom=&(arraySlices[i].bloom);
-		initBloom(bloom, count, 4, 8);
-
-		for(int j=0;j<count;j++)
-			setBloom(bloom,smerTmp[j]);
+		setSmerArraySliceEntries(&arraySlices[i], smerTmp, count);
 
 		smSmerEntryArrayFree(smerTmp, count);
 
@@ -278,7 +296,6 @@ int saGetSliceSmerIds(SmerArraySlice *smerArraySlice, int sliceNum, SmerId *smer
 }
 
 
-
 void saGetSmerIds(SmerArray *smerArray, SmerId *smerIds)
 {
 	for (int i = 0; i < SMER_SLICES; i++)
@@ -290,5 +307,31 @@ void saGetSmerIds(SmerArray *smerArray, SmerId *smerIds)
 
 
 
+void saSetSliceSmerIds(SmerArray *smerArray, int sliceNum, SmerId *smerIdArray, int smerCount, MemDispenser *disp)
+{
+	SmerArraySlice *smerArraySlice=&(smerArray->slice[sliceNum]);
+	SmerEntry *smerEntries=dAlloc(disp, sizeof(SmerEntry)*smerCount);
+
+	for(int i=0;i<smerCount;i++)
+		{
+		SmerId smerId=smerIdArray[i];
+		int slice=sliceForSmer(smerId, hashForSmer(smerId));
+
+		if(slice!=sliceNum)
+			LOG(LOG_CRITICAL,"Smer %012lx - %i", smerIdArray[i], slice);
+
+		smerEntries[i]=SMER_GET_BOTTOM(smerId);
+		}
+
+	// Hacky - needed because smer array retrieval doesn't maintain order
+	qsort(smerEntries, smerCount, sizeof(SmerEntry), smerEntryCompar);
+
+	setSmerArraySliceEntries(smerArraySlice, smerEntries, smerCount);
+
+	MemHeap *circHeap=smerArray->heaps[sliceNum>>SMER_DISPATCH_GROUP_SHIFT];
+	mhHeapRegisterTagData(circHeap,sliceNum&SMER_DISPATCH_GROUP_SLICEMASK,smerArraySlice->smerData, smerArraySlice->smerCount);
+
+
+}
 
 

@@ -88,7 +88,8 @@ void runRptMaster(char **filePaths, int fileCount, int threadCount, Graph *graph
 }
 
 
-void static writeNodes(Graph *graph)
+// static
+void writeNodes(Graph *graph)
 {
 	LOG(LOG_INFO,"Writing Nodes");
 	int fd=open("test.nodes", O_CREAT | O_TRUNC | O_WRONLY, S_IRUSR | S_IWUSR);
@@ -104,7 +105,8 @@ void static writeNodes(Graph *graph)
 }
 
 
-void static writeEdges(Graph *graph)
+//static
+void writeEdges(Graph *graph)
 {
 	LOG(LOG_INFO,"Writing Edges");
 	int fd=open("test.edges", O_CREAT | O_TRUNC | O_WRONLY, S_IRUSR | S_IWUSR);
@@ -120,7 +122,8 @@ void static writeEdges(Graph *graph)
 }
 
 
-void static writeRoutes(Graph *graph)
+//static
+void writeRoutes(Graph *graph)
 {
 	LOG(LOG_INFO,"Writing Routes");
 	int fd=open("test.routes", O_CREAT | O_TRUNC | O_WRONLY, S_IRUSR | S_IWUSR);
@@ -135,47 +138,67 @@ void static writeRoutes(Graph *graph)
 	close(fd);
 }
 
-
-
-
-int main(int argc, char **argv)
+//static
+void readNodes(Graph *graph)
 {
-	logInit();
+	LOG(LOG_INFO,"Reading Nodes");
 
-	// argv[1] = IndexingThreads
-	// argv[2] = RoutingThreads
-	// argv[3..] = Files
+	int fd=open("test.nodes", O_RDONLY);
 
-	if(argc<3)
-		{
-		LOG(LOG_CRITICAL,"Expected arguments: indexingThreads routingThreads files...");
-		return 1;
-		}
+	GraphSerdes serdes;
+	serInitSerdes(&serdes, graph);
 
-	int threadCountIndexing=atoi(argv[1]);
-	int threadCountRouting=atoi(argv[2]);
+	serReadNodes(&serdes, fd);
 
-	char **filePaths=argv+3;
-	int fileCount=argc-3;
+	serCleanupSerdes(&serdes);
 
-//	LOG(LOG_INFO,"RoutingReadLookupData: %i (20) RoutingReadData: %i (20) RoutingReadIndexedDataEntry: %i (28)",
-//			sizeof(RoutingReadLookupData), sizeof(RoutingReadData), sizeof(RoutingReadIndexedDataEntry));
+	close(fd);
+}
 
-	LOG(LOG_INFO,"SequenceLink: %i (64) LookupLink: %i (128) DispatchLink: %i (128)",
-			sizeof(SequenceLink), sizeof(LookupLink), sizeof(DispatchLink));
+//static
+void readEdges(Graph *graph)
+{
+	LOG(LOG_INFO,"Reading Edges");
 
-	LOG(LOG_INFO,"MemSingleBrickChunk: %i (4194304) MemDoubleBrickChunk %i (8388608)", sizeof(MemSingleBrickChunk), sizeof(MemDoubleBrickChunk));
+	int fd=open("test.edges", O_RDONLY);
+
+	GraphSerdes serdes;
+	serInitSerdes(&serdes, graph);
+
+	serReadEdges(&serdes, fd);
+
+	serCleanupSerdes(&serdes);
+
+	close(fd);
+}
+
+//static
+void readRoutes(Graph *graph)
+{
+	LOG(LOG_INFO,"Reading Routes");
+
+	int fd=open("test.routes", O_RDONLY);
+
+	GraphSerdes serdes;
+	serInitSerdes(&serdes, graph);
+
+	serReadRoutes(&serdes, fd);
+
+	serCleanupSerdes(&serdes);
+
+	close(fd);
+}
 
 
-#ifdef FEATURE_ENABLE_MEMTRACK
-	mtInit();
-	mtDump();
-#endif
 
-	Graph *graph=grAllocGraph(23,23,NULL);
 
-	//runTpfMaster(fileTemplate, fileCount, graph);
 
+
+
+
+//static
+void buildGraphFromSequenceFiles(char **filePaths, int fileCount, Graph *graph, int threadCountIndexing, int threadCountRouting)
+{
 #ifdef FEATURE_ENABLE_MEMTRACK
 	mtDump();
 #endif
@@ -200,14 +223,51 @@ int main(int argc, char **argv)
 
 #ifdef FEATURE_ENABLE_MEMTRACK
 	mtDump();
-//	LOG(LOG_INFO,"Graph construction complete");
-//	sleep(60);
-
 #endif
+
+}
+
+
+int main(int argc, char **argv)
+{
+	logInit();
+
+	// argv[1] = IndexingThreads
+	// argv[2] = RoutingThreads
+	// argv[3..] = Files
+
+	if(argc<3)
+		{
+		LOG(LOG_CRITICAL,"Expected arguments: indexingThreads routingThreads files...");
+		return 1;
+		}
+
+#ifdef FEATURE_ENABLE_MEMTRACK
+	mtInit();
+	mtDump();
+#endif
+
+	Graph *graph=grAllocGraph(23,23,NULL);
+/*
+	int threadCountIndexing=atoi(argv[1]);
+	int threadCountRouting=atoi(argv[2]);
+
+	char **filePaths=argv+3;
+	int fileCount=argc-3;
+
+	buildGraphFromSequenceFiles(filePaths, fileCount, graph, threadCountIndexing, threadCountRouting);
 
 	writeNodes(graph);
 	writeEdges(graph);
 	writeRoutes(graph);
+*/
+	grSwitchMode(graph);
+
+	readNodes(graph);
+	readEdges(graph);
+	readRoutes(graph);
+
+	//runRptMaster(filePaths, fileCount, threadCountRouting, graph);
 
 	grFreeGraph(graph);
 

@@ -61,7 +61,11 @@ void rtaDumpRoutingTableArray(RouteTableArrayBuilder *builder);
 s32 rtaGetRouteTableArrayBuilderDirty(RouteTableArrayBuilder *builder);
 
 s32 rtaGetRouteTableArrayBuilderPackedSize(RouteTableArrayBuilder *builder);
+s32 rtaGetNullRouteTableArrayPackedSize();
+
 u8 *rtaWriteRouteTableArrayBuilderPackedData(RouteTableArrayBuilder *builder, u8 *data);
+u8 *rtaWriteNullRouteTableArrayPackedData(u8 *data);
+
 
 void rtaMergeRoutes(RouteTableArrayBuilder *builder, RouteTableTagBuilder *tagBuilder, RoutePatch *forwardRoutePatches, RoutePatch *reverseRoutePatches,
 		s32 forwardRoutePatchCount, s32 reverseRoutePatchCount, s32 forwardTagCount, s32 reverseTagCount,

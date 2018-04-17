@@ -178,5 +178,7 @@ u32 saGetSmerCount(SmerArray *smerArray);
 int saGetSliceSmerIds(SmerArraySlice *smerArraySlice, int sliceNum, SmerId *smerIdArray);
 void saGetSmerIds(SmerArray *smerArray, SmerId *smerIds);
 
+void saSetSliceSmerIds(SmerArray *smerArray, int sliceNum, SmerId *smerIdArray, int smerCount, MemDispenser *disp);
+
 #endif
 

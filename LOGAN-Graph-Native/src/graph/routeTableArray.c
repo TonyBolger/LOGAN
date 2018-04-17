@@ -306,6 +306,11 @@ s32 rtaGetRouteTableArrayBuilderPackedSize(RouteTableArrayBuilder *builder)
 	return builder->totalPackedSize;
 }
 
+s32 rtaGetNullRouteTableArrayPackedSize()
+{
+	return getRouteTableHeaderSize(1, 1, 1, 0, 0);
+}
+
 static void rtaDumpRoutingTableArray_single(char *name, RouteTableEntry *entries, int entryCount)
 {
 	LOG(LOG_INFO,"%s Routes %i at %p",name, entryCount, entries);
@@ -403,6 +408,13 @@ u8 *rtaWriteRouteTableArrayBuilderPackedData(RouteTableArrayBuilder *builder, u8
 	}
 
 	return data+tableSize;
+}
+
+u8 *rtaWriteNullRouteTableArrayPackedData(u8 *data)
+{
+	int headerSize=encodeRouteTableHeader(data, 1, 1, 1, 0, 0);
+
+	return data+headerSize;
 }
 
 static s32 arrayBufferPollInput(RouteTableArrayBuffer *buf)

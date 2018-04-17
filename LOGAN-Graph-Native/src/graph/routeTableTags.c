@@ -239,6 +239,12 @@ s32 rtgGetRouteTableTagBuilderPackedSize(RouteTableTagBuilder *builder)
 	return 1+builder->forwardPackedSize+builder->reversePackedSize;
 }
 
+s32 rtgGetNullRouteTableTagPackedSize()
+{
+	return 1;
+}
+
+
 static u8 *writeRouteTableTagArray(RouteTableTag *tagEntries, u32 entryCount, u8 *data)
 {
 	for(int i=0;i<entryCount;i++)
@@ -299,6 +305,13 @@ u8 *rtgWriteRouteTableTagBuilderPackedData(RouteTableTagBuilder *builder, u8 *da
 		LOG(LOG_CRITICAL,"Reverse tag data did not end at expected location Actual: %p vs Expected: %p", data, expectedData);
 
 	return data;
+}
+
+u8 *rtgWriteNullRouteTableTagPackedData(u8 *data)
+{
+	*data=0;
+
+	return data+1;
 }
 
 void rtgMergeForwardRoutes(RouteTableTagBuilder *builder, int forwardTagCount, RoutePatch *patchPtr, RoutePatch *endPatchPtr)
