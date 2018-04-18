@@ -959,23 +959,21 @@ s32 writeBuildersAsIndirectData_mergeTopArrayUpdates_leaf_accumulateSize(RouteTa
 		{
 		RouteTableTreeLeafProxy *leafProxy=(RouteTableTreeLeafProxy *)leafArrayProxy->newEntries[i].proxy;
 
-		if(leafProxy->prepackedSize==0)
+		int subindex=leafArrayProxy->newEntries[i].index;
+		int headerSize=(subindex<ROUTE_TABLE_TREE_SHALLOW_DATA_ARRAY_ENTRIES)?rtGetIndexedBlockHeaderSize_1(indexSize):rtGetIndexedBlockHeaderSize_2(indexSize);
+
+		if(leafProxy->prepackedSize==-1)
 			{
 			rtpUpdateUnpackedSingleBlockPackingInfo(leafProxy->unpackedBlock);
 
 			RouteTablePackingInfo *packingInfo=&(leafProxy->unpackedBlock->packingInfo);
 
 			if(packingInfo->packedSize!=packingInfo->oldPackedSize)
-				{
-				int subindex=leafArrayProxy->newEntries[i].index;
-				int headerSize=(subindex<ROUTE_TABLE_TREE_SHALLOW_DATA_ARRAY_ENTRIES)?rtGetIndexedBlockHeaderSize_1(indexSize):rtGetIndexedBlockHeaderSize_2(indexSize);
-
 				totalSize+=headerSize+sizeof(RouteTableTreeLeafBlock)+packingInfo->packedSize;
-				}
 			}
 		else
 			{
-			LOG(LOG_CRITICAL,"Prepacked size set: TODO");
+			totalSize+=headerSize+sizeof(RouteTableTreeLeafBlock)+leafProxy->prepackedSize;
 			}
 		}
 
@@ -1001,13 +999,13 @@ void writeBuildersAsIndirectData_mergeTopArrayUpdates_leaf(RouteTableTreeArrayPr
 
 //		dumpLeafProxy(newLeafProxy);
 
-		if(newLeafProxy->prepackedSize==0)
+		u8 *oldLeafRawData=rttaGetBlockArrayDataEntryRaw(leafArrayProxy, subindex);
+
+		if(newLeafProxy->prepackedSize==-1)
 			{
 			RouteTablePackingInfo *packingInfo=&(newLeafProxy->unpackedBlock->packingInfo);
 			int oldBlockSize=packingInfo->oldPackedSize+headerSize;
 			int newBlockSize=packingInfo->packedSize+headerSize;
-
-			u8 *oldLeafRawData=rttaGetBlockArrayDataEntryRaw(leafArrayProxy, subindex);
 
 			if(newBlockSize!=oldBlockSize)
 				{
@@ -1041,7 +1039,28 @@ void writeBuildersAsIndirectData_mergeTopArrayUpdates_leaf(RouteTableTreeArrayPr
 			}
 		else
 			{
-			LOG(LOG_CRITICAL,"Prepacked size set: TODO");
+			rttaSetBlockArrayDataEntryRaw(leafArrayProxy, subindex, newData);
+
+			s32 newHeaderSize=(subindex<ROUTE_TABLE_TREE_SHALLOW_DATA_ARRAY_ENTRIES)?
+					rtEncodeEntityBlockHeader_Leaf1(arrayNum==ROUTE_TOPINDEX_REVERSE_LEAF_ARRAY_0, indexSize, sliceIndex, subindex>>ROUTE_TABLE_TREE_DATA_ARRAY_SUBINDEX_SHIFT, newData):
+					rtEncodeEntityBlockHeader_Leaf2(arrayNum==ROUTE_TOPINDEX_REVERSE_LEAF_ARRAY_0, indexSize, sliceIndex, subindex>>ROUTE_TABLE_TREE_DATA_ARRAY_SUBINDEX_SHIFT, newData);
+
+			if(newHeaderSize!=headerSize)
+				LOG(LOG_CRITICAL,"Header size mismatch %i vs %i",headerSize, newHeaderSize);
+
+			newData+=headerSize;
+
+			RouteTableTreeLeafBlock *leafBlock=(RouteTableTreeLeafBlock *)newData;
+			leafBlock->parentBrindex=newLeafProxy->parentBrindex;
+
+			memcpy((&(leafBlock->packedBlockData)), newLeafProxy->prepackedData, newLeafProxy->prepackedSize);
+
+			newData+=sizeof(RouteTableTreeLeafBlock)+newLeafProxy->prepackedSize;
+
+			if(oldLeafRawData!=NULL)
+				LOG(LOG_CRITICAL,"Prepacked set with old data");
+
+			//mhcFree(&(heap->circ), oldLeafRawData, oldBlockSize);
 			}
 
 		}
@@ -2959,6 +2978,35 @@ void rtGetRouteTableTreeData(SmerArray *smerArray, SmerId smerId, u32 *forwardCo
 }
 
 
+
+u64 importLeavesToWalker(u8 *leafData, u32 *leafSizeTable, u32 leafCount, RouteTableTreeWalker *walker)
+{
+	if(leafCount==0)
+		return 0;
+
+	u64 dataSize=0;
+
+	rttwSeekStart(walker, 0);
+
+	for(int i=0;i<leafCount;i++)
+		{
+		u32 leafSize=(*leafSizeTable++);
+
+		s32 leafDataSizeCheck=rtpGetPackedSingleBlockSize((RouteTablePackedSingleBlock *)leafData);
+
+		if(leafSize != leafDataSizeCheck)
+			LOG(LOG_CRITICAL,"Leaf Size Mismatch: %i vs %i",leafSize, leafDataSizeCheck);
+
+		rttwAppendNewLeaf(walker);
+		rttlSetPrepacked(walker->leafProxy, leafData, leafSize);
+
+		leafData+=leafSize;
+		dataSize+=leafSize;
+		}
+
+	return dataSize;
+}
+
 u64 rtSetRouteTableTreeData(SmerArray *smerArray, SmerId smerId, u8 *leafData, u32 *leafSizeTable,
 		u32 forwardCount, u32 reverseCount, MemDispenser *disp)
 {
@@ -2967,10 +3015,10 @@ u64 rtSetRouteTableTreeData(SmerArray *smerArray, SmerId smerId, u8 *leafData, u
 
 	RoutingComboBuilder routingBuilder;
 
-	//u32 sliceGroup=sliceNum>>SMER_DISPATCH_GROUP_SHIFT;
+	u32 sliceGroup=sliceNum>>SMER_DISPATCH_GROUP_SHIFT;
 	u32 sliceWithinGroup=sliceNum&SMER_DISPATCH_GROUP_SLICEMASK;
 
-	//MemHeap *heap=smerArray->heaps[sliceGroup];
+	MemHeap *heap=smerArray->heaps[sliceGroup];
 	u8 sliceTag=(u8)sliceWithinGroup;
 
 	if(index<0 || data==NULL)
@@ -2980,8 +3028,6 @@ u64 rtSetRouteTableTreeData(SmerArray *smerArray, SmerId smerId, u8 *leafData, u
 
 	if(rtHeaderIsLiveDirect(*data))
 		{
-		LOG(LOG_INFO,"rtSetRouteTableTreeData: Direct");
-
 		routingBuilder.disp=disp;
 		routingBuilder.rootPtr=smerArray->slice[sliceNum].smerData+index;
 		routingBuilder.sliceIndex=index;
@@ -2994,7 +3040,16 @@ u64 rtSetRouteTableTreeData(SmerArray *smerArray, SmerId smerId, u8 *leafData, u
 
 		upgradeToTree(&routingBuilder, prefixCount, suffixCount);
 
+		u64 dataSize=importLeavesToWalker(leafData, leafSizeTable, forwardCount, &(routingBuilder.treeBuilder->forwardWalker));
 
+		leafData+=dataSize;
+		leafSizeTable+=forwardCount;
+
+		dataSize+=importLeavesToWalker(leafData, leafSizeTable, reverseCount, &(routingBuilder.treeBuilder->reverseWalker));
+
+		writeBuildersAsIndirectData(&routingBuilder, sliceTag, index, heap);
+
+		return dataSize;
 		}
 	else if(rtHeaderIsLiveTop(*data))
 		{
@@ -3002,7 +3057,7 @@ u64 rtSetRouteTableTreeData(SmerArray *smerArray, SmerId smerId, u8 *leafData, u
 		}
 
 
-
+/*
 	u64 dataSize=0;
 
 	for(int i=0;i<forwardCount;i++)
@@ -3020,9 +3075,9 @@ u64 rtSetRouteTableTreeData(SmerArray *smerArray, SmerId smerId, u8 *leafData, u
 		data+=leafSize;
 		dataSize+=leafSize;
 		}
+*/
 
-
-	return dataSize;
+	return 0;
 }
 
 

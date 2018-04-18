@@ -249,6 +249,7 @@ int main(int argc, char **argv)
 
 	Graph *graph=grAllocGraph(23,23,NULL);
 
+
 	int threadCountIndexing=atoi(argv[1]);
 	int threadCountRouting=atoi(argv[2]);
 
@@ -257,11 +258,10 @@ int main(int argc, char **argv)
 
 	buildGraphFromSequenceFiles(filePaths, fileCount, graph, threadCountIndexing, threadCountRouting);
 
-/*
 	writeNodes(graph);
 	writeEdges(graph);
 	writeRoutes(graph);
-*/
+
 /*
 	grSwitchMode(graph);
 
@@ -269,6 +269,7 @@ int main(int argc, char **argv)
 	readEdges(graph);
 	readRoutes(graph);
 */
+
 	//runRptMaster(filePaths, fileCount, threadCountRouting, graph);
 
 	grFreeGraph(graph);

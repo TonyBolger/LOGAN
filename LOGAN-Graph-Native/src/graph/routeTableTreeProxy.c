@@ -127,8 +127,8 @@ RouteTableTreeLeafProxy *getRouteTableTreeLeafProxy(RouteTableTreeProxy *treePro
 
 	leafProxy->status=LEAFPROXY_STATUS_SEMIUNPACKED;
 
-	leafProxy->prepackedSize=0;
 	leafProxy->prepackedData=NULL;
+	leafProxy->prepackedSize=-1;
 
 	//rttlEnsureFullyUnpacked(treeProxy, leafProxy);
 

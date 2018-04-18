@@ -41,7 +41,7 @@ struct routeTableTreeLeafProxyStr
 	s32 status;
 	RouteTableUnpackedSingleBlock *unpackedBlock;
 
-	u32 prepackedSize;
+	s32 prepackedSize;
 	u8 *prepackedData;
 };
 
@@ -51,6 +51,8 @@ void rttlEnsureFullyUnpacked(RouteTableTreeProxy *treeProxy, RouteTableTreeLeafP
 void rttlMarkDirty(RouteTableTreeProxy *treeProxy, RouteTableTreeLeafProxy *leafProxy);
 
 RouteTableTreeLeafProxy *rttlAllocRouteTableTreeLeafProxy(RouteTableTreeProxy *treeProxy, s32 upstreamOffsetAlloc, s32 downstreamOffsetAlloc, s32 entryArrayAlloc);
+
+void rttlSetPrepacked(RouteTableTreeLeafProxy *leafProxy, u8 *prepackedData, s32 prepackedSize);
 
 void rttlDumpLeafBlock(RouteTableTreeLeafBlock *leafBlock);
 

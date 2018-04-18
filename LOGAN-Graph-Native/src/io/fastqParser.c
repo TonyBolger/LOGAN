@@ -114,7 +114,7 @@ static s32 validateSequence(char *seq)
 {
 	if(strchr(seq,'N')!=NULL)
 		return 0;
-
+/*
 	if(strstr(seq,"CAACAACAACAACAACAACAACA")!=NULL)
 		return 0;
 
@@ -150,7 +150,7 @@ static s32 validateSequence(char *seq)
 
 	if(strstr(seq,"CTTCTTCTTCTTCTTCTTCTTCT")!=NULL)
 		return 0;
-
+*/
 
 	return 1;
 }
