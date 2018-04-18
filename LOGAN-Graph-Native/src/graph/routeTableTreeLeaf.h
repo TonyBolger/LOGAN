@@ -40,6 +40,9 @@ struct routeTableTreeLeafProxyStr
 
 	s32 status;
 	RouteTableUnpackedSingleBlock *unpackedBlock;
+
+	u32 prepackedSize;
+	u8 *prepackedData;
 };
 
 

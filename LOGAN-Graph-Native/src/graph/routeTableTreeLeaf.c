@@ -173,6 +173,9 @@ RouteTableTreeLeafProxy *rttlAllocRouteTableTreeLeafProxy(RouteTableTreeProxy *t
 	proxy->status=LEAFPROXY_STATUS_FULLYUNPACKED;
 	proxy->unpackedBlock=unpackedBlock;
 
+	proxy->prepackedSize=0;
+	proxy->prepackedData=NULL;
+
 //	LOG(LOG_INFO,"AllocRouteTableTreeLeaf : %i",lindex);
 
 	return proxy;

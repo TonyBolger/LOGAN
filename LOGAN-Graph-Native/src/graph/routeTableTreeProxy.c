@@ -126,6 +126,10 @@ RouteTableTreeLeafProxy *getRouteTableTreeLeafProxy(RouteTableTreeProxy *treePro
 			treeProxy->disp, treeProxy->upstreamCount, treeProxy->downstreamCount);
 
 	leafProxy->status=LEAFPROXY_STATUS_SEMIUNPACKED;
+
+	leafProxy->prepackedSize=0;
+	leafProxy->prepackedData=NULL;
+
 	//rttlEnsureFullyUnpacked(treeProxy, leafProxy);
 
 	//rtpUnpackSingleBlockEntryArrays((RouteTablePackedSingleBlock *)(leafProxy->leafBlock->packedBlockData), leafProxy->unpackedBlock);
