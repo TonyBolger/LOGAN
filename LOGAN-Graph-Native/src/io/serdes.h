@@ -30,7 +30,7 @@ typedef struct serdesPacketNodeStr
 {
 	u32 sliceNo;
 	u32 smerCount;
-	SmerId smers[];
+	SmerEntry smerEntries[];
 } SerdesPacketNode;
 
 

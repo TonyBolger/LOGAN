@@ -179,6 +179,7 @@ int saGetSliceSmerIds(SmerArraySlice *smerArraySlice, int sliceNum, SmerId *smer
 void saGetSmerIds(SmerArray *smerArray, SmerId *smerIds);
 
 void saSetSliceSmerIds(SmerArray *smerArray, int sliceNum, SmerId *smerIdArray, int smerCount, MemDispenser *disp);
+void saSetSliceSmerEntries(SmerArray *smerArray, int sliceNum, SmerEntry *smerEntries, int smerCount);
 
 #endif
 

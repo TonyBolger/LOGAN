@@ -2,7 +2,7 @@
 
 #include "common.h"
 
-void setSmerArraySliceEntries(SmerArraySlice *arraySlice, SmerEntry *smerEntries, s32 smerCount)
+void setSmerArraySliceEntries(SmerArraySlice *arraySlice, SmerEntry *smerEntries, s32 smerCount, s32 isSiit)
 {
 	if(arraySlice->smerIT!=NULL)
 		siitFreeImplicitTree(arraySlice->smerIT, arraySlice->smerCount);
@@ -14,7 +14,7 @@ void setSmerArraySliceEntries(SmerArraySlice *arraySlice, SmerEntry *smerEntries
 		freeBloom(&(arraySlice->bloom));
 
 
-	arraySlice->smerIT=siitInitImplicitTree(smerEntries,smerCount);
+	arraySlice->smerIT=siitInitImplicitTree(smerEntries,smerCount, isSiit);
 	arraySlice->smerData=smSmerDataArrayAlloc(smerCount);
 
 	for(int j=0;j<smerCount;j++)
@@ -70,7 +70,7 @@ s32 saInitSmerArray(SmerArray *smerArray, SmerMap *smerMap) {
 			}
 */
 
-		setSmerArraySliceEntries(&arraySlices[i], smerTmp, count);
+		setSmerArraySliceEntries(&arraySlices[i], smerTmp, count, 0);
 
 		smSmerEntryArrayFree(smerTmp, count);
 
@@ -279,6 +279,8 @@ u32 saGetSmerCount(SmerArray *smerArray) {
 	return total;
 }
 
+
+
 int saGetSliceSmerIds(SmerArraySlice *smerArraySlice, int sliceNum, SmerId *smerIdArray)
 {
 	SmerId *ptr=smerIdArray;
@@ -326,11 +328,20 @@ void saSetSliceSmerIds(SmerArray *smerArray, int sliceNum, SmerId *smerIdArray, 
 	// Hacky - needed because smer array retrieval doesn't maintain order
 	qsort(smerEntries, smerCount, sizeof(SmerEntry), smerEntryCompar);
 
-	setSmerArraySliceEntries(smerArraySlice, smerEntries, smerCount);
+	setSmerArraySliceEntries(smerArraySlice, smerEntries, smerCount, 0);
 
 	MemHeap *circHeap=smerArray->heaps[sliceNum>>SMER_DISPATCH_GROUP_SHIFT];
 	mhHeapRegisterTagData(circHeap,sliceNum&SMER_DISPATCH_GROUP_SLICEMASK,smerArraySlice->smerData, smerArraySlice->smerCount);
+}
 
+void saSetSliceSmerEntries(SmerArray *smerArray, int sliceNum, SmerEntry *smerEntries, int smerCount)
+{
+	SmerArraySlice *smerArraySlice=&(smerArray->slice[sliceNum]);
+
+	setSmerArraySliceEntries(smerArraySlice, smerEntries, smerCount, 1);
+
+	MemHeap *circHeap=smerArray->heaps[sliceNum>>SMER_DISPATCH_GROUP_SHIFT];
+	mhHeapRegisterTagData(circHeap,sliceNum&SMER_DISPATCH_GROUP_SLICEMASK,smerArraySlice->smerData, smerArraySlice->smerCount);
 
 }
 

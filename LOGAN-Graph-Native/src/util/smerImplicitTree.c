@@ -44,11 +44,10 @@ static int putEntry(ImplicitTreeLevel *levels, int level, SmerEntry *smerIA, Sme
 	return sameLevel;
 }
 
-SmerEntry *siitInitImplicitTree(SmerEntry *sortedSmers, u32 smerCount)
+
+static void initFromSortedSmers(SmerEntry *smerEntries, SmerEntry *sortedSmers, u32 smerCount)
 {
 	int paddedSmerCount=(smerCount+(NARY-1))&(~(NARY-1));
-
-	SmerEntry *smerEntries=smSmerEntryArrayAlloc(paddedSmerCount);
 
 	int level=0;
 	ImplicitTreeLevel levels[MAX_LEVELS];
@@ -112,6 +111,25 @@ SmerEntry *siitInitImplicitTree(SmerEntry *sortedSmers, u32 smerCount)
 		putEntry(levels, lastLevel, smerEntries, SMER_SLICE_DUMMY);
 		i++;
 	}
+
+}
+
+SmerEntry *siitInitImplicitTree(SmerEntry *smers, u32 smerCount, s32 isSiit)
+{
+	int paddedSmerCount=(smerCount+(NARY-1))&(~(NARY-1));
+
+	SmerEntry *smerEntries=smSmerEntryArrayAlloc(paddedSmerCount);
+
+	if(!isSiit)
+		initFromSortedSmers(smerEntries, smers, smerCount);
+	else
+		{
+		memcpy(smerEntries, smers, smerCount*sizeof(SmerEntry));
+
+		for(int i=smerCount; i<paddedSmerCount;i++)
+			smerEntries[i]=SMER_SLICE_DUMMY;
+		}
+
 
 	return smerEntries;
 }

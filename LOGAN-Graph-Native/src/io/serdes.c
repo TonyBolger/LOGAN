@@ -94,7 +94,7 @@ s64 serWriteSliceNodes(GraphSerdes *serdes, int fd, int sliceNo)
 	SmerArraySlice *slice=&(smerArray->slice[sliceNo]);
 
 	s32 smerCount=slice->smerCount;
-	s64 size=sizeof(SerdesPacketHeader)+sizeof(SerdesPacketNode)+sizeof(SmerId)*smerCount;
+	s64 size=sizeof(SerdesPacketHeader)+sizeof(SerdesPacketNode)+sizeof(SmerEntry)*smerCount;
 
 	u8 *data=dAlloc(serdes->disp, size);
 
@@ -104,7 +104,8 @@ s64 serWriteSliceNodes(GraphSerdes *serdes, int fd, int sliceNo)
 
 	nodePacket->sliceNo=sliceNo;
 	nodePacket->smerCount=smerCount;
-	saGetSliceSmerIds(slice, sliceNo, nodePacket->smers);
+
+	memcpy(nodePacket->smerEntries, slice->smerIT, sizeof(SmerEntry)*smerCount);
 
 	s64 bytes=write(fd, data, size);
 
@@ -153,7 +154,7 @@ s64 serReadNodePacket(GraphSerdes *serdes, int fd)
 
 	SmerArray *smerArray=&(serdes->graph->smerArray);
 
-	saSetSliceSmerIds(smerArray, sliceNum, packetNode->smers, packetNode->smerCount, serdes->disp);
+	saSetSliceSmerEntries(smerArray, sliceNum, packetNode->smerEntries, packetNode->smerCount);
 
 	dispenserReset(serdes->disp);
 

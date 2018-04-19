@@ -262,13 +262,12 @@ int main(int argc, char **argv)
 	writeEdges(graph);
 	writeRoutes(graph);
 
-/*
-	grSwitchMode(graph);
 
-	readNodes(graph);
-	readEdges(graph);
-	readRoutes(graph);
-*/
+	//grSwitchMode(graph);
+
+	//readNodes(graph);
+	//readEdges(graph);
+	//readRoutes(graph);
 
 	//runRptMaster(filePaths, fileCount, threadCountRouting, graph);
 
