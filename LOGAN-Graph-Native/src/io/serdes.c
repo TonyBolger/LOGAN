@@ -641,5 +641,107 @@ s64 serReadRoutes(GraphSerdes *serdes, int fd)
 
 
 
+s64 serWriteNodesToFile(Graph *graph, char *filePath)
+{
+	LOG(LOG_INFO,"Writing Nodes to %s", filePath);
+	int fd=open(filePath, O_CREAT | O_TRUNC | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+
+	GraphSerdes serdes;
+	serInitSerdes(&serdes, graph);
+
+	s64 ret=serWriteNodes(&serdes, fd);
+
+	serCleanupSerdes(&serdes);
+
+	close(fd);
+	return ret;
+}
+
+s64 serWriteEdgesToFile(Graph *graph, char *filePath)
+{
+	LOG(LOG_INFO,"Writing Edges to %s", filePath);
+	int fd=open(filePath, O_CREAT | O_TRUNC | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+
+	GraphSerdes serdes;
+	serInitSerdes(&serdes, graph);
+
+	s64 ret=serWriteEdges(&serdes, fd);
+
+	serCleanupSerdes(&serdes);
+
+	close(fd);
+	return ret;
+}
+
+s64 serWriteRoutesToFile(Graph *graph, char *filePath)
+{
+	LOG(LOG_INFO,"Writing Routes to %s", filePath);
+	int fd=open(filePath, O_CREAT | O_TRUNC | O_WRONLY, S_IRUSR | S_IWUSR);
+
+	GraphSerdes serdes;
+	serInitSerdes(&serdes, graph);
+
+	s64 ret=serWriteRoutes(&serdes, fd);
+
+	serCleanupSerdes(&serdes);
+
+	close(fd);
+	return ret;
+}
+
+s64 serReadNodesFromFile(Graph *graph, char *filePath)
+{
+	LOG(LOG_INFO,"Reading Nodes from %s");
+
+	int fd=open(filePath, O_RDONLY);
+
+	GraphSerdes serdes;
+	serInitSerdes(&serdes, graph);
+
+	u64 ret=serReadNodes(&serdes, fd);
+
+	serCleanupSerdes(&serdes);
+
+	close(fd);
+	return ret;
+}
+
+s64 serReadEdgesFromFile(Graph *graph, char *filePath)
+{
+	LOG(LOG_INFO,"Reading Edges from %s", filePath);
+
+	int fd=open(filePath, O_RDONLY);
+
+	GraphSerdes serdes;
+	serInitSerdes(&serdes, graph);
+
+	u64 ret=serReadEdges(&serdes, fd);
+
+	serCleanupSerdes(&serdes);
+
+	close(fd);
+	return ret;
+}
+
+s64 serReadRoutesFromFile(Graph *graph, char *filePath)
+{
+	LOG(LOG_INFO,"Reading Routes from %s", filePath);
+
+	int fd=open(filePath, O_RDONLY);
+
+	GraphSerdes serdes;
+	serInitSerdes(&serdes, graph);
+
+	u64 ret=serReadNodes(&serdes, fd);
+
+	serCleanupSerdes(&serdes);
+
+	close(fd);
+	return ret;
+}
+
+
+
+
 
 

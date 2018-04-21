@@ -63,23 +63,26 @@ typedef struct serdesPacketRouteTreeStr
 void serInitSerdes(GraphSerdes *serdes, Graph *graph);
 void serCleanupSerdes(GraphSerdes *serdes);
 
-
 s64 serWriteSliceNodes(GraphSerdes *serdes, int fd, int sliceNo);
 s64 serWriteNodes(GraphSerdes *serdes, int fd);
-
 s64 serReadNodes(GraphSerdes *serdes, int fd);
-
 
 s64 serWriteSliceEdges(GraphSerdes *serdes, int fd, int sliceNo);
 s64 serWriteEdges(GraphSerdes *serdes, int fd);
-
 s64 serReadEdges(GraphSerdes *serdes, int fd);
-
 
 s64 serWriteSliceRoutes(GraphSerdes *serdes, int fd, int sliceNo);
 s64 serWriteRoutes(GraphSerdes *serdes, int fd);
-
 s64 serReadRoutes(GraphSerdes *serdes, int fd);
+
+
+s64 serWriteNodesToFile(Graph *graph, char *filePath);
+s64 serWriteEdgesToFile(Graph *graph, char *filePath);
+s64 serWriteRoutesToFile(Graph *graph, char *filePath);
+
+s64 serReadNodesFromFile(Graph *graph, char *filePath);
+s64 serReadEdgesFromFile(Graph *graph, char *filePath);
+s64 serReadRoutesFromFile(Graph *graph, char *filePath);
 
 
 #endif

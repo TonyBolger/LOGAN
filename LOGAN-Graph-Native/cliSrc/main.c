@@ -88,109 +88,6 @@ void runRptMaster(char **filePaths, int fileCount, int threadCount, Graph *graph
 }
 
 
-// static
-void writeNodes(Graph *graph)
-{
-	LOG(LOG_INFO,"Writing Nodes");
-	int fd=open("test.nodes", O_CREAT | O_TRUNC | O_WRONLY, S_IRUSR | S_IWUSR);
-
-	GraphSerdes serdes;
-	serInitSerdes(&serdes, graph);
-
-	serWriteNodes(&serdes, fd);
-
-	serCleanupSerdes(&serdes);
-
-	close(fd);
-}
-
-
-//static
-void writeEdges(Graph *graph)
-{
-	LOG(LOG_INFO,"Writing Edges");
-	int fd=open("test.edges", O_CREAT | O_TRUNC | O_WRONLY, S_IRUSR | S_IWUSR);
-
-	GraphSerdes serdes;
-	serInitSerdes(&serdes, graph);
-
-	serWriteEdges(&serdes, fd);
-
-	serCleanupSerdes(&serdes);
-
-	close(fd);
-}
-
-
-//static
-void writeRoutes(Graph *graph)
-{
-	LOG(LOG_INFO,"Writing Routes");
-	int fd=open("test.routes", O_CREAT | O_TRUNC | O_WRONLY, S_IRUSR | S_IWUSR);
-
-	GraphSerdes serdes;
-	serInitSerdes(&serdes, graph);
-
-	serWriteRoutes(&serdes, fd);
-
-	serCleanupSerdes(&serdes);
-
-	close(fd);
-}
-
-//static
-void readNodes(Graph *graph)
-{
-	LOG(LOG_INFO,"Reading Nodes");
-
-	int fd=open("test.nodes", O_RDONLY);
-
-	GraphSerdes serdes;
-	serInitSerdes(&serdes, graph);
-
-	serReadNodes(&serdes, fd);
-
-	serCleanupSerdes(&serdes);
-
-	close(fd);
-}
-
-//static
-void readEdges(Graph *graph)
-{
-	LOG(LOG_INFO,"Reading Edges");
-
-	int fd=open("test.edges", O_RDONLY);
-
-	GraphSerdes serdes;
-	serInitSerdes(&serdes, graph);
-
-	serReadEdges(&serdes, fd);
-
-	serCleanupSerdes(&serdes);
-
-	close(fd);
-}
-
-//static
-void readRoutes(Graph *graph)
-{
-	LOG(LOG_INFO,"Reading Routes");
-
-	int fd=open("test.routes", O_RDONLY);
-
-	GraphSerdes serdes;
-	serInitSerdes(&serdes, graph);
-
-	serReadRoutes(&serdes, fd);
-
-	serCleanupSerdes(&serdes);
-
-	close(fd);
-}
-
-
-
 
 
 
@@ -258,9 +155,9 @@ int main(int argc, char **argv)
 
 	buildGraphFromSequenceFiles(filePaths, fileCount, graph, threadCountIndexing, threadCountRouting);
 
-	writeNodes(graph);
-	writeEdges(graph);
-	writeRoutes(graph);
+//	writeNodes(graph);
+//	writeEdges(graph);
+//	writeRoutes(graph);
 
 
 	//grSwitchMode(graph);
