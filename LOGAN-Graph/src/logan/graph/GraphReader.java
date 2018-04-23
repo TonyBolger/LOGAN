@@ -13,6 +13,12 @@ public class GraphReader {
 		this.graph.switchMode();
 	}
 	
+	public GraphReader()
+	{
+		this(new GraphConfig());
+	}
+	
+	
 	public long readNodes(File file)
 	{
 		return readNodes_Native(graph.getGraphHandle(), file.getAbsolutePath());

@@ -11,6 +11,11 @@ public class GraphConfig {
 		this.sparseness=sparseness;
 	}
 
+	public GraphConfig()
+	{
+		this(23,23);
+	}
+	
 	public int getNodeSize() {
 		return nodeSize;
 	}
