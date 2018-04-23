@@ -691,7 +691,7 @@ s64 serWriteRoutesToFile(Graph *graph, char *filePath)
 
 s64 serReadNodesFromFile(Graph *graph, char *filePath)
 {
-	LOG(LOG_INFO,"Reading Nodes from %s");
+	LOG(LOG_INFO,"Reading Nodes from %s", filePath);
 
 	int fd=open(filePath, O_RDONLY);
 
@@ -732,7 +732,7 @@ s64 serReadRoutesFromFile(Graph *graph, char *filePath)
 	GraphSerdes serdes;
 	serInitSerdes(&serdes, graph);
 
-	u64 ret=serReadNodes(&serdes, fd);
+	u64 ret=serReadRoutes(&serdes, fd);
 
 	serCleanupSerdes(&serdes);
 

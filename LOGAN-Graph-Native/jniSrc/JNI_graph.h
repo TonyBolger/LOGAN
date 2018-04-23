@@ -15,6 +15,9 @@
 #include <logan_graph_Graph_Mode.h>
 #include <logan_graph_Graph_RouteBuilder.h>
 
+#include <logan_graph_GraphReader.h>
+#include <logan_graph_GraphWriter.h>
+
 typedef struct graphJniStr
 {
 	jclass graphCls;

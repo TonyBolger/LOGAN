@@ -773,7 +773,7 @@ JNIEXPORT void JNICALL Java_logan_graph_Graph_free_1Native(
 	grFreeGraph(graph);
 }
 
-/* logan.graph.Graph: dump: Shows informatino about a Graph instance */
+/* logan.graph.Graph: dump: Shows information about a Graph instance */
 JNIEXPORT void JNICALL Java_logan_graph_Graph_dump_1Native(
 		JNIEnv *env, jobject this, jlong handle)
 {
@@ -785,6 +785,120 @@ JNIEXPORT void JNICALL Java_logan_graph_Graph_dump_1Native(
 }
 
 
+/* logan.graph.GraphReader:
 
+JNIEXPORT jlong JNICALL Java_logan_graph_GraphReader_readNodes_1Native
+  (JNIEnv *, jobject, jlong, jstring);
 
+JNIEXPORT jlong JNICALL Java_logan_graph_GraphReader_readEdges_1Native
+  (JNIEnv *, jobject, jlong, jstring);
+
+JNIEXPORT jlong JNICALL Java_logan_graph_GraphReader_readRoutes_1Native
+  (JNIEnv *, jobject, jlong, jstring);
+
+*/
+
+JNIEXPORT jlong JNICALL Java_logan_graph_GraphReader_readNodes_1Native
+  (JNIEnv *env, jobject this, jlong handle, jstring jPathStr)
+{
+	Graph *graph = (Graph *) handle;
+
+	jsize pathNativeSize=(*env)->GetStringUTFLength(env, jPathStr);
+	jsize pathJavaSize=(*env)->GetStringLength(env, jPathStr);
+	char *path=alloca(pathNativeSize+1);
+	(*env)->GetStringUTFRegion(env, jPathStr, 0, pathJavaSize, path);
+
+	return serReadNodesFromFile(graph, path);
+}
+
+JNIEXPORT jlong JNICALL Java_logan_graph_GraphReader_readEdges_1Native
+  (JNIEnv *env, jobject this, jlong handle, jstring jPathStr)
+{
+	Graph *graph = (Graph *) handle;
+
+	jsize pathNativeSize=(*env)->GetStringUTFLength(env, jPathStr);
+	jsize pathJavaSize=(*env)->GetStringLength(env, jPathStr);
+	char *path=alloca(pathNativeSize+1);
+	(*env)->GetStringUTFRegion(env, jPathStr, 0, pathJavaSize, path);
+
+	return serReadEdgesFromFile(graph, path);
+}
+
+JNIEXPORT jlong JNICALL Java_logan_graph_GraphReader_readRoutes_1Native
+  (JNIEnv *env, jobject this, jlong handle, jstring jPathStr)
+{
+	Graph *graph = (Graph *) handle;
+
+	jsize pathNativeSize=(*env)->GetStringUTFLength(env, jPathStr);
+	jsize pathJavaSize=(*env)->GetStringLength(env, jPathStr);
+	char *path=alloca(pathNativeSize+1);
+	(*env)->GetStringUTFRegion(env, jPathStr, 0, pathJavaSize, path);
+
+	return serReadRoutesFromFile(graph, path);
+}
+
+/* logan.graph.GraphWriter:
+ JNIEXPORT jlong JNICALL Java_logan_graph_GraphWriter_writeNodes_1Native
+  (JNIEnv *, jobject, jlong, jstring);
+
+JNIEXPORT jlong JNICALL Java_logan_graph_GraphWriter_writeEdges_1Native
+  (JNIEnv *, jobject, jlong, jstring);
+
+JNIEXPORT jlong JNICALL Java_logan_graph_GraphWriter_writeRoutes_1Native
+  (JNIEnv *, jobject, jlong, jstring);
+
+int jstr_to_cstr(JNIEnv *jenv, jstring jstr, char *cstr,
+    size_t cstr_len)
+{
+    int32_t jlen, clen;
+
+    clen = (*jenv)->GetStringUTFLength(jenv, jstr);
+    if (clen > (int32_t)cstr_len)
+        return -ENAMETOOLONG;
+    jlen = (*jenv)->GetStringLength(jenv, jstr);
+    (*jenv)->GetStringUTFRegion(jenv, jstr, 0, jlen, cstr);
+    if ((*jenv)->ExceptionCheck(jenv))
+        return -EIO;
+    return 0;
+}
+*/
+
+JNIEXPORT jlong JNICALL Java_logan_graph_GraphWriter_writeNodes_1Native
+  (JNIEnv *env, jobject this, jlong handle, jstring jPathStr)
+{
+	Graph *graph = (Graph *) handle;
+
+	jsize pathNativeSize=(*env)->GetStringUTFLength(env, jPathStr);
+	jsize pathJavaSize=(*env)->GetStringLength(env, jPathStr);
+	char *path=alloca(pathNativeSize+1);
+	(*env)->GetStringUTFRegion(env, jPathStr, 0, pathJavaSize, path);
+
+	return serWriteNodesToFile(graph, path);
+}
+
+JNIEXPORT jlong JNICALL Java_logan_graph_GraphWriter_writeEdges_1Native
+  (JNIEnv *env, jobject this, jlong handle, jstring jPathStr)
+{
+	Graph *graph = (Graph *) handle;
+
+	jsize pathNativeSize=(*env)->GetStringUTFLength(env, jPathStr);
+	jsize pathJavaSize=(*env)->GetStringLength(env, jPathStr);
+	char *path=alloca(pathNativeSize+1);
+	(*env)->GetStringUTFRegion(env, jPathStr, 0, pathJavaSize, path);
+
+	return serWriteEdgesToFile(graph, path);
+}
+
+JNIEXPORT jlong JNICALL Java_logan_graph_GraphWriter_writeRoutes_1Native
+  (JNIEnv *env, jobject this, jlong handle, jstring jPathStr)
+{
+	Graph *graph = (Graph *) handle;
+
+	jsize pathNativeSize=(*env)->GetStringUTFLength(env, jPathStr);
+	jsize pathJavaSize=(*env)->GetStringLength(env, jPathStr);
+	char *path=alloca(pathNativeSize+1);
+	(*env)->GetStringUTFRegion(env, jPathStr, 0, pathJavaSize, path);
+
+	return serWriteRoutesToFile(graph, path);
+}
 

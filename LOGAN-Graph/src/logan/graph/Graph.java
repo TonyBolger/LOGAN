@@ -31,6 +31,11 @@ public class Graph {
 		graphHandle = alloc_Native(config.getNodeSize(),config.getSparseness());
 	}
 
+	long getGraphHandle()
+	{
+		return graphHandle;
+	}
+	
 	public GraphConfig getConfig()
 	{
 		return config;

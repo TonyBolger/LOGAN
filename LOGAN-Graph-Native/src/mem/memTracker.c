@@ -22,8 +22,10 @@ char *MEMTRACKER_NAMES[MEMTRACKID_SIZE]=
 
 void mtInit()
 {
+#ifdef FEATURE_ENABLE_MEMTRACK
 	for(int i=0;i<MEMTRACKID_SIZE;i++)
 		__atomic_store_n(allocated+i, 0, __ATOMIC_SEQ_CST);
+#endif
 }
 
 void mtTrackAlloc(size_t size, s16 memTrackerId)
@@ -38,6 +40,7 @@ void mtTrackFree(size_t size, s16 memTrackerId)
 
 void mtDump()
 {
+#ifdef FEATURE_ENABLE_MEMTRACK
 	long total=0;
 	LOG(LOG_INFO,"MemTracker Dump: Begin");
 	for(int i=0;i<MEMTRACKID_SIZE;i++)
@@ -48,4 +51,5 @@ void mtDump()
 		}
 
 	LOG(LOG_INFO,"MemTracker Dump: TOTAL USAGE: %li (%liM)", total, (total>>20));
+#endif
 }

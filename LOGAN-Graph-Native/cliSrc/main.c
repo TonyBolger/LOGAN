@@ -91,7 +91,7 @@ void runRptMaster(char **filePaths, int fileCount, int threadCount, Graph *graph
 
 
 
-
+/*
 
 //static
 void buildGraphFromSequenceFiles(char **filePaths, int fileCount, Graph *graph, int threadCountIndexing, int threadCountRouting)
@@ -123,56 +123,252 @@ void buildGraphFromSequenceFiles(char **filePaths, int fileCount, Graph *graph, 
 #endif
 
 }
+*/
+
+
+/*
+
+	Index indexingThreads graph files...
+	Route routingThreads graph files...
+	IndexAndRoute indexingThreads routingThreads graph files...
+
+	TestIndex indexingThreads files...
+	TestRoute routingThreads graph files...
+	TestIndexAndRoute indexingThreads routingThreads files...
+
+*/
 
 
 int main(int argc, char **argv)
 {
 	logInit();
 
-	// argv[1] = IndexingThreads
-	// argv[2] = RoutingThreads
-	// argv[3..] = Files
+	int argsOK=1;
 
-	if(argc<3)
+	int threadCountIndexing=0;
+	int threadCountRouting=0;
+
+	int filePathOffset=1;
+	char *inGraphBase=NULL;
+	char *outGraphBase=NULL;
+
+	int doIndex=0;
+	int doReadNodes=0;
+	int doReadEdges=0;
+	int doReadRoutes=0;
+	int doRoute=0;
+
+	int doWriteNodes=0;
+	int doWriteEdges=0;
+	int doWriteRoutes=0;
+
+	if(argc>=2)
 		{
-		LOG(LOG_CRITICAL,"Expected arguments: indexingThreads routingThreads files...");
-		return 1;
+		char *command=argv[1];
+
+		if(!strcmp(command,"Index") && argc>4)
+			{
+			threadCountIndexing=atoi(argv[2]);
+			outGraphBase=argv[3];
+			filePathOffset=4;
+
+			doIndex=1;
+			doWriteNodes=1;
+			}
+		else if(!strcmp(command,"Route") && argc>4)
+			{
+			threadCountRouting=atoi(argv[2]);
+			inGraphBase=argv[3];
+			outGraphBase=argv[3];
+			filePathOffset=4;
+
+			doReadNodes=1;
+			doRoute=1;
+			doWriteEdges=1;
+			doWriteRoutes=1;
+			}
+		else if(!strcmp(command,"IndexAndRoute") && argc>5)
+			{
+			threadCountIndexing=atoi(argv[2]);
+			threadCountRouting=atoi(argv[3]);
+			outGraphBase=argv[4];
+			filePathOffset=5;
+
+			doIndex=1;
+			doWriteNodes=1;
+			doRoute=1;
+			doWriteEdges=1;
+			doWriteRoutes=1;
+			}
+
+		else if(!strcmp(command,"TestIndex") && argc>3)
+			{
+			threadCountIndexing=atoi(argv[2]);
+			filePathOffset=3;
+
+			doIndex=1;
+			}
+		else if(!strcmp(command,"TestRoute") && argc>4)
+			{
+			threadCountRouting=atoi(argv[2]);
+			inGraphBase=argv[3];
+			filePathOffset=4;
+
+			doReadNodes=1;
+			doRoute=1;
+			}
+		else if(!strcmp(command,"TestIndexAndRoute") && argc>4)
+			{
+			threadCountIndexing=atoi(argv[2]);
+			threadCountRouting=atoi(argv[3]);
+			filePathOffset=4;
+
+			doIndex=1;
+			doRoute=1;
+			}
+		else if(!strcmp(command,"ReadGraph") && argc==2)
+			{
+			inGraphBase=argv[2];
+
+			doReadNodes=1;
+			doReadEdges=1;
+			doReadRoutes=1;
+			}
+		else
+			{
+			LOG(LOG_INFO,"Invalid command (%s) / arguments (%i)", argv[1], argc);
+			}
+		}
+	else
+		{
+		LOG(LOG_INFO,"Insufficient arguments (%i)", argc);
+		argsOK=0;
 		}
 
-#ifdef FEATURE_ENABLE_MEMTRACK
+	if(!argsOK)
+		{
+		LOGN(LOG_INFO,"Expected one of:", argc);
+
+		LOGN(LOG_INFO,"\tIndex <indexingThreads> <graph> <seqFiles>...");
+		LOGN(LOG_INFO,"\tRoute <routingThreads> <graph> <seqFiles>...");
+		LOGN(LOG_INFO,"\tIndexAndRoute <indexingThreads> <routingThreads> <graph> <seqFiles>...");
+
+		LOGN(LOG_INFO,"\tTestIndex <indexingThreads> <seqFiles>...");
+		LOGN(LOG_INFO,"\tTestRoute <routingThreads> <graph> <seqFiles>...");
+		LOGN(LOG_INFO,"\tTestIndexAndRoute <indexingThreads> <routingThreads> <seqFiles>...");
+
+		LOGN(LOG_INFO,"\tReadGraph <graph>");
+
+		exit(1);
+		}
+
+	char **filePaths=argv+filePathOffset;
+	int fileCount=argc-filePathOffset;
+
 	mtInit();
 	mtDump();
-#endif
 
 	Graph *graph=grAllocGraph(23,23,NULL);
+	mtDump();
+
+	if(doIndex)
+		{
+		runIptMaster(filePaths, fileCount, threadCountIndexing, graph);
+		mtDump();
+		}
+
+	grSwitchMode(graph);
+	mtDump();
+
+	if(doReadNodes)
+		{
+		char *path=alloca(strlen(inGraphBase)+6);
+		strcpy(path, inGraphBase);
+		strcat(path, ".nodes");
+
+		LOG(LOG_INFO, "Read Nodes from %s",path);
+
+		serReadNodesFromFile(graph, path);
+
+		mtDump();
+		}
+
+	if(doReadEdges)
+		{
+		char *path=alloca(strlen(inGraphBase)+6);
+		strcpy(path, inGraphBase);
+		strcat(path, ".edges");
+
+		LOG(LOG_INFO, "Read Edges from %s",path);
+
+		serReadEdgesFromFile(graph, path);
+
+		mtDump();
+		}
+
+	if(doReadRoutes)
+		{
+		char *path=alloca(strlen(inGraphBase)+7);
+		strcpy(path, inGraphBase);
+		strcat(path, ".routes");
+
+		LOG(LOG_INFO, "Read Routes from %s",path);
+
+		serReadRoutesFromFile(graph, path);
+
+		mtDump();
+		}
+
+	if(doWriteNodes)
+		{
+		char *path=alloca(strlen(outGraphBase)+6);
+		strcpy(path, outGraphBase);
+		strcat(path, ".nodes");
+
+		LOG(LOG_INFO, "Write Nodes to %s",path);
+
+		serWriteNodesToFile(graph, path);
+
+		mtDump();
+		}
+
+	if(doRoute)
+		{
+		runRptMaster(filePaths, fileCount, threadCountRouting, graph);
+		mtDump();
+		}
+
+	if(doWriteEdges)
+		{
+		char *path=alloca(strlen(outGraphBase)+6);
+		strcpy(path, outGraphBase);
+		strcat(path, ".edges");
+
+		LOG(LOG_INFO, "Write Edges to %s",path);
+
+		serWriteEdgesToFile(graph, path);
+
+		mtDump();
+		}
+
+	if(doWriteRoutes)
+		{
+		char *path=alloca(strlen(outGraphBase)+7);
+		strcpy(path, outGraphBase);
+		strcat(path, ".routes");
+
+		LOG(LOG_INFO, "Write Routes to %s",path);
+
+		serWriteRoutesToFile(graph, path);
+
+		mtDump();
+		}
 
 
-	int threadCountIndexing=atoi(argv[1]);
-	int threadCountRouting=atoi(argv[2]);
-
-	char **filePaths=argv+3;
-	int fileCount=argc-3;
-
-	buildGraphFromSequenceFiles(filePaths, fileCount, graph, threadCountIndexing, threadCountRouting);
-
-//	writeNodes(graph);
-//	writeEdges(graph);
-//	writeRoutes(graph);
-
-
-	//grSwitchMode(graph);
-
-	//readNodes(graph);
-	//readEdges(graph);
-	//readRoutes(graph);
-
-	//runRptMaster(filePaths, fileCount, threadCountRouting, graph);
 
 	grFreeGraph(graph);
 
-#ifdef FEATURE_ENABLE_MEMTRACK
 	mtDump();
-#endif
 
 	return 0;
 }
