@@ -69,6 +69,8 @@ static int getSizeIndex(int suggestedSizeIndex, int minSize)
 		{
 		LOG(LOG_CRITICAL, "Attempt to allocate PackStack beyond maximum size %i (%i vs %i)",
 				PACKSTACK_SIZES[PACKSTACK_SIZE_NUM-1],PACKSTACK_SIZE_NUM-1,suggestedSizeIndex);
+
+		return 0;
 		}
 
 	return suggestedSizeIndex;
