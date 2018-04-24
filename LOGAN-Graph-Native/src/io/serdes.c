@@ -676,7 +676,7 @@ s64 serWriteEdgesToFile(Graph *graph, char *filePath)
 s64 serWriteRoutesToFile(Graph *graph, char *filePath)
 {
 	LOG(LOG_INFO,"Writing Routes to %s", filePath);
-	int fd=open(filePath, O_CREAT | O_TRUNC | O_WRONLY, S_IRUSR | S_IWUSR);
+	int fd=open(filePath, O_CREAT | O_TRUNC | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
 	GraphSerdes serdes;
 	serInitSerdes(&serdes, graph);

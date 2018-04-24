@@ -226,7 +226,7 @@ int main(int argc, char **argv)
 			doIndex=1;
 			doRoute=1;
 			}
-		else if(!strcmp(command,"ReadGraph") && argc==2)
+		else if(!strcmp(command,"ReadGraph") && argc==3)
 			{
 			inGraphBase=argv[2];
 

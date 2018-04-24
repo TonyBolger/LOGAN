@@ -3032,6 +3032,7 @@ u64 rtSetRouteTableTreeData(SmerArray *smerArray, SmerId smerId, u8 *leafData, u
 		routingBuilder.rootPtr=smerArray->slice[sliceNum].smerData+index;
 		routingBuilder.sliceIndex=index;
 		routingBuilder.sliceTag=sliceTag;
+		routingBuilder.smer=smerId;
 
 		createBuildersFromDirectData(&routingBuilder);
 
